@@ -6,7 +6,10 @@ namespace Neos\ContentRepository\StructureAdjustment;
 
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
+use Neos\ContentRepository\Core\EventStore\DecoratedEvent;
+use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
+use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
 use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
@@ -22,7 +25,8 @@ use Neos\ContentRepository\StructureAdjustment\Adjustment\StructureAdjustment;
 use Neos\ContentRepository\StructureAdjustment\Adjustment\TetheredNodeAdjustments;
 use Neos\ContentRepository\StructureAdjustment\Adjustment\UnknownNodeTypeAdjustment;
 use Neos\EventStore\EventStoreInterface;
-use Neos\EventStore\Model\Events;
+use Neos\EventStore\Model\Event\EventId;
+use Neos\EventStore\Model\Event\EventMetadata;
 
 class StructureAdjustmentService implements ContentRepositoryServiceInterface
 {
@@ -109,8 +113,16 @@ class StructureAdjustmentService implements ContentRepositoryServiceInterface
         $remediation = $adjustment->remediation;
         $eventsToPublish = $remediation();
         assert($eventsToPublish instanceof EventsToPublish);
-        $normalizedEvents = Events::fromArray(
-            $eventsToPublish->events->map($this->eventNormalizer->normalize(...))
+
+        $eventsWithMetaData = self::eventsWithCausationOfFirstEventAndAdditionalMetaData(
+            $eventsToPublish->events,
+            EventMetadata::fromArray([
+                'structureAdjustment' => mb_strimwidth($adjustment->render() , 0, 250, '…')
+            ])
+        );
+
+        $normalizedEvents = \Neos\EventStore\Model\Events::fromArray(
+            $eventsWithMetaData->map($this->eventNormalizer->normalize(...))
         );
         $this->eventStore->commit(
             $eventsToPublish->streamName,
@@ -118,5 +130,25 @@ class StructureAdjustmentService implements ContentRepositoryServiceInterface
             $eventsToPublish->expectedVersion
         );
         $this->subscriptionEngine->catchUpActive();
+    }
+
+    private static function eventsWithCausationOfFirstEventAndAdditionalMetaData(Events $events, EventMetadata $metadata): Events
+    {
+        /** @var non-empty-list<EventInterface|DecoratedEvent> $restEvents */
+        $restEvents = iterator_to_array($events);
+        $firstEvent = array_shift($restEvents);
+
+        if ($firstEvent instanceof DecoratedEvent && $firstEvent->eventMetadata) {
+            $metadata = EventMetadata::fromArray(array_merge($firstEvent->eventMetadata->value, $metadata->value));
+        }
+
+        $decoratedFirstEvent = DecoratedEvent::create($firstEvent, eventId: EventId::create(), metadata: $metadata);
+
+        $decoratedRestEvents = [];
+        foreach ($restEvents as $event) {
+            $decoratedRestEvents[] = DecoratedEvent::create($event, causationId: $decoratedFirstEvent->eventId);
+        }
+
+        return Events::fromArray([$decoratedFirstEvent, ...$decoratedRestEvents]);
     }
 }
