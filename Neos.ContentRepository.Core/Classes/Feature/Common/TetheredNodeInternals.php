@@ -160,7 +160,7 @@ trait TetheredNodeInternals
             $contentGraph,
             $childNodeSource->originDimensionSpacePoint,
             $originDimensionSpacePoint,
-            $parentNodeAggregate
+            $childNodeAggregate
         );
     }
 
