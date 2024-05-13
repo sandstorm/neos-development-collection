@@ -147,17 +147,17 @@ trait TetheredNodeInternals
                 'TODO: We found a child node aggregate through the given node path; but it is not tethered.'
                     . ' We do not support re-tethering yet'
                     . ' (as this case should happen very rarely as far as we think).',
-                    1711897665
+                1711897665
             );
         }
 
         $occupiedDimensionSpacePoints = $childNodeAggregate->occupiedDimensionSpacePoints->getPoints();
-            assert($occupiedDimensionSpacePoints !== []);
-            $arbitraryOccupiedDimensionSpacePoint = array_shift($occupiedDimensionSpacePoints);
+        assert($occupiedDimensionSpacePoints !== []);
+        $arbitraryOccupiedDimensionSpacePoint = array_shift($occupiedDimensionSpacePoints);
 
-            return $this->createEventsForVariations(
-                $contentGraph,
-                $arbitraryOccupiedDimensionSpacePoint,
+        return $this->createEventsForVariations(
+            $contentGraph,
+            $arbitraryOccupiedDimensionSpacePoint,
             $originDimensionSpacePoint,
             $childNodeAggregate
         );
