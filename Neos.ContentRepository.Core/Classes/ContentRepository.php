@@ -224,11 +224,7 @@ final readonly class ContentRepository
      */
     public function getContentGraph(WorkspaceName $workspaceName): ContentGraphInterface
     {
-        $workspace = $this->contentGraphReadModel->findWorkspaceByName($workspaceName);
-        if ($workspace === null) {
-            throw WorkspaceDoesNotExist::butWasSupposedTo($workspaceName);
-        }
-        return $this->contentGraphReadModel->buildContentGraph($workspaceName, $workspace->currentContentStreamId);
+        return $this->contentGraphReadModel->getContentGraph($workspaceName);
     }
 
     /**
