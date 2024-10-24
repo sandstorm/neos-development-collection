@@ -17,6 +17,7 @@ use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasD
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPartiallyDiscarded;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPartiallyPublished;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPublished;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Event\WorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Event\WorkspaceWasRebased;
 use Neos\ContentRepository\Core\Service\ContentStreamPruner\ContentStreamForPruning;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
@@ -237,6 +238,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
                     EventType::fromString('WorkspaceWasPartiallyPublished'),
                     EventType::fromString('WorkspaceWasPublished'),
                     EventType::fromString('WorkspaceWasRebased'),
+                    EventType::fromString('WorkspaceRebaseFailed'),
                     // we don't need to track WorkspaceWasRemoved as a ContentStreamWasRemoved event would be emitted before
                 )
             )
@@ -299,6 +301,13 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
                     if (isset($status[$domainEvent->previousContentStreamId->value])) {
                         $status[$domainEvent->previousContentStreamId->value] = $status[$domainEvent->previousContentStreamId->value]
                             ->withStatus(ContentStreamStatus::NO_LONGER_IN_USE);
+                    }
+                    break;
+                case WorkspaceRebaseFailed::class:
+                    // legacy handling, as we previously kept failed candidateContentStreamId we make it behave like a ContentStreamWasRemoved event to clean up:
+                    if (isset($status[$domainEvent->candidateContentStreamId->value])) {
+                        $status[$domainEvent->candidateContentStreamId->value] = $status[$domainEvent->candidateContentStreamId->value]
+                            ->withRemoved();
                     }
                     break;
                 default:
