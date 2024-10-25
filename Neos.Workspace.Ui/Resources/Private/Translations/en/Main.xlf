@@ -296,6 +296,9 @@
       <trans-unit id="workspaces.workspaceHasBeenCreated">
         <source>The workspace "{0}" has been created.</source>
       </trans-unit>
+      <trans-unit id="workspaces.changedTags" xml:space="preserve">
+				<source>New element status</source>
+			</trans-unit>
     </body>
   </file>
 </xliff>

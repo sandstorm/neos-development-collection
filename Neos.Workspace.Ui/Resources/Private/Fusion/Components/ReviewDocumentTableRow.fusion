@@ -15,7 +15,7 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
       action = 'rebaseAndRedirect'
       arguments {
         targetWorkspaceName = ${selectedWorkspaceName}
-        targetNode = ${document.documentNodeAddress}
+        targetNode = ${document.document.documentNodeAddress}
 
       }
     }
@@ -25,14 +25,14 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
       controller='Frontend\\\Node'
       action = 'preview'
       // todo fixme
-      @process.addQuery = ${value + '?node=' + document.documentNodeAddress}
+      @process.addQuery = ${value + '?node=' + document.document.documentNodeAddress}
 
     }
     discardDocumentAction = Neos.Fusion:ActionUri {
       action = 'discardDocument'
       format = 'json'
       arguments {
-        nodeAddress = ${document.documentNodeAddress}
+        nodeAddress = ${document.document.documentNodeAddress}
         selectedWorkspace = ${selectedWorkspaceName}
       }
     }
@@ -40,7 +40,7 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
       action = 'publishDocument'
       format = 'json'
       arguments {
-        nodeAddress = ${document.documentNodeAddress}
+        nodeAddress = ${document.document.documentNodeAddress}
         selectedWorkspace = ${selectedWorkspaceName}
       }
     }
@@ -48,7 +48,7 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
   }
 
   renderer = afx`
-    <tr class="neos-document" data-nodepath={documentPath} data-ismoved={document.isMoved} data-isnew={document.isNew}>
+    <tr class="neos-document">
       <td>
         <div class="toggle-document neos-button">
           <i class="fas icon-white fa-chevron-down"></i>
@@ -56,14 +56,20 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
       </td>
       <td>
         <div class="neos-button">
-          <label for={"check-document-" + document.aggregateId} class="neos-checkbox">
-            <input type="checkbox" class="check-document" id={"check-document-" + document.aggregateId} /><span></span>
+          <label for={"check-document-" + document.document.aggregateId} class="neos-checkbox">
+            <input type="checkbox" class="check-document" id={"check-document-" + document.document.aggregateId} /><span></span>
           </label>
         </div>
       </td>
       <td class="document-details">
-        <Neos.Fusion:Loop items={document.documentBreadCrumb} itemName="crumb">
-          <Neos.Workspace.Ui:Component.Icon icon="fas fa-caret-right" @if.notFirst={!iterator.isFirst} /><span>{crumb}</span>
+        <Neos.Fusion:Loop items={document.document.documentBreadCrumb} itemName="crumb">
+          <Neos.Workspace.Ui:Component.Icon icon="fas fa-caret-right" @if.notFirst={!iterator.isFirst} />
+          <span>
+            <span class="node-icons" @if.hasIcon={document.document.documentIcon} @if.isLast={iterator.isLast}>
+                <Neos.Workspace.Ui:Component.Icon icon={document.document.documentIcon} />
+                <i @if.nodeIsHidden={document.documentChanges.isHidden} class="icon-red fa-solid fa-circle-xmark"></i>
+            </span>
+            {crumb}</span>
         </Neos.Fusion:Loop>
       </td>
       <td class="document-actions">
@@ -91,7 +97,7 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
            target="_blank"
            title={private.i18n.id('edit')}
            class="neos-button neos-button-primary"
-           @if.notRemoved={!document.isDeleted}>
+           @if.notRemoved={!document.documentChanges.isRemoved}>
           <Neos.Workspace.Ui:Component.Icon icon="fas fa-pencil-alt" />
         </a>
         <a href={private.openNodeInPreviewAction}

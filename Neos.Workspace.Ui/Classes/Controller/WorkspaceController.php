@@ -39,7 +39,6 @@ use Neos\Diff\Diff;
 use Neos\Diff\Renderer\Html\HtmlArrayRenderer;
 use Neos\Error\Messages\Message;
 use Neos\Flow\Annotations as Flow;
-use Neos\Flow\Exception as FlowException;
 use Neos\Flow\I18n\Exception\IndexOutOfBoundsException;
 use Neos\Flow\I18n\Exception\InvalidFormatPlaceholderException;
 use Neos\Flow\I18n\Translator;
@@ -69,7 +68,19 @@ use Neos\Neos\Domain\Service\WorkspaceService;
 use Neos\Neos\FrontendRouting\NodeUriBuilderFactory;
 use Neos\Neos\FrontendRouting\SiteDetection\SiteDetectionResult;
 use Neos\Neos\PendingChangesProjection\ChangeFinder;
+use Neos\Neos\PendingChangesProjection\Changes;
 use Neos\Neos\Utility\NodeTypeWithFallbackProvider;
+use Neos\Workspace\Ui\ViewModel\ChangeItem;
+use Neos\Workspace\Ui\ViewModel\ContentChangeItem;
+use Neos\Workspace\Ui\ViewModel\ContentChangeItems;
+use Neos\Workspace\Ui\ViewModel\ContentChangeProperties;
+use Neos\Workspace\Ui\ViewModel\ContentChanges\ImageContentChange;
+use Neos\Workspace\Ui\ViewModel\ContentChanges\TextContentChange;
+use Neos\Workspace\Ui\ViewModel\ContentChanges\AssetContentChange;
+use Neos\Workspace\Ui\ViewModel\ContentChanges\DateTimeContentChange;
+use Neos\Workspace\Ui\ViewModel\ContentChanges\TagContentChange;
+use Neos\Workspace\Ui\ViewModel\DocumentChangeItem;
+use Neos\Workspace\Ui\ViewModel\DocumentItem;
 use Neos\Workspace\Ui\ViewModel\EditWorkspaceFormData;
 use Neos\Workspace\Ui\ViewModel\EditWorkspaceRoleAssignment;
 use Neos\Workspace\Ui\ViewModel\PendingChanges;
@@ -704,24 +715,20 @@ class WorkspaceController extends AbstractModuleController
 
     /**
      * Computes the number of added, changed and removed nodes for the given workspace
+     *
+     * @param Workspace $selectedWorkspace
+     * @param ContentRepository $contentRepository
+     * @return PendingChanges
      */
     protected function computePendingChanges(Workspace $selectedWorkspace, ContentRepository $contentRepository): PendingChanges
     {
         $changesCount = ['new' => 0, 'changed' => 0, 'removed' => 0];
-        foreach ($this->computeSiteChanges($selectedWorkspace, $contentRepository) as $siteChanges) {
-            foreach ($siteChanges['documents'] as $documentChanges) {
-                foreach ($documentChanges['changes'] as $change) {
-                    if ($change['isRemoved'] === true) {
-                        $changesCount['removed']++;
-                    } elseif ($change['isNew']) {
-                        $changesCount['new']++;
-                    } else {
-                        $changesCount['changed']++;
-                    }
-                }
-            }
+        foreach($this->getChangesFromWorkspace($selectedWorkspace, $contentRepository) as $change) {
+            if($change->deleted) $changesCount['removed']++;
+            elseif($change->created) $changesCount['new']++;
+            else $changesCount['changed']++;
         }
-        return new PendingChanges(new: $changesCount['new'], changed: $changesCount['changed'], removed: $changesCount['removed']);
+        return new PendingChanges(new: $changesCount['new'], changed: $changesCount['changed'], removed:$changesCount['removed']);
     }
 
     /**
@@ -731,11 +738,7 @@ class WorkspaceController extends AbstractModuleController
     protected function computeSiteChanges(Workspace $selectedWorkspace, ContentRepository $contentRepository): array
     {
         $siteChanges = [];
-        $changes = $contentRepository->projectionState(ChangeFinder::class)
-            ->findByContentStreamId(
-                $selectedWorkspace->currentContentStreamId
-            );
-
+        $changes = $this->getChangesFromWorkspace($selectedWorkspace, $contentRepository);
         foreach ($changes as $change) {
             $workspaceName = $selectedWorkspace->workspaceName;
             if ($change->deleted) {
@@ -786,6 +789,7 @@ class WorkspaceController extends AbstractModuleController
 
                 // Neither $documentNode, $siteNode or its cannot really be null, this is just for type checks;
                 // We should probably throw an exception though
+
                 if ($documentNode !== null && $siteNode !== null && $siteNode->name) {
                     $siteNodeName = $siteNode->name->value;
                     // Reverse `$documentPathSegments` to start with the site node.
@@ -811,26 +815,30 @@ class WorkspaceController extends AbstractModuleController
                         )
                     );
 
-                    if (!isset($siteChanges[$siteNodeName]['siteNode'])) {
-                        $siteChanges[$siteNodeName]['siteNode']
-                            = $this->siteRepository->findOneByNodeName(SiteNodeName::fromString($siteNodeName));
+                    if(!isset($siteChanges[$siteNodeName]['documents'][$documentPath]['document'])) {
+                        $documentNodeAddress = NodeAddress::create(
+                            $contentRepository->id,
+                            $selectedWorkspace->workspaceName,
+                            $documentNode->originDimensionSpacePoint->toDimensionSpacePoint(),
+                            $documentNode->aggregateId
+                        );
+                        $documentType = $contentRepository->getNodeTypeManager()->getNodeType($documentNode->nodeTypeName);
+                        $siteChanges[$siteNodeName]['documents'][$documentPath]['document'] = new DocumentItem(
+                            documentBreadCrumb: array_reverse($documentPathSegmentsNames),
+                            aggregateId: $documentNodeAddress->aggregateId->value,
+                            documentNodeAddress: $documentNodeAddress->toJson(),
+                            documentIcon: $documentType->getFullConfiguration()['ui']['icon']
+                        );
                     }
-                    $documentNodeAddress = NodeAddress::create(
-                        $contentRepository->id,
-                        $selectedWorkspace->workspaceName,
-                        $documentNode->originDimensionSpacePoint->toDimensionSpacePoint(),
-                        $documentNode->aggregateId
-                    );
-                    $siteChanges[$siteNodeName]['documents'][$documentPath]['documentNode'] = $documentNode;
-                    $siteChanges[$siteNodeName]['documents'][$documentPath]['documentBreadCrumb'] = array_reverse($documentPathSegmentsNames);
-                    $siteChanges[$siteNodeName]['documents'][$documentPath]['aggregateId'] = $documentNodeAddress->aggregateId;
-                    $siteChanges[$siteNodeName]['documents'][$documentPath]['documentNodeAddress'] = $documentNodeAddress->toJson();
 
                     // We need to set `isNew` and `isMoved` on document level to make our JS behave as before.
                     if ($documentNode->equals($node)) {
-                        $siteChanges[$siteNodeName]['documents'][$documentPath]['isNew'] = $change->created;
-                        $siteChanges[$siteNodeName]['documents'][$documentPath]['isMoved'] = $change->moved;
-                        $siteChanges[$siteNodeName]['documents'][$documentPath]['isDeleted'] = $change->deleted;
+                        $siteChanges[$siteNodeName]['documents'][$documentPath]['documentChanges'] = new DocumentChangeItem(
+                            isRemoved: $change->deleted,
+                            isNew: $change->created,
+                            isMoved: $change->moved,
+                            isHidden: $documentNode->tags->contain(SubtreeTag::disabled()),
+                        );
                     }
 
                     // As for changes of type `delete` we are using nodes from the live workspace
@@ -848,26 +856,26 @@ class WorkspaceController extends AbstractModuleController
                         $contentDimension = new ContentDimensionId($id);
                         $dimensions[] = $contentRepository->getContentDimensionSource()->getDimension($contentDimension)->getValue($coordinate)->configuration['label'];
                     }
-                    $change = [
-                        'serializedNodeAddress' => $nodeAddress->toJson(),
-                        'hidden' => $node->tags->contain(SubtreeTag::disabled()),
-                        'isRemoved' => $change->deleted,
-                        'isNew' => $change->created,
-                        'isMoved' => $change->moved,
-                        'dimensions' => $dimensions,
-                        'lastModificationDateTime' => $node->timestamps->lastModified,
-                        'label' =>  $this->nodeLabelGenerator->getLabel($node),
-                        'icon' => $nodeType->getFullConfiguration()['ui']['icon'],
-                        'contentChanges' => $this->renderContentChanges(
+                    $siteChanges[$siteNodeName]['documents'][$documentPath]['changes'][$relativePath] = new ChangeItem (
+                        serializedNodeAddress: $nodeAddress->toJson(),
+                        hidden: $node->tags->contain(SubtreeTag::disabled()),
+                        isRemoved: $change->deleted,
+                        isNew: $change->created,
+                        isMoved: $change->moved,
+                        dimensions: $dimensions,
+                        lastModificationDateTime: $node->timestamps->lastModified?->format('Y-m-d H:i'),
+                        createdDateTime: $node->timestamps->created?->format('Y-m-d H:i'),
+                        label: $this->nodeLabelGenerator->getLabel($node),
+                        icon: $nodeType->getFullConfiguration()['ui']['icon'],
+                        contentChanges: $this->renderContentChanges(
                             $node,
                             $change->contentStreamId,
                             $contentRepository
                         )
-                    ];
-                    $siteChanges[$siteNodeName]['documents'][$documentPath]['changes'][$relativePath] = $change;
+                    );
                 }
-                $siteChanges[$siteNodeName]['documents'][$documentPath]['changesCount'] = count($siteChanges[$siteNodeName]['documents'][$documentPath]['changes']);
             }
+
         }
 
         ksort($siteChanges);
@@ -906,7 +914,7 @@ class WorkspaceController extends AbstractModuleController
         Node $changedNode,
         ContentStreamId $contentStreamIdOfOriginalNode,
         ContentRepository $contentRepository,
-    ): array {
+    ): ContentChangeItems {
         $currentWorkspace = $contentRepository->findWorkspaces()->find(
             fn (Workspace $potentialWorkspace) => $potentialWorkspace->currentContentStreamId->equals($contentStreamIdOfOriginalNode)
         );
@@ -916,12 +924,23 @@ class WorkspaceController extends AbstractModuleController
             $originalNode = $this->getOriginalNode($changedNode, $baseWorkspace->workspaceName, $contentRepository);
         }
 
-
         $contentChanges = [];
 
         $changeNodePropertiesDefaults = $this->getNodeType($changedNode)->getDefaultValuesForProperties();
 
         $renderer = new HtmlArrayRenderer();
+        if($originalNode?->tags->toStringArray() != $changedNode?->tags->toStringArray()) {
+            $contentChanges['tags'] = new ContentChangeItem(
+                properties: new ContentChangeProperties(
+                    type: 'tags',
+                    propertyLabel: $this->getModuleLabel('workspaces.changedTags'),
+                ),
+                changes: new TagContentChange(
+                    addedTags: array_diff($changedNode->tags->toStringArray(), $originalNode->tags->toStringArray()),
+                    removedTags: array_diff($originalNode->tags->toStringArray(), $changedNode->tags->toStringArray()),
+                )
+            );
+        }
         foreach ($changedNode->properties as $propertyName => $changedPropertyValue) {
             if (
                 ($originalNode === null && empty($changedPropertyValue))
@@ -956,11 +975,16 @@ class WorkspaceController extends AbstractModuleController
                 $this->postProcessDiffArray($diffArray);
 
                 if (count($diffArray) > 0) {
-                    $contentChanges[$propertyName] = [
-                        'type' => 'text',
-                        'propertyLabel' => $this->getPropertyLabel($propertyName, $changedNode),
-                        'diff' => $diffArray
-                    ];
+
+                    $contentChanges[$propertyName] = new ContentChangeItem(
+                        properties: new ContentChangeProperties(
+                            type: 'text',
+                            propertyLabel: $this->getPropertyLabel($propertyName, $changedNode)
+                        ),
+                        changes: new TextContentChange(
+                            diff: $diffArray
+                        )
+                    );
                 }
                 // The && in belows condition is on purpose as creating a thumbnail for comparison only works
                 // if actually BOTH are ImageInterface (or NULL).
@@ -968,22 +992,30 @@ class WorkspaceController extends AbstractModuleController
                 ($originalPropertyValue instanceof ImageInterface || $originalPropertyValue === null)
                 && ($changedPropertyValue instanceof ImageInterface || $changedPropertyValue === null)
             ) {
-                $contentChanges[$propertyName] = [
-                    'type' => 'image',
-                    'propertyLabel' => $this->getPropertyLabel($propertyName, $changedNode),
-                    'original' => $originalPropertyValue,
-                    'changed' => $changedPropertyValue
-                ];
+                $contentChanges[$propertyName] = new ContentChangeItem(
+                    properties: new ContentChangeProperties(
+                        type: 'text',
+                        propertyLabel: $this->getPropertyLabel($propertyName, $changedNode)
+                    ),
+                    changes: new ImageContentChange(
+                        original: $originalPropertyValue,
+                        changed: $changedPropertyValue
+                    )
+                );
             } elseif (
                 $originalPropertyValue instanceof AssetInterface
                 || $changedPropertyValue instanceof AssetInterface
             ) {
-                $contentChanges[$propertyName] = [
-                    'type' => 'asset',
-                    'propertyLabel' => $this->getPropertyLabel($propertyName, $changedNode),
-                    'original' => $originalPropertyValue,
-                    'changed' => $changedPropertyValue
-                ];
+                $contentChanges[$propertyName] = new ContentChangeItem(
+                    properties: new ContentChangeProperties(
+                        type: 'text',
+                        propertyLabel: $this->getPropertyLabel($propertyName, $changedNode)
+                    ),
+                    changes: new AssetContentChange(
+                        original: $originalPropertyValue,
+                        changed: $changedPropertyValue
+                    )
+                );
             } elseif ($originalPropertyValue instanceof \DateTime || $changedPropertyValue instanceof \DateTime) {
                 $changed = false;
                 if (!$changedPropertyValue instanceof \DateTime || !$originalPropertyValue instanceof \DateTime) {
@@ -992,16 +1024,20 @@ class WorkspaceController extends AbstractModuleController
                     $changed = true;
                 }
                 if ($changed) {
-                    $contentChanges[$propertyName] = [
-                        'type' => 'datetime',
-                        'propertyLabel' => $this->getPropertyLabel($propertyName, $changedNode),
-                        'original' => $originalPropertyValue,
-                        'changed' => $changedPropertyValue
-                    ];
+                    $contentChanges[$propertyName] = new ContentChangeItem(
+                        properties: new ContentChangeProperties(
+                            type: 'text',
+                            propertyLabel: $this->getPropertyLabel($propertyName, $changedNode)
+                        ),
+                        changes: new DateTimeContentChange(
+                            original: $originalPropertyValue,
+                            changed: $changedPropertyValue
+                        )
+                    );
                 }
             }
         }
-        return $contentChanges;
+        return ContentChangeItems::fromArray($contentChanges);
     }
 
     /**
@@ -1251,5 +1287,11 @@ class WorkspaceController extends AbstractModuleController
             );
         }
         return WorkspaceListItems::fromArray($workspaceListItems);
+    }
+    protected function getChangesFromWorkspace(Workspace $selectedWorkspace,ContentRepository $contentRepository ): Changes{
+        return $contentRepository->projectionState(ChangeFinder::class)
+            ->findByContentStreamId(
+                $selectedWorkspace->currentContentStreamId
+            );
     }
 }

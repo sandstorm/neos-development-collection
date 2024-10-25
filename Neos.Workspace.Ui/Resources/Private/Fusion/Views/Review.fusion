@@ -47,7 +47,9 @@ Neos.Workspace.Ui.WorkspaceController.review = Neos.Fusion:Component {
     `
     htmx = afx`
       <Neos.Workspace.Ui:Component.FlashMessages flashMessages={props.flashMessages}/>
-
+      <Neos.Workspace.Ui:Component.ReviewTable
+        @if.hasSiteChanges={props.siteChanges}
+        siteChanges={props.siteChanges} selectedWorkspaceName={selectedWorkspaceName} selectedWorkspaceLabel={selectedWorkspaceLabel} />
     `
   }
 }
