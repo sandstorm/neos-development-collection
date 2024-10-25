@@ -26,6 +26,7 @@ use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
 use Neos\ContentRepository\Core\DimensionSpace\VariantType;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
+use Neos\ContentRepository\Core\Feature\Common\NodeAggregateEventPublisher;
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\AddDimensionShineThrough;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\MoveDimensionSpacePoint;
@@ -77,13 +78,15 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
 
         return new EventsToPublish(
             $streamName,
-            Events::with(
-                new DimensionSpacePointWasMoved(
-                    $contentGraph->getWorkspaceName(),
-                    $contentGraph->getContentStreamId(),
-                    $command->source,
-                    $command->target
-                ),
+            NodeAggregateEventPublisher::enrichWithCommand($command,
+                Events::with(
+                    new DimensionSpacePointWasMoved(
+                        $contentGraph->getWorkspaceName(),
+                        $contentGraph->getContentStreamId(),
+                        $command->source,
+                        $command->target
+                    ),
+                )
             ),
             ExpectedVersion::ANY()
         );
@@ -107,12 +110,14 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
 
         return new EventsToPublish(
             $streamName,
-            Events::with(
-                new DimensionShineThroughWasAdded(
-                    $contentGraph->getWorkspaceName(),
-                    $contentGraph->getContentStreamId(),
-                    $command->source,
-                    $command->target
+            NodeAggregateEventPublisher::enrichWithCommand($command,
+                Events::with(
+                    new DimensionShineThroughWasAdded(
+                        $contentGraph->getWorkspaceName(),
+                        $contentGraph->getContentStreamId(),
+                        $command->source,
+                        $command->target
+                    )
                 )
             ),
             ExpectedVersion::ANY()
