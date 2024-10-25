@@ -22,7 +22,8 @@ readonly class DocumentChangeItem
     public function __construct(
         public bool $isRemoved,
         public bool $isNew,
-        public bool $isMoved
+        public bool $isMoved,
+        public bool $isHidden
     ) {
     }
 }

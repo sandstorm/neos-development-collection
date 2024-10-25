@@ -78,6 +78,7 @@ use Neos\Workspace\Ui\ViewModel\ContentChanges\ImageContentChange;
 use Neos\Workspace\Ui\ViewModel\ContentChanges\TextContentChange;
 use Neos\Workspace\Ui\ViewModel\ContentChanges\AssetContentChange;
 use Neos\Workspace\Ui\ViewModel\ContentChanges\DateTimeContentChange;
+use Neos\Workspace\Ui\ViewModel\ContentChanges\TagContentChange;
 use Neos\Workspace\Ui\ViewModel\DocumentChangeItem;
 use Neos\Workspace\Ui\ViewModel\DocumentItem;
 use Neos\Workspace\Ui\ViewModel\EditWorkspaceFormData;
@@ -661,6 +662,10 @@ class WorkspaceController extends AbstractModuleController
 
     /**
      * Computes the number of added, changed and removed nodes for the given workspace
+     *
+     * @param Workspace $selectedWorkspace
+     * @param ContentRepository $contentRepository
+     * @return PendingChanges
      */
     protected function computePendingChanges(Workspace $selectedWorkspace, ContentRepository $contentRepository): PendingChanges
     {
@@ -764,10 +769,12 @@ class WorkspaceController extends AbstractModuleController
                             $documentNode->originDimensionSpacePoint->toDimensionSpacePoint(),
                             $documentNode->aggregateId
                         );
+                        $documentType = $contentRepository->getNodeTypeManager()->getNodeType($documentNode->nodeTypeName);
                         $siteChanges[$siteNodeName]['documents'][$documentPath]['document'] = new DocumentItem(
                             documentBreadCrumb: array_reverse($documentPathSegmentsNames),
                             aggregateId: $documentNodeAddress->aggregateId->value,
-                            documentNodeAddress: $documentNodeAddress->toJson()
+                            documentNodeAddress: $documentNodeAddress->toJson(),
+                            documentIcon: $documentType->getFullConfiguration()['ui']['icon']
                         );
                     }
 
@@ -776,7 +783,8 @@ class WorkspaceController extends AbstractModuleController
                         $siteChanges[$siteNodeName]['documents'][$documentPath]['documentChanges'] = new DocumentChangeItem(
                             isRemoved: $change->deleted,
                             isNew: $change->created,
-                            isMoved: $change->moved
+                            isMoved: $change->moved,
+                            isHidden: $documentNode->tags->contain(SubtreeTag::disabled()),
                         );
                     }
 
@@ -802,7 +810,8 @@ class WorkspaceController extends AbstractModuleController
                         isNew: $change->created,
                         isMoved: $change->moved,
                         dimensions: $dimensions,
-                        lastModificationDateTime: $node->timestamps->lastModified->format('Y-m-d H:i'),
+                        lastModificationDateTime: $node->timestamps->lastModified?->format('Y-m-d H:i'),
+                        createdDateTime: $node->timestamps->created?->format('Y-m-d H:i'),
                         label: $this->nodeLabelGenerator->getLabel($node),
                         icon: $nodeType->getFullConfiguration()['ui']['icon'],
                         contentChanges: $this->renderContentChanges(
@@ -862,12 +871,23 @@ class WorkspaceController extends AbstractModuleController
             $originalNode = $this->getOriginalNode($changedNode, $baseWorkspace->workspaceName, $contentRepository);
         }
 
-
         $contentChanges = [];
 
         $changeNodePropertiesDefaults = $this->getNodeType($changedNode)->getDefaultValuesForProperties();
 
         $renderer = new HtmlArrayRenderer();
+        if($originalNode?->tags->toStringArray() != $changedNode?->tags->toStringArray()) {
+            $contentChanges['tags'] = new ContentChangeItem(
+                properties: new ContentChangeProperties(
+                    type: 'tags',
+                    propertyLabel: $this->getModuleLabel('workspaces.changedTags'),
+                ),
+                changes: new TagContentChange(
+                    addedTags: array_diff($changedNode->tags->toStringArray(), $originalNode->tags->toStringArray()),
+                    removedTags: array_diff($originalNode->tags->toStringArray(), $changedNode->tags->toStringArray()),
+                )
+            );
+        }
         foreach ($changedNode->properties as $propertyName => $changedPropertyValue) {
             if (
                 ($originalNode === null && empty($changedPropertyValue))

@@ -63,7 +63,13 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
       </td>
       <td class="document-details">
         <Neos.Fusion:Loop items={document.document.documentBreadCrumb} itemName="crumb">
-          <Neos.Workspace.Ui:Component.Icon icon="fas fa-caret-right" @if.notFirst={!iterator.isFirst} /><span>{crumb}</span>
+          <Neos.Workspace.Ui:Component.Icon icon="fas fa-caret-right" @if.notFirst={!iterator.isFirst} />
+          <span>
+            <span class="node-icons" @if.hasIcon={document.document.documentIcon} @if.isLast={iterator.isLast}>
+                <Neos.Workspace.Ui:Component.Icon icon={document.document.documentIcon} />
+                <i @if.nodeIsHidden={document.documentChanges.isHidden} class="icon-red fa-solid fa-circle-xmark"></i>
+            </span>
+            {crumb}</span>
         </Neos.Fusion:Loop>
       </td>
       <td class="document-actions">

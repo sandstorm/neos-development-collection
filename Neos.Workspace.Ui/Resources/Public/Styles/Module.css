@@ -239,60 +239,78 @@ button .icon:not(:last-child) {
   }
 }
 
-.neos.neos-module #workspaceReview table.neos-table td:not(.diff-property-label):not(.neos-content-change){
+.neos.neos-module #workspaceReview table.neos-table td:not(.diff-property-label):not(.neos-content-change) {
   border-top-width: 0;
 }
+
 .neos-content-diff {
   width: 100%;
-  margin: 0 var(--spacing-Full) ;
+  margin: 0 var(--spacing-Full);
 }
+
 #workspaceReview .diff-property-label,
-#workspaceReview .diff-node-details{
+#workspaceReview .diff-node-details {
   padding-left: var(--spacing-Half) !important;
 }
-#workspaceReview .diff-property-label{
+
+#workspaceReview .diff-property-label {
   height: auto !important;
   padding-bottom: 0 !important;
 }
-#workspaceReview .neos-content-change{
+
+#workspaceReview .neos-content-change {
   padding-left: 0 !important;
 }
-#workspaceReview i + span{
+
+#workspaceReview i + span {
   padding-left: var(--spacing-Half);
 }
+
 #workspaceReview .neos-document,
 tr.neos-change + tr.neos-change td.neos-content-change {
   border-top: 1px solid var(--grayDark);
 }
-#workspaceReview .workspace-action i{
+
+#workspaceReview .workspace-action i {
   padding-right: var(--spacing-Half);
 }
+
 #workspaceReview .toggle-document {
   display: inline-block;
   padding: 0 var(--spacing-Full);
   cursor: pointer;
 }
-#workspaceReview .document-details i{
+
+#workspaceReview .document-details > i {
   padding: 0 var(--spacing-Half);
 }
+
+#workspaceReview .document-details > span > i {
+  padding-right: var(--spacing-Half);
+}
+
 #workspaceReview thead th,
-#workspaceReview .neos-document td{
+#workspaceReview .neos-document td {
   padding: 0 !important;
 }
 
-#workspaceReview .check-document + span{
+#workspaceReview .check-document + span {
   margin-right: 0;
 }
-#workspaceReview .table-action{
+
+#workspaceReview .table-action {
   padding: 0 var(--spacing-Full);
 }
-#workspaceReview .table-action:hover{
+
+#workspaceReview .table-action:hover {
   color: var(--blue);
   cursor: pointer;
 }
+
 #workspaceReview .document-actions {
   width: 184px;
 }
+
 #workspaceReview .neos-content-diff table {
   table-layout: fixed;
   width: 100%;
@@ -307,6 +325,7 @@ tr.neos-change + tr.neos-change td.neos-content-change {
   border-top: none;
   white-space: normal;
 }
+
 .neos-content-diff table.neos-content-diff td img,
 .neos-content-diff table.neos-content-diff th img {
   max-width: 100%;
@@ -315,6 +334,7 @@ tr.neos-change + tr.neos-change td.neos-content-change {
   border: 20px solid var(--white);
   box-sizing: border-box;
 }
+
 #workspaceReview .document-details {
   padding-left: 0 !important;
   padding-right: 0;
@@ -323,33 +343,61 @@ tr.neos-change + tr.neos-change td.neos-content-change {
 .neos-content-change {
   border-left: 4px solid var(--orange);
 }
+
 .neos-content-change.legend-deleted {
   border-left: 4px solid var(--warning);
 }
+
 .neos-content-change.legend-created {
   border-left: 4px solid var(--green);
 }
+
 .neos-content-change.legend-moved {
   border-left: 4px solid var(--blue);
 }
-#workspaceReview  td.actions {
+
+.neos-content-change.legend-hidden {
+  border-left: 4px solid var(--grayLighter)
+}
+
+#workspaceReview td.actions {
   width: 144px;
 }
+
 #workspaceReview ins,
 #workspaceReview ins a {
   color: var(--green);
   text-decoration: none;
 }
+
 #workspaceReview del,
 #workspaceReview del a {
   color: var(--warning);
   text-decoration: none;
 }
+
 #workspaceReview .diff-property-content td:first-child,
-#workspaceReview th.neos-action{
+#workspaceReview th.neos-action {
   width: 30px
 }
-#workspaceReview .fa-level-up-alt{
+
+#workspaceReview .fa-level-up-alt {
   transform: rotate(90deg);
 }
 
+#workspaceReview .node-icons {
+  display: inline-block;
+  position: relative;
+}
+
+#workspaceReview .node-icons .icon-red {
+  position: absolute;
+  top: 50%;
+  left: 40%;
+  color: var(--warning);
+  font-size: 12px;
+}
+
+#workspaceReview .node-icons {
+  margin-right: 7px;
+}

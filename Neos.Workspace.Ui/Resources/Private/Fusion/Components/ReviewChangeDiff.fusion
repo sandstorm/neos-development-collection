@@ -20,9 +20,12 @@ prototype(Neos.Workspace.Ui:Component.ReviewChangeDiff) < prototype(Neos.Fusion:
         <td class="diff-node-details" colspan="3">
           <div class="neos-row-fluid">
             <div class="neos-span8">
-              <Neos.Workspace.Ui:Component.Icon
-                      @if.hasIcon={change.icon}
-                      icon={change.icon} />
+              <div class="node-icons">
+                <Neos.Workspace.Ui:Component.Icon
+                        @if.hasIcon={change.icon}
+                        icon={change.icon} />
+                <i @if.nodeIsHidden={change.hidden} class="icon-red fa-solid fa-circle-xmark"></i>
+              </div>
               <span>{change.label}</span>
             </div>
             <div class="neos-span2">
@@ -46,8 +49,7 @@ prototype(Neos.Workspace.Ui:Component.ReviewChangeDiff) < prototype(Neos.Fusion:
           </td>
         </tr>
         <tr class="diff-property-content">
-          <td>
-          </td>
+          <td></td>
           <Neos.Fusion:Loop @if.isText={contentChanges.properties.type == 'text'} items={contentChanges.changes.diff} itemKey="index" itemName="blocks">
             <Neos.Fusion:Loop items={blocks} itemName="block">
               <td class="diff-property-content-left" >
@@ -87,6 +89,16 @@ prototype(Neos.Workspace.Ui:Component.ReviewChangeDiff) < prototype(Neos.Fusion:
           </td>
           <td @if.isDatetime={contentChanges.properties.type == 'datetime'}>
             {Date.format(contentChanges.changes.changed, 'Y-m-d H:i')}
+          </td>
+          <td @if.isTag={contentChanges.properties.type == 'tags'} class="diff-property-content-left">
+            <Neos.Fusion:Loop items={contentChanges.changes.addedTags} itemName="tag">
+              <ins>{tag} </ins>
+            </Neos.Fusion:Loop>
+            <Neos.Fusion:Loop items={contentChanges.changes.removedTags} itemName="tag">
+              <del>{tag}</del>
+            </Neos.Fusion:Loop>
+          </td>
+          <td @if.isTag={contentChanges.properties.type == 'tags'} class="diff-property-content-right">
           </td>
         </tr>
       </Neos.Fusion:Loop>

@@ -12,18 +12,16 @@
 
 declare(strict_types=1);
 
-namespace Neos\Workspace\Ui\ViewModel;
+namespace Neos\Workspace\Ui\ViewModel\ContentChanges;
 
 use Neos\Flow\Annotations as Flow;
 
 #[Flow\Proxy(false)]
-readonly class DocumentItem
+final readonly class TagContentChange extends ContentChange
 {
     public function __construct(
-        public array $documentBreadCrumb,
-        public string $aggregateId,
-        public string $documentNodeAddress,
-        public string $documentIcon
+        public array $addedTags,
+        public array $removedTags,
     ) {
     }
 }
