@@ -68,6 +68,7 @@ use Neos\Neos\Domain\Service\WorkspaceService;
 use Neos\Neos\FrontendRouting\NodeUriBuilderFactory;
 use Neos\Neos\FrontendRouting\SiteDetection\SiteDetectionResult;
 use Neos\Neos\PendingChangesProjection\ChangeFinder;
+use Neos\Neos\PendingChangesProjection\Changes;
 use Neos\Neos\Utility\NodeTypeWithFallbackProvider;
 use Neos\Workspace\Ui\ViewModel\ChangeItem;
 use Neos\Workspace\Ui\ViewModel\ContentChangeItem;
@@ -78,6 +79,7 @@ use Neos\Workspace\Ui\ViewModel\ContentChanges\TextContentChange;
 use Neos\Workspace\Ui\ViewModel\ContentChanges\AssetContentChange;
 use Neos\Workspace\Ui\ViewModel\ContentChanges\DateTimeContentChange;
 use Neos\Workspace\Ui\ViewModel\DocumentChangeItem;
+use Neos\Workspace\Ui\ViewModel\DocumentItem;
 use Neos\Workspace\Ui\ViewModel\EditWorkspaceFormData;
 use Neos\Workspace\Ui\ViewModel\PendingChanges;
 use Neos\Workspace\Ui\ViewModel\WorkspaceListItem;
@@ -663,20 +665,12 @@ class WorkspaceController extends AbstractModuleController
     protected function computePendingChanges(Workspace $selectedWorkspace, ContentRepository $contentRepository): PendingChanges
     {
         $changesCount = ['new' => 0, 'changed' => 0, 'removed' => 0];
-        foreach ($this->computeSiteChanges($selectedWorkspace, $contentRepository) as $siteChanges) {
-            foreach ($siteChanges['documents'] as $documentChanges) {
-                foreach ($documentChanges['changes'] as $change) {
-                    if ($change['isRemoved'] === true) {
-                        $changesCount['removed']++;
-                    } elseif ($change['isNew']) {
-                        $changesCount['new']++;
-                    } else {
-                        $changesCount['changed']++;
-                    }
-                }
-            }
+        foreach($this->getChangesFromWorkspace($selectedWorkspace, $contentRepository) as $change) {
+            if($change->deleted) $changesCount['removed']++;
+            elseif($change->created) $changesCount['new']++;
+            else $changesCount['changed']++;
         }
-        return new PendingChanges(new: $changesCount['new'], changed: $changesCount['changed'], removed: $changesCount['removed']);
+        return new PendingChanges(new: $changesCount['new'], changed: $changesCount['changed'], removed:$changesCount['removed']);
     }
 
     /**
@@ -686,11 +680,7 @@ class WorkspaceController extends AbstractModuleController
     protected function computeSiteChanges(Workspace $selectedWorkspace, ContentRepository $contentRepository): array
     {
         $siteChanges = [];
-        $changes = $contentRepository->projectionState(ChangeFinder::class)
-            ->findByContentStreamId(
-                $selectedWorkspace->currentContentStreamId
-            );
-
+        $changes = $this->getChangesFromWorkspace($selectedWorkspace, $contentRepository);
         foreach ($changes as $change) {
             $workspaceName = $selectedWorkspace->workspaceName;
             if ($change->deleted) {
@@ -741,6 +731,7 @@ class WorkspaceController extends AbstractModuleController
 
                 // Neither $documentNode, $siteNode or its cannot really be null, this is just for type checks;
                 // We should probably throw an exception though
+
                 if ($documentNode !== null && $siteNode !== null && $siteNode->name) {
                     $siteNodeName = $siteNode->name->value;
                     // Reverse `$documentPathSegments` to start with the site node.
@@ -766,27 +757,27 @@ class WorkspaceController extends AbstractModuleController
                         )
                     );
 
-                    if (!isset($siteChanges[$siteNodeName]['siteNode'])) {
-                        $siteChanges[$siteNodeName]['siteNode']
-                            = $this->siteRepository->findOneByNodeName(SiteNodeName::fromString($siteNodeName));
+                    if(!isset($siteChanges[$siteNodeName]['documents'][$documentPath]['document'])) {
+                        $documentNodeAddress = NodeAddress::create(
+                            $contentRepository->id,
+                            $selectedWorkspace->workspaceName,
+                            $documentNode->originDimensionSpacePoint->toDimensionSpacePoint(),
+                            $documentNode->aggregateId
+                        );
+                        $siteChanges[$siteNodeName]['documents'][$documentPath]['document'] = new DocumentItem(
+                            documentBreadCrumb: array_reverse($documentPathSegmentsNames),
+                            aggregateId: $documentNodeAddress->aggregateId->value,
+                            documentNodeAddress: $documentNodeAddress->toJson()
+                        );
                     }
-                    $documentNodeAddress = NodeAddress::create(
-                        $contentRepository->id,
-                        $selectedWorkspace->workspaceName,
-                        $documentNode->originDimensionSpacePoint->toDimensionSpacePoint(),
-                        $documentNode->aggregateId
-                    );
-
-                    $siteChanges[$siteNodeName]['documents'][$documentPath]['documentNode'] = $documentNode;
-                    $siteChanges[$siteNodeName]['documents'][$documentPath]['documentBreadCrumb'] = array_reverse($documentPathSegmentsNames);
-                    $siteChanges[$siteNodeName]['documents'][$documentPath]['aggregateId'] = $documentNodeAddress->aggregateId;
-                    $siteChanges[$siteNodeName]['documents'][$documentPath]['documentNodeAddress'] = $documentNodeAddress->toJson();
 
                     // We need to set `isNew` and `isMoved` on document level to make our JS behave as before.
                     if ($documentNode->equals($node)) {
-                        $siteChanges[$siteNodeName]['documents'][$documentPath]['isNew'] = $change->created;
-                        $siteChanges[$siteNodeName]['documents'][$documentPath]['isMoved'] = $change->moved;
-                        $siteChanges[$siteNodeName]['documents'][$documentPath]['isDeleted'] = $change->deleted;
+                        $siteChanges[$siteNodeName]['documents'][$documentPath]['documentChanges'] = new DocumentChangeItem(
+                            isRemoved: $change->deleted,
+                            isNew: $change->created,
+                            isMoved: $change->moved
+                        );
                     }
 
                     // As for changes of type `delete` we are using nodes from the live workspace
@@ -804,7 +795,7 @@ class WorkspaceController extends AbstractModuleController
                         $contentDimension = new ContentDimensionId($id);
                         $dimensions[] = $contentRepository->getContentDimensionSource()->getDimension($contentDimension)->getValue($coordinate)->configuration['label'];
                     }
-                    $change = new ChangeItem (
+                    $siteChanges[$siteNodeName]['documents'][$documentPath]['changes'][$relativePath] = new ChangeItem (
                         serializedNodeAddress: $nodeAddress->toJson(),
                         hidden: $node->tags->contain(SubtreeTag::disabled()),
                         isRemoved: $change->deleted,
@@ -820,11 +811,7 @@ class WorkspaceController extends AbstractModuleController
                             $contentRepository
                         )
                     );
-
-                    $siteChanges[$siteNodeName]['documents'][$documentPath]['changes'][$relativePath] = $change;
                 }
-
-                $siteChanges[$siteNodeName]['documents'][$documentPath]['changesCount'] = count($siteChanges[$siteNodeName]['documents'][$documentPath]['changes']);
             }
 
         }
@@ -1250,5 +1237,11 @@ class WorkspaceController extends AbstractModuleController
             );
         }
         return WorkspaceListItems::fromArray($workspaceListItems);
+    }
+    protected function getChangesFromWorkspace(Workspace $selectedWorkspace,ContentRepository $contentRepository ): Changes{
+        return $contentRepository->projectionState(ChangeFinder::class)
+            ->findByContentStreamId(
+                $selectedWorkspace->currentContentStreamId
+            );
     }
 }

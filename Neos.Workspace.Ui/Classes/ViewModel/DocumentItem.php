@@ -17,12 +17,12 @@ namespace Neos\Workspace\Ui\ViewModel;
 use Neos\Flow\Annotations as Flow;
 
 #[Flow\Proxy(false)]
-readonly class DocumentChangeItem
+readonly class DocumentItem
 {
     public function __construct(
-        public bool $isRemoved,
-        public bool $isNew,
-        public bool $isMoved
+        public array $documentBreadCrumb,
+        public string $aggregateId,
+        public string $documentNodeAddress
     ) {
     }
 }
