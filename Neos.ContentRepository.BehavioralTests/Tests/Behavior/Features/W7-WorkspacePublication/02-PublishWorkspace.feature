@@ -103,7 +103,7 @@ Feature: Workspace based content publishing
       | Key  | Value      |
       | text | "Modified" |
 
-  Scenario: modify the property in the nested workspace, do modification in live workspace; publish afterwards will not work because rebase is missing; then rebase and publish
+  Scenario: modify the property in the nested workspace, do modification in live workspace; publish afterwards will rebase the changes
 
     When the command SetNodeProperties is executed with payload:
       | Key                       | Value                                  |
@@ -118,27 +118,11 @@ Feature: Workspace based content publishing
       | originDimensionSpacePoint | {}                                     |
       | propertyValues            | {"text": "Modified in live workspace"} |
 
-    # PUBLISHING without rebase: error
-    When the command PublishWorkspace is executed with payload and exceptions are caught:
-      | Key           | Value       |
-      | workspaceName | "user-test" |
-
-    Then the last command should have thrown an exception of type "BaseWorkspaceHasBeenModifiedInTheMeantime"
-
-    Then I expect exactly 4 event to be published on stream "ContentStream:user-cs-identifier"
-    And event at index 3 is of type "ContentStreamWasReopened" with payload:
-      | Key                  | Expected                 |
-      | contentStreamId      | "user-cs-identifier"     |
-
-    # REBASING + Publishing: works now (TODO soft constraint check for old value)
-    When the command RebaseWorkspace is executed with payload:
-      | Key                    | Value           |
-      | workspaceName          | "user-test"     |
-      | rebasedContentStreamId | "rebased-cs-id" |
-
-    And the command PublishWorkspace is executed with payload:
-      | Key           | Value       |
-      | workspaceName | "user-test" |
+    # PUBLISHING (with rebase internally)
+    When the command PublishWorkspace is executed with payload:
+      | Key                | Value         |
+      | workspaceName      | "user-test"   |
+      | newContentStreamId | "user-cs-new" |
 
     When I am in workspace "live" and dimension space point {}
 

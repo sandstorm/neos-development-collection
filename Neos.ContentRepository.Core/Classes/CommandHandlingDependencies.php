@@ -47,7 +47,8 @@ final readonly class CommandHandlingDependencies
 
     public function contentStreamExists(ContentStreamId $contentStreamId): bool
     {
-        return $this->contentGraphReadModel->findContentStreamById($contentStreamId) !== null;
+        $cs = $this->contentGraphReadModel->findContentStreamById($contentStreamId);
+        return $cs !== null && !$cs->removed;
     }
 
     public function getContentStreamStatus(ContentStreamId $contentStreamId): ContentStreamStatus

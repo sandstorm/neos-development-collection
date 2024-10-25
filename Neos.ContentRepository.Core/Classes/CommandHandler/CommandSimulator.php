@@ -6,12 +6,15 @@ namespace Neos\ContentRepository\Core\CommandHandler;
 
 use Neos\ContentRepository\Core\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\ContentRepository;
+use Neos\ContentRepository\Core\EventStore\DecoratedEvent;
+use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionInterface;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\EventStore\Helper\InMemoryEventStore;
+use Neos\EventStore\Model\Event\EventMetadata;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Neos\EventStore\Model\Events;
 use Neos\EventStore\Model\EventStream\EventStreamInterface;
@@ -37,7 +40,7 @@ final readonly class CommandSimulator
 
     /**
      * @template T
-     * @param \Closure(\Closure(RebasableToOtherWorkspaceInterface $command): void): T $fn
+     * @param \Closure(\Closure(RebasableToOtherWorkspaceInterface $command, EventMetadata $originalEventMetaData): void): T $fn
      * @return T
      */
     public function run(\Closure $fn): mixed
@@ -51,7 +54,7 @@ final readonly class CommandSimulator
      * We will automatically copy given commands to the workspace this simulation
      * is running in to ensure consistency in the simulations constraint checks.
      */
-    private function handle(RebasableToOtherWorkspaceInterface $command): void
+    private function handle(RebasableToOtherWorkspaceInterface $command, ?EventMetadata $additionalOriginalEventMetaData = null): void
     {
         // FIXME: Check if workspace already matches and skip this ($command->workspaceName === workspaceNameToSimulateIn) ...
         $commandInWorkspace = $command->createCopyForWorkspace($this->workspaceNameToSimulateIn);
@@ -68,7 +71,15 @@ final readonly class CommandSimulator
         // the following logic could also be done in an AppEventStore::commit method (being called
         // directly from the individual Command Handlers).
         $normalizedEvents = Events::fromArray(
-            $eventsToPublish->events->map($this->eventNormalizer->normalize(...))
+            $eventsToPublish->events->map(function (EventInterface|DecoratedEvent $event) use (
+                $additionalOriginalEventMetaData
+            ) {
+                $metadata = $event instanceof DecoratedEvent ? $event->eventMetadata?->value ?? [] : [];
+                $decoratedEvent = DecoratedEvent::create($event, metadata: EventMetadata::fromArray(
+                    array_merge($metadata, $additionalOriginalEventMetaData?->value ?? [])
+                ));
+                return $this->eventNormalizer->normalize($decoratedEvent);
+            })
         );
 
         $sequenceNumberBeforeCommit = $this->currentSequenceNumber();

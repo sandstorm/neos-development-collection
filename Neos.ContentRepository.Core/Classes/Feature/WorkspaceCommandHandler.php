@@ -52,7 +52,6 @@ use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasD
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPartiallyDiscarded;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPartiallyPublished;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPublished;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Exception\BaseWorkspaceHasBeenModifiedInTheMeantime;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Command\RebaseWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\CommandsThatFailedDuringRebase;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\CommandThatFailedDuringRebase;
@@ -69,7 +68,7 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceStatus;
 use Neos\EventStore\EventStoreInterface;
-use Neos\EventStore\Exception\ConcurrencyException;
+use Neos\EventStore\Model\Event\EventMetadata;
 use Neos\EventStore\Model\Event\EventType;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Neos\EventStore\Model\Event\Version;
@@ -182,7 +181,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
     /**
      * @throws BaseWorkspaceDoesNotExist
-     * @throws BaseWorkspaceHasBeenModifiedInTheMeantime
      * @throws ContentStreamAlreadyExists
      * @throws ContentStreamDoesNotExistYet
      * @throws WorkspaceDoesNotExist
@@ -193,62 +191,118 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         PublishWorkspace $command,
         CommandHandlingDependencies $commandHandlingDependencies,
     ): \Generator {
+        // todo check is not closed!!!
+        // todo use workspace instead of content graph everywhere here
         $workspace = $this->requireWorkspace($command->workspaceName, $commandHandlingDependencies);
         $baseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
         if (!$commandHandlingDependencies->contentStreamExists($workspace->currentContentStreamId)) {
             throw new \RuntimeException('Cannot publish nodes on a workspace with a stateless content stream', 1729711258);
         }
         $currentWorkspaceContentStreamState = $commandHandlingDependencies->getContentStreamStatus($workspace->currentContentStreamId);
-
-        // todo if workspace is outdated do an implicit rebase
+        $baseContentStreamVersion = $commandHandlingDependencies->getContentStreamVersion($baseWorkspace->currentContentStreamId);
 
         yield $this->closeContentStream(
             $workspace->currentContentStreamId,
             $commandHandlingDependencies
         );
 
-        $publishContentStream = $this->getCopiedEventsToPublishForContentStream(
-            $workspace->currentContentStreamId,
-            $baseWorkspace->workspaceName,
-            $baseWorkspace->currentContentStreamId
+        $originalEventMetaData = $this->extractEventMetaDataForRebaseableCommandsFromContentStream(
+            ContentStreamEventStreamName::fromContentStreamId(
+                $workspace->currentContentStreamId
+            )
         );
 
-        if ($publishContentStream->events->isEmpty()) {
-            // if there are no events this is almost a noop
-            yield $this->reopenContentStream(
-                $workspace->currentContentStreamId,
-                $currentWorkspaceContentStreamState,
+        if ($originalEventMetaData === []) {
+            // we have no changes in the workspace
+            if ($workspace->status === WorkspaceStatus::UP_TO_DATE) {
+                // and we are up to date already
+                yield $this->reopenContentStream(
+                    $workspace->currentContentStreamId,
+                    $currentWorkspaceContentStreamState,
+                    $commandHandlingDependencies
+                );
+                return;
+            }
+
+            // we can fork from the base directly
+            yield $this->forkContentStream(
+                $command->newContentStreamId,
+                $baseWorkspace->currentContentStreamId,
                 $commandHandlingDependencies
             );
 
+            yield new EventsToPublish(
+                WorkspaceEventStreamName::fromWorkspaceName($command->workspaceName)->getEventStreamName(),
+                Events::with(
+                    new WorkspaceWasRebased(
+                        $command->workspaceName,
+                        $command->newContentStreamId,
+                        $workspace->currentContentStreamId,
+                    ),
+                ),
+                ExpectedVersion::ANY()
+            );
+
+            yield $this->removeContentStream($workspace->currentContentStreamId, $commandHandlingDependencies);
             return;
         }
 
-        try {
-            yield $publishContentStream;
-        } catch (ConcurrencyException $exception) {
+        $commandSimulator = $this->commandSimulatorFactory->createSimulator($baseWorkspace->workspaceName);
+
+
+        $commandsThatFailed = $commandSimulator->run(
+            function ($handle) use ($originalEventMetaData): CommandsThatFailedDuringRebase {
+                $commandsThatFailed = new CommandsThatFailedDuringRebase();
+                foreach ($originalEventMetaData as $sequenceNumber => $eventMetadata) {
+                    $originalCommand = $this->extractCommandFromEventMetaData($eventMetadata);
+                    $initiatingOriginalMetaData = EventMetadata::fromArray(array_filter([
+                        'initiatingUserId' => $eventMetadata->get('initiatingUserId'),
+                        'initiatingTimestamp' => $eventMetadata->get('initiatingTimestamp'),
+                    ]));
+                    try {
+                        $handle($originalCommand, $initiatingOriginalMetaData);
+                    } catch (\Exception $e) {
+                        $commandsThatFailed = $commandsThatFailed->add(
+                            new CommandThatFailedDuringRebase(
+                                $sequenceNumber,
+                                $originalCommand,
+                                $e
+                            )
+                        );
+                    }
+                }
+
+                return $commandsThatFailed;
+            }
+        );
+
+        if (!$commandsThatFailed->isEmpty()) {
             yield $this->reopenContentStream(
                 $workspace->currentContentStreamId,
                 $currentWorkspaceContentStreamState,
                 $commandHandlingDependencies
             );
 
-            throw new BaseWorkspaceHasBeenModifiedInTheMeantime(sprintf(
-                'The base workspace has been modified in the meantime; please rebase.'
-                . ' Expected version %d of source content stream %s',
-                $publishContentStream->expectedVersion->value,
-                $baseWorkspace->currentContentStreamId
-            ));
+            throw new WorkspaceRebaseFailed($commandsThatFailed, 'Publication with rebase failed', 1729845795);
         }
 
-        // After publishing a workspace, we need to again fork from Base.
+        yield new EventsToPublish(
+            ContentStreamEventStreamName::fromContentStreamId($baseWorkspace->currentContentStreamId)
+                ->getEventStreamName(),
+            $this->getCopiedEventsOfEventStream(
+                $baseWorkspace->workspaceName,
+                $baseWorkspace->currentContentStreamId,
+                $commandSimulator->eventStream(),
+            ),
+            ExpectedVersion::fromVersion($baseContentStreamVersion)
+        );
+
         yield $this->forkContentStream(
             $command->newContentStreamId,
             $baseWorkspace->currentContentStreamId,
             $commandHandlingDependencies
         );
 
-        // if we got so far without an Exception, we can switch the Workspace's active Content stream.
         yield new EventsToPublish(
             WorkspaceEventStreamName::fromWorkspaceName($command->workspaceName)->getEventStreamName(),
             Events::with(
@@ -263,62 +317,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         );
 
         yield $this->removeContentStream($workspace->currentContentStreamId, $commandHandlingDependencies);
-    }
-
-    /**
-     * 1.) Copy all events from the passed event stream which implement the {@see PublishableToOtherContentStreamsInterface}
-     * 2.) Extract the initial ContentStreamWasForked event, to read the version of the source content stream when the fork occurred
-     * 3.) Use the {@see ContentStreamWasForked::$versionOfSourceContentStream} to ensure that no other changes have been done in the meantime in the base content stream
-     *
-     * @throws BaseWorkspaceHasBeenModifiedInTheMeantime
-     * @throws \Exception
-     */
-    private function getCopiedEventsToPublishForContentStream(
-        ContentStreamId $contentStreamId,
-        WorkspaceName $baseWorkspaceName,
-        ContentStreamId $baseContentStreamId,
-    ): EventsToPublish {
-        $baseWorkspaceContentStreamName = ContentStreamEventStreamName::fromContentStreamId(
-            $baseContentStreamId
-        );
-
-        $workspaceContentStream = iterator_to_array($this->eventStore->load(
-            ContentStreamEventStreamName::fromContentStreamId($contentStreamId)->getEventStreamName()
-        ));
-
-        $events = [];
-        $contentStreamWasForkedEvent = null;
-        foreach ($workspaceContentStream as $eventEnvelope) {
-            $event = $this->eventNormalizer->denormalize($eventEnvelope->event);
-
-            if ($event instanceof ContentStreamWasForked) {
-                if ($contentStreamWasForkedEvent !== null) {
-                    throw new \RuntimeException(
-                        'Invariant violation: The content stream "' . $contentStreamId->value
-                        . '" has two forked events.',
-                        1658740373
-                    );
-                }
-                $contentStreamWasForkedEvent = $event;
-            } elseif ($event instanceof PublishableToWorkspaceInterface) {
-                /** @var EventInterface $copiedEvent */
-                $copiedEvent = $event->withWorkspaceNameAndContentStreamId($baseWorkspaceName, $baseContentStreamId);
-                // We need to add the event metadata here for rebasing in nested workspace situations
-                // (and for exporting)
-                $events[] = DecoratedEvent::create($copiedEvent, metadata: $eventEnvelope->event->metadata, causationId: $eventEnvelope->event->causationId, correlationId: $eventEnvelope->event->correlationId);
-            }
-        }
-
-        if ($contentStreamWasForkedEvent === null) {
-            throw new \RuntimeException('Invariant violation: The content stream "' . $contentStreamId->value
-                . '" has NO forked event.', 1658740407);
-        }
-
-        return new EventsToPublish(
-            $baseWorkspaceContentStreamName->getEventStreamName(),
-            Events::fromArray($events),
-            ExpectedVersion::fromVersion($contentStreamWasForkedEvent->versionOfSourceContentStream)
-        );
     }
 
     /**
@@ -411,9 +409,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                 $commandsThatFailed = new CommandsThatFailedDuringRebase();
                 foreach ($originalCommands as $sequenceNumber => $originalCommand) {
                     try {
-                        // We rebase here, but we apply the commands in the simulation on the base workspace so the constraint checks work
                         $handle($originalCommand);
-                        // if we came this far, we know the command was applied successfully.
                     } catch (\Exception $e) {
                         $commandsThatFailed = $commandsThatFailed->add(
                             new CommandThatFailedDuringRebase(
@@ -470,6 +466,55 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
     }
 
     /**
+     * @return array<int,EventMetadata>
+     */
+    private function extractEventMetaDataForRebaseableCommandsFromContentStream(
+        ContentStreamEventStreamName $workspaceContentStreamName,
+    ): array {
+        $workspaceContentStream = $this->eventStore->load($workspaceContentStreamName->getEventStreamName());
+
+        $commands = [];
+        foreach ($workspaceContentStream as $eventEnvelope) {
+            $metadata = $eventEnvelope->event->metadata?->value ?? [];
+            if (isset($metadata['commandClass'])) {
+                $commands[$eventEnvelope->sequenceNumber->value] = $eventEnvelope->event->metadata;
+            }
+        }
+
+        return $commands;
+    }
+
+    private function extractCommandFromEventMetaData(EventMetadata $eventMetadata): RebasableToOtherWorkspaceInterface
+    {
+        if (!isset($eventMetadata->value['commandClass'])) {
+            throw new \RuntimeException('Command cannot be extracted from metadata, missing commandClass.', 1729847804);
+        }
+
+        $commandToRebaseClass = $eventMetadata->value['commandClass'];
+        $commandToRebasePayload = $eventMetadata->value['commandPayload'];
+
+        /**
+         * the metadata will be added to all readable commands via
+         * @see \Neos\ContentRepository\Core\Feature\Common\NodeAggregateEventPublisher::enrichWithCommand
+         */
+        // TODO: Add this logic to the NodeAggregateCommandHandler;
+        // so that we can be sure these can be parsed again.
+
+        if (!in_array(RebasableToOtherWorkspaceInterface::class, class_implements($commandToRebaseClass) ?: [], true)) {
+            throw new \RuntimeException(sprintf(
+                'Command "%s" can\'t be rebased because it does not implement %s',
+                $commandToRebaseClass,
+                RebasableToOtherWorkspaceInterface::class
+            ), 1547815341);
+        }
+        /** @var class-string<RebasableToOtherWorkspaceInterface> $commandToRebaseClass */
+        /** @var RebasableToOtherWorkspaceInterface $commandInstance */
+        $commandInstance = $commandToRebaseClass::fromArray($commandToRebasePayload);
+        return $commandInstance;
+    }
+
+    /**
+     * TODO REMOVE and use the above everywhere
      * @return array<int,RebasableToOtherWorkspaceInterface>
      */
     private function extractCommandsFromContentStreamMetadata(
@@ -507,11 +552,11 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         return $commands;
     }
 
+
     /**
      * This method is like a combined Rebase and Publish!
      *
      * @throws BaseWorkspaceDoesNotExist
-     * @throws BaseWorkspaceHasBeenModifiedInTheMeantime
      * @throws ContentStreamAlreadyExists
      * @throws ContentStreamDoesNotExistYet
      * @throws WorkspaceDoesNotExist
