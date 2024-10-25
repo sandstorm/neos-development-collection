@@ -40,10 +40,10 @@ final readonly class CommandSimulator
 
     /**
      * @template T
-     * @param \Closure(\Closure(RebasableToOtherWorkspaceInterface $command, EventMetadata $originalEventMetaData): void): T $fn
+     * @param callable(callable(RebasableToOtherWorkspaceInterface, ?EventMetadata=): void): T $fn
      * @return T
      */
-    public function run(\Closure $fn): mixed
+    public function run(callable $fn): mixed
     {
         return $this->contentRepositoryProjection->inSimulation(fn () => $fn($this->handle(...)));
     }

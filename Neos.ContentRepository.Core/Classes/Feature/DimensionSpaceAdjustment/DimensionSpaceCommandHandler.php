@@ -78,7 +78,8 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
 
         return new EventsToPublish(
             $streamName,
-            NodeAggregateEventPublisher::enrichWithCommand($command,
+            NodeAggregateEventPublisher::enrichWithCommand(
+                $command,
                 Events::with(
                     new DimensionSpacePointWasMoved(
                         $contentGraph->getWorkspaceName(),
@@ -110,7 +111,8 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
 
         return new EventsToPublish(
             $streamName,
-            NodeAggregateEventPublisher::enrichWithCommand($command,
+            NodeAggregateEventPublisher::enrichWithCommand(
+                $command,
                 Events::with(
                     new DimensionShineThroughWasAdded(
                         $contentGraph->getWorkspaceName(),

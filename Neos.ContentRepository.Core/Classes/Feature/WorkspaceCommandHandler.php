@@ -475,8 +475,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         $commands = [];
         foreach ($workspaceContentStream as $eventEnvelope) {
-            $metadata = $eventEnvelope->event->metadata?->value ?? [];
-            if (isset($metadata['commandClass'])) {
+            if ($eventEnvelope->event->metadata && isset($eventEnvelope->event->metadata?->value['commandClass'])) {
                 $commands[$eventEnvelope->sequenceNumber->value] = $eventEnvelope->event->metadata;
             }
         }
