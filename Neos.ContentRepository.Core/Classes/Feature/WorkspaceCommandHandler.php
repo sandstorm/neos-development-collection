@@ -121,7 +121,9 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         CommandHandlingDependencies $commandHandlingDependencies,
     ): \Generator {
         $this->requireWorkspaceToNotExist($command->workspaceName, $commandHandlingDependencies);
-        if ($commandHandlingDependencies->findWorkspaceByName($command->baseWorkspaceName) === null) {
+        $baseWorkspace = $commandHandlingDependencies->findWorkspaceByName($command->baseWorkspaceName);
+
+        if ($baseWorkspace === null) {
             throw new BaseWorkspaceDoesNotExist(sprintf(
                 'The workspace %s (base workspace of %s) does not exist',
                 $command->baseWorkspaceName->value,
@@ -129,11 +131,10 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             ), 1513890708);
         }
 
-        $baseWorkspaceContentGraph = $commandHandlingDependencies->getContentGraph($command->baseWorkspaceName);
         // When the workspace is created, we first have to fork the content stream
         yield $this->forkContentStream(
             $command->newContentStreamId,
-            $baseWorkspaceContentGraph->getContentStreamId(),
+            $baseWorkspace->currentContentStreamId,
             $commandHandlingDependencies
         );
 
@@ -570,7 +571,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             return;
         }
 
-        $contentGraph = $commandHandlingDependencies->getContentGraph($command->workspaceName);
         $workspace = $this->requireWorkspace($command->workspaceName, $commandHandlingDependencies);
         if (!$commandHandlingDependencies->contentStreamExists($workspace->currentContentStreamId)) {
             throw new \DomainException('Cannot publish nodes on a workspace with a stateless content stream', 1710410114);
@@ -580,7 +580,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         $baseContentStreamVersion = $commandHandlingDependencies->getContentStreamVersion($baseWorkspace->currentContentStreamId);
 
         yield $this->closeContentStream(
-            $contentGraph->getContentStreamId(),
+            $workspace->currentContentStreamId,
             $commandHandlingDependencies
         );
 
@@ -692,12 +692,11 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             return;
         }
 
-        $contentGraph = $commandHandlingDependencies->getContentGraph($command->workspaceName);
         $workspace = $this->requireWorkspace($command->workspaceName, $commandHandlingDependencies);
-        if (!$commandHandlingDependencies->contentStreamExists($contentGraph->getContentStreamId())) {
+        if (!$commandHandlingDependencies->contentStreamExists($workspace->currentContentStreamId)) {
             throw new \DomainException('Cannot discard nodes on a workspace with a stateless content stream', 1710408112);
         }
-        $currentWorkspaceContentStreamState = $commandHandlingDependencies->getContentStreamStatus($contentGraph->getContentStreamId());
+        $currentWorkspaceContentStreamState = $commandHandlingDependencies->getContentStreamStatus($workspace->currentContentStreamId);
         $baseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
 
         yield $this->closeContentStream(
@@ -982,10 +981,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
     private function requireWorkspaceToNotExist(WorkspaceName $workspaceName, CommandHandlingDependencies $commandHandlingDependencies): void
     {
-        try {
-            $commandHandlingDependencies->getContentGraph($workspaceName);
-        } catch (WorkspaceDoesNotExist) {
-            // Desired outcome
+        if ($commandHandlingDependencies->findWorkspaceByName($workspaceName) === null) {
             return;
         }
 
