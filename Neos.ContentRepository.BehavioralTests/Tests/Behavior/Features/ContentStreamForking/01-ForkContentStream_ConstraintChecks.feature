@@ -50,7 +50,7 @@ Feature: ForkContentStream Without Dimensions
       | propertiesToUnset            | {}                                                      |
 
   Scenario: Try to create a workspace with the base workspace referring to a closed content stream
-    When the command CloseContentStream is executed with payload:
+    When the event ContentStreamWasClosed was published with payload:
       | Key             | Value           |
       | contentStreamId | "cs-identifier" |
     When the command CreateWorkspace is executed with payload and exceptions are caught:
