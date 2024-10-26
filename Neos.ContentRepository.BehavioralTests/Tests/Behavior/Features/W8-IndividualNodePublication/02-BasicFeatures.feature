@@ -7,7 +7,10 @@ Feature: Individual node publication
     Given using no content dimensions
     And using the following node types:
     """yaml
-    'Neos.ContentRepository.Testing:Content': {}
+    'Neos.ContentRepository.Testing:Content':
+      properties:
+        text:
+          type: string
     'Neos.ContentRepository.Testing:Document':
       childNodes:
         child1:
@@ -58,3 +61,37 @@ Feature: Individual node publication
 
     Then I expect a node identified by cs-identifier;sir-david-nodenborough;{} to exist in the content graph
 
+
+  Scenario: Partial publish is a rebase if the workspace is outdated and no changes exist
+
+    When the command CreateNodeAggregateWithNode is executed with payload:
+      | Key                       | Value                                    |
+      | nodeAggregateId           | "nody-mc-nodeface"                       |
+      | nodeTypeName              | "Neos.ContentRepository.Testing:Content" |
+      | originDimensionSpacePoint | {}                                       |
+      | parentNodeAggregateId     | "lady-eleonode-rootford"                 |
+      | initialPropertyValues     | {"text": "Original text"}                |
+
+    And I am in workspace "user-test" and dimension space point {}
+    Then I expect node aggregate identifier "nody-mc-nodeface" to lead to no node
+
+    When the command PublishIndividualNodesFromWorkspace is executed with payload:
+      | Key                             | Value                                                            |
+      | workspaceName                   | "user-test"                                                      |
+      | nodesToPublish                  | [{"dimensionSpacePoint": {}, "nodeAggregateId": "non-existing"}] |
+      | contentStreamIdForRemainingPart | "user-cs-new"                                                    |
+
+    Then I expect exactly 2 events to be published on stream with prefix "Workspace:user-test"
+    And event at index 1 is of type "WorkspaceWasRebased" with payload:
+      | Key                     | Expected             |
+      | workspaceName           | "user-test"          |
+      | newContentStreamId      | "user-cs-new"        |
+      | previousContentStreamId | "user-cs-identifier" |
+
+    And I am in workspace "user-test" and dimension space point {}
+    Then I expect node aggregate identifier "nody-mc-nodeface" to lead to node user-cs-new;nody-mc-nodeface;{}
+    And I expect this node to have the following properties:
+      | Key  | Value           |
+      | text | "Original text" |
+
+    Then I expect the content stream "user-cs-identifier" to not exist

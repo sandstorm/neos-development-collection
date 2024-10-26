@@ -59,7 +59,7 @@ Feature: Publishing individual nodes (basics)
       | Key                         | Value                                                   |
       | workspaceName               | "live"                                                  |
       | nodeAggregateId             | "sir-unchanged"                                         |
-      | nodeTypeName                | "Neos.ContentRepository.Testing:Image"                  |
+      | nodeTypeName                | "Neos.ContentRepository.Testing:Content"                |
       | parentNodeAggregateId       | "lady-eleonode-rootford"                                |
 
     # Create user workspace
@@ -204,18 +204,10 @@ Feature: Publishing individual nodes (basics)
     Then I expect node aggregate identifier "sir-unchanged" to lead to node cs-identifier;sir-unchanged;{}
     And I expect this node to be exactly explicitly tagged "tag1"
 
-    # the node is still in the original user cs
     When I am in workspace "user-test" and dimension space point {}
-    Then I expect node aggregate identifier "sir-unchanged" to lead to node user-cs-identifier;sir-unchanged;{}
+    Then I expect node aggregate identifier "sir-unchanged" to lead to node user-cs-identifier-remaining;sir-unchanged;{}
     And I expect this node to be exactly explicitly tagged "tag1"
-
-    # assert that content stream is still open by writing to it:
-    And the command SetNodeProperties is executed with payload:
-      | Key                       | Value                        |
-      | workspaceName             | "user-test"                  |
-      | nodeAggregateId           | "sir-nodeward-nodington-iii" |
-      | originDimensionSpacePoint | {}                           |
-      | propertyValues            | {"image": "Bla bli blub"}    |
+    Then workspace user-test has status UP_TO_DATE
 
   Scenario: It is possible to publish all nodes
     When the command PublishIndividualNodesFromWorkspace is executed with payload:
@@ -293,32 +285,29 @@ Feature: Publishing individual nodes (basics)
       | Key                           | Expected                                                |
       | contentStreamId               | "user-cs-identifier-remaining"                          |
 
-  Scenario: Partial publish is a rebase if the workspace is outdated and no changes are to be published
+  Scenario: Partial publish remaining changes are not lost
     And the command SetNodeProperties is executed with payload:
       | Key                       | Value                                  |
       | workspaceName             | "live"                                 |
-      | nodeAggregateId           | "nody-mc-nodeface"                     |
+      | nodeAggregateId           | "sir-unchanged"                     |
       | originDimensionSpacePoint | {}                                     |
       | propertyValues            | {"text": "Modified in live workspace"} |
 
     When the command PublishIndividualNodesFromWorkspace is executed with payload:
       | Key                             | Value                                                                                                        |
       | workspaceName                   | "user-test"                                                                                                  |
-      | nodesToPublish                  | [{"dimensionSpacePoint": {}, "nodeAggregateId": "ody-mc-nodeface"}] |
+      | nodesToPublish                  | [{"dimensionSpacePoint": {}, "nodeAggregateId": "non-existing"}] |
       | contentStreamIdForRemainingPart | "user-cs-new"                                                                               |
 
-    Then I expect exactly 2 events to be published on stream with prefix "Workspace:user-test"
-    And event at index 1 is of type "WorkspaceWasRebased" with payload:
-      | Key                     | Expected             |
-      | workspaceName           | "user-test"          |
-      | newContentStreamId      | "user-cs-new"        |
-      | previousContentStreamId | "user-cs-identifier" |
-
-
     And I am in workspace "user-test" and dimension space point {}
-    Then I expect node aggregate identifier "nody-mc-nodeface" to lead to node user-cs-new;nody-mc-nodeface;{}
+    Then I expect node aggregate identifier "sir-unchanged" to lead to node user-cs-new;sir-unchanged;{}
     And I expect this node to have the following properties:
       | Key  | Value                        |
       | text | "Modified in live workspace" |
 
-    Then I expect the content stream "user-cs-identifier" to not exist
+    Then I expect node aggregate identifier "sir-david-nodenborough" to lead to node user-cs-new;sir-david-nodenborough;{}
+    And I expect this node to have the following properties:
+      | Key  | Value         |
+      | text | "Modified t1" |
+
+    # Then I expect the content stream "user-cs-identifier" to not exist

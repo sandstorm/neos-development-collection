@@ -485,6 +485,17 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             )
         );
 
+        if ($rebaseableCommands->isEmpty() && $workspace->status === WorkspaceStatus::OUTDATED) {
+            // we are not up-to-date and don't have any changes, but we want to rebase
+            yield from $this->rebaseWorkspaceWithoutChanges(
+                $workspace,
+                $baseWorkspace,
+                $command->contentStreamIdForRemainingPart,
+                $commandHandlingDependencies
+            );
+            return;
+        }
+
         [$matchingCommands, $remainingCommands] = $rebaseableCommands->separateMatchingAndRemainingCommands($command->nodesToPublish);
 
         if ($matchingCommands->isEmpty() && $workspace->status === WorkspaceStatus::UP_TO_DATE) {
@@ -492,15 +503,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             yield $this->reopenContentStream(
                 $workspace->currentContentStreamId,
                 $currentWorkspaceContentStreamState,
-                $commandHandlingDependencies
-            );
-            return null;
-        } elseif ($matchingCommands->isEmpty()) {
-            // we are not up-to-date and don't have any changes to publish, but we want to rebase
-            yield from $this->rebaseWorkspaceWithoutChanges(
-                $workspace,
-                $baseWorkspace,
-                $command->contentStreamIdForRemainingPart,
                 $commandHandlingDependencies
             );
             return;
@@ -553,17 +555,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getCommandsThatFailed());
         }
 
-        if ($highestSequenceNumberForMatching->equals(SequenceNumber::none())) {
-            // still a noop ;) (for example when a command returns empty events e.g. the node was already tagged with this subtree tag)
-            yield $this->reopenContentStream(
-                $workspace->currentContentStreamId,
-                $currentWorkspaceContentStreamState,
-                $commandHandlingDependencies
-            );
-
-            return null;
-        }
-
+        // this could be a no-op for the rare case when a command returns empty events e.g. the node was already tagged with this subtree tag, meaning we actually just rebase
         yield new EventsToPublish(
             ContentStreamEventStreamName::fromContentStreamId($baseWorkspace->currentContentStreamId)
                 ->getEventStreamName(),
