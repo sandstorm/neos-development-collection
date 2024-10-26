@@ -208,14 +208,14 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             $commandHandlingDependencies
         );
 
-        $extractedCommands = ExtractedCommands::createFromEventStream(
+        $rebaseableCommands = RebaseableCommands::extractFromEventStream(
             $this->eventStore->load(
                 ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)
                     ->getEventStreamName()
             )
         );
 
-        if ($extractedCommands->isEmpty()) {
+        if ($rebaseableCommands->isEmpty()) {
             // we have no changes in the workspace
             if ($workspace->status === WorkspaceStatus::UP_TO_DATE) {
                 // and we are up to date already
@@ -253,16 +253,16 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         $commandSimulator = $this->commandSimulatorFactory->createSimulator($baseWorkspace->workspaceName);
 
         $commandsThatFailed = $commandSimulator->run(
-            static function ($handle) use ($extractedCommands): CommandsThatFailedDuringRebase {
+            static function ($handle) use ($rebaseableCommands): CommandsThatFailedDuringRebase {
                 $commandsThatFailed = new CommandsThatFailedDuringRebase();
-                foreach ($extractedCommands as $sequenceNumber => $extractedCommand) {
+                foreach ($rebaseableCommands as $sequenceNumber => $rebaseableCommand) {
                     try {
-                        $handle($extractedCommand);
+                        $handle($rebaseableCommand);
                     } catch (\Exception $e) {
                         $commandsThatFailed = $commandsThatFailed->add(
                             new CommandThatFailedDuringRebase(
                                 $sequenceNumber,
-                                $extractedCommand->originalCommand,
+                                $rebaseableCommand->originalCommand,
                                 $e
                             )
                         );
@@ -369,14 +369,14 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             $commandHandlingDependencies
         );
 
-        $extractedCommands = ExtractedCommands::createFromEventStream(
+        $rebaseableCommands = RebaseableCommands::extractFromEventStream(
             $this->eventStore->load(
                 ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)
                     ->getEventStreamName()
             )
         );
 
-        if ($extractedCommands->isEmpty()) {
+        if ($rebaseableCommands->isEmpty()) {
             // if we have no changes in the workspace we can fork from the base directly
             yield $this->forkContentStream(
                 $command->rebasedContentStreamId,
@@ -403,16 +403,16 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         $commandSimulator = $this->commandSimulatorFactory->createSimulator($baseWorkspace->workspaceName);
 
         $commandsThatFailed = $commandSimulator->run(
-            static function ($handle) use ($extractedCommands): CommandsThatFailedDuringRebase {
+            static function ($handle) use ($rebaseableCommands): CommandsThatFailedDuringRebase {
                 $commandsThatFailed = new CommandsThatFailedDuringRebase();
-                foreach ($extractedCommands as $sequenceNumber => $extractedCommand) {
+                foreach ($rebaseableCommands as $sequenceNumber => $rebaseableCommand) {
                     try {
-                        $handle($extractedCommand);
+                        $handle($rebaseableCommand);
                     } catch (\Exception $e) {
                         $commandsThatFailed = $commandsThatFailed->add(
                             new CommandThatFailedDuringRebase(
                                 $sequenceNumber,
-                                $extractedCommand->originalCommand,
+                                $rebaseableCommand->originalCommand,
                                 $e
                             )
                         );
@@ -494,14 +494,14 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             $commandHandlingDependencies
         );
 
-        $extractedCommands = ExtractedCommands::createFromEventStream(
+        $rebaseableCommands = RebaseableCommands::extractFromEventStream(
             $this->eventStore->load(
                 ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)
                     ->getEventStreamName()
             )
         );
 
-        [$matchingCommands, $remainingCommands] = $extractedCommands->separateMatchingAndRemainingCommands($command->nodesToPublish);
+        [$matchingCommands, $remainingCommands] = $rebaseableCommands->separateMatchingAndRemainingCommands($command->nodesToPublish);
 
         if ($matchingCommands->isEmpty()) {
             // almost noop (e.g. random node ids were specified) ;)
@@ -620,13 +620,13 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         );
 
         // filter commands, only keeping the ones NOT MATCHING the nodes from the command (i.e. the modifications we want to keep)
-        $extractedCommands = ExtractedCommands::createFromEventStream(
+        $rebaseableCommands = RebaseableCommands::extractFromEventStream(
             $this->eventStore->load(
                 ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)
                     ->getEventStreamName()
             )
         );
-        [$commandsToDiscard, $commandsToKeep] = $extractedCommands->separateMatchingAndRemainingCommands($command->nodesToDiscard);
+        [$commandsToDiscard, $commandsToKeep] = $rebaseableCommands->separateMatchingAndRemainingCommands($command->nodesToDiscard);
 
         if ($commandsToDiscard->isEmpty()) {
             // if we have nothing to discard, we can just keep all. (e.g. random node ids were specified) It's almost a noop ;)

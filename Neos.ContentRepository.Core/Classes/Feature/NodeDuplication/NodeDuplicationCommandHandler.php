@@ -27,7 +27,7 @@ use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Feature\Common\ConstraintChecks;
 use Neos\ContentRepository\Core\Feature\Common\InterdimensionalSiblings;
-use Neos\ContentRepository\Core\Feature\Common\NodeAggregateEventPublisher;
+use Neos\ContentRepository\Core\Feature\RebaseableCommand;
 use Neos\ContentRepository\Core\Feature\Common\NodeCreationInternals;
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Event\NodeAggregateWithNodeWasCreated;
@@ -160,7 +160,7 @@ final class NodeDuplicationCommandHandler implements CommandHandlerInterface
             ContentStreamEventStreamName::fromContentStreamId(
                 $contentGraph->getContentStreamId()
             )->getEventStreamName(),
-            NodeAggregateEventPublisher::enrichWithCommand(
+            RebaseableCommand::enrichWithCommand(
                 $command,
                 Events::fromArray($events)
             ),

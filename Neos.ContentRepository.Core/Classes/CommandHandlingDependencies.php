@@ -27,7 +27,7 @@ use Neos\EventStore\Model\Event\Version;
  * An adapter to provide aceess to read projection data and delegate (sub) commands
  *
  * @internal only command handlers are provided with this via the
- * @see ContentRepository::handle()
+ * @see ContentRepository::handle() todo move
  */
 final readonly class CommandHandlingDependencies
 {

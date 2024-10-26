@@ -26,7 +26,7 @@ use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
 use Neos\ContentRepository\Core\DimensionSpace\VariantType;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
-use Neos\ContentRepository\Core\Feature\Common\NodeAggregateEventPublisher;
+use Neos\ContentRepository\Core\Feature\RebaseableCommand;
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\AddDimensionShineThrough;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\MoveDimensionSpacePoint;
@@ -78,7 +78,7 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
 
         return new EventsToPublish(
             $streamName,
-            NodeAggregateEventPublisher::enrichWithCommand(
+            RebaseableCommand::enrichWithCommand(
                 $command,
                 Events::with(
                     new DimensionSpacePointWasMoved(
@@ -111,7 +111,7 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
 
         return new EventsToPublish(
             $streamName,
-            NodeAggregateEventPublisher::enrichWithCommand(
+            RebaseableCommand::enrichWithCommand(
                 $command,
                 Events::with(
                     new DimensionShineThroughWasAdded(

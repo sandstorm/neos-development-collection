@@ -10,35 +10,35 @@ use Neos\EventStore\Model\EventStream\EventStreamInterface;
 
 /**
  * @internal
- * @implements \IteratorAggregate<ExtractedCommand>
+ * @implements \IteratorAggregate<RebaseableCommand>
  */
-class ExtractedCommands implements \IteratorAggregate
+class RebaseableCommands implements \IteratorAggregate
 {
     /**
-     * @var array<ExtractedCommand>
+     * @var array<RebaseableCommand>
      */
     private array $items;
 
     public function __construct(
-        ExtractedCommand ...$items
+        RebaseableCommand ...$items
     ) {
         $this->items = $items;
     }
 
-    public static function createFromEventStream(EventStreamInterface $eventStream): self
+    public static function extractFromEventStream(EventStreamInterface $eventStream): self
     {
         $commands = [];
         foreach ($eventStream as $eventEnvelope) {
             if ($eventEnvelope->event->metadata && isset($eventEnvelope->event->metadata?->value['commandClass'])) {
-                $commands[$eventEnvelope->sequenceNumber->value] = ExtractedCommand::fromEventMetaData($eventEnvelope->event->metadata);
+                $commands[$eventEnvelope->sequenceNumber->value] = RebaseableCommand::extractFromEventMetaData($eventEnvelope->event->metadata);
             }
         }
 
-        return new ExtractedCommands(...$commands);
+        return new RebaseableCommands(...$commands);
     }
 
     /**
-     * @return array{ExtractedCommands,ExtractedCommands}
+     * @return array{RebaseableCommands,RebaseableCommands}
      */
     public function separateMatchingAndRemainingCommands(
         NodeIdsToPublishOrDiscard $nodeIdsToPublishOrDiscard
@@ -61,8 +61,8 @@ class ExtractedCommands implements \IteratorAggregate
             }
         }
         return [
-            new ExtractedCommands(...$matchingCommands),
-            new ExtractedCommands(...$remainingCommands)
+            new RebaseableCommands(...$matchingCommands),
+            new RebaseableCommands(...$remainingCommands)
         ];
     }
 
