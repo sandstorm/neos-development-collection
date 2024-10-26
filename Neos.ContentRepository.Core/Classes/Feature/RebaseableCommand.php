@@ -11,6 +11,7 @@ use Neos\ContentRepository\Core\Feature\Common\PublishableToWorkspaceInterface;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
 use Neos\EventStore\Model\Event\EventId;
 use Neos\EventStore\Model\Event\EventMetadata;
+use Neos\EventStore\Model\Event\SequenceNumber;
 
 /**
  * @internal
@@ -20,11 +21,11 @@ final readonly class RebaseableCommand
     public function __construct(
         public RebasableToOtherWorkspaceInterface $originalCommand,
         public EventMetadata $initiatingMetaData,
-        // todo SequenceNumber $originalSequenceNumber
+        public SequenceNumber $originalSequenceNumber
     ) {
     }
 
-    public static function extractFromEventMetaData(EventMetadata $eventMetadata): self
+    public static function extractFromEventMetaData(EventMetadata $eventMetadata, SequenceNumber $sequenceNumber): self
     {
         if (!isset($eventMetadata->value['commandClass'])) {
             throw new \RuntimeException('Command cannot be extracted from metadata, missing commandClass.', 1729847804);
@@ -45,7 +46,8 @@ final readonly class RebaseableCommand
         $commandInstance = $commandToRebaseClass::fromArray($commandToRebasePayload);
         return new self(
             $commandInstance,
-            InitiatingEventMetadata::extractInitiatingMetadata($eventMetadata)
+            InitiatingEventMetadata::extractInitiatingMetadata($eventMetadata),
+            $sequenceNumber
         );
     }
 

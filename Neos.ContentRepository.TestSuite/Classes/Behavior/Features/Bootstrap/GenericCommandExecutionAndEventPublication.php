@@ -34,6 +34,7 @@ use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Command\CreateWorkspac
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishIndividualNodesFromWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Command\RebaseWorkspace;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\WorkspaceRebaseFailed;
 use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Model\Event;
 use Neos\EventStore\Model\Event\StreamName;
@@ -147,7 +148,6 @@ trait GenericCommandExecutionAndEventPublication
 
     /**
      * @Then /^the last command should have thrown an exception of type "([^"]*)"(?: with code (\d*))?$/
-     * @throws \ReflectionException
      */
     public function theLastCommandShouldHaveThrown(string $shortExceptionName, ?int $expectedCode = null): void
     {
@@ -162,6 +162,28 @@ trait GenericCommandExecutionAndEventPublication
                 $this->lastCommandException->getMessage()
             ));
         }
+    }
+
+    /**
+     * @Then the last command should have thrown the WorkspaceRebaseFailed exception with:
+     */
+    public function theLastCommandShouldHaveThrownTheWorkspaceRebaseFailedWith(TableNode $payloadTable)
+    {
+        /** @var WorkspaceRebaseFailed $exception */
+        $exception = $this->lastCommandException;
+        Assert::assertNotNull($exception, 'Command did not throw exception');
+        Assert::assertInstanceOf(WorkspaceRebaseFailed::class, $exception, sprintf('Actual exception: %s (%s): %s', get_class($exception), $exception->getCode(), $exception->getMessage()));
+
+        $actualComparableHash = [];
+        foreach ($exception->commandsThatFailedDuringRebase as $commandsThatFailed) {
+            $actualComparableHash[] = [
+                'SequenceNumber' => (string)$commandsThatFailed->sequenceNumber->value,
+                'Command' =>  (new \ReflectionClass($commandsThatFailed->command))->getShortName(),
+                'Exception' =>  (new \ReflectionClass($commandsThatFailed->exception))->getShortName(),
+            ];
+        }
+
+        Assert::assertSame($payloadTable->getHash(), $actualComparableHash);
     }
 
     /**

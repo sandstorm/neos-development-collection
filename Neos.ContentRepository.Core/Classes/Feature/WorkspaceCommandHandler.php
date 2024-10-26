@@ -253,29 +253,16 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
     ): \Generator {
         $commandSimulator = $this->commandSimulatorFactory->createSimulator($baseWorkspace->workspaceName);
 
-        $commandsThatFailed = $commandSimulator->run(
-            static function ($handle) use ($rebaseableCommands): CommandsThatFailedDuringRebase {
-                $commandsThatFailed = new CommandsThatFailedDuringRebase();
-                foreach ($rebaseableCommands as $sequenceNumber => $rebaseableCommand) {
-                    try {
-                        $handle($rebaseableCommand);
-                    } catch (\Exception $e) {
-                        $commandsThatFailed = $commandsThatFailed->add(
-                            new CommandThatFailedDuringRebase(
-                                $sequenceNumber,
-                                $rebaseableCommand->originalCommand,
-                                $e
-                            )
-                        );
-                    }
+        $commandSimulator->run(
+            static function ($handle) use ($rebaseableCommands): void {
+                foreach ($rebaseableCommands as $rebaseableCommand) {
+                    $handle($rebaseableCommand);
                 }
-
-                return $commandsThatFailed;
             }
         );
 
-        if (!$commandsThatFailed->isEmpty()) {
-            throw new WorkspaceRebaseFailed($commandsThatFailed, 'Publication with rebase failed', 1729845795);
+        if ($commandSimulator->hasCommandsThatFailed()) {
+            throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getCommandsThatFailed());
         }
 
         yield new EventsToPublish(
@@ -411,30 +398,17 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         $commandSimulator = $this->commandSimulatorFactory->createSimulator($baseWorkspace->workspaceName);
 
-        $commandsThatFailed = $commandSimulator->run(
-            static function ($handle) use ($rebaseableCommands): CommandsThatFailedDuringRebase {
-                $commandsThatFailed = new CommandsThatFailedDuringRebase();
-                foreach ($rebaseableCommands as $sequenceNumber => $rebaseableCommand) {
-                    try {
-                        $handle($rebaseableCommand);
-                    } catch (\Exception $e) {
-                        $commandsThatFailed = $commandsThatFailed->add(
-                            new CommandThatFailedDuringRebase(
-                                $sequenceNumber,
-                                $rebaseableCommand->originalCommand,
-                                $e
-                            )
-                        );
-                    }
+        $commandSimulator->run(
+            static function ($handle) use ($rebaseableCommands): void {
+                foreach ($rebaseableCommands as $rebaseableCommand) {
+                    $handle($rebaseableCommand);
                 }
-
-                return $commandsThatFailed;
             }
         );
 
         if (
             $command->rebaseErrorHandlingStrategy === RebaseErrorHandlingStrategy::STRATEGY_FAIL
-            && !$commandsThatFailed->isEmpty()
+            && $commandSimulator->hasCommandsThatFailed()
         ) {
             yield $this->reopenContentStream(
                 $workspace->currentContentStreamId,
@@ -443,7 +417,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             );
 
             // throw an exception that contains all the information about what exactly failed
-            throw new WorkspaceRebaseFailed($commandsThatFailed, 'Rebase failed', 1711713880);
+            throw WorkspaceRebaseFailed::duringRebase($commandSimulator->getCommandsThatFailed());
         }
 
         // if we got so far without an exception (or if we don't care), we can switch the workspace's active content stream.
@@ -556,27 +530,27 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         $commandSimulator = $this->commandSimulatorFactory->createSimulator($baseWorkspace->workspaceName);
 
-        try {
-            $highestSequenceNumberForMatching = $commandSimulator->run(
-                static function ($handle) use ($commandSimulator, $matchingCommands, $remainingCommands): SequenceNumber {
-                    foreach ($matchingCommands as $matchingCommand) {
-                        $handle($matchingCommand);
-                    }
-                    $highestSequenceNumberForMatching = $commandSimulator->currentSequenceNumber();
-                    foreach ($remainingCommands as $remainingCommand) {
-                        $handle($remainingCommand);
-                    }
-                    return $highestSequenceNumberForMatching;
+        $highestSequenceNumberForMatching = $commandSimulator->run(
+            static function ($handle) use ($commandSimulator, $matchingCommands, $remainingCommands): SequenceNumber {
+                foreach ($matchingCommands as $matchingCommand) {
+                    $handle($matchingCommand);
                 }
-            );
-        } catch (\Exception $exception) {
+                $highestSequenceNumberForMatching = $commandSimulator->currentSequenceNumber();
+                foreach ($remainingCommands as $remainingCommand) {
+                    $handle($remainingCommand);
+                }
+                return $highestSequenceNumberForMatching;
+            }
+        );
+
+        if ($commandSimulator->hasCommandsThatFailed()) {
             yield $this->reopenContentStream(
                 $workspace->currentContentStreamId,
                 $currentWorkspaceContentStreamState,
                 $commandHandlingDependencies
             );
 
-            throw $exception;
+            throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getCommandsThatFailed());
         }
 
         if ($highestSequenceNumberForMatching->equals(SequenceNumber::none())) {
@@ -691,21 +665,21 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         $commandSimulator = $this->commandSimulatorFactory->createSimulator($baseWorkspace->workspaceName);
 
-        try {
-            $commandSimulator->run(
-                static function ($handle) use ($commandsToKeep): void {
-                    foreach ($commandsToKeep as $matchingCommand) {
-                        $handle($matchingCommand);
-                    }
+        $commandSimulator->run(
+            static function ($handle) use ($commandsToKeep): void {
+                foreach ($commandsToKeep as $matchingCommand) {
+                    $handle($matchingCommand);
                 }
-            );
-        } catch (\Exception $exception) {
+            }
+        );
+
+        if ($commandSimulator->hasCommandsThatFailed()) {
             yield $this->reopenContentStream(
                 $workspace->currentContentStreamId,
                 $currentWorkspaceContentStreamState,
                 $commandHandlingDependencies
             );
-            throw $exception;
+            throw WorkspaceRebaseFailed::duringDiscard($commandSimulator->getCommandsThatFailed());
         }
 
         yield from $this->forkNewContentStreamAndApplyEvents(

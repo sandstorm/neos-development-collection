@@ -15,19 +15,20 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Feature\WorkspaceRebase;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
+use Neos\EventStore\Model\Event\SequenceNumber;
 
 /**
- * @internal implementation detail of WorkspaceCommandHandler
+ * @api part of the exception exposed when rebasing failed
  */
 final readonly class CommandThatFailedDuringRebase
 {
     /**
-     * @param int $sequenceNumber the event store sequence number of the event containing the command to be rebased
+     * @param SequenceNumber $sequenceNumber the event store sequence number of the event containing the command to be rebased
      * @param CommandInterface $command the command that failed
      * @param \Throwable $exception how the command failed
      */
     public function __construct(
-        public int $sequenceNumber,
+        public SequenceNumber $sequenceNumber,
         public CommandInterface $command,
         public \Throwable $exception
     ) {

@@ -9,6 +9,8 @@ use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Feature\RebaseableCommand;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\CommandsThatFailedDuringRebase;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\CommandThatFailedDuringRebase;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionInterface;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\EventStore\Helper\InMemoryEventStore;
@@ -41,15 +43,18 @@ use Neos\EventStore\Model\EventStream\VirtualStreamName;
  *
  * @internal
  */
-final readonly class CommandSimulator
+final class CommandSimulator
 {
+    private CommandsThatFailedDuringRebase $commandsThatFailedDuringRebase;
+
     public function __construct(
-        private ContentGraphProjectionInterface $contentRepositoryProjection,
-        private EventNormalizer $eventNormalizer,
-        private CommandBus $commandBus,
-        private InMemoryEventStore $inMemoryEventStore,
-        private WorkspaceName $workspaceNameToSimulateIn,
+        private readonly ContentGraphProjectionInterface $contentRepositoryProjection,
+        private readonly EventNormalizer $eventNormalizer,
+        private readonly CommandBus $commandBus,
+        private readonly InMemoryEventStore $inMemoryEventStore,
+        private readonly WorkspaceName $workspaceNameToSimulateIn,
     ) {
+        $this->commandsThatFailedDuringRebase = new CommandsThatFailedDuringRebase();
     }
 
     /**
@@ -74,7 +79,20 @@ final readonly class CommandSimulator
         // when https://github.com/neos/neos-development-collection/pull/5298 is merged
         $commandInWorkspace = $rebaseableCommand->originalCommand->createCopyForWorkspace($this->workspaceNameToSimulateIn);
 
-        $eventsToPublish = $this->commandBus->handle($commandInWorkspace);
+        try {
+            $eventsToPublish = $this->commandBus->handle($commandInWorkspace);
+        } catch (\Exception $exception) {
+            $this->commandsThatFailedDuringRebase = $this->commandsThatFailedDuringRebase->withAppended(
+                new CommandThatFailedDuringRebase(
+                    $rebaseableCommand->originalSequenceNumber,
+                    $rebaseableCommand->originalCommand,
+                    $exception
+                )
+            );
+
+            return;
+        }
+
         if (!$eventsToPublish instanceof EventsToPublish) {
             throw new \RuntimeException(sprintf('CommandSimulator expects direct EventsToPublish to be returned when handling %s', $rebaseableCommand->originalCommand::class));
         }
@@ -109,7 +127,7 @@ final readonly class CommandSimulator
 
         // fetch all events that were now committed. Plus one because the first sequence number is one too otherwise we get one event to many.
         // (all elephants shall be placed shamefully placed on my head)
-        $eventStream = $this->inMemoryEventStore->load(VirtualStreamName::all())->withMinimumSequenceNumber(
+        $eventStream = $this->eventStream()->withMinimumSequenceNumber(
             $sequenceNumberBeforeCommit->next()
         );
 
@@ -135,5 +153,15 @@ final readonly class CommandSimulator
     public function eventStream(): EventStreamInterface
     {
         return $this->inMemoryEventStore->load(VirtualStreamName::all());
+    }
+
+    public function hasCommandsThatFailed(): bool
+    {
+        return !$this->commandsThatFailedDuringRebase->isEmpty();
+    }
+
+    public function getCommandsThatFailed(): CommandsThatFailedDuringRebase
+    {
+        return $this->commandsThatFailedDuringRebase;
     }
 }
