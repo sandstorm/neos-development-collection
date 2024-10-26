@@ -12,9 +12,9 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\Core;
+namespace Neos\ContentRepository\Core\Projection\ContentGraph;
 
-use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
+use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceDoesNotExist;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStream;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
@@ -24,12 +24,19 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
 
 /**
- * Create implementations of ContentGraphs bound to a specific Workspace and/or ContentStream
- *
- * @internal This is just an implementation detail to delegate creating the specific implementations of a ContentGraph.
+ * @api for creating a custom content repository graph projection implementation, **not for users of the CR**
  */
-interface ContentRepositoryReadModelAdapterInterface
+interface ContentGraphReadModelInterface extends ProjectionStateInterface
 {
+    /**
+     * @throws WorkspaceDoesNotExist if the workspace does not exist
+     * todo cache instances to reduce queries (revert https://github.com/neos/neos-development-collection/pull/5246)
+     */
+    public function getContentGraph(WorkspaceName $workspaceName): ContentGraphInterface;
+
+    /**
+     * @deprecated todo remove me after https://github.com/neos/neos-development-collection/pull/5301 ;)
+     */
     public function buildContentGraph(WorkspaceName $workspaceName, ContentStreamId $contentStreamId): ContentGraphInterface;
 
     public function findWorkspaceByName(WorkspaceName $workspaceName): ?Workspace;
@@ -39,4 +46,11 @@ interface ContentRepositoryReadModelAdapterInterface
     public function findContentStreamById(ContentStreamId $contentStreamId): ?ContentStream;
 
     public function findContentStreams(): ContentStreams;
+
+    /**
+     * Provides the total number of projected nodes regardless of workspace or content stream.
+     *
+     * @internal only for consumption in testcases
+     */
+    public function countNodes(): int;
 }

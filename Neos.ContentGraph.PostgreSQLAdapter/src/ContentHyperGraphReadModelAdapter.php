@@ -7,11 +7,11 @@ namespace Neos\ContentGraph\PostgreSQLAdapter;
 use Doctrine\DBAL\Connection;
 use Neos\ContentGraph\PostgreSQLAdapter\Domain\Repository\ContentHypergraph;
 use Neos\ContentGraph\PostgreSQLAdapter\Domain\Repository\NodeFactory;
-use Neos\ContentRepository\Core\ContentRepositoryReadModel;
-use Neos\ContentRepository\Core\ContentRepositoryReadModelAdapterInterface;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
+use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceDoesNotExist;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStream;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreams;
@@ -20,10 +20,9 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
 
 /**
- * @internal only used within
- * @see ContentRepositoryReadModel
+ * @internal
  */
-final readonly class ContentHyperRepositoryReadModelAdapter implements ContentRepositoryReadModelAdapterInterface
+final readonly class ContentHyperGraphReadModelAdapter implements ContentGraphReadModelInterface
 {
     public function __construct(
         private Connection $dbal,
@@ -32,6 +31,15 @@ final readonly class ContentHyperRepositoryReadModelAdapter implements ContentRe
         private NodeTypeManager $nodeTypeManager,
         private string $tableNamePrefix,
     ) {
+    }
+
+    public function getContentGraph(WorkspaceName $workspaceName): ContentGraphInterface
+    {
+        $contentStreamId = $this->findWorkspaceByName($workspaceName)?->currentContentStreamId;
+        if ($contentStreamId === null) {
+            throw WorkspaceDoesNotExist::butWasSupposedTo($workspaceName);
+        }
+        return new ContentHyperGraph($this->dbal, $this->nodeFactory, $this->contentRepositoryId, $this->nodeTypeManager, $this->tableNamePrefix, $workspaceName, $contentStreamId);
     }
 
     public function buildContentGraph(WorkspaceName $workspaceName, ContentStreamId $contentStreamId): ContentGraphInterface
@@ -61,5 +69,11 @@ final readonly class ContentHyperRepositoryReadModelAdapter implements ContentRe
     {
         // TODO: Implement getContentStreams() method.
         return ContentStreams::createEmpty();
+    }
+
+    public function countNodes(): int
+    {
+        // TODO: Implement countNodes method.
+        return 0;
     }
 }

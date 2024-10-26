@@ -16,6 +16,8 @@ namespace Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap;
 
 use Behat\Behat\Hook\Scope\BeforeScenarioScope;
 use Behat\Gherkin\Node\TableNode;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
+use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryDependencies;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryInterface;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
@@ -33,7 +35,6 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamStatus;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\ContentStreamClosing;
-use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\ContentStreamForking;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\NodeCopying;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\NodeCreation;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\NodeDisabling;
@@ -64,7 +65,6 @@ trait CRTestSuiteTrait
     use ProjectedNodeTrait;
     use GenericCommandExecutionAndEventPublication;
 
-    use ContentStreamForking;
     use ContentStreamClosing;
 
     use NodeCreation;
@@ -140,13 +140,18 @@ trait CRTestSuiteTrait
     }
 
     /**
-     * @Then /^workspace ([^"]*) has status ([^"]*)$/
+     * @Then /^workspace(?:s)? ([^"]*) ha(?:s|ve) status ([^"]*)$/
      */
-    public function workspaceHasStatus(string $rawWorkspaceName, string $status): void
+    public function workspaceStatusMatchesExpected(string $rawWorkspaceNames, string $status): void
     {
-        $workspace = $this->currentContentRepository->findWorkspaceByName(WorkspaceName::fromString($rawWorkspaceName));
+        $rawWorkspaceNames = explode(',', $rawWorkspaceNames);
+        Assert::assertNotEmpty($rawWorkspaceNames);
 
-        Assert::assertSame($status, $workspace?->status->value);
+        foreach ($rawWorkspaceNames as $rawWorkspaceName) {
+            $workspace = $this->currentContentRepository->findWorkspaceByName(WorkspaceName::fromString($rawWorkspaceName));
+            Assert::assertNotNull($workspace, "Workspace $rawWorkspaceName does not exist.");
+            Assert::assertEquals($status, $workspace->status->value, "Workspace '$rawWorkspaceName' has unexpected status.");
+        }
     }
 
     /**
@@ -155,7 +160,20 @@ trait CRTestSuiteTrait
      */
     public function iExpectTheGraphProjectionToConsistOfExactlyNodes(int $expectedNumberOfNodes): void
     {
-        $actualNumberOfNodes = $this->currentContentRepository->getContentGraph($this->currentWorkspaceName)->countNodes();
+        // HACK to access
+        $contentGraphReadModelAccess = new class implements ContentRepositoryServiceFactoryInterface {
+            public ContentGraphReadModelInterface|null $instance;
+            public function build(ContentRepositoryServiceFactoryDependencies $serviceFactoryDependencies): ContentRepositoryServiceInterface
+            {
+                $this->instance = $serviceFactoryDependencies->projectionsAndCatchUpHooks->contentGraphProjection->getState();
+                return new class implements ContentRepositoryServiceInterface
+                {
+                };
+            }
+        };
+        $this->getContentRepositoryService($contentGraphReadModelAccess);
+
+        $actualNumberOfNodes = $contentGraphReadModelAccess->instance->countNodes();
         Assert::assertSame($expectedNumberOfNodes, $actualNumberOfNodes, 'Content graph consists of ' . $actualNumberOfNodes . ' nodes, expected were ' . $expectedNumberOfNodes . '.');
     }
 
