@@ -105,25 +105,7 @@ final class ContentRepository
             foreach ($eventsToPublishOrGenerator as $eventsToPublish) {
                 assert($eventsToPublish instanceof EventsToPublish); // just for the ide
                 $eventsToPublish = $this->enrichEventsToPublishWithMetadata($eventsToPublish);
-                try {
-                    $this->eventPersister->publishEvents($this, $eventsToPublish);
-                } catch (ConcurrencyException $e) {
-                    // we pass the exception into the generator, so it could be try-caught and reacted upon:
-                    //
-                    //   try {
-                    //      yield EventsToPublish();
-                    //   } catch (ConcurrencyException $e) {
-                    //      yield $restoreState();
-                    //      throw $e;
-                    //   }
-
-                    $errorStrategy = $eventsToPublishOrGenerator->throw($e);
-
-                    if ($errorStrategy instanceof EventsToPublish) {
-                        $eventsToPublish = $this->enrichEventsToPublishWithMetadata($errorStrategy);
-                        $this->eventPersister->publishEvents($this, $eventsToPublish);
-                    }
-                }
+                $this->eventPersister->publishEvents($this, $eventsToPublish);
             }
         }
     }
