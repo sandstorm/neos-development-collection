@@ -18,6 +18,7 @@ use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
 use League\Flysystem\Filesystem;
 use League\Flysystem\InMemory\InMemoryFilesystemAdapter;
+use Neos\ContentRepository\Core\EventStore\InitiatingEventMetadata;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryDependencies;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryInterface;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
@@ -159,7 +160,7 @@ trait CrImportExportTrait
             $eventsWithoutRandomIds[] = $exportedEvent
                 ->withIdentifier('random-event-uuid')
                 ->processMetadata(function (array $metadata) {
-                    $metadata['initiatingTimestamp'] = 'random-time';
+                    $metadata[InitiatingEventMetadata::INITIATING_TIMESTAMP] = 'random-time';
                     return $metadata;
                 });
         }

@@ -24,6 +24,7 @@ use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
+use Neos\ContentRepository\Core\EventStore\InitiatingEventMetadata;
 use Neos\ContentRepository\Core\Feature\Common\MatchableWithNodeIdToPublishOrDiscardInterface;
 use Neos\ContentRepository\Core\Feature\Common\PublishableToWorkspaceInterface;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
@@ -256,12 +257,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                 $commandsThatFailed = new CommandsThatFailedDuringRebase();
                 foreach ($originalEventMetaData as $sequenceNumber => $eventMetadata) {
                     $originalCommand = $this->extractCommandFromEventMetaData($eventMetadata);
-                    $initiatingOriginalMetaData = EventMetadata::fromArray(array_filter([
-                        'initiatingUserId' => $eventMetadata->get('initiatingUserId'),
-                        'initiatingTimestamp' => $eventMetadata->get('initiatingTimestamp'),
-                    ]));
                     try {
-                        $handle($originalCommand, $initiatingOriginalMetaData);
+                        $handle($originalCommand, InitiatingEventMetadata::extractInitiatingMetadata($eventMetadata));
                     } catch (\Exception $e) {
                         $commandsThatFailed = $commandsThatFailed->add(
                             new CommandThatFailedDuringRebase(
