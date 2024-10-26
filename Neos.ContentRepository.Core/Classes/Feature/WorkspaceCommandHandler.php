@@ -193,13 +193,12 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         PublishWorkspace $command,
         CommandHandlingDependencies $commandHandlingDependencies,
     ): \Generator {
-        // todo check is not closed!!!
-        // todo use workspace instead of content graph everywhere here
         $workspace = $this->requireWorkspace($command->workspaceName, $commandHandlingDependencies);
         $baseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
         if (!$commandHandlingDependencies->contentStreamExists($workspace->currentContentStreamId)) {
             throw new \RuntimeException('Cannot publish nodes on a workspace with a stateless content stream', 1729711258);
         }
+        $this->requireContentStreamToNotBeClosed($baseWorkspace->currentContentStreamId, $commandHandlingDependencies);
         $currentWorkspaceContentStreamState = $commandHandlingDependencies->getContentStreamStatus($workspace->currentContentStreamId);
         $baseContentStreamVersion = $commandHandlingDependencies->getContentStreamVersion($baseWorkspace->currentContentStreamId);
 
@@ -487,6 +486,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         }
         $currentWorkspaceContentStreamState = $commandHandlingDependencies->getContentStreamStatus($workspace->currentContentStreamId);
         $baseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
+        $this->requireContentStreamToNotBeClosed($baseWorkspace->currentContentStreamId, $commandHandlingDependencies);
         $baseContentStreamVersion = $commandHandlingDependencies->getContentStreamVersion($baseWorkspace->currentContentStreamId);
 
         yield $this->closeContentStream(
@@ -513,7 +513,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             return null;
         }
 
-        // TODO if $remainingCommands === [] try to do a full publish, but we need to rebase if the workspace is outdated!
         $commandSimulator = $this->commandSimulatorFactory->createSimulator($baseWorkspace->workspaceName);
 
         try {

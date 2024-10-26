@@ -32,7 +32,7 @@ final readonly class CommandBus
      */
     public function handle(CommandInterface $command): EventsToPublish|\Generator
     {
-        // TODO fail if multiple handlers can handle the same command
+        // multiple handlers must not handle the same command
         foreach ($this->handlers as $handler) {
             if ($handler->canHandle($command)) {
                 return $handler->handle($command, $this->commandHandlingDependencies);
