@@ -28,7 +28,6 @@ use Neos\EventStore\Model\EventStream\VirtualStreamName;
 final readonly class CommandSimulator
 {
     public function __construct(
-        private CommandHandlingDependencies $commandHandlingDependencies,
         private ContentGraphProjectionInterface $contentRepositoryProjection,
         private EventNormalizer $eventNormalizer,
         private CommandBus $commandBus,
@@ -58,7 +57,7 @@ final readonly class CommandSimulator
         // FIXME: Check if workspace already matches and skip this ($command->workspaceName === workspaceNameToSimulateIn) ...
         $commandInWorkspace = $rebaseableCommand->originalCommand->createCopyForWorkspace($this->workspaceNameToSimulateIn);
 
-        $eventsToPublish = $this->commandBus->handle($commandInWorkspace, $this->commandHandlingDependencies);
+        $eventsToPublish = $this->commandBus->handle($commandInWorkspace);
         if (!$eventsToPublish instanceof EventsToPublish) {
             throw new \RuntimeException(sprintf('CommandSimulator expects direct EventsToPublish to be returned when handling %s', $rebaseableCommand->originalCommand::class));
         }

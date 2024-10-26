@@ -15,7 +15,6 @@ use Neos\EventStore\Helper\InMemoryEventStore;
 final readonly class CommandSimulatorFactory
 {
     public function __construct(
-        private CommandHandlingDependencies $commandHandlingDependencies,
         private ContentGraphProjectionInterface $contentRepositoryProjection,
         private EventNormalizer $eventNormalizer,
         private CommandBus $commandBus
@@ -25,7 +24,6 @@ final readonly class CommandSimulatorFactory
     public function createSimulator(WorkspaceName $workspaceNameToSimulateIn): CommandSimulator
     {
         return new CommandSimulator(
-            $this->commandHandlingDependencies,
             $this->contentRepositoryProjection,
             $this->eventNormalizer,
             $this->commandBus,

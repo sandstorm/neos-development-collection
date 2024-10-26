@@ -20,20 +20,22 @@ final readonly class CommandBus
      */
     public array $handlers;
 
-    public function __construct(CommandHandlerInterface ...$handlers)
-    {
+    public function __construct(
+        private CommandHandlingDependencies $commandHandlingDependencies,
+        CommandHandlerInterface ...$handlers
+    ) {
         $this->handlers = $handlers;
     }
 
     /**
      * @return EventsToPublish|\Generator<int, EventsToPublish>
      */
-    public function handle(CommandInterface $command, CommandHandlingDependencies $commandHandlingDependencies): EventsToPublish|\Generator
+    public function handle(CommandInterface $command): EventsToPublish|\Generator
     {
         // TODO fail if multiple handlers can handle the same command
         foreach ($this->handlers as $handler) {
             if ($handler->canHandle($command)) {
-                return $handler->handle($command, $commandHandlingDependencies);
+                return $handler->handle($command, $this->commandHandlingDependencies);
             }
         }
         throw new \RuntimeException(sprintf('No handler found for Command "%s"', get_debug_type($command)), 1649582778);

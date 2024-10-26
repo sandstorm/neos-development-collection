@@ -15,7 +15,6 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandBus;
-use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
 use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
@@ -84,8 +83,7 @@ final class ContentRepository
         private readonly ContentDimensionSourceInterface $contentDimensionSource,
         private readonly UserIdProviderInterface $userIdProvider,
         private readonly ClockInterface $clock,
-        private readonly ContentGraphReadModelInterface $contentGraphReadModel,
-        private readonly CommandHandlingDependencies $commandHandlingDependencies,
+        private readonly ContentGraphReadModelInterface $contentGraphReadModel
     ) {
     }
 
@@ -98,7 +96,7 @@ final class ContentRepository
     {
         // the commands only calculate which events they want to have published, but do not do the
         // publishing themselves
-        $eventsToPublishOrGenerator = $this->commandBus->handle($command, $this->commandHandlingDependencies);
+        $eventsToPublishOrGenerator = $this->commandBus->handle($command);
 
         if ($eventsToPublishOrGenerator instanceof EventsToPublish) {
             $eventsToPublish = $this->enrichEventsToPublishWithMetadata($eventsToPublishOrGenerator);
