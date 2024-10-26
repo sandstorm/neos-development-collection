@@ -129,10 +129,13 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
         return $removedContentStreams;
     }
 
-    public function pruneAll(): void
+    public function pruneAllWorkspacesAndContentStreamsFromEventStream(): void
     {
-        foreach ($this->findAllContentStreamEventNames() as $streamName) {
-            $this->eventStore->deleteStream($streamName);
+        foreach ($this->findAllContentStreamStreamNames() as $contentStreamStreamName) {
+            $this->eventStore->deleteStream($contentStreamStreamName);
+        }
+        foreach ($this->findAllWorkspaceStreamNames() as $workspaceStreamName) {
+            $this->eventStore->deleteStream($workspaceStreamName);
         }
     }
 
@@ -323,21 +326,44 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
     /**
      * @return list<StreamName>
      */
-    private function findAllContentStreamEventNames(): array
+    private function findAllContentStreamStreamNames(): array
     {
         $events = $this->eventStore->load(
             VirtualStreamName::forCategory(ContentStreamEventStreamName::EVENT_STREAM_NAME_PREFIX),
             EventStreamFilter::create(
                 EventTypes::create(
+                    // we are only interested in the creation events to limit the amount of events to fetch
                     EventType::fromString('ContentStreamWasCreated'),
                     EventType::fromString('ContentStreamWasForked')
                 )
             )
         );
-        $allContentStreamEventStreamNames = [];
+        $allStreamNames = [];
         foreach ($events as $eventEnvelope) {
-            $allContentStreamEventStreamNames[] = $eventEnvelope->streamName;
+            $allStreamNames[] = $eventEnvelope->streamName;
         }
-        return array_unique($allContentStreamEventStreamNames, SORT_REGULAR);
+        return array_unique($allStreamNames, SORT_REGULAR);
+    }
+
+    /**
+     * @return list<StreamName>
+     */
+    private function findAllWorkspaceStreamNames(): array
+    {
+        $events = $this->eventStore->load(
+            VirtualStreamName::forCategory(WorkspaceEventStreamName::EVENT_STREAM_NAME_PREFIX),
+            EventStreamFilter::create(
+                EventTypes::create(
+                    // we are only interested in the creation events to limit the amount of events to fetch
+                    EventType::fromString('RootWorkspaceWasCreated'),
+                    EventType::fromString('WorkspaceWasCreated')
+                )
+            )
+        );
+        $allStreamNames = [];
+        foreach ($events as $eventEnvelope) {
+            $allStreamNames[] = $eventEnvelope->streamName;
+        }
+        return array_unique($allStreamNames, SORT_REGULAR);
     }
 }
