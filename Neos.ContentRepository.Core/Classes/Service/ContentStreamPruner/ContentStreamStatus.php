@@ -12,12 +12,12 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\Core\SharedModel\Workspace;
+namespace Neos\ContentRepository\Core\Service\ContentStreamPruner;
 
 /**
  * @api
  */
-enum ContentStreamStatus: string implements \JsonSerializable
+enum ContentStreamStatus: string
 {
     /**
      * the content stream was created, but not yet assigned to a workspace.
@@ -40,22 +40,7 @@ enum ContentStreamStatus: string implements \JsonSerializable
     case IN_USE_BY_WORKSPACE = 'IN_USE_BY_WORKSPACE';
 
     /**
-     * the content stream was closed and must no longer accept new events
-     */
-    case CLOSED = 'CLOSED';
-
-    /**
      * the content stream is not used anymore, and can be removed.
      */
     case NO_LONGER_IN_USE = 'NO_LONGER_IN_USE';
-
-    public static function fromString(string $value): self
-    {
-        return self::from($value);
-    }
-
-    public function jsonSerialize(): string
-    {
-        return $this->value;
-    }
 }

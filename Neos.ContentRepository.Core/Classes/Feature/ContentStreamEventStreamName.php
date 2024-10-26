@@ -41,6 +41,15 @@ final readonly class ContentStreamEventStreamName
         return str_starts_with($streamName->value, self::EVENT_STREAM_NAME_PREFIX);
     }
 
+    public static function extractContentStreamId(StreamName $streamName): ContentStreamId
+    {
+        [$prefix, $contentStreamId] = explode(':', $streamName->value, 2);
+        if (($prefix . ':') !== self::EVENT_STREAM_NAME_PREFIX) {
+            throw new \InvalidArgumentException(sprintf('Stream name is not a content stream event stream "%s"', $streamName->value));
+        }
+        return ContentStreamId::fromString($contentStreamId);
+    }
+
     public function getEventStreamName(): StreamName
     {
         return StreamName::fromString($this->value);

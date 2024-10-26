@@ -16,23 +16,21 @@ namespace Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap;
 
 use Behat\Behat\Hook\Scope\BeforeScenarioScope;
 use Behat\Gherkin\Node\TableNode;
-use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryDependencies;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryInterface;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
 use Neos\ContentRepository\Core\Projection\CatchUpOptions;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindSubtreeFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\NodeType\NodeTypeCriteria;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Subtree;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
-use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\Service\ContentStreamPruner;
 use Neos\ContentRepository\Core\Service\ContentStreamPrunerFactory;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamStatus;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\ContentStreamClosing;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\NodeCopying;
@@ -130,9 +128,18 @@ trait CRTestSuiteTrait
     }
 
     /**
+     * @Then /^I expect the content stream "([^"]*)" to exist$/
+     */
+    public function iExpectTheContentStreamToExist(string $rawContentStreamId): void
+    {
+        $contentStream = $this->currentContentRepository->findContentStreamById(ContentStreamId::fromString($rawContentStreamId));
+        Assert::assertNotNull($contentStream, sprintf('Content stream "%s" was expected to exist, but it does not', $rawContentStreamId));
+    }
+
+    /**
      * @Then /^I expect the content stream "([^"]*)" to not exist$/
      */
-    public function iExpectTheContentStreamToNotExist(string $rawContentStreamId): void
+    public function iExpectTheContentStreamToNotExist(string $rawContentStreamId, string $not = ''): void
     {
         $contentStream = $this->currentContentRepository->findContentStreamById(ContentStreamId::fromString($rawContentStreamId));
         Assert::assertNull($contentStream, sprintf('Content stream "%s" was not expected to exist, but it does', $rawContentStreamId));
@@ -241,31 +248,6 @@ trait CRTestSuiteTrait
         return $this->currentContentRepository->getContentGraph($this->currentWorkspaceName)->findRootNodeAggregateByType(
             NodeTypeName::fromString('Neos.Neos:Sites')
         )->nodeAggregateId;
-    }
-
-    /**
-     * @Then the content stream :contentStreamId has status :expectedState
-     */
-    public function theContentStreamHasStatus(string $contentStreamId, string $expectedStatus): void
-    {
-        $contentStream = $this->currentContentRepository->findContentStreamById(ContentStreamId::fromString($contentStreamId));
-        if ($contentStream === null) {
-            Assert::fail(sprintf('Expected content stream "%s" to have status "%s" but it does not exist', $contentStreamId, $expectedStatus));
-        }
-        Assert::assertSame(ContentStreamStatus::tryFrom($expectedStatus), $contentStream->status);
-    }
-
-    /**
-     * @Then the current content stream has status :expectedStatus
-     */
-    public function theCurrentContentStreamHasStatus(string $expectedStatus): void
-    {
-        $this->theContentStreamHasStatus(
-            $this->currentContentRepository
-                ->findWorkspaceByName($this->currentWorkspaceName)
-                ->currentContentStreamId->value,
-            $expectedStatus
-        );
     }
 
     /**

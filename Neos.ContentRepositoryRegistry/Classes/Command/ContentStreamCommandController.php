@@ -55,10 +55,10 @@ class ContentStreamCommandController extends CommandController
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
         $contentStreamPruner = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new ContentStreamPrunerFactory());
 
-        $unusedContentStreamNames = $contentStreamPruner->pruneRemovedFromEventStream();
+        $unusedContentStreamIds = $contentStreamPruner->pruneRemovedFromEventStream();
         $unusedContentStreamsPresent = false;
-        foreach ($unusedContentStreamNames as $contentStreamName) {
-            $this->outputFormatted('Removed events for %s', [$contentStreamName->value]);
+        foreach ($unusedContentStreamIds as $contentStreamId) {
+            $this->outputFormatted('Removed events for %s', [$contentStreamId->value]);
             $unusedContentStreamsPresent = true;
         }
         if (!$unusedContentStreamsPresent) {

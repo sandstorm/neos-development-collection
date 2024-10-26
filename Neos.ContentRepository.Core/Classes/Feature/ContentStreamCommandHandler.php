@@ -15,8 +15,8 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Feature;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandHandlerInterface;
-use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
+use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Feature\ContentStreamClosing\Command\CloseContentStream;
@@ -60,7 +60,7 @@ final class ContentStreamCommandHandler implements CommandHandlerInterface
         ReopenContentStream $command,
         CommandHandlingDependencies $commandHandlingDependencies,
     ): EventsToPublish {
-        return $this->reopenContentStream($command->contentStreamId, $command->previousState, $commandHandlingDependencies);
+        return $this->reopenContentStream($command->contentStreamId, $commandHandlingDependencies);
     }
 
     private function handleRemoveContentStream(

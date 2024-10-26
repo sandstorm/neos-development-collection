@@ -20,8 +20,8 @@ use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasP
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Event\WorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Event\WorkspaceWasRebased;
 use Neos\ContentRepository\Core\Service\ContentStreamPruner\ContentStreamForPruning;
+use Neos\ContentRepository\Core\Service\ContentStreamPruner\ContentStreamStatus;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamStatus;
 use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Model\Event\EventType;
 use Neos\EventStore\Model\Event\EventTypes;
@@ -65,13 +65,16 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
         if ($removeTemporary) {
             $status[] = ContentStreamStatus::CREATED;
             $status[] = ContentStreamStatus::FORKED;
-            $status[] = ContentStreamStatus::CLOSED;
         }
 
         $allContentStreams = $this->getContentStreamsForPruning();
 
         $unusedContentStreamsPresent = false;
         foreach ($allContentStreams as $contentStream) {
+            if ($contentStream->removed) {
+                continue;
+            }
+
             if (!in_array($contentStream->status, $status, true)) {
                 continue;
             }
@@ -333,8 +336,8 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
         );
         $allContentStreamEventStreamNames = [];
         foreach ($events as $eventEnvelope) {
-            $allContentStreamEventStreamNames[$eventEnvelope->streamName->value] = true;
+            $allContentStreamEventStreamNames[] = $eventEnvelope->streamName;
         }
-        return array_map(StreamName::fromString(...), array_keys($allContentStreamEventStreamNames));
+        return array_unique($allContentStreamEventStreamNames, SORT_REGULAR);
     }
 }

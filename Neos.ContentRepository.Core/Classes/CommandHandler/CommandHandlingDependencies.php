@@ -18,7 +18,6 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
 use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceDoesNotExist;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamStatus;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\EventStore\Model\Event\Version;
@@ -46,17 +45,16 @@ final readonly class CommandHandlingDependencies
 
     public function contentStreamExists(ContentStreamId $contentStreamId): bool
     {
-        $cs = $this->contentGraphReadModel->findContentStreamById($contentStreamId);
-        return $cs !== null && !$cs->removed;
+        return $this->contentGraphReadModel->findContentStreamById($contentStreamId) !== null;
     }
 
-    public function getContentStreamStatus(ContentStreamId $contentStreamId): ContentStreamStatus
+    public function isContentStreamClosed(ContentStreamId $contentStreamId): bool
     {
         $contentStream = $this->contentGraphReadModel->findContentStreamById($contentStreamId);
         if ($contentStream === null) {
-            throw new \InvalidArgumentException(sprintf('Failed to find content stream with id "%s"', $contentStreamId->value), 1716902219);
+            throw new \InvalidArgumentException(sprintf('Failed to find content stream with id "%s"', $contentStreamId->value), 1729863973);
         }
-        return $contentStream->status;
+        return $contentStream->isClosed;
     }
 
     public function findWorkspaceByName(WorkspaceName $workspaceName): ?Workspace

@@ -16,7 +16,6 @@ namespace Neos\ContentRepository\Core\Feature\ContentStreamClosing\Command;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamStatus;
 
 /**
  * @internal implementation detail. You must not use this command directly.
@@ -27,25 +26,20 @@ final readonly class ReopenContentStream implements CommandInterface
 {
     /**
      * @param ContentStreamId $contentStreamId The id of the content stream to reopen
-     * @param ContentStreamStatus $previousState The state the content stream was in before closing and is to be reset to
      */
     private function __construct(
-        public ContentStreamId $contentStreamId,
-        public ContentStreamStatus $previousState
+        public ContentStreamId $contentStreamId
     ) {
     }
 
     /**
      * @param ContentStreamId $contentStreamId The id of the content stream to reopen
-     * @param ContentStreamStatus $previousState The state the content stream was in before closing and is to be reset to
      */
     public static function create(
-        ContentStreamId $contentStreamId,
-        ContentStreamStatus $previousState
+        ContentStreamId $contentStreamId
     ): self {
         return new self(
-            $contentStreamId,
-            $previousState
+            $contentStreamId
         );
     }
 
@@ -56,8 +50,7 @@ final readonly class ReopenContentStream implements CommandInterface
     public static function fromArray(array $array): self
     {
         return new self(
-            ContentStreamId::fromString($array['contentStreamId']),
-            ContentStreamStatus::from($array['previousState']),
+            ContentStreamId::fromString($array['contentStreamId'])
         );
     }
 }
