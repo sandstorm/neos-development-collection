@@ -224,6 +224,15 @@ Feature: Publishing individual nodes (basics)
       | nodesToPublish                  | [{"workspaceName": "user-test", "dimensionSpacePoint": {}, "nodeAggregateId": "sir-david-nodenborough"}, {"workspaceName": "user-test", "dimensionSpacePoint": {}, "nodeAggregateId": "nody-mc-nodeface"}, {"workspaceName": "user-test", "dimensionSpacePoint": {}, "nodeAggregateId": "sir-nodeward-nodington-iii"}] |
       | contentStreamIdForRemainingPart | "user-cs-identifier-remaining"                                                                                                                                                                                                                                                                                         |
 
+    # when publishing all nodes we expect a full discard via WorkspaceWasPublished
+    Then I expect exactly 2 events to be published on stream with prefix "Workspace:user-test"
+    And event at index 1 is of type "WorkspaceWasPublished" with payload:
+      | Key                           | Expected                       |
+      | sourceWorkspaceName           | "user-test"                    |
+      | targetWorkspaceName           | "live"                         |
+      | newSourceContentStreamId      | "user-cs-identifier-remaining" |
+      | previousSourceContentStreamId | "user-cs-identifier"           |
+
     When I am in workspace "live" and dimension space point {}
     Then I expect node aggregate identifier "sir-david-nodenborough" to lead to node cs-identifier;sir-david-nodenborough;{}
     And I expect this node to have the following properties:
@@ -283,3 +292,33 @@ Feature: Publishing individual nodes (basics)
     And event at index 3 is of type "ContentStreamWasReopened" with payload:
       | Key                           | Expected                                                |
       | contentStreamId               | "user-cs-identifier-remaining"                          |
+
+  Scenario: Partial publish is a rebase if the workspace is outdated and no changes are to be published
+    And the command SetNodeProperties is executed with payload:
+      | Key                       | Value                                  |
+      | workspaceName             | "live"                                 |
+      | nodeAggregateId           | "nody-mc-nodeface"                     |
+      | originDimensionSpacePoint | {}                                     |
+      | propertyValues            | {"text": "Modified in live workspace"} |
+
+    When the command PublishIndividualNodesFromWorkspace is executed with payload:
+      | Key                             | Value                                                                                                        |
+      | workspaceName                   | "user-test"                                                                                                  |
+      | nodesToPublish                  | [{"dimensionSpacePoint": {}, "nodeAggregateId": "ody-mc-nodeface"}] |
+      | contentStreamIdForRemainingPart | "user-cs-new"                                                                               |
+
+    Then I expect exactly 2 events to be published on stream with prefix "Workspace:user-test"
+    And event at index 1 is of type "WorkspaceWasRebased" with payload:
+      | Key                     | Expected             |
+      | workspaceName           | "user-test"          |
+      | newContentStreamId      | "user-cs-new"        |
+      | previousContentStreamId | "user-cs-identifier" |
+
+
+    And I am in workspace "user-test" and dimension space point {}
+    Then I expect node aggregate identifier "nody-mc-nodeface" to lead to node user-cs-new;nody-mc-nodeface;{}
+    And I expect this node to have the following properties:
+      | Key  | Value                        |
+      | text | "Modified in live workspace" |
+
+    Then I expect the content stream "user-cs-identifier" to not exist

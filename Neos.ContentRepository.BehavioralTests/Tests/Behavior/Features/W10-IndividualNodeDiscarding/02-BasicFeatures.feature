@@ -160,7 +160,7 @@ Feature: Discard individual nodes (basics)
       | newContentStreamId | "user-cs-identifier-new"                                                                                                                                                                                                                                                                                               |
 
     # when discarding all nodes we expect a full discard via WorkspaceWasDiscarded
-    Then I expect exactly 2 events to be published on stream with prefix "Workspace:user"
+    Then I expect exactly 2 events to be published on stream with prefix "Workspace:user-test"
     And event at index 1 is of type "WorkspaceWasDiscarded" with payload:
       | Key                     | Expected                 |
       | workspaceName           | "user-test"              |

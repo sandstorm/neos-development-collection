@@ -187,3 +187,30 @@ Feature: Workspace based content publishing
     # checks for the live workspace (same as above)
     Then I expect exactly 4 events to be published on stream "ContentStream:cs-identifier"
     Then I expect exactly 1 event to be published on stream "Workspace:live"
+
+  Scenario: Publish is a rebase if the workspace is outdated and no changes are to be published
+    And the command SetNodeProperties is executed with payload:
+      | Key                       | Value                                  |
+      | workspaceName             | "live"                                 |
+      | nodeAggregateId           | "nody-mc-nodeface"                     |
+      | originDimensionSpacePoint | {}                                     |
+      | propertyValues            | {"text": "Modified in live workspace"} |
+
+    And the command PublishWorkspace is executed with payload:
+      | Key                | Value         |
+      | workspaceName      | "user-test"   |
+      | newContentStreamId | "user-cs-new" |
+
+    Then I expect exactly 2 events to be published on stream with prefix "Workspace:user-test"
+    And event at index 1 is of type "WorkspaceWasRebased" with payload:
+      | Key                     | Expected             |
+      | workspaceName           | "user-test"          |
+      | newContentStreamId      | "user-cs-new"        |
+      | previousContentStreamId | "user-cs-identifier" |
+
+    And I am in workspace "user-test" and dimension space point {}
+    Then I expect node aggregate identifier "nody-mc-nodeface" to lead to node user-cs-new;nody-mc-nodeface;{}
+    And I expect this node to have the following properties:
+      | Key  | Value                        |
+      | text | "Modified in live workspace" |
+    Then I expect the content stream "user-cs-identifier" to not exist
