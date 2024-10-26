@@ -12,7 +12,7 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\Core;
+namespace Neos\ContentRepository\Core\CommandHandler;
 
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
@@ -24,10 +24,9 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\EventStore\Model\Event\Version;
 
 /**
- * An adapter to provide aceess to read projection data and delegate (sub) commands
+ * Encapsulates the access to the read model which is used by the command handlers for soft constraints
  *
- * @internal only command handlers are provided with this via the
- * @see ContentRepository::handle() todo move
+ * @internal
  */
 final readonly class CommandHandlingDependencies
 {
