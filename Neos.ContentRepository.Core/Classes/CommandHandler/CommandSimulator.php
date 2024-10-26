@@ -10,7 +10,7 @@ use Neos\ContentRepository\Core\EventStore\DecoratedEvent;
 use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
-use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
+use Neos\ContentRepository\Core\Feature\ExtractedCommand;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionInterface;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\EventStore\Helper\InMemoryEventStore;
@@ -40,7 +40,7 @@ final readonly class CommandSimulator
 
     /**
      * @template T
-     * @param callable(callable(RebasableToOtherWorkspaceInterface, ?EventMetadata=): void): T $fn
+     * @param callable(callable(ExtractedCommand): void): T $fn
      * @return T
      */
     public function run(callable $fn): mixed
@@ -54,10 +54,10 @@ final readonly class CommandSimulator
      * We will automatically copy given commands to the workspace this simulation
      * is running in to ensure consistency in the simulations constraint checks.
      */
-    private function handle(RebasableToOtherWorkspaceInterface $command, ?EventMetadata $additionalOriginalEventMetaData = null): void
+    private function handle(ExtractedCommand $command): void
     {
         // FIXME: Check if workspace already matches and skip this ($command->workspaceName === workspaceNameToSimulateIn) ...
-        $commandInWorkspace = $command->createCopyForWorkspace($this->workspaceNameToSimulateIn);
+        $commandInWorkspace = $command->originalCommand->createCopyForWorkspace($this->workspaceNameToSimulateIn);
 
         $eventsToPublish = $this->commandBus->handle($commandInWorkspace, $this->commandHandlingDependencies);
         if (!$eventsToPublish instanceof EventsToPublish) {
@@ -68,15 +68,13 @@ final readonly class CommandSimulator
             return;
         }
 
-        // the following logic could also be done in an AppEventStore::commit method (being called
-        // directly from the individual Command Handlers).
         $normalizedEvents = Events::fromArray(
             $eventsToPublish->events->map(function (EventInterface|DecoratedEvent $event) use (
-                $additionalOriginalEventMetaData
+                $command
             ) {
                 $metadata = $event instanceof DecoratedEvent ? $event->eventMetadata?->value ?? [] : [];
                 $decoratedEvent = DecoratedEvent::create($event, metadata: EventMetadata::fromArray(
-                    array_merge($metadata, $additionalOriginalEventMetaData?->value ?? [])
+                    array_merge($metadata, $command->initiatingMetaData->value ?? [])
                 ));
                 return $this->eventNormalizer->normalize($decoratedEvent);
             })

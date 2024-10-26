@@ -208,13 +208,14 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             $commandHandlingDependencies
         );
 
-        $originalEventMetaData = $this->extractEventMetaDataForRebaseableCommandsFromContentStream(
-            ContentStreamEventStreamName::fromContentStreamId(
-                $workspace->currentContentStreamId
+        $extractedCommands = ExtractedCommands::createFromEventStream(
+            $this->eventStore->load(
+                ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)
+                    ->getEventStreamName()
             )
         );
 
-        if ($originalEventMetaData === []) {
+        if ($extractedCommands->isEmpty()) {
             // we have no changes in the workspace
             if ($workspace->status === WorkspaceStatus::UP_TO_DATE) {
                 // and we are up to date already
@@ -251,19 +252,17 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         $commandSimulator = $this->commandSimulatorFactory->createSimulator($baseWorkspace->workspaceName);
 
-
         $commandsThatFailed = $commandSimulator->run(
-            function ($handle) use ($originalEventMetaData): CommandsThatFailedDuringRebase {
+            static function ($handle) use ($extractedCommands): CommandsThatFailedDuringRebase {
                 $commandsThatFailed = new CommandsThatFailedDuringRebase();
-                foreach ($originalEventMetaData as $sequenceNumber => $eventMetadata) {
-                    $originalCommand = $this->extractCommandFromEventMetaData($eventMetadata);
+                foreach ($extractedCommands as $sequenceNumber => $extractedCommand) {
                     try {
-                        $handle($originalCommand, InitiatingEventMetadata::extractInitiatingMetadata($eventMetadata));
+                        $handle($extractedCommand);
                     } catch (\Exception $e) {
                         $commandsThatFailed = $commandsThatFailed->add(
                             new CommandThatFailedDuringRebase(
                                 $sequenceNumber,
-                                $originalCommand,
+                                $extractedCommand->originalCommand,
                                 $e
                             )
                         );
@@ -370,13 +369,14 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             $commandHandlingDependencies
         );
 
-        $originalCommands = $this->extractCommandsFromContentStreamMetadata(
-            ContentStreamEventStreamName::fromContentStreamId(
-                $workspace->currentContentStreamId
+        $extractedCommands = ExtractedCommands::createFromEventStream(
+            $this->eventStore->load(
+                ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)
+                    ->getEventStreamName()
             )
         );
 
-        if ($originalCommands === []) {
+        if ($extractedCommands->isEmpty()) {
             // if we have no changes in the workspace we can fork from the base directly
             yield $this->forkContentStream(
                 $command->rebasedContentStreamId,
@@ -403,16 +403,16 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         $commandSimulator = $this->commandSimulatorFactory->createSimulator($baseWorkspace->workspaceName);
 
         $commandsThatFailed = $commandSimulator->run(
-            static function ($handle) use ($originalCommands): CommandsThatFailedDuringRebase {
+            static function ($handle) use ($extractedCommands): CommandsThatFailedDuringRebase {
                 $commandsThatFailed = new CommandsThatFailedDuringRebase();
-                foreach ($originalCommands as $sequenceNumber => $originalCommand) {
+                foreach ($extractedCommands as $sequenceNumber => $extractedCommand) {
                     try {
-                        $handle($originalCommand);
+                        $handle($extractedCommand);
                     } catch (\Exception $e) {
                         $commandsThatFailed = $commandsThatFailed->add(
                             new CommandThatFailedDuringRebase(
                                 $sequenceNumber,
-                                $originalCommand,
+                                $extractedCommand->originalCommand,
                                 $e
                             )
                         );
@@ -464,93 +464,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
     }
 
     /**
-     * @return array<int,EventMetadata>
-     */
-    private function extractEventMetaDataForRebaseableCommandsFromContentStream(
-        ContentStreamEventStreamName $workspaceContentStreamName,
-    ): array {
-        $workspaceContentStream = $this->eventStore->load($workspaceContentStreamName->getEventStreamName());
-
-        $commands = [];
-        foreach ($workspaceContentStream as $eventEnvelope) {
-            if ($eventEnvelope->event->metadata && isset($eventEnvelope->event->metadata?->value['commandClass'])) {
-                $commands[$eventEnvelope->sequenceNumber->value] = $eventEnvelope->event->metadata;
-            }
-        }
-
-        return $commands;
-    }
-
-    private function extractCommandFromEventMetaData(EventMetadata $eventMetadata): RebasableToOtherWorkspaceInterface
-    {
-        if (!isset($eventMetadata->value['commandClass'])) {
-            throw new \RuntimeException('Command cannot be extracted from metadata, missing commandClass.', 1729847804);
-        }
-
-        $commandToRebaseClass = $eventMetadata->value['commandClass'];
-        $commandToRebasePayload = $eventMetadata->value['commandPayload'];
-
-        /**
-         * the metadata will be added to all readable commands via
-         * @see \Neos\ContentRepository\Core\Feature\Common\NodeAggregateEventPublisher::enrichWithCommand
-         */
-        // TODO: Add this logic to the NodeAggregateCommandHandler;
-        // so that we can be sure these can be parsed again.
-
-        if (!in_array(RebasableToOtherWorkspaceInterface::class, class_implements($commandToRebaseClass) ?: [], true)) {
-            throw new \RuntimeException(sprintf(
-                'Command "%s" can\'t be rebased because it does not implement %s',
-                $commandToRebaseClass,
-                RebasableToOtherWorkspaceInterface::class
-            ), 1547815341);
-        }
-        /** @var class-string<RebasableToOtherWorkspaceInterface> $commandToRebaseClass */
-        /** @var RebasableToOtherWorkspaceInterface $commandInstance */
-        $commandInstance = $commandToRebaseClass::fromArray($commandToRebasePayload);
-        return $commandInstance;
-    }
-
-    /**
-     * TODO REMOVE and use the above everywhere
-     * @return array<int,RebasableToOtherWorkspaceInterface>
-     */
-    private function extractCommandsFromContentStreamMetadata(
-        ContentStreamEventStreamName $workspaceContentStreamName,
-    ): array {
-        $workspaceContentStream = $this->eventStore->load($workspaceContentStreamName->getEventStreamName());
-
-        $commands = [];
-        foreach ($workspaceContentStream as $eventEnvelope) {
-            $metadata = $eventEnvelope->event->metadata?->value ?? [];
-            /**
-             * the metadata will be added to all readable commands via
-             * @see \Neos\ContentRepository\Core\Feature\Common\NodeAggregateEventPublisher::enrichWithCommand
-             */
-            // TODO: Add this logic to the NodeAggregateCommandHandler;
-            // so that we can be sure these can be parsed again.
-            if (isset($metadata['commandClass'])) {
-                $commandToRebaseClass = $metadata['commandClass'];
-                $commandToRebasePayload = $metadata['commandPayload'];
-
-                if (!in_array(RebasableToOtherWorkspaceInterface::class, class_implements($commandToRebaseClass) ?: [], true)) {
-                    throw new \RuntimeException(sprintf(
-                        'Command "%s" can\'t be rebased because it does not implement %s',
-                        $commandToRebaseClass,
-                        RebasableToOtherWorkspaceInterface::class
-                    ), 1547815341);
-                }
-                /** @var class-string<RebasableToOtherWorkspaceInterface> $commandToRebaseClass */
-                /** @var RebasableToOtherWorkspaceInterface $commandInstance */
-                $commandInstance = $commandToRebaseClass::fromArray($commandToRebasePayload);
-                $commands[$eventEnvelope->sequenceNumber->value] = $commandInstance;
-            }
-        }
-
-        return $commands;
-    }
-
-
-    /**
      * This method is like a combined Rebase and Publish!
      *
      * @throws BaseWorkspaceDoesNotExist
@@ -581,11 +494,16 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             $commandHandlingDependencies
         );
 
-        $matchingCommands = [];
-        $remainingCommands = [];
-        $this->separateMatchingAndRemainingCommands($command, $workspace, $matchingCommands, $remainingCommands);
+        $extractedCommands = ExtractedCommands::createFromEventStream(
+            $this->eventStore->load(
+                ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)
+                    ->getEventStreamName()
+            )
+        );
 
-        if ($matchingCommands === []) {
+        [$matchingCommands, $remainingCommands] = $extractedCommands->separateMatchingAndRemainingCommands($command->nodesToPublish);
+
+        if ($matchingCommands->isEmpty()) {
             // almost noop (e.g. random node ids were specified) ;)
             yield $this->reopenContentStream(
                 $workspace->currentContentStreamId,
@@ -702,11 +620,15 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         );
 
         // filter commands, only keeping the ones NOT MATCHING the nodes from the command (i.e. the modifications we want to keep)
-        $commandsToDiscard = [];
-        $commandsToKeep = [];
-        $this->separateMatchingAndRemainingCommands($command, $workspace, $commandsToDiscard, $commandsToKeep);
+        $extractedCommands = ExtractedCommands::createFromEventStream(
+            $this->eventStore->load(
+                ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)
+                    ->getEventStreamName()
+            )
+        );
+        [$commandsToDiscard, $commandsToKeep] = $extractedCommands->separateMatchingAndRemainingCommands($command->nodesToDiscard);
 
-        if ($commandsToDiscard === []) {
+        if ($commandsToDiscard->isEmpty()) {
             // if we have nothing to discard, we can just keep all. (e.g. random node ids were specified) It's almost a noop ;)
             yield $this->reopenContentStream(
                 $workspace->currentContentStreamId,
@@ -716,7 +638,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             return;
         }
 
-        if ($commandsToKeep === []) {
+        if ($commandsToKeep->isEmpty()) {
             // quick path everything was discarded we just branch of from the base
             yield from $this->discardWorkspace(
                 $workspace,
@@ -770,57 +692,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         );
 
         yield $this->removeContentStream($workspace->currentContentStreamId, $commandHandlingDependencies);
-    }
-
-
-    /**
-     * @param array<int,RebasableToOtherWorkspaceInterface&CommandInterface> &$matchingCommands
-     * @param array<int,RebasableToOtherWorkspaceInterface&CommandInterface> &$remainingCommands
-     * @param-out array<int,RebasableToOtherWorkspaceInterface&CommandInterface> $matchingCommands
-     * @param-out array<int,RebasableToOtherWorkspaceInterface&CommandInterface> $remainingCommands
-     */
-    private function separateMatchingAndRemainingCommands(
-        PublishIndividualNodesFromWorkspace|DiscardIndividualNodesFromWorkspace $command,
-        Workspace $workspace,
-        array &$matchingCommands,
-        array &$remainingCommands
-    ): void {
-        $workspaceContentStreamName = ContentStreamEventStreamName::fromContentStreamId(
-            $workspace->currentContentStreamId
-        );
-
-        $originalCommands = $this->extractCommandsFromContentStreamMetadata($workspaceContentStreamName);
-
-        foreach ($originalCommands as $originalCommand) {
-            if (!$originalCommand instanceof MatchableWithNodeIdToPublishOrDiscardInterface) {
-                throw new \Exception(
-                    'Command class ' . get_class($originalCommand) . ' does not implement '
-                    . MatchableWithNodeIdToPublishOrDiscardInterface::class,
-                    1645393655
-                );
-            }
-            $nodeIds = $command instanceof PublishIndividualNodesFromWorkspace
-                ? $command->nodesToPublish
-                : $command->nodesToDiscard;
-            if ($this->commandMatchesAtLeastOneNode($originalCommand, $nodeIds)) {
-                $matchingCommands[] = $originalCommand;
-            } else {
-                $remainingCommands[] = $originalCommand;
-            }
-        }
-    }
-
-    private function commandMatchesAtLeastOneNode(
-        MatchableWithNodeIdToPublishOrDiscardInterface $command,
-        NodeIdsToPublishOrDiscard $nodeIds,
-    ): bool {
-        foreach ($nodeIds as $nodeId) {
-            if ($command->matchesNodeId($nodeId)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**
