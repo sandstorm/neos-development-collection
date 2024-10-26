@@ -69,10 +69,6 @@ final readonly class CommandHandlingDependencies
      */
     public function getContentGraph(WorkspaceName $workspaceName): ContentGraphInterface
     {
-        $workspace = $this->contentGraphReadModel->findWorkspaceByName($workspaceName);
-        if ($workspace === null) {
-            throw WorkspaceDoesNotExist::butWasSupposedTo($workspaceName);
-        }
-        return $this->contentGraphReadModel->buildContentGraph($workspace->workspaceName, $workspace->currentContentStreamId);
+        return $this->contentGraphReadModel->getContentGraph($workspaceName);
     }
 }
