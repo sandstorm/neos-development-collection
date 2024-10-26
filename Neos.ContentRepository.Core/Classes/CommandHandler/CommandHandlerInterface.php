@@ -9,8 +9,7 @@ use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 /**
  * Common interface for all Content Repository command handlers
  *
- * Note: The Content Repository instance is passed to the handle() method for it to do soft-constraint checks or
- * trigger "sub commands"
+ * The {@see CommandHandlingDependencies} are available during handling to do soft-constraint checks
  *
  * @internal no public API, because commands are no extension points of the CR
  */
@@ -19,6 +18,11 @@ interface CommandHandlerInterface
     public function canHandle(CommandInterface $command): bool;
 
     /**
+     * "simple" command handlers return EventsToPublish directly
+     *
+     * For the case of the workspace command handler who need to publish to many streams and "close" the content-stream directly,
+     * it's allowed to yield the events to interact with the control flow of event publishing.
+     *
      * @return EventsToPublish|\Generator<int, EventsToPublish>
      */
     public function handle(CommandInterface $command, CommandHandlingDependencies $commandHandlingDependencies): EventsToPublish|\Generator;

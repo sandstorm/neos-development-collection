@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\CommandHandler;
 
-use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\EventStore\DecoratedEvent;
 use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
@@ -21,7 +20,24 @@ use Neos\EventStore\Model\EventStream\ExpectedVersion;
 use Neos\EventStore\Model\EventStream\VirtualStreamName;
 
 /**
- * Implementation detail of {@see ContentRepository::handle}, when rebasing or partially publishing
+ * The CommandSimulator is used during the publishing process, for partial publishing and workspace rebasing.
+ *
+ * For this case, we want to apply commands including their constraint checks step by step, to see whether this
+ * set of commands applies cleanly without errors, and which events would be created by them, but we do NOT
+ * want to commit the updated projections or events.
+ *
+ * Internally, we do the following:
+ * - Create a database transaction in the GraphProjection which we will roll back lateron (to dry-run
+ * projection updates) (via {@see CommandSimulator::run()}).
+ * - Create an InMemoryEventStore which buffers created events by command handlers.
+ * - execute all commands via {@see CommandSimulator::handle()}
+ * - -> this will do all constraint checks based on the projection in the open transaction (so it sees
+ * previously modified projection state which is not committed)
+ * - -> it will run the command handlers, buffer all emitted events in the InMemoryEventStore
+ *   -> note to avoid full recursion the workspace command handler is not included in the bus
+ * - -> update the GraphProjection, but WITHOUT committing the transaction.
+ *
+ * This is quite performant because we do not need to fork a new content stream.
  *
  * @internal
  */
@@ -54,7 +70,8 @@ final readonly class CommandSimulator
      */
     private function handle(RebaseableCommand $rebaseableCommand): void
     {
-        // FIXME: Check if workspace already matches and skip this ($command->workspaceName === workspaceNameToSimulateIn) ...
+        // FIXME: Check if workspace already matches and skip this, e.g. $commandInWorkspace = $command->getWorkspaceName()->equals($this->workspaceNameToSimulateIn) ? $command : $command->createCopyForWorkspace($this->workspaceNameToSimulateIn);
+        // when https://github.com/neos/neos-development-collection/pull/5298 is merged
         $commandInWorkspace = $rebaseableCommand->originalCommand->createCopyForWorkspace($this->workspaceNameToSimulateIn);
 
         $eventsToPublish = $this->commandBus->handle($commandInWorkspace);
