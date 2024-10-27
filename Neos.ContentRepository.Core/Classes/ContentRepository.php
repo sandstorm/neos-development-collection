@@ -147,7 +147,7 @@ final class ContentRepository
         $projection = $this->projectionsAndCatchUpHooks->projections->get($projectionClassName);
 
         $catchUpHookFactory = $this->projectionsAndCatchUpHooks->getCatchUpHookFactoryForProjection($projection);
-        $catchUpHook = $catchUpHookFactory?->build($this);
+        $catchUpHook = $catchUpHookFactory?->build($this->id, $projection->getState());
 
         // TODO allow custom stream name per projection
         $streamName = VirtualStreamName::all();

@@ -4,18 +4,22 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Projection;
 
-use Neos\ContentRepository\Core\ContentRepository;
+use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 
 /**
+ * @implements CatchUpHookFactoryInterface<ProjectionStateInterface>
  * @internal
  */
 final class CatchUpHookFactories implements CatchUpHookFactoryInterface
 {
     /**
-     * @var array<mixed,CatchUpHookFactoryInterface>
+     * @var array<mixed,CatchUpHookFactoryInterface<ProjectionStateInterface>>
      */
     private array $catchUpHookFactories;
 
+    /**
+     * @param CatchUpHookFactoryInterface<ProjectionStateInterface> ...$catchUpHookFactories
+     */
     private function __construct(CatchUpHookFactoryInterface ...$catchUpHookFactories)
     {
         $this->catchUpHookFactories = $catchUpHookFactories;
@@ -26,6 +30,10 @@ final class CatchUpHookFactories implements CatchUpHookFactoryInterface
         return new self();
     }
 
+    /**
+     * @param CatchUpHookFactoryInterface<ProjectionStateInterface> $catchUpHookFactory
+     * @return self
+     */
     public function with(CatchUpHookFactoryInterface $catchUpHookFactory): self
     {
         if ($this->has($catchUpHookFactory::class)) {
@@ -44,9 +52,9 @@ final class CatchUpHookFactories implements CatchUpHookFactoryInterface
         return array_key_exists($catchUpHookFactoryClassName, $this->catchUpHookFactories);
     }
 
-    public function build(ContentRepository $contentRepository): CatchUpHookInterface
+    public function build(ContentRepositoryId $contentRepositoryId, ProjectionStateInterface $projectionState): CatchUpHookInterface
     {
-        $catchUpHooks = array_map(static fn(CatchUpHookFactoryInterface $catchUpHookFactory) => $catchUpHookFactory->build($contentRepository), $this->catchUpHookFactories);
+        $catchUpHooks = array_map(static fn(CatchUpHookFactoryInterface $catchUpHookFactory) => $catchUpHookFactory->build($contentRepositoryId, $projectionState), $this->catchUpHookFactories);
         return new DelegatingCatchUpHook(...$catchUpHooks);
     }
 }

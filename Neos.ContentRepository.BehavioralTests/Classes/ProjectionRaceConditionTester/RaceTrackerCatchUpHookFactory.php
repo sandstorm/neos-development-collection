@@ -14,18 +14,21 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\BehavioralTests\ProjectionRaceConditionTester;
 
-use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Projection\CatchUpHookFactoryInterface;
 use Neos\ContentRepository\Core\Projection\CatchUpHookInterface;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
+use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
+use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 
 /**
  * For full docs and context, see {@see RaceTrackerCatchUpHook}
  *
+ * @implements CatchUpHookFactoryInterface<ContentGraphReadModelInterface>
  * @internal
  */
 final class RaceTrackerCatchUpHookFactory implements CatchUpHookFactoryInterface
 {
-    public function build(ContentRepository $contentRepository): CatchUpHookInterface
+    public function build(ContentRepositoryId $contentRepositoryId, ProjectionStateInterface $projectionState): CatchUpHookInterface
     {
         return new RaceTrackerCatchUpHook();
     }
