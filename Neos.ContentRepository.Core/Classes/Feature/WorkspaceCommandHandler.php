@@ -15,19 +15,16 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Feature;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandHandlerInterface;
+use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\CommandHandler\CommandSimulatorFactory;
-use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\EventStore\DecoratedEvent;
 use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
-use Neos\ContentRepository\Core\EventStore\InitiatingEventMetadata;
-use Neos\ContentRepository\Core\Feature\Common\MatchableWithNodeIdToPublishOrDiscardInterface;
 use Neos\ContentRepository\Core\Feature\Common\PublishableToWorkspaceInterface;
-use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
 use Neos\ContentRepository\Core\Feature\ContentStreamClosing\Event\ContentStreamWasClosed;
 use Neos\ContentRepository\Core\Feature\ContentStreamClosing\Event\ContentStreamWasReopened;
 use Neos\ContentRepository\Core\Feature\ContentStreamForking\Event\ContentStreamWasForked;
@@ -48,14 +45,11 @@ use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\DiscardIndi
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\DiscardWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishIndividualNodesFromWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishWorkspace;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Dto\NodeIdsToPublishOrDiscard;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasDiscarded;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPartiallyDiscarded;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPartiallyPublished;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPublished;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Command\RebaseWorkspace;
-use Neos\ContentRepository\Core\Feature\WorkspaceRebase\CommandsThatFailedDuringRebase;
-use Neos\ContentRepository\Core\Feature\WorkspaceRebase\CommandThatFailedDuringRebase;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Dto\RebaseErrorHandlingStrategy;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Event\WorkspaceWasRebased;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\WorkspaceRebaseFailed;
@@ -69,7 +63,6 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceStatus;
 use Neos\EventStore\EventStoreInterface;
-use Neos\EventStore\Model\Event\EventMetadata;
 use Neos\EventStore\Model\Event\EventType;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Neos\EventStore\Model\Event\Version;
@@ -251,7 +244,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         RebaseableCommands $rebaseableCommands,
         CommandHandlingDependencies $commandHandlingDependencies,
     ): \Generator {
-        $commandSimulator = $this->commandSimulatorFactory->createSimulator($baseWorkspace->workspaceName);
+        $commandSimulator = $this->commandSimulatorFactory->createSimulatorForWorkspace($baseWorkspace->workspaceName);
 
         $commandSimulator->run(
             static function ($handle) use ($rebaseableCommands): void {
@@ -396,7 +389,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             return;
         }
 
-        $commandSimulator = $this->commandSimulatorFactory->createSimulator($baseWorkspace->workspaceName);
+        $commandSimulator = $this->commandSimulatorFactory->createSimulatorForWorkspace($baseWorkspace->workspaceName);
 
         $commandSimulator->run(
             static function ($handle) use ($rebaseableCommands): void {
@@ -530,7 +523,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             }
         }
 
-        $commandSimulator = $this->commandSimulatorFactory->createSimulator($baseWorkspace->workspaceName);
+        $commandSimulator = $this->commandSimulatorFactory->createSimulatorForWorkspace($baseWorkspace->workspaceName);
 
         $highestSequenceNumberForMatching = $commandSimulator->run(
             static function ($handle) use ($commandSimulator, $matchingCommands, $remainingCommands): SequenceNumber {
@@ -655,7 +648,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             return;
         }
 
-        $commandSimulator = $this->commandSimulatorFactory->createSimulator($baseWorkspace->workspaceName);
+        $commandSimulator = $this->commandSimulatorFactory->createSimulatorForWorkspace($baseWorkspace->workspaceName);
 
         $commandSimulator->run(
             static function ($handle) use ($commandsToKeep): void {

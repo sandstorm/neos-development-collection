@@ -37,7 +37,7 @@ use Neos\EventStore\Model\EventStream\VirtualStreamName;
  * previously modified projection state which is not committed)
  * - -> it will run the command handlers, buffer all emitted events in the InMemoryEventStore
  *   -> note to avoid full recursion the workspace command handler is not included in the bus
- * - -> update the GraphProjection, but WITHOUT committing the transaction.
+ * - -> update the GraphProjection, but WITHOUT committing the transaction {@see ContentGraphProjectionInterface::inSimulation()}
  *
  * This is quite performant because we do not need to fork a new content stream.
  *
@@ -47,20 +47,24 @@ final class CommandSimulator
 {
     private CommandsThatFailedDuringRebase $commandsThatFailedDuringRebase;
 
+    private readonly InMemoryEventStore $inMemoryEventStore;
+
     public function __construct(
         private readonly ContentGraphProjectionInterface $contentRepositoryProjection,
         private readonly EventNormalizer $eventNormalizer,
         private readonly CommandBus $commandBus,
-        private readonly InMemoryEventStore $inMemoryEventStore,
         private readonly WorkspaceName $workspaceNameToSimulateIn,
     ) {
+        $this->inMemoryEventStore = new InMemoryEventStore();
         $this->commandsThatFailedDuringRebase = new CommandsThatFailedDuringRebase();
     }
 
     /**
+     * Start the simulation for the passed function which receives as argument the {@see handle} function.
+     *
      * @template T
      * @param callable(callable(RebaseableCommand): void): T $fn
-     * @return T
+     * @return T the return value of $fn
      */
     public function run(callable $fn): mixed
     {
@@ -144,7 +148,7 @@ final class CommandSimulator
 
     public function currentSequenceNumber(): SequenceNumber
     {
-        foreach ($this->inMemoryEventStore->load(VirtualStreamName::all())->backwards()->limit(1) as $eventEnvelope) {
+        foreach ($this->eventStream()->backwards()->limit(1) as $eventEnvelope) {
             return $eventEnvelope->sequenceNumber;
         }
         return SequenceNumber::none();

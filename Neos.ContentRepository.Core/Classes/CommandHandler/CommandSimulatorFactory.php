@@ -7,7 +7,6 @@ namespace Neos\ContentRepository\Core\CommandHandler;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionInterface;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
-use Neos\EventStore\Helper\InMemoryEventStore;
 
 /**
  * @internal
@@ -21,13 +20,12 @@ final readonly class CommandSimulatorFactory
     ) {
     }
 
-    public function createSimulator(WorkspaceName $workspaceNameToSimulateIn): CommandSimulator
+    public function createSimulatorForWorkspace(WorkspaceName $workspaceNameToSimulateIn): CommandSimulator
     {
         return new CommandSimulator(
             $this->contentRepositoryProjection,
             $this->eventNormalizer,
             $this->commandBus,
-            new InMemoryEventStore(),
             $workspaceNameToSimulateIn,
         );
     }
