@@ -19,7 +19,7 @@ use Neos\EventStore\Model\Event\Version;
 /**
  * Content Stream Read Model
  *
- * @api
+ * @api Note: The constructor is not part of the public API
  */
 final readonly class ContentStream
 {
