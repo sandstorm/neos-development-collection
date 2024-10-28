@@ -11,6 +11,7 @@ use Neos\ContentRepository\Core\Feature\ContentStreamCreation\Event\ContentStrea
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\ContentStreamForking\Event\ContentStreamWasForked;
 use Neos\ContentRepository\Core\Feature\ContentStreamRemoval\Event\ContentStreamWasRemoved;
+use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Event\RootWorkspaceWasCreated;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Event\WorkspaceWasCreated;
 use Neos\ContentRepository\Core\Feature\WorkspaceEventStreamName;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasDiscarded;
@@ -238,6 +239,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
             VirtualStreamName::forCategory(WorkspaceEventStreamName::EVENT_STREAM_NAME_PREFIX),
             EventStreamFilter::create(
                 EventTypes::create(
+                    EventType::fromString('RootWorkspaceWasCreated'),
                     EventType::fromString('WorkspaceWasCreated'),
                     EventType::fromString('WorkspaceWasDiscarded'),
                     EventType::fromString('WorkspaceWasPartiallyDiscarded'),
@@ -253,6 +255,12 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
             $domainEvent = $this->eventNormalizer->denormalize($eventEnvelope->event);
 
             switch ($domainEvent::class) {
+                case RootWorkspaceWasCreated::class:
+                    if (isset($status[$domainEvent->newContentStreamId->value])) {
+                        $status[$domainEvent->newContentStreamId->value] = $status[$domainEvent->newContentStreamId->value]
+                                ->withStatus(ContentStreamStatus::IN_USE_BY_WORKSPACE);
+                    }
+                    break;
                 case WorkspaceWasCreated::class:
                     if (isset($status[$domainEvent->newContentStreamId->value])) {
                         $status[$domainEvent->newContentStreamId->value] = $status[$domainEvent->newContentStreamId->value]
