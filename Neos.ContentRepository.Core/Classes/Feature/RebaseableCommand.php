@@ -81,7 +81,7 @@ final readonly class RebaseableCommand
             if ($i === 0) {
                 if (!$command instanceof \JsonSerializable) {
                     throw new \RuntimeException(sprintf(
-                        'Command %s must be JSON Serializable to be used with NodeAggregateEventPublisher.',
+                        'Command %s must be JSON Serializable to be rebase able.',
                         get_class($command)
                     ));
                 }

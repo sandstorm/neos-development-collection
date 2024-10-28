@@ -155,8 +155,7 @@ trait CrImportExportTrait
         $eventsWithoutRandomIds = [];
 
         foreach ($exportedEvents as $exportedEvent) {
-            // we have to remove the event id in \Neos\ContentRepository\Core\Feature\Common\NodeAggregateEventPublisher::enrichWithCommand
-            // and the initiatingTimestamp to make the events diff able
+            // we have to remove the event id and initiatingTimestamp to make the events diff able
             $eventsWithoutRandomIds[] = $exportedEvent
                 ->withIdentifier('random-event-uuid')
                 ->processMetadata(function (array $metadata) {
