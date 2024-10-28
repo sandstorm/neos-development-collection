@@ -23,14 +23,24 @@ use Neos\EventStore\Model\Event\SequenceNumber;
 final readonly class CommandThatFailedDuringRebase
 {
     /**
-     * @param SequenceNumber $sequenceNumber the event store sequence number of the event containing the command to be rebased
      * @param CommandInterface $command the command that failed
      * @param \Throwable $exception how the command failed
+     * @param SequenceNumber $sequenceNumber the event store sequence number of the event containing the command to be rebased
      */
     public function __construct(
-        public SequenceNumber $sequenceNumber,
         public CommandInterface $command,
-        public \Throwable $exception
+        public \Throwable $exception,
+        private SequenceNumber $sequenceNumber,
     ) {
+    }
+
+    /**
+     * The event store sequence number of the event containing the command to be rebased
+     *
+     * @internal exposed for testing
+     */
+    public function getSequenceNumber(): SequenceNumber
+    {
+        return $this->sequenceNumber;
     }
 }

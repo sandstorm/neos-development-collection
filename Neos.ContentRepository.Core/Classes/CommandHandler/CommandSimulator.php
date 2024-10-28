@@ -88,9 +88,9 @@ final class CommandSimulator
         } catch (\Exception $exception) {
             $this->commandsThatFailedDuringRebase = $this->commandsThatFailedDuringRebase->withAppended(
                 new CommandThatFailedDuringRebase(
-                    $rebaseableCommand->originalSequenceNumber,
                     $rebaseableCommand->originalCommand,
-                    $exception
+                    $exception,
+                    $rebaseableCommand->originalSequenceNumber
                 )
             );
 

@@ -27,12 +27,12 @@ final readonly class RebaseableCommand
 
     public static function extractFromEventMetaData(EventMetadata $eventMetadata, SequenceNumber $sequenceNumber): self
     {
-        if (!isset($eventMetadata->value['commandClass'])) {
-            throw new \RuntimeException('Command cannot be extracted from metadata, missing commandClass.', 1729847804);
-        }
+        $commandToRebaseClass = $eventMetadata->value['commandClass'] ?? null;
+        $commandToRebasePayload = $eventMetadata->value['commandPayload'] ?? null;
 
-        $commandToRebaseClass = $eventMetadata->value['commandClass'];
-        $commandToRebasePayload = $eventMetadata->value['commandPayload'];
+        if ($commandToRebaseClass === null || $commandToRebasePayload === null) {
+            throw new \RuntimeException('Command cannot be extracted from metadata, missing commandClass or commandPayload.', 1729847804);
+        }
 
         if (!in_array(RebasableToOtherWorkspaceInterface::class, class_implements($commandToRebaseClass) ?: [], true)) {
             throw new \RuntimeException(sprintf(
