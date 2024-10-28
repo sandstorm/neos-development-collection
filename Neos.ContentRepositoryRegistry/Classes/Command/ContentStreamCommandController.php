@@ -39,8 +39,7 @@ class ContentStreamCommandController extends CommandController
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
         $contentStreamPruner = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new ContentStreamPrunerFactory());
 
-        $contentStreamPruner->prune(
-            $removeTemporary,
+        $contentStreamPruner->removeDangelingContentStreams(
             $this->outputLine(...)
         );
     }

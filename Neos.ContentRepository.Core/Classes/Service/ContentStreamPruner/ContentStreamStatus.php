@@ -24,7 +24,7 @@ enum ContentStreamStatus: string
      *
      * **temporary state** which should not appear if the system is idle (for content streams which are used with workspaces).
      */
-    case CREATED = 'CREATED';
+    case CREATED = 'created (temporary)';
 
     /**
      * FORKED means the content stream was forked from an existing content stream, but not yet assigned
@@ -32,15 +32,15 @@ enum ContentStreamStatus: string
      *
      * **temporary state** which should not appear if the system is idle (for content streams which are used with workspaces).
      */
-    case FORKED = 'FORKED';
+    case FORKED = 'forked (temporary)';
 
     /**
      * the content stream is currently referenced as the "active" content stream by a workspace.
      */
-    case IN_USE_BY_WORKSPACE = 'IN_USE_BY_WORKSPACE';
+    case IN_USE_BY_WORKSPACE = 'in use by workspace';
 
     /**
      * the content stream is not used anymore, and can be removed.
      */
-    case NO_LONGER_IN_USE = 'NO_LONGER_IN_USE';
+    case NO_LONGER_IN_USE = 'no longer in use';
 }

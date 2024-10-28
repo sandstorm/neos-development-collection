@@ -257,7 +257,7 @@ trait CRTestSuiteTrait
     {
         /** @var ContentStreamPruner $contentStreamPruner */
         $contentStreamPruner = $this->getContentRepositoryService(new ContentStreamPrunerFactory());
-        $contentStreamPruner->prune(false, fn () => null);
+        $contentStreamPruner->removeDangelingContentStreams(fn () => null);
     }
 
     /**

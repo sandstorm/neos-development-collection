@@ -46,28 +46,18 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
     }
 
     /**
-     * Remove all content streams which are not needed anymore from the projections.
+     * Before publishing version 3 (#5301) dangling content streams were not removed during publishing, discard or rebase
      *
-     * NOTE: This still **keeps** the event stream as is; so it would be possible to re-construct the content stream
-     *       at a later point in time (though we currently do not provide any API for it).
+     * Removes all nodes, hierarchy relations and content stream entries which are not needed anymore from the projections.
      *
-     *       To remove the deleted Content Streams,
-     *       call {@see ContentStreamPruner::pruneRemovedFromEventStream()} afterwards.
+     * NOTE: This still **keeps** the event stream as is; so it would be possible to re-construct the content stream at a later point in time.
      *
-     * By default, only content streams that are NO_LONGER_IN_USE will be removed.
-     * If you also call with $removeTemporary=true, will delete ALL content streams which are currently not assigned
-     * to a workspace (f.e. dangling ones in FORKED, CLOSED or CREATED.).
+     * To prune the removed content streams from the event store, call {@see ContentStreamPruner::pruneRemovedFromEventStream()} afterwards.
      *
-     * @param bool $removeTemporary if TRUE, will delete ALL content streams not bound to a workspace
+     * @deprecated with Neos 9 beta 15, only used to migrate from earlier versions
      */
-    public function prune(bool $removeTemporary, \Closure $outputFn): void
+    public function removeDangelingContentStreams(\Closure $outputFn): void
     {
-        $status = [ContentStreamStatus::NO_LONGER_IN_USE];
-        if ($removeTemporary) {
-            $status[] = ContentStreamStatus::CREATED;
-            $status[] = ContentStreamStatus::FORKED;
-        }
-
         $allContentStreams = $this->getContentStreamsForPruning();
 
         $unusedContentStreamsPresent = false;
@@ -76,7 +66,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
                 continue;
             }
 
-            if (!in_array($contentStream->status, $status, true)) {
+            if ($contentStream->status === ContentStreamStatus::IN_USE_BY_WORKSPACE) {
                 continue;
             }
 
@@ -90,7 +80,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
                 ExpectedVersion::STREAM_EXISTS()
             );
 
-            $outputFn(sprintf('Removed %s', $contentStream->id));
+            $outputFn(sprintf('Removed %s with status %s', $contentStream->id, $contentStream->status->value));
 
             $unusedContentStreamsPresent = true;
         }
