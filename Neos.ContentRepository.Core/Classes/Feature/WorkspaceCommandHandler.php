@@ -685,7 +685,11 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         $workspace = $this->requireWorkspace($command->workspaceName, $commandHandlingDependencies);
         $baseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
 
-        return $this->discardWorkspace(
+        if (!$this->hasEventsInContentStreamExceptForking(ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId))) {
+            return;
+        }
+
+        yield from $this->discardWorkspace(
             $workspace,
             $baseWorkspace,
             $command->newContentStreamId,
@@ -706,7 +710,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         ContentStreamId $newContentStream,
         CommandHandlingDependencies $commandHandlingDependencies
     ): \Generator {
-        // todo only discard if changes, needs new changes flag on the Workspace model
         yield $this->forkContentStream(
             $newContentStream,
             $baseWorkspace->currentContentStreamId,
