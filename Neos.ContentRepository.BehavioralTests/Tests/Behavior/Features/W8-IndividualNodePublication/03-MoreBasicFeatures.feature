@@ -61,6 +61,7 @@ Feature: Publishing individual nodes (basics)
       | nodeAggregateId             | "sir-unchanged"                                         |
       | nodeTypeName                | "Neos.ContentRepository.Testing:Content"                |
       | parentNodeAggregateId       | "lady-eleonode-rootford"                                |
+      | initialPropertyValues       | {"text": "Initial text"}                                |
 
     # Create user workspace
     And the command CreateWorkspace is executed with payload:
@@ -285,7 +286,7 @@ Feature: Publishing individual nodes (basics)
       | Key                           | Expected                                                |
       | contentStreamId               | "user-cs-identifier-remaining"                          |
 
-  Scenario: Partial publish remaining changes are not lost
+  Scenario: Partial publish keeps remaining changes if nothing matches (and the workspace is outdated)
     And the command SetNodeProperties is executed with payload:
       | Key                       | Value                                  |
       | workspaceName             | "live"                                 |
@@ -294,20 +295,23 @@ Feature: Publishing individual nodes (basics)
       | propertyValues            | {"text": "Modified in live workspace"} |
 
     When the command PublishIndividualNodesFromWorkspace is executed with payload:
-      | Key                             | Value                                                                                                        |
-      | workspaceName                   | "user-test"                                                                                                  |
+      | Key                             | Value                                                            |
+      | workspaceName                   | "user-test"                                                      |
       | nodesToPublish                  | [{"dimensionSpacePoint": {}, "nodeAggregateId": "non-existing"}] |
-      | contentStreamIdForRemainingPart | "user-cs-new"                                                                               |
+      | contentStreamIdForRemainingPart | "user-cs-new"                                                    |
+    Then workspaces user-test has status OUTDATED
+
+    Then I expect exactly 1 events to be published on stream with prefix "Workspace:user-test"
 
     And I am in workspace "user-test" and dimension space point {}
-    Then I expect node aggregate identifier "sir-unchanged" to lead to node user-cs-new;sir-unchanged;{}
+    Then I expect node aggregate identifier "sir-unchanged" to lead to node user-cs-identifier;sir-unchanged;{}
     And I expect this node to have the following properties:
-      | Key  | Value                        |
-      | text | "Modified in live workspace" |
+      | Key  | Value          |
+      | text | "Initial text" |
 
-    Then I expect node aggregate identifier "sir-david-nodenborough" to lead to node user-cs-new;sir-david-nodenborough;{}
+    Then I expect node aggregate identifier "sir-david-nodenborough" to lead to node user-cs-identifier;sir-david-nodenborough;{}
     And I expect this node to have the following properties:
       | Key  | Value         |
       | text | "Modified t1" |
 
-    # Then I expect the content stream "user-cs-identifier" to not exist
+    Then I expect the content stream "user-cs-new" to not exist

@@ -198,20 +198,11 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             )
         );
 
-        if ($workspace->status === WorkspaceStatus::UP_TO_DATE && $rebaseableCommands->isEmpty()) {
-            // we are up-to-date already and have no changes, we just reopen; partial no-op
+        if ($rebaseableCommands->isEmpty()) {
+            // we have no changes, we just reopen; partial no-op
             yield $this->reopenContentStream(
                 $workspace->currentContentStreamId,
                 ContentStreamStatus::IN_USE_BY_WORKSPACE, // todo will be removed
-                $commandHandlingDependencies
-            );
-            return;
-        } elseif ($rebaseableCommands->isEmpty()) {
-            // we have no changes in the workspace, then we will just do a rebase
-            yield from $this->rebaseWorkspaceWithoutChanges(
-                $workspace,
-                $baseWorkspace,
-                $command->newContentStreamId,
                 $commandHandlingDependencies
             );
             return;
@@ -354,7 +345,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         $workspace = $this->requireWorkspace($command->workspaceName, $commandHandlingDependencies);
         $baseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
         if (!$commandHandlingDependencies->contentStreamExists($workspace->currentContentStreamId)) {
-            throw new \DomainException('Cannot rebase a workspace with a stateless content stream', 1711718314);
+            throw new \RuntimeException('Cannot rebase a workspace with a stateless content stream', 1711718314);
         }
         $currentWorkspaceContentStreamState = $commandHandlingDependencies->getContentStreamStatus($workspace->currentContentStreamId);
 
@@ -459,7 +450,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         $workspace = $this->requireWorkspace($command->workspaceName, $commandHandlingDependencies);
         if (!$commandHandlingDependencies->contentStreamExists($workspace->currentContentStreamId)) {
-            throw new \DomainException('Cannot publish nodes on a workspace with a stateless content stream', 1710410114);
+            throw new \RuntimeException('Cannot publish nodes on a workspace with a stateless content stream', 1710410114);
         }
         $currentWorkspaceContentStreamState = $commandHandlingDependencies->getContentStreamStatus($workspace->currentContentStreamId);
         $baseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
@@ -478,21 +469,10 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             )
         );
 
-        if ($rebaseableCommands->isEmpty() && $workspace->status === WorkspaceStatus::OUTDATED) {
-            // we are not up-to-date and don't have any changes, but we want to rebase
-            yield from $this->rebaseWorkspaceWithoutChanges(
-                $workspace,
-                $baseWorkspace,
-                $command->contentStreamIdForRemainingPart,
-                $commandHandlingDependencies
-            );
-            return;
-        }
-
         [$matchingCommands, $remainingCommands] = $rebaseableCommands->separateMatchingAndRemainingCommands($command->nodesToPublish);
 
-        if ($matchingCommands->isEmpty() && $workspace->status === WorkspaceStatus::UP_TO_DATE) {
-            // almost a noop (e.g. random node ids were specified and we are up-to-date) ;)
+        if ($matchingCommands->isEmpty()) {
+            // almost a noop (e.g. random node ids were specified) ;)
             yield $this->reopenContentStream(
                 $workspace->currentContentStreamId,
                 $currentWorkspaceContentStreamState,
@@ -608,7 +588,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         $workspace = $this->requireWorkspace($command->workspaceName, $commandHandlingDependencies);
         if (!$commandHandlingDependencies->contentStreamExists($workspace->currentContentStreamId)) {
-            throw new \DomainException('Cannot discard nodes on a workspace with a stateless content stream', 1710408112);
+            throw new \RuntimeException('Cannot discard nodes on a workspace with a stateless content stream', 1710408112);
         }
         $currentWorkspaceContentStreamState = $commandHandlingDependencies->getContentStreamStatus($workspace->currentContentStreamId);
         $baseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
@@ -638,7 +618,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         }
 
         if ($commandsToKeep->isEmpty()) {
-            // quick path everything was discarded we just branch of from the base
+            // quick path everything was discarded
             yield from $this->discardWorkspace(
                 $workspace,
                 $baseWorkspace,
