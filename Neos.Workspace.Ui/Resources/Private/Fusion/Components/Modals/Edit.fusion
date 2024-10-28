@@ -5,17 +5,8 @@ prototype(Neos.Workspace.Ui:Component.Modal.Edit) < prototype(Neos.Fusion:Compon
   baseWorkspaceName = ''
 
   workspaceHasChanges = false
-  /// array<string, string>
+  /// array<workspaceName: string, workspaceTitle: string>
   baseWorkspaceOptions = ${[]}
-
-  roleAssignmentsVisible = false
-  roleAssignmentsEditable = false
-  /// array<userId: string, label: string>
-  roleAssignmentUserOptions = ${[]}
-  /// array<string>
-  roleAssignmentGroupOptions = ${[]}
-  /// array<\Neos\Workspace\Ui\ViewModel\EditWorkspaceRoleAssignment>
-  roleAssignments = ${[]}
 
   @private {
     i18n = ${I18n.id('').source('Main').package('Neos.Workspace.Ui')}
@@ -117,53 +108,10 @@ prototype(Neos.Workspace.Ui:Component.Modal.Edit) < prototype(Neos.Fusion:Compon
               </p>
             </Neos.Fusion.Form:Neos.BackendModule.FieldContainer>
           </fieldset>
-          <fieldset @if.canView={props.roleAssignmentsVisible}>
-            <legend>{private.i18n.id('workspaces.workspace.permissions')}</legend>
-            <table class="workspace-table">
-              <thead>
-                <tr>
-                  <th>{private.i18n.id('workspaces.workspace.workspaceRoleAssignment.subjectType')}</th>
-                  <th>{private.i18n.id('workspaces.workspace.workspaceRoleAssignment.subject')}</th>
-                  <th>{private.i18n.id('workspaces.workspace.workspaceRoleAssignment.role')}</th>
-                  <th @if.canEdit={props.roleAssignmentsEditable}>
-                    {private.i18n.id('workspaces.workspace.workspaceRoleAssignment.actions')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <Neos.Fusion:Loop items={props.roleAssignments} itemName="roleAssignment">
-                  <tr>
-                    <td
-                      title={roleAssignment.subjectTypeValue == 'USER' ? 'TODO user' : 'TODO users'}
-                    >
-                      <Neos.Workspace.Ui:Component.Icon
-                        icon={roleAssignment.subjectTypeValue == 'USER' ? 'user' : 'users'}
-                      />
-                    </td>
-                    <td>{roleAssignment.subjectLabel}</td>
-                    <td>{roleAssignment.roleLabel}</td>
-                    <td @if.canEdit={props.roleAssignmentsEditable}>
-                      <button
-                        type="button"
-                        class="neos-button neos-button-danger"
-                        title="remove"
-                      >
-                        <Neos.Workspace.Ui:Component.Icon icon="trash"/>
-                      </button>
-                    </td>
-                  </tr>
-                </Neos.Fusion:Loop>
-              </tbody>
-            </table>
-            <button
-              @if.canEdit={props.roleAssignmentsEditable}
-              type="button"
-              class="neos-button"
-            >
-              add
-            </button>
-          </fieldset>
           <footer>
+            <Neos.Fusion.Form:Button attributes.class="neos-button neos-button-primary">
+              {private.i18n.id('applyChanges')}
+            </Neos.Fusion.Form:Button>
             <button
               type="button"
               class="neos-button"
@@ -172,9 +120,6 @@ prototype(Neos.Workspace.Ui:Component.Modal.Edit) < prototype(Neos.Fusion:Compon
             >
               {private.i18n.id('cancel', 'Cancel', [])}
             </button>
-            <Neos.Fusion.Form:Button attributes.class="neos-button neos-button-primary">
-              {private.i18n.id('applyChanges')}
-            </Neos.Fusion.Form:Button>
           </footer>
         </Neos.Fusion.Form:Form>
       </section>

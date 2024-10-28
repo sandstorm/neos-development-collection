@@ -17,22 +17,17 @@ namespace Neos\Workspace\Ui\ViewModel;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\Flow\Annotations as Flow;
 use Neos\Neos\Domain\Model\WorkspaceDescription;
+use Neos\Neos\Domain\Model\WorkspaceRoleAssignment;
+use Neos\Neos\Domain\Model\WorkspaceRoleSubject;
 use Neos\Neos\Domain\Model\WorkspaceTitle;
 
 #[Flow\Proxy(false)]
-final readonly class EditWorkspaceFormData
+final readonly class ConfirmDeleteWorkspaceRoleAssignmentFormData
 {
     public function __construct(
         public WorkspaceName        $workspaceName,
         public WorkspaceTitle       $workspaceTitle,
-        public WorkspaceDescription $workspaceDescription,
-        public bool                 $workspaceHasChanges,
-        public WorkspaceName        $baseWorkspaceName,
-        /**
-         * Options for the baseWorkspace selector where the key is the workspace name and the value is the workspace title.
-         * @var array<string, string>
-         */
-        public array                $baseWorkspaceOptions,
+        public string               $subjectValue,
     )
     {
     }

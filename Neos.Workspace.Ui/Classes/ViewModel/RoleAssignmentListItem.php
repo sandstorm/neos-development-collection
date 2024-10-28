@@ -24,9 +24,10 @@ use Neos\Flow\Annotations as Flow;
  *   - role should be internationalized, maybe
  */
 #[Flow\Proxy(false)]
-final readonly class EditWorkspaceRoleAssignment
+final readonly class RoleAssignmentListItem
 {
     public function __construct(
+        public string $subjectValue,
         public string $subjectLabel,
         public string $subjectTypeValue,
         public string $roleLabel,

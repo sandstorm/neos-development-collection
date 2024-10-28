@@ -51,10 +51,14 @@ Neos.Workspace.Ui.WorkspaceController.index = Neos.Fusion:Component {
           />
         </Neos.Workspace.Ui:Component.Footer>
       </section>
-      <section id="popover-container"></section>
+      <div id="popover-container"></div>
     `
+    // TODO: we should put the count into the htmx rendered content as well
     htmx = afx`
       <Neos.Workspace.Ui:Component.FlashMessages flashMessages={props.flashMessages}/>
+      <Neos.Workspace.Ui:Component.WorkspaceCount
+        workspaceCount={Array.length(props.workspaceListItems)}
+      />
       <Neos.Workspace.Ui:Component.WorkspaceTable
         userWorkspaceName={props.userWorkspaceName}
         workspaceListItems={props.workspaceListItems}

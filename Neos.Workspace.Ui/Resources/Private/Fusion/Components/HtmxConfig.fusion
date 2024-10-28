@@ -21,6 +21,11 @@ prototype(Neos.Workspace.Ui:Component.HTMXConfig) < prototype(Neos.Fusion:Compon
       swap = false
       error = true
     }
+    // 30X responses are swapped
+        redirects {
+      code = '[30]..'
+      swap = true
+    }
   }
 
   renderer = afx`

@@ -16,23 +16,26 @@ namespace Neos\Workspace\Ui\ViewModel;
 
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\Flow\Annotations as Flow;
-use Neos\Neos\Domain\Model\WorkspaceDescription;
 use Neos\Neos\Domain\Model\WorkspaceTitle;
 
+/**
+ * Derived from Neos\Neos\Domain\Model\WorkspaceRoleAssignment
+ *
+ * WHY: We need a custom DTO here, because
+ *   - subject.value is either userId or group identifier (the latter would be fine, but for user we want the label)
+ *   - role should be internationalized, maybe
+ */
 #[Flow\Proxy(false)]
-final readonly class EditWorkspaceFormData
+final readonly class EditWorkspaceRoleAssignmentsFormData
 {
     public function __construct(
-        public WorkspaceName        $workspaceName,
-        public WorkspaceTitle       $workspaceTitle,
-        public WorkspaceDescription $workspaceDescription,
-        public bool                 $workspaceHasChanges,
-        public WorkspaceName        $baseWorkspaceName,
+        public WorkspaceName  $workspaceName,
+        public WorkspaceTitle $workspaceTitle,
+        public bool           $roleAssignmentsEditable,
         /**
-         * Options for the baseWorkspace selector where the key is the workspace name and the value is the workspace title.
-         * @var array<string, string>
+         * @var array<RoleAssignmentListItem>
          */
-        public array                $baseWorkspaceOptions,
+        public array          $roleAssignments,
     )
     {
     }

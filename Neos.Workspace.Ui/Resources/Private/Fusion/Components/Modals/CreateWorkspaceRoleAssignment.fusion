@@ -1,0 +1,75 @@
+prototype(Neos.Workspace.Ui:Component.Modal.CreateWorkspaceRoleAssignment) < prototype(Neos.Fusion:Component) {
+  workspaceName=''
+  workspaceTitle=''
+
+  userOptions=${[]}
+  groupOptions=${[]}
+  subjectTypeOptions=${[]}
+  roleOptions=${[]}
+
+  @private {
+    i18n = ${I18n.id('').source('Main').package('Neos.Workspace.Ui')}
+    popoverId = 'create-workspace-role-assignment-popover'
+  }
+
+  prototype(Neos.Fusion.Form:LabelRenderer) {
+    translationPackage = 'Neos.Workspace.Ui'
+    translationSource = 'Main'
+  }
+
+  prototype(Neos.Fusion.Form:Neos.BackendModule.FieldContainer) {
+    translation.label {
+      package = 'Neos.Workspace.Ui'
+      source = 'Main'
+    }
+  }
+
+  renderer = afx`
+    <div popover id={private.popoverId}>
+      <header>
+        <button
+          type="button"
+          class="neos-close neos-button"
+          popovertarget={private.popoverId}
+          popovertargetaction="close"
+        >
+          <Neos.Workspace.Ui:Component.Icon icon="times"/>
+        </button>
+        <div class="neos-header">
+          {private.i18n.id('workspaces.createWorkspaceRoleAssignment').arguments([props.workspaceTitle])}
+        </div>
+      </header>
+      <section>
+        <Neos.Fusion.Form:Form
+          form.target.action="addWorkspaceRoleAssignment"
+          form.target.format="htmx"
+          form.target.arguments.workspaceName={props.workspaceName}
+          attributes.class="neos-inline"
+          attributes.hx-post={form.getTarget()}
+        >
+          <Neos.Fusion.Form:Neos.BackendModule.FieldContainer
+            property="subjectType"
+            options={props.subjectTypeOptions}
+            label={props.i18n.id('workspaces.workspace.workspaceRoleAssignment.subjectType')}
+          />
+          <Neos.Fusion.Form:Neos.BackendModule.FieldContainer
+            property="subject"
+            options={props.userOptions}
+            label={props.i18n.id('workspaces.workspace.workspaceRoleAssignment.subject')}
+          />
+          <Neos.Fusion.Form:Neos.BackendModule.FieldContainer
+            property="role"
+            options={props.roleOptions}
+            label={props.i18n.id('workspaces.workspace.workspaceRoleAssignment.role')}
+          />
+          <Neos.Fusion.Form:Neos.BackendModule.FieldContainer
+            label={"add"}
+            icon="plus"
+            attributes.hx-target='#popover-container'
+            attributes.hx-swap='innerHTML'
+          />
+        </Neos.Fusion.Form:Form>
+      </section>
+    </div>
+  `
+}

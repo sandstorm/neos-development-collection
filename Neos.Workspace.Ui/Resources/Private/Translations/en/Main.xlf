@@ -51,6 +51,12 @@
       <trans-unit id="workspaces.editWorkspace" xml:space="preserve">
 				<source>Edit workspace "{0}"</source>
 			</trans-unit>
+      <trans-unit id="workspaces.editWorkspaceRoleAssignments" xml:space="preserve">
+				<source>Edit workspace permissions of "{0}"</source>
+			</trans-unit>
+       <trans-unit id="workspaces.createWorkspaceRoleAssignment" xml:space="preserve">
+				<source>Create Role Assignment for workspace "{0}"</source>
+			</trans-unit>
       <trans-unit id="workspaces.personalWorkspace" xml:space="preserve">
 				<source>Personal workspace</source>
 			</trans-unit>

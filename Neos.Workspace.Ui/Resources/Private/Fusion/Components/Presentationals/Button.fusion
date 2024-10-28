@@ -11,7 +11,7 @@ prototype(Neos.Workspace.Ui:Component.Button) < prototype(Neos.Fusion:Component)
   isPrimary = false
   ///boolean
   isSuccess = false
-  /// boolean
+  /// boolean TODO: unused api?
   disabled = false
   /// string
   icon = ''
