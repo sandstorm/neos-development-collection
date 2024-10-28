@@ -98,7 +98,7 @@ final class CommandSimulator
         }
 
         if (!$eventsToPublish instanceof EventsToPublish) {
-            throw new \RuntimeException(sprintf('CommandSimulator expects direct EventsToPublish to be returned when handling %s', $rebaseableCommand->originalCommand::class));
+            throw new \RuntimeException(sprintf('%s expects an instance of %s to be returned. Got %s when handling %s', self::class, EventsToPublish::class, get_debug_type($eventsToPublish), $rebaseableCommand->originalCommand::class));
         }
 
         if ($eventsToPublish->events->isEmpty()) {
