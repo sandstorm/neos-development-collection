@@ -18,9 +18,10 @@ final readonly class CommandBus
     /**
      * @var CommandHandlerInterface[]
      */
-    public array $handlers;
+    private array $handlers;
 
     public function __construct(
+        // todo pass $commandHandlingDependencies in each command handler instead of into the commandBus
         private CommandHandlingDependencies $commandHandlingDependencies,
         CommandHandlerInterface ...$handlers
     ) {
@@ -39,5 +40,14 @@ final readonly class CommandBus
             }
         }
         throw new \RuntimeException(sprintf('No handler found for Command "%s"', get_debug_type($command)), 1649582778);
+    }
+
+    public function withAdditionalHandlers(CommandHandlerInterface ...$handlers): self
+    {
+        return new self(
+            $this->commandHandlingDependencies,
+            ...$this->handlers,
+            ...$handlers,
+        );
     }
 }
