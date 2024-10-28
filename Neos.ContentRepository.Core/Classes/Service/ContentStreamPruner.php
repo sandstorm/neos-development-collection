@@ -55,6 +55,9 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
         );
         $unusedContentStreamIds = [];
         foreach ($unusedContentStreams as $contentStream) {
+            if ($contentStream->removed) {
+                continue;
+            }
             $this->contentRepository->handle(
                 RemoveContentStream::create($contentStream->id)
             );

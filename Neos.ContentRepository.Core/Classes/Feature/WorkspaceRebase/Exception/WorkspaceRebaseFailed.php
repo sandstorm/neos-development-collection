@@ -21,12 +21,48 @@ use Neos\ContentRepository\Core\Feature\WorkspaceRebase\CommandsThatFailedDuring
  */
 final class WorkspaceRebaseFailed extends \Exception
 {
-    public function __construct(
+    private function __construct(
         public readonly CommandsThatFailedDuringRebase $commandsThatFailedDuringRebase,
-        string $message = "",
-        int $code = 0,
-        ?\Throwable $previous = null
+        string $message,
+        int $code,
+        ?\Throwable $previous,
     ) {
         parent::__construct($message, $code, $previous);
+    }
+
+    public static function duringRebase(CommandsThatFailedDuringRebase $commandsThatFailedDuringRebase): self
+    {
+        return new self(
+            $commandsThatFailedDuringRebase,
+            sprintf('Rebase failed: %s', self::renderMessage($commandsThatFailedDuringRebase)),
+            1729974936,
+            $commandsThatFailedDuringRebase->first()?->exception
+        );
+    }
+
+    public static function duringPublish(CommandsThatFailedDuringRebase $commandsThatFailedDuringRebase): self
+    {
+        return new self(
+            $commandsThatFailedDuringRebase,
+            sprintf('Publication failed: %s', self::renderMessage($commandsThatFailedDuringRebase)),
+            1729974980,
+            $commandsThatFailedDuringRebase->first()?->exception
+        );
+    }
+
+    public static function duringDiscard(CommandsThatFailedDuringRebase $commandsThatFailedDuringRebase): self
+    {
+        return new self(
+            $commandsThatFailedDuringRebase,
+            sprintf('Discard failed: %s', self::renderMessage($commandsThatFailedDuringRebase)),
+            1729974982,
+            $commandsThatFailedDuringRebase->first()?->exception
+        );
+    }
+
+    private static function renderMessage(CommandsThatFailedDuringRebase $commandsThatFailedDuringRebase): string
+    {
+        $firstFailure = $commandsThatFailedDuringRebase->first();
+        return sprintf('"%s" and %d further failures', $firstFailure?->exception->getMessage(), count($commandsThatFailedDuringRebase) - 1);
     }
 }

@@ -199,6 +199,7 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
 
     private function workspaceIsEmpty(Workspace $workspace): bool
     {
+        // todo introduce Workspace::hasPendingChanges
         return $this->contentRepository
                 ->projectionState(ChangeFinder::class)
                 ->countByContentStreamId($workspace->currentContentStreamId) === 0;

@@ -164,7 +164,7 @@ final readonly class CreateNodeAggregateWithNodeAndSerializedProperties implemen
     {
         return (
             $this->nodeAggregateId->equals($nodeIdToPublish->nodeAggregateId)
-                && $this->originDimensionSpacePoint->equals($nodeIdToPublish->dimensionSpacePoint)
+                && $nodeIdToPublish->dimensionSpacePoint?->equals($this->originDimensionSpacePoint)
         );
     }
 

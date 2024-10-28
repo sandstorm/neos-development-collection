@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Projection\ContentGraph;
 
 use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
+use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceDoesNotExist;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStream;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreams;
@@ -27,7 +28,11 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
  */
 interface ContentGraphReadModelInterface extends ProjectionStateInterface
 {
-    public function buildContentGraph(WorkspaceName $workspaceName, ContentStreamId $contentStreamId): ContentGraphInterface;
+    /**
+     * @throws WorkspaceDoesNotExist if the workspace does not exist
+     * todo cache instances to reduce queries (revert https://github.com/neos/neos-development-collection/pull/5246)
+     */
+    public function getContentGraph(WorkspaceName $workspaceName): ContentGraphInterface;
 
     public function findWorkspaceByName(WorkspaceName $workspaceName): ?Workspace;
 

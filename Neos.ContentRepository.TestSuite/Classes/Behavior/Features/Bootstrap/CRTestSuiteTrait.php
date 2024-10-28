@@ -35,7 +35,6 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamStatus;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\ContentStreamClosing;
-use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\ContentStreamForking;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\NodeCopying;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\NodeCreation;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\NodeDisabling;
@@ -66,7 +65,6 @@ trait CRTestSuiteTrait
     use ProjectedNodeTrait;
     use GenericCommandExecutionAndEventPublication;
 
-    use ContentStreamForking;
     use ContentStreamClosing;
 
     use NodeCreation;
@@ -142,13 +140,18 @@ trait CRTestSuiteTrait
     }
 
     /**
-     * @Then /^workspace ([^"]*) has status ([^"]*)$/
+     * @Then /^workspace(?:s)? ([^"]*) ha(?:s|ve) status ([^"]*)$/
      */
-    public function workspaceHasStatus(string $rawWorkspaceName, string $status): void
+    public function workspaceStatusMatchesExpected(string $rawWorkspaceNames, string $status): void
     {
-        $workspace = $this->currentContentRepository->findWorkspaceByName(WorkspaceName::fromString($rawWorkspaceName));
+        $rawWorkspaceNames = explode(',', $rawWorkspaceNames);
+        Assert::assertNotEmpty($rawWorkspaceNames);
 
-        Assert::assertSame($status, $workspace?->status->value);
+        foreach ($rawWorkspaceNames as $rawWorkspaceName) {
+            $workspace = $this->currentContentRepository->findWorkspaceByName(WorkspaceName::fromString($rawWorkspaceName));
+            Assert::assertNotNull($workspace, "Workspace $rawWorkspaceName does not exist.");
+            Assert::assertEquals($status, $workspace->status->value, "Workspace '$rawWorkspaceName' has unexpected status.");
+        }
     }
 
     /**
