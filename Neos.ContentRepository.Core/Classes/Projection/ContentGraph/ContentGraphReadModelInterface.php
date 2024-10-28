@@ -34,11 +34,6 @@ interface ContentGraphReadModelInterface extends ProjectionStateInterface
      */
     public function getContentGraph(WorkspaceName $workspaceName): ContentGraphInterface;
 
-    /**
-     * @deprecated todo remove me after https://github.com/neos/neos-development-collection/pull/5301 ;)
-     */
-    public function buildContentGraph(WorkspaceName $workspaceName, ContentStreamId $contentStreamId): ContentGraphInterface;
-
     public function findWorkspaceByName(WorkspaceName $workspaceName): ?Workspace;
 
     public function findWorkspaces(): Workspaces;
