@@ -68,7 +68,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
      *
      * @return bool false if dangling content streams exist because they should not
      */
-    public function status(\Closure $outputFn): bool
+    public function outputStatus(\Closure $outputFn): bool
     {
         $allContentStreams = $this->getContentStreamsForPruning();
 
@@ -112,7 +112,6 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
 
         if ($pruneableContentStreamPresent === true) {
             $outputFn('To prune the removed streams from the event stream run ./flow contentStream:pruneRemovedFromEventstream');
-            $outputFn('Then they are indefinitely pruned from the event stream');
         } else {
             $outputFn('Okay. No pruneable streams in the event stream');
         }

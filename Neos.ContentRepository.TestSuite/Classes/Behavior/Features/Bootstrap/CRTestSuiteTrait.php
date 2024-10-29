@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap;
 
 use Behat\Behat\Hook\Scope\BeforeScenarioScope;
+use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryDependencies;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryInterface;
@@ -256,6 +257,20 @@ trait CRTestSuiteTrait
     {
         $this->getContentRepositoryService(new ContentStreamPrunerFactory())->pruneRemovedFromEventStream(fn () => null);
     }
+
+    /**
+     * @When I expect the content stream pruner status output:
+     */
+    public function iExpectTheContentStreamStatus(PyStringNode $pyStringNode): void
+    {
+        // todo a little dirty to compare the cli output here :D
+        $lines = [];
+        $this->getContentRepositoryService(new ContentStreamPrunerFactory())->outputStatus(function ($line = '') use (&$lines) {
+            $lines[] = $line;
+        });
+        Assert::assertSame($pyStringNode->getRaw(), join("\n", $lines));
+    }
+
 
     abstract protected function getContentRepositoryService(
         ContentRepositoryServiceFactoryInterface $factory

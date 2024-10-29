@@ -46,7 +46,7 @@ class ContentStreamCommandController extends CommandController
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
         $contentStreamPruner = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new ContentStreamPrunerFactory());
 
-        $status = $contentStreamPruner->status(
+        $status = $contentStreamPruner->outputStatus(
             $this->outputLine(...)
         );
         if ($status === false) {
