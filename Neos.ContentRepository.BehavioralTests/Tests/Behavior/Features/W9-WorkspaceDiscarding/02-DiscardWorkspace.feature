@@ -63,6 +63,7 @@ Feature: Workspace discarding - basic functionality
       | Key                | Value                         |
       | workspaceName      | "user-test"                   |
       | newContentStreamId | "user-cs-identifier-modified" |
+    Then I expect the content stream "user-cs-identifier" to not exist
 
     When I am in workspace "user-test" and dimension space point {}
     Then I expect node aggregate identifier "nody-mc-nodeface" to lead to node user-cs-identifier-modified;nody-mc-nodeface;{}
@@ -137,7 +138,9 @@ Feature: Workspace discarding - basic functionality
       | Key                    | Value                 |
       | workspaceName          | "user-ws-two"         |
       | rebasedContentStreamId | "user-cs-two-rebased" |
-    Then the last command should have thrown an exception of type "WorkspaceRebaseFailed"
+    Then the last command should have thrown the WorkspaceRebaseFailed exception with:
+      | SequenceNumber | Command                     | Exception                          |
+      | 13             | SetSerializedNodeProperties | NodeAggregateCurrentlyDoesNotExist |
 
     Then workspace user-ws-two has status OUTDATED
 
@@ -147,3 +150,26 @@ Feature: Workspace discarding - basic functionality
       | newContentStreamId | "user-cs-two-discarded" |
 
     Then workspaces live,user-ws-one,user-ws-two have status UP_TO_DATE
+
+  Scenario: Discard is a no-op if there are no changes (and the workspace is outdated)
+    And the command SetNodeProperties is executed with payload:
+      | Key                       | Value                                  |
+      | workspaceName             | "live"                                 |
+      | nodeAggregateId           | "nody-mc-nodeface"                     |
+      | originDimensionSpacePoint | {}                                     |
+      | propertyValues            | {"text": "Modified in live workspace"} |
+
+    And the command DiscardWorkspace is executed with payload:
+      | Key                | Value                   |
+      | workspaceName      | "user-test"             |
+      | newContentStreamId | "user-cs-two-discarded" |
+    Then workspaces user-test has status OUTDATED
+
+    Then I expect exactly 1 events to be published on stream with prefix "Workspace:user-test"
+
+    And I am in workspace "user-test" and dimension space point {}
+    Then I expect node aggregate identifier "nody-mc-nodeface" to lead to node user-cs-identifier;nody-mc-nodeface;{}
+    And I expect this node to have the following properties:
+      | Key  | Value      |
+      | text | "Original" |
+    Then I expect the content stream "user-cs-two-discarded" to not exist

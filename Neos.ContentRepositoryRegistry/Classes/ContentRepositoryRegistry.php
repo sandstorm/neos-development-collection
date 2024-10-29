@@ -9,7 +9,6 @@ use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryFactory;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryInterface;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
-use Neos\ContentRepository\Core\Factory\ProjectionsAndCatchUpHooksFactory;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\CatchUpHookFactoryInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface;
@@ -22,6 +21,7 @@ use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryI
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryIds;
 use Neos\ContentRepository\Core\SharedModel\User\UserIdProviderInterface;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
+use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepositoryRegistry\Exception\ContentRepositoryNotFoundException;
 use Neos\ContentRepositoryRegistry\Exception\InvalidConfigurationException;
 use Neos\ContentRepositoryRegistry\Factory\Clock\ClockFactoryInterface;
@@ -256,24 +256,26 @@ final class ContentRepositoryRegistry
         if (!$projectionFactory instanceof ContentGraphProjectionFactoryInterface) {
             throw InvalidConfigurationException::fromMessage('Projection factory object name of contentGraphProjection (content repository "%s") is not an instance of %s but %s.', $contentRepositoryId->value, ContentGraphProjectionFactoryInterface::class, get_debug_type($projectionFactory));
         }
-        $projectionsAndCatchUpHooksFactory->registerFactory($projectionFactory, $contentRepositorySettings['contentGraphProjection']['options'] ?? []);
+        $projectionId = SubscriptionId::fromString('contentGraph');
+        $projectionsAndCatchUpHooksFactory->registerFactory($projectionId, $projectionFactory, $contentRepositorySettings['contentGraphProjection']['options'] ?? []);
 
-        $this->registerCatchupHookForProjection($contentRepositorySettings['contentGraphProjection'], $projectionsAndCatchUpHooksFactory, $projectionFactory, 'contentGraphProjection', $contentRepositoryId);
+        $this->registerCatchupHookForProjection($contentRepositorySettings['contentGraphProjection'], $projectionsAndCatchUpHooksFactory, $projectionId, $contentRepositoryId);
 
         // additional projections:
         (is_array($contentRepositorySettings['projections'] ?? [])) || throw InvalidConfigurationException::fromMessage('Content repository "%s" expects projections configured as array.', $contentRepositoryId->value);
-        foreach ($contentRepositorySettings['projections'] ?? [] as $projectionName => $projectionOptions) {
+        foreach ($contentRepositorySettings['projections'] ?? [] as $id => $projectionOptions) {
             if ($projectionOptions === null) {
                 continue;
             }
-            (is_array($projectionOptions)) || throw InvalidConfigurationException::fromMessage('Projection "%s" (content repository "%s") must be configured as array got %s', $projectionName, $contentRepositoryId->value, get_debug_type($projectionOptions));
+            $projectionId = SubscriptionId::fromString($id);
+            (is_array($projectionOptions)) || throw InvalidConfigurationException::fromMessage('Projection "%s" (content repository "%s") must be configured as array got %s', $projectionId->value, $contentRepositoryId->value, get_debug_type($projectionOptions));
             $projectionFactory = isset($projectionOptions['factoryObjectName']) ? $this->objectManager->get($projectionOptions['factoryObjectName']) : null;
             if (!$projectionFactory instanceof ProjectionFactoryInterface) {
-                throw InvalidConfigurationException::fromMessage('Projection factory object name for projection "%s" (content repository "%s") is not an instance of %s but %s.', $projectionName, $contentRepositoryId->value, ProjectionFactoryInterface::class, get_debug_type($projectionFactory));
+                throw InvalidConfigurationException::fromMessage('Projection factory object name for projection "%s" (content repository "%s") is not an instance of %s but %s.', $projectionId->value, $contentRepositoryId->value, ProjectionFactoryInterface::class, get_debug_type($projectionFactory));
             }
-            $projectionsAndCatchUpHooksFactory->registerFactory($projectionFactory, $projectionOptions['options'] ?? []);
+            $projectionsAndCatchUpHooksFactory->registerFactory($projectionId, $projectionFactory, $projectionOptions['options'] ?? []);
 
-            $this->registerCatchupHookForProjection($projectionOptions, $projectionsAndCatchUpHooksFactory, $projectionFactory, $projectionName, $contentRepositoryId);
+            $this->registerCatchupHookForProjection($projectionOptions, $projectionsAndCatchUpHooksFactory, $projectionId, $contentRepositoryId);
         }
         return $projectionsAndCatchUpHooksFactory;
     }
@@ -281,7 +283,7 @@ final class ContentRepositoryRegistry
     /**
      * @param ProjectionFactoryInterface<ProjectionInterface<ProjectionStateInterface>> $projectionFactory
      */
-    private function registerCatchupHookForProjection(mixed $projectionOptions, ProjectionsAndCatchUpHooksFactory $projectionsAndCatchUpHooksFactory, ProjectionFactoryInterface $projectionFactory, string $projectionName, ContentRepositoryId $contentRepositoryId): void
+    private function registerCatchupHookForProjection(mixed $projectionOptions, ProjectionsAndCatchUpHooksFactory $projectionsAndCatchUpHooksFactory, SubscriptionId $projectionId, ContentRepositoryId $contentRepositoryId): void
     {
         foreach (($projectionOptions['catchUpHooks'] ?? []) as $catchUpHookOptions) {
             if ($catchUpHookOptions === null) {
@@ -289,9 +291,9 @@ final class ContentRepositoryRegistry
             }
             $catchUpHookFactory = $this->objectManager->get($catchUpHookOptions['factoryObjectName']);
             if (!$catchUpHookFactory instanceof CatchUpHookFactoryInterface) {
-                throw InvalidConfigurationException::fromMessage('CatchUpHook factory object name for projection "%s" (content repository "%s") is not an instance of %s but %s', $projectionName, $contentRepositoryId->value, CatchUpHookFactoryInterface::class, get_debug_type($catchUpHookFactory));
+                throw InvalidConfigurationException::fromMessage('CatchUpHook factory object name for projection "%s" (content repository "%s") is not an instance of %s but %s', $projectionId->value, $contentRepositoryId->value, CatchUpHookFactoryInterface::class, get_debug_type($catchUpHookFactory));
             }
-            $projectionsAndCatchUpHooksFactory->registerCatchUpHookFactory($projectionFactory, $catchUpHookFactory);
+            $projectionsAndCatchUpHooksFactory->registerCatchUpHookFactory($projectionId, $catchUpHookFactory);
         }
     }
 

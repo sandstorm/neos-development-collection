@@ -41,6 +41,7 @@ Feature: If content streams are not in use anymore by the workspace, they can be
     When the command RebaseWorkspace is executed with payload:
       | Key           | Value       |
       | workspaceName | "user-test" |
+      | rebaseErrorHandlingStrategy | "force"               |
 
     When I am in workspace "user-test" and dimension space point {}
     Then the current content stream has status "IN_USE_BY_WORKSPACE"
@@ -61,6 +62,7 @@ Feature: If content streams are not in use anymore by the workspace, they can be
       | Key                    | Value                        |
       | workspaceName          | "user-test"                  |
       | rebasedContentStreamId | "user-cs-identifier-rebased" |
+      | rebaseErrorHandlingStrategy | "force"               |
     # now, we have one unused content stream (the old content stream of the user-test workspace)
 
     When I prune unused content streams
@@ -79,6 +81,8 @@ Feature: If content streams are not in use anymore by the workspace, they can be
     When the command RebaseWorkspace is executed with payload:
       | Key           | Value       |
       | workspaceName | "user-test" |
+      | rebaseErrorHandlingStrategy | "force"               |
+
     # now, we have one unused content stream (the old content stream of the user-test workspace)
 
     When I prune unused content streams
@@ -106,6 +110,7 @@ Feature: If content streams are not in use anymore by the workspace, they can be
     When the command RebaseWorkspace is executed with payload:
       | Key           | Value    |
       | workspaceName | "review" |
+      | rebaseErrorHandlingStrategy | "force"               |
 
     When I prune unused content streams
     And I prune removed content streams from the event stream

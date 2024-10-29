@@ -9,11 +9,11 @@ namespace Neos\ContentRepository\Core\Subscription;
  */
 final class SubscriptionId
 {
-    public const MAX_LENGTH = 150;
+    public const MAX_LENGTH = 250;
 
     private function __construct(public readonly string $value)
     {
-        if (preg_match('/^[a-zA-Z0-9-_]{1,' . self::MAX_LENGTH . '}$/', $value) !== 1) {
+        if (preg_match('/^[a-zA-Z0-9-_.:]{1,' . self::MAX_LENGTH . '}$/', $value) !== 1) {
             throw new \InvalidArgumentException(sprintf('The value "%s" is not a valid subscription id.', $value), 1729679513);
         }
     }
