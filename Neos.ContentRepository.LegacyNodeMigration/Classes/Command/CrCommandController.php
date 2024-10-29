@@ -50,7 +50,7 @@ class CrCommandController extends CommandController
         private readonly SiteRepository $siteRepository,
         private readonly ProjectionReplayServiceFactory $projectionReplayServiceFactory,
         #[Flow\InjectConfiguration(path: "rootNodeMapping")]
-        private readonly array $rootNodeTypeMappingByContentRepository,
+        protected readonly array $rootNodeTypeMappingByContentRepository,
     ) {
         parent::__construct();
     }
