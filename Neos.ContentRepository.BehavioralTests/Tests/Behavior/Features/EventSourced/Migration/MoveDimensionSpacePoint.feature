@@ -94,7 +94,7 @@ Feature: Move dimension space point
     Then I expect node aggregate identifier "sir-david-nodenborough" to lead to no node
     When VisibilityConstraints are set to "withoutRestrictions"
     Then I expect a node identified by cs-identifier;sir-david-nodenborough;{"language": "de"} to exist in the content graph
-    When VisibilityConstraints are set to "frontend"
+    When VisibilityConstraints are set to "default"
 
     # we change the dimension configuration
     When I change the content dimensions in content repository "default" to:
@@ -118,14 +118,14 @@ Feature: Move dimension space point
     Then I expect node aggregate identifier "sir-david-nodenborough" to lead to no node
     When VisibilityConstraints are set to "withoutRestrictions"
     Then I expect a node identified by cs-identifier;sir-david-nodenborough;{"language": "de"} to exist in the content graph
-    When VisibilityConstraints are set to "frontend"
+    When VisibilityConstraints are set to "default"
 
     # The visibility edges were modified
     When I am in workspace "migration-workspace" and dimension space point {"language": "de_DE"}
     Then I expect node aggregate identifier "sir-david-nodenborough" to lead to no node
     When VisibilityConstraints are set to "withoutRestrictions"
     Then I expect a node identified by migration-cs;sir-david-nodenborough;{"language": "de_DE"} to exist in the content graph
-    When VisibilityConstraints are set to "frontend"
+    When VisibilityConstraints are set to "default"
 
     When I run integrity violation detection
     Then I expect the integrity violation detection result to contain exactly 0 errors

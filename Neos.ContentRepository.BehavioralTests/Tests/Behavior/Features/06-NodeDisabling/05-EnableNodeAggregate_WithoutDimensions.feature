@@ -69,7 +69,7 @@ Feature: Enable a node aggregate
     And I expect this node aggregate to disable dimension space points []
 
     When I am in workspace "live" and dimension space point {}
-    And VisibilityConstraints are set to "frontend"
+    And VisibilityConstraints are set to "default"
     Then I expect node aggregate identifier "lady-eleonode-rootford" to lead to node cs-identifier;lady-eleonode-rootford;{}
     And I expect this node to have the following child nodes:
       | Name                | NodeDiscriminator                        |
@@ -144,7 +144,7 @@ Feature: Enable a node aggregate
     And I expect this node aggregate to disable dimension space points [{}]
 
     When I am in workspace "live" and dimension space point {}
-    And VisibilityConstraints are set to "frontend"
+    And VisibilityConstraints are set to "default"
     Then I expect node aggregate identifier "lady-eleonode-rootford" to lead to node cs-identifier;lady-eleonode-rootford;{}
     And I expect this node to have the following child nodes:
       | Name                | NodeDiscriminator                        |
@@ -219,7 +219,7 @@ Feature: Enable a node aggregate
     And I expect this node aggregate to disable dimension space points []
 
     When I am in workspace "live" and dimension space point {}
-    And VisibilityConstraints are set to "frontend"
+    And VisibilityConstraints are set to "default"
     Then I expect node aggregate identifier "lady-eleonode-rootford" to lead to node cs-identifier;lady-eleonode-rootford;{}
     And I expect this node to have the following child nodes:
       | Name                | NodeDiscriminator                        |

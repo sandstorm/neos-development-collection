@@ -121,7 +121,7 @@ Feature: Disable a node aggregate
     And I expect node aggregate identifier "nody-mc-nodeface" and node path "document/child-document" to lead to node cs-identifier;nody-mc-nodeface;{"language":"mul"}
     And I expect this node to be a child of node cs-identifier;sir-david-nodenborough;{"language":"mul"}
 
-    When VisibilityConstraints are set to "frontend"
+    When VisibilityConstraints are set to "default"
     Then I expect node aggregate identifier "lady-eleonode-rootford" to lead to node cs-identifier;lady-eleonode-rootford;{}
     And I expect this node to have the following child nodes:
       | Name                | NodeDiscriminator                                        |
@@ -149,7 +149,7 @@ Feature: Disable a node aggregate
 
     # Tests for the generalization
     When I am in dimension space point {"language":"mul"}
-    And VisibilityConstraints are set to "frontend"
+    And VisibilityConstraints are set to "default"
     Then I expect node aggregate identifier "lady-eleonode-rootford" to lead to node cs-identifier;lady-eleonode-rootford;{}
     And I expect this node to have the following child nodes:
       | Name                | NodeDiscriminator                                        |
@@ -196,7 +196,7 @@ Feature: Disable a node aggregate
 
     # Tests for the virtual specialization
     When I am in dimension space point {"language":"gsw"}
-    And VisibilityConstraints are set to "frontend"
+    And VisibilityConstraints are set to "default"
     Then I expect node aggregate identifier "lady-eleonode-rootford" to lead to node cs-identifier;lady-eleonode-rootford;{}
     And I expect this node to have the following child nodes:
       | Name                | NodeDiscriminator                                        |
@@ -225,7 +225,7 @@ Feature: Disable a node aggregate
 
     # Tests for the real specialization
     When I am in dimension space point {"language":"ltz"}
-    And VisibilityConstraints are set to "frontend"
+    And VisibilityConstraints are set to "default"
     Then I expect node aggregate identifier "lady-eleonode-rootford" to lead to node cs-identifier;lady-eleonode-rootford;{}
     And I expect this node to have the following child nodes:
       | Name                | NodeDiscriminator                                        |
@@ -254,7 +254,7 @@ Feature: Disable a node aggregate
 
     # Tests for the peer variant
     When I am in dimension space point {"language":"en"}
-    And VisibilityConstraints are set to "frontend"
+    And VisibilityConstraints are set to "default"
     Then I expect node aggregate identifier "lady-eleonode-rootford" to lead to node cs-identifier;lady-eleonode-rootford;{}
     And I expect this node to have the following child nodes:
       | Name                | NodeDiscriminator                                        |
@@ -372,7 +372,7 @@ Feature: Disable a node aggregate
     And I expect node aggregate identifier "nody-mc-nodeface" and node path "document/child-document" to lead to node cs-identifier;nody-mc-nodeface;{"language":"mul"}
     And I expect this node to be a child of node cs-identifier;sir-david-nodenborough;{"language":"mul"}
 
-    When VisibilityConstraints are set to "frontend"
+    When VisibilityConstraints are set to "default"
     Then I expect node aggregate identifier "lady-eleonode-rootford" to lead to node cs-identifier;lady-eleonode-rootford;{}
     And I expect this node to have the following child nodes:
       | Name                | NodeDiscriminator                                        |
@@ -400,7 +400,7 @@ Feature: Disable a node aggregate
 
     # Tests for the generalization
     When I am in dimension space point {"language":"mul"}
-    And VisibilityConstraints are set to "frontend"
+    And VisibilityConstraints are set to "default"
     Then I expect node aggregate identifier "lady-eleonode-rootford" to lead to node cs-identifier;lady-eleonode-rootford;{}
     And I expect this node to have the following child nodes:
       | Name                | NodeDiscriminator                                        |
@@ -429,7 +429,7 @@ Feature: Disable a node aggregate
 
     # Tests for the virtual specialization
     When I am in dimension space point {"language":"gsw"}
-    And VisibilityConstraints are set to "frontend"
+    And VisibilityConstraints are set to "default"
     Then I expect node aggregate identifier "lady-eleonode-rootford" to lead to node cs-identifier;lady-eleonode-rootford;{}
     And I expect this node to have the following child nodes:
       | Name                | NodeDiscriminator                                        |
@@ -458,7 +458,7 @@ Feature: Disable a node aggregate
 
     # Tests for the real specialization
     When I am in dimension space point {"language":"ltz"}
-    And VisibilityConstraints are set to "frontend"
+    And VisibilityConstraints are set to "default"
     Then I expect node aggregate identifier "lady-eleonode-rootford" to lead to node cs-identifier;lady-eleonode-rootford;{}
     And I expect this node to have the following child nodes:
       | Name                | NodeDiscriminator                                        |
@@ -487,7 +487,7 @@ Feature: Disable a node aggregate
 
     # Tests for the peer variant
     When I am in dimension space point {"language":"en"}
-    And VisibilityConstraints are set to "frontend"
+    And VisibilityConstraints are set to "default"
     Then I expect node aggregate identifier "lady-eleonode-rootford" to lead to node cs-identifier;lady-eleonode-rootford;{}
     And I expect this node to have the following child nodes:
       | Name                | NodeDiscriminator                                        |
