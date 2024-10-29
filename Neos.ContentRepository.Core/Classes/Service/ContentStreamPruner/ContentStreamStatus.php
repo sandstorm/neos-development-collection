@@ -24,7 +24,7 @@ enum ContentStreamStatus: string
      *
      * **temporary state** which should not appear if the system is idle (for content streams which are used with workspaces).
      */
-    case CREATED = 'created (temporary state)';
+    case CREATED = 'created';
 
     /**
      * FORKED means the content stream was forked from an existing content stream, but not yet assigned
@@ -32,7 +32,7 @@ enum ContentStreamStatus: string
      *
      * **temporary state** which should not appear if the system is idle (for content streams which are used with workspaces).
      */
-    case FORKED = 'forked (temporary state)';
+    case FORKED = 'forked';
 
     /**
      * the content stream is currently referenced as the "active" content stream by a workspace.
@@ -43,4 +43,12 @@ enum ContentStreamStatus: string
      * the content stream is not used anymore, and can be removed.
      */
     case NO_LONGER_IN_USE = 'no longer in use';
+
+    public function isTemporary(): bool
+    {
+        return match ($this) {
+            self::CREATED, self::FORKED => true,
+            default => false
+        };
+    }
 }

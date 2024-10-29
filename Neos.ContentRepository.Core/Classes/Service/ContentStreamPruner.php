@@ -78,12 +78,17 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
                 $outputFn(sprintf('Dangling content streams that are not removed (ContentStreamWasRemoved) and not %s:', ContentStreamStatus::IN_USE_BY_WORKSPACE->value));
             }
 
-            $outputFn(sprintf('  id: %s reason for removal: %s', $contentStream->id->value, $contentStream->status->value));
+            if ($contentStream->status->isTemporary()) {
+                $outputFn(sprintf('  id: %s temporary %s at %s', $contentStream->id->value, $contentStream->status->value, $contentStream->created->format('Y-m-d H:i')));
+            } else {
+                $outputFn(sprintf('  id: %s %s', $contentStream->id->value, $contentStream->status->value));
+            }
+
             $danglingContentStreamPresent = true;
         }
 
         if ($danglingContentStreamPresent === true) {
-            $outputFn('To remove the dangling streams from the projections please run ./flow contentstream:prune');
+            $outputFn('To remove the dangling streams from the projections please run ./flow contentStream:removeDangling');
             $outputFn('Then they are ready for removal from the event store');
             $outputFn();
         } else {
@@ -103,7 +108,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
         }
 
         if ($pruneableContentStreamPresent === true) {
-            $outputFn('To prune the removed streams from the event store run ./flow contentstream:pruneremovedfromeventstream');
+            $outputFn('To prune the removed streams from the event store run ./flow contentStream:pruneRemovedFromEventstream');
             $outputFn('Then they are indefinitely pruned from the event store');
         } else {
             $outputFn('Okay. No pruneable streams in the event store');
@@ -113,17 +118,15 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
     }
 
     /**
-     * Before publishing version 3 (#5301) dangling content streams were not removed during publishing, discard or rebase
-     *
      * Removes all nodes, hierarchy relations and content stream entries which are not needed anymore from the projections.
      *
      * NOTE: This still **keeps** the event stream as is; so it would be possible to re-construct the content stream at a later point in time.
      *
      * To prune the removed content streams from the event store, call {@see ContentStreamPruner::pruneRemovedFromEventStream()} afterwards.
      *
-     * @deprecated with Neos 9 beta 15, only used to migrate from earlier versions
+     * @param \DateTimeImmutable $removeTemporaryBefore includes all temporary content streams like FORKED or CREATED older than that in the removal
      */
-    public function removeDangelingContentStreams(\Closure $outputFn): void
+    public function removeDanglingContentStreams(\Closure $outputFn, \DateTimeImmutable $removeTemporaryBefore): void
     {
         $allContentStreams = $this->getContentStreamsForPruning();
 
@@ -134,6 +137,14 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
             }
 
             if ($contentStream->status === ContentStreamStatus::IN_USE_BY_WORKSPACE) {
+                continue;
+            }
+
+            if (
+                $contentStream->status->isTemporary()
+                && $removeTemporaryBefore < $contentStream->created
+            ) {
+                $outputFn(sprintf('Did not remove %s temporary %s at %s', $contentStream->id->value, $contentStream->status->value, $contentStream->created->format('Y-m-d H:i')));
                 continue;
             }
 
@@ -186,7 +197,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
                 )->getEventStreamName()
             );
             $unusedContentStreamsPresent = true;
-            $outputFn(sprintf('Removed events for %s (previous state %s)', $removedContentStream->id->value, $removedContentStream->status->value));
+            $outputFn(sprintf('Removed events for %s', $removedContentStream->id->value));
         }
 
         if ($unusedContentStreamsPresent === false) {
@@ -277,14 +288,16 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
                     $status[$domainEvent->contentStreamId->value] = ContentStreamForPruning::create(
                         $domainEvent->contentStreamId,
                         ContentStreamStatus::CREATED,
-                        null
+                        null,
+                        $eventEnvelope->recordedAt
                     );
                     break;
                 case ContentStreamWasForked::class:
                     $status[$domainEvent->newContentStreamId->value] = ContentStreamForPruning::create(
                         $domainEvent->newContentStreamId,
                         ContentStreamStatus::FORKED,
-                        $domainEvent->sourceContentStreamId
+                        $domainEvent->sourceContentStreamId,
+                        $eventEnvelope->recordedAt
                     );
                     break;
                 case ContentStreamWasRemoved::class:

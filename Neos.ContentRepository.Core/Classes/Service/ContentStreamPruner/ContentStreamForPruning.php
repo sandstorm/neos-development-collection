@@ -62,6 +62,7 @@ final readonly class ContentStreamForPruning
         public ContentStreamId $id,
         public ContentStreamStatus $status,
         public ?ContentStreamId $sourceContentStreamId,
+        public \DateTimeImmutable $created,
         public bool $removed,
     ) {
     }
@@ -69,12 +70,14 @@ final readonly class ContentStreamForPruning
     public static function create(
         ContentStreamId $id,
         ContentStreamStatus $status,
-        ?ContentStreamId $sourceContentStreamId
+        ?ContentStreamId $sourceContentStreamId,
+        \DateTimeImmutable $create,
     ): self {
         return new self(
             $id,
             $status,
             $sourceContentStreamId,
+            $create,
             false
         );
     }
@@ -85,6 +88,7 @@ final readonly class ContentStreamForPruning
             $this->id,
             $status,
             $this->sourceContentStreamId,
+            $this->created,
             $this->removed
         );
     }
@@ -95,6 +99,7 @@ final readonly class ContentStreamForPruning
             $this->id,
             $this->status,
             $this->sourceContentStreamId,
+            $this->created,
             true
         );
     }

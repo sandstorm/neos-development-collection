@@ -35,28 +35,25 @@ class ContentStreamCommandController extends CommandController
     }
 
     /**
-     * Remove all content streams which are not needed anymore from the projections.
+     * Before Neos 9 beta 15 (#5301), dangling content streams were not removed during publishing, discard or rebase.
      *
-     * NOTE: This still **keeps** the event stream as is; so it would be possible to re-construct the content stream
-     *       at a later point in time (though we currently do not provide any API for it).
+     * Removes all nodes, hierarchy relations and content stream entries which are not needed anymore from the projections.
      *
-     *       To remove the deleted Content Streams, use `./flow contentStream:pruneRemovedFromEventStream` after running
-     *       `./flow contentStream:prune`.
+     * NOTE: This still **keeps** the event stream as is; so it would be possible to re-construct the content stream at a later point in time.
      *
-     * By default, only content streams that are NO_LONGER_IN_USE will be removed.
-     * If you also call with "--removeTemporary", will delete ALL content streams which are currently not assigned
-     * to a workspace (f.e. dangling ones in FORKED or CREATED.).
+     * To prune the removed content streams from the event store, call ./flow contentStream:pruneRemovedFromEventStream afterwards.
      *
      * @param string $contentRepository Identifier of the content repository. (Default: 'default')
-     * @param boolean $removeTemporary Will delete all content streams which are currently not assigned (Default: false)
+     * @param string $removeTemporaryBefore includes all temporary content streams like FORKED or CREATED older than that in the removal
      */
-    public function pruneCommand(string $contentRepository = 'default', bool $removeTemporary = false): void
+    public function removeDanglingCommand(string $contentRepository = 'default', string $removeTemporaryBefore = '-1day'): void
     {
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
         $contentStreamPruner = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new ContentStreamPrunerFactory());
 
-        $contentStreamPruner->removeDangelingContentStreams(
-            $this->outputLine(...)
+        $contentStreamPruner->removeDanglingContentStreams(
+            $this->outputLine(...),
+            new \DateTimeImmutable($removeTemporaryBefore)
         );
     }
 
