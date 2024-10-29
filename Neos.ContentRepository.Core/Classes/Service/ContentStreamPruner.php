@@ -46,6 +46,73 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
     }
 
     /**
+     * Detects if dangling content streams exists and which content streams could be pruned from the event store
+     *
+     * Dangling content streams
+     * ------------------------
+     *
+     * Content streams that are not removed via the event ContentStreamWasRemoved and are not in use by a workspace:
+     * Not a current's workspace content stream.
+     *
+     * Pruneable content streams
+     * -------------------------
+     *
+     * Content streams that were removed ContentStreamWasRemoved e.g. after publishing, and are not required for a full
+     * replay to reconstruct the current projections state. The ability to reconstitute a previous state will be lost.
+     *
+     * @return bool if dangling content streams exist
+     */
+    public function status(\Closure $outputFn): bool
+    {
+        $allContentStreams = $this->getContentStreamsForPruning();
+
+        $danglingContentStreamPresent = false;
+        foreach ($allContentStreams as $contentStream) {
+            if ($contentStream->removed) {
+                continue;
+            }
+            if ($contentStream->status === ContentStreamStatus::IN_USE_BY_WORKSPACE) {
+                continue;
+            }
+            if ($danglingContentStreamPresent === false) {
+                $outputFn(sprintf('Dangling content streams that are not removed (ContentStreamWasRemoved) and not %s:', ContentStreamStatus::IN_USE_BY_WORKSPACE->value));
+            }
+
+            $outputFn(sprintf('  id: %s reason for removal: %s', $contentStream->id->value, $contentStream->status->value));
+            $danglingContentStreamPresent = true;
+        }
+
+        if ($danglingContentStreamPresent === true) {
+            $outputFn('To remove the dangling streams from the projections please run ./flow contentstream:prune');
+            $outputFn('Then they are ready for removal from the event store');
+            $outputFn();
+        } else {
+            $outputFn('Okay. No dangling streams found');
+            $outputFn();
+        }
+
+        $removedContentStreams = $this->findUnusedAndRemovedContentStreamIds($allContentStreams);
+
+        $pruneableContentStreamPresent = false;
+        foreach ($removedContentStreams as $removedContentStream) {
+            if ($pruneableContentStreamPresent === false) {
+                $outputFn('Removed content streams that can be pruned from the event store');
+            }
+            $pruneableContentStreamPresent = true;
+            $outputFn(sprintf('  id: %s previous state: %s', $removedContentStream->id->value, $removedContentStream->status->value));
+        }
+
+        if ($pruneableContentStreamPresent === true) {
+            $outputFn('To prune the removed streams from the event store run ./flow contentstream:pruneremovedfromeventstream');
+            $outputFn('Then they are indefinitely pruned from the event store');
+        } else {
+            $outputFn('Okay. No pruneable streams in the event store');
+        }
+
+        return $danglingContentStreamPresent;
+    }
+
+    /**
      * Before publishing version 3 (#5301) dangling content streams were not removed during publishing, discard or rebase
      *
      * Removes all nodes, hierarchy relations and content stream entries which are not needed anymore from the projections.
@@ -88,7 +155,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
         if ($unusedContentStreamsPresent) {
             try {
                 $this->contentRepository->catchUpProjections();
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $outputFn(sprintf('Could not catchup after removing unused content streams: %s. You might need to use ./flow contentstream:pruneremovedfromeventstream and replay.', $e->getMessage()));
             }
         } else {
@@ -104,20 +171,27 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
      *     these dependent Content Streams are not allowed to be removed in the event store.
      *
      *   - Otherwise, we cannot replay the other content streams correctly (if the base content streams are missing).
-     *
-     * @return list<ContentStreamId> the removed content streams
      */
-    public function pruneRemovedFromEventStream(): array
+    public function pruneRemovedFromEventStream(\Closure $outputFn): void
     {
-        $removedContentStreams = $this->findUnusedAndRemovedContentStreamIds();
+        $allContentStreams = $this->getContentStreamsForPruning();
+
+        $removedContentStreams = $this->findUnusedAndRemovedContentStreamIds($allContentStreams);
+
+        $unusedContentStreamsPresent = false;
         foreach ($removedContentStreams as $removedContentStream) {
             $this->eventStore->deleteStream(
                 ContentStreamEventStreamName::fromContentStreamId(
-                    $removedContentStream
+                    $removedContentStream->id
                 )->getEventStreamName()
             );
+            $unusedContentStreamsPresent = true;
+            $outputFn(sprintf('Removed events for %s (previous state %s)', $removedContentStream->id->value, $removedContentStream->status->value));
         }
-        return $removedContentStreams;
+
+        if ($unusedContentStreamsPresent === false) {
+            $outputFn('There are no unused content streams.');
+        }
     }
 
     public function pruneAllWorkspacesAndContentStreamsFromEventStream(): void
@@ -131,12 +205,11 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
     }
 
     /**
-     * @return list<ContentStreamId>
+     * @param array<string, ContentStreamForPruning> $allContentStreams
+     * @return list<ContentStreamForPruning>
      */
-    private function findUnusedAndRemovedContentStreamIds(): array
+    private function findUnusedAndRemovedContentStreamIds(array $allContentStreams): array
     {
-        $allContentStreams = $this->getContentStreamsForPruning();
-
         /** @var array<string,bool> $transitiveUsedStreams */
         $transitiveUsedStreams = [];
         /** @var list<ContentStreamId> $contentStreamIdsStack */
@@ -171,7 +244,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
         $removedContentStreams = [];
         foreach ($allContentStreams as $contentStream) {
             if ($contentStream->removed && !array_key_exists($contentStream->id->value, $transitiveUsedStreams)) {
-                $removedContentStreams[] = $contentStream->id;
+                $removedContentStreams[] = $contentStream;
             }
         }
 

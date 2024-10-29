@@ -19,6 +19,22 @@ class ContentStreamCommandController extends CommandController
     protected $contentRepositoryRegistry;
 
     /**
+     * @param string $contentRepository Identifier of the content repository. (Default: 'default')
+     */
+    public function statusCommand(string $contentRepository = 'default'): void
+    {
+        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
+        $contentStreamPruner = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new ContentStreamPrunerFactory());
+
+        $status = $contentStreamPruner->status(
+            $this->outputLine(...)
+        );
+        if ($status === false) {
+            $this->quit(1);
+        }
+    }
+
+    /**
      * Remove all content streams which are not needed anymore from the projections.
      *
      * NOTE: This still **keeps** the event stream as is; so it would be possible to re-construct the content stream
@@ -54,14 +70,8 @@ class ContentStreamCommandController extends CommandController
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
         $contentStreamPruner = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new ContentStreamPrunerFactory());
 
-        $unusedContentStreamIds = $contentStreamPruner->pruneRemovedFromEventStream();
-        $unusedContentStreamsPresent = false;
-        foreach ($unusedContentStreamIds as $contentStreamId) {
-            $this->outputFormatted('Removed events for %s', [$contentStreamId->value]);
-            $unusedContentStreamsPresent = true;
-        }
-        if (!$unusedContentStreamsPresent) {
-            $this->outputLine('There are no unused content streams.');
-        }
+        $contentStreamPruner->pruneRemovedFromEventStream(
+            $this->outputLine(...)
+        );
     }
 }
