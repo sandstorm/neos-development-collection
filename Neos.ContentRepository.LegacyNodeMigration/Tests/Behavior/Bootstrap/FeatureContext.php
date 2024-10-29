@@ -36,6 +36,7 @@ use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\CRTestSuiteTrai
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Property\PropertyMapper;
 use Neos\Flow\ResourceManagement\PersistentResource;
+use Neos\Neos\Domain\Service\NodeTypeNameFactory;
 use PHPUnit\Framework\Assert;
 use PHPUnit\Framework\MockObject\Generator as MockGenerator;
 
@@ -142,6 +143,7 @@ class FeatureContext implements Context
             $this->currentContentRepository->getVariationGraph(),
             $this->getObject(EventNormalizer::class),
             $this->mockFilesystem,
+            ['/sites' => NodeTypeNameFactory::forSites()->value],
             $this->nodeDataRows
         );
         if ($contentStream !== null) {

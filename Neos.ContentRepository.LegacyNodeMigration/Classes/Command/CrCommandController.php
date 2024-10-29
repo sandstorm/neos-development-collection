@@ -25,6 +25,7 @@ use Neos\ContentRepository\LegacyNodeMigration\LegacyMigrationServiceFactory;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\ContentRepositoryRegistry\Factory\EventStore\DoctrineEventStoreFactory;
 use Neos\ContentRepositoryRegistry\Service\ProjectionReplayServiceFactory;
+use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Cli\CommandController;
 use Neos\Flow\Persistence\PersistenceManagerInterface;
 use Neos\Flow\Property\PropertyMapper;
@@ -48,6 +49,8 @@ class CrCommandController extends CommandController
         private readonly ContentRepositoryRegistry $contentRepositoryRegistry,
         private readonly SiteRepository $siteRepository,
         private readonly ProjectionReplayServiceFactory $projectionReplayServiceFactory,
+        #[Flow\InjectConfiguration(path: "rootNodeMapping")]
+        private readonly array $rootNodeTypeMappingByContentRepository,
     ) {
         parent::__construct();
     }
@@ -137,7 +140,8 @@ class CrCommandController extends CommandController
                 $this->resourceRepository,
                 $this->resourceManager,
                 $this->propertyMapper,
-                $liveContentStreamId
+                $liveContentStreamId,
+                $this->rootNodeTypeMappingByContentRepository[$contentRepositoryId->value] ?? [],
             )
         );
         assert($legacyMigrationService instanceof LegacyMigrationService);
