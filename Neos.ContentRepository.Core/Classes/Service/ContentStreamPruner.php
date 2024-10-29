@@ -51,8 +51,12 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
      * Dangling content streams
      * ------------------------
      *
-     * Content streams that are not removed via the event ContentStreamWasRemoved and are not in use by a workspace:
-     * Not a current's workspace content stream.
+     * Content streams that are not removed via the event ContentStreamWasRemoved and are not in use by a workspace
+     * (not a current's workspace content stream).
+     *
+     * Previously before Neos 9 beta 15 (#5301), dangling content streams were not removed during publishing, discard or rebase.
+     *
+     * {@see removeDanglingContentStreams}
      *
      * Pruneable content streams
      * -------------------------
@@ -60,7 +64,9 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
      * Content streams that were removed ContentStreamWasRemoved e.g. after publishing, and are not required for a full
      * replay to reconstruct the current projections state. The ability to reconstitute a previous state will be lost.
      *
-     * @return bool if dangling content streams exist
+     * {@see pruneRemovedFromEventStream}
+     *
+     * @return bool false if dangling content streams exist because they should not
      */
     public function status(\Closure $outputFn): bool
     {
@@ -114,7 +120,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
             $outputFn('Okay. No pruneable streams in the event store');
         }
 
-        return $danglingContentStreamPresent;
+        return !$danglingContentStreamPresent;
     }
 
     /**
@@ -175,7 +181,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
     }
 
     /**
-     * Remove unused and deleted content streams from the event stream; effectively REMOVING information completely.
+     * Prune removed content streams that are unused from the event stream; effectively REMOVING information completely.
      *
      * This is not so easy for nested workspaces / content streams:
      *   - As long as content streams are used as basis for others which are IN_USE_BY_WORKSPACE,
