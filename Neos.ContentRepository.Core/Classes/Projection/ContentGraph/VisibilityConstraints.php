@@ -29,9 +29,17 @@ final readonly class VisibilityConstraints implements \JsonSerializable
     /**
      * @param SubtreeTags $tagConstraints A set of {@see SubtreeTag} instances that will be _excluded_ from the results of any content graph query
      */
-    public function __construct(
+    private function __construct(
         public SubtreeTags $tagConstraints,
     ) {
+    }
+
+    /**
+     * @param SubtreeTags $tagConstraints A set of {@see SubtreeTag} instances that will be _excluded_ from the results of any content graph query
+     */
+    public static function fromTagConstraints(SubtreeTags $tagConstraints): self
+    {
+        return new self($tagConstraints);
     }
 
     public function getHash(): string
