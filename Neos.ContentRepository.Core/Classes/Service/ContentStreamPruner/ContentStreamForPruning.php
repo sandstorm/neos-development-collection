@@ -103,4 +103,9 @@ final readonly class ContentStreamForPruning
             true
         );
     }
+
+    public function isDangling(): bool
+    {
+        return !$this->removed && $this->status !== ContentStreamStatus::IN_USE_BY_WORKSPACE;
+    }
 }

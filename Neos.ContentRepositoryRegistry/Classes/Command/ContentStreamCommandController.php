@@ -19,7 +19,7 @@ class ContentStreamCommandController extends CommandController
     protected $contentRepositoryRegistry;
 
     /**
-     * Detects if dangling content streams exists and which content streams could be pruned from the event store
+     * Detects if dangling content streams exists and which content streams could be pruned from the event stream
      *
      * Dangling content streams
      * ------------------------
@@ -61,7 +61,7 @@ class ContentStreamCommandController extends CommandController
      *
      * HINT: ./flow contentStream:status gives information what is about to be removed
      *
-     * To prune the removed content streams from the event store, run ./flow contentStream:pruneRemovedFromEventStream afterwards.
+     * To prune the removed content streams from the event stream, run ./flow contentStream:pruneRemovedFromEventStream afterwards.
      *
      * @param string $contentRepository Identifier of the content repository. (Default: 'default')
      * @param string $removeTemporaryBefore includes all temporary content streams like FORKED or CREATED older than that in the removal
@@ -87,7 +87,7 @@ class ContentStreamCommandController extends CommandController
      */
     public function pruneRemovedFromEventStreamCommand(string $contentRepository = 'default', bool $force = false): void
     {
-        if (!$force && !$this->output->askConfirmation(sprintf('> This will prune removed content streams that are unused from the event stream in content repository "%s" (see contentStream:status). Are you sure to proceed? (y/n) ', $contentRepository), false)) {
+        if (!$force && !$this->output->askConfirmation(sprintf('> This will prune removed content streams that are unused from the event stream in content repository "%s" (see flow contentStream:status). Are you sure to proceed? (y/n) ', $contentRepository), false)) {
             $this->outputLine('<comment>Abort.</comment>');
             return;
         }

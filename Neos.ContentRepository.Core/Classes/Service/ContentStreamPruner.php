@@ -46,7 +46,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
     }
 
     /**
-     * Detects if dangling content streams exists and which content streams could be pruned from the event store
+     * Detects if dangling content streams exists and which content streams could be pruned from the event stream
      *
      * Dangling content streams
      * ------------------------
@@ -74,10 +74,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
 
         $danglingContentStreamPresent = false;
         foreach ($allContentStreams as $contentStream) {
-            if ($contentStream->removed) {
-                continue;
-            }
-            if ($contentStream->status === ContentStreamStatus::IN_USE_BY_WORKSPACE) {
+            if (!$contentStream->isDangling()) {
                 continue;
             }
             if ($danglingContentStreamPresent === false) {
@@ -95,7 +92,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
 
         if ($danglingContentStreamPresent === true) {
             $outputFn('To remove the dangling streams from the projections please run ./flow contentStream:removeDangling');
-            $outputFn('Then they are ready for removal from the event store');
+            $outputFn('Then they are ready for removal from the event stream');
             $outputFn();
         } else {
             $outputFn('Okay. No dangling streams found');
@@ -107,17 +104,17 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
         $pruneableContentStreamPresent = false;
         foreach ($removedContentStreams as $removedContentStream) {
             if ($pruneableContentStreamPresent === false) {
-                $outputFn('Removed content streams that can be pruned from the event store');
+                $outputFn('Removed content streams that can be pruned from the event stream');
             }
             $pruneableContentStreamPresent = true;
             $outputFn(sprintf('  id: %s previous state: %s', $removedContentStream->id->value, $removedContentStream->status->value));
         }
 
         if ($pruneableContentStreamPresent === true) {
-            $outputFn('To prune the removed streams from the event store run ./flow contentStream:pruneRemovedFromEventstream');
-            $outputFn('Then they are indefinitely pruned from the event store');
+            $outputFn('To prune the removed streams from the event stream run ./flow contentStream:pruneRemovedFromEventstream');
+            $outputFn('Then they are indefinitely pruned from the event stream');
         } else {
-            $outputFn('Okay. No pruneable streams in the event store');
+            $outputFn('Okay. No pruneable streams in the event stream');
         }
 
         return !$danglingContentStreamPresent;
@@ -128,7 +125,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
      *
      * NOTE: This still **keeps** the event stream as is; so it would be possible to re-construct the content stream at a later point in time.
      *
-     * To prune the removed content streams from the event store, call {@see ContentStreamPruner::pruneRemovedFromEventStream()} afterwards.
+     * To prune the removed content streams from the event stream, call {@see ContentStreamPruner::pruneRemovedFromEventStream()} afterwards.
      *
      * @param \DateTimeImmutable $removeTemporaryBefore includes all temporary content streams like FORKED or CREATED older than that in the removal
      */
@@ -138,14 +135,9 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
 
         $unusedContentStreamsPresent = false;
         foreach ($allContentStreams as $contentStream) {
-            if ($contentStream->removed) {
+            if (!$contentStream->isDangling()) {
                 continue;
             }
-
-            if ($contentStream->status === ContentStreamStatus::IN_USE_BY_WORKSPACE) {
-                continue;
-            }
-
             if (
                 $contentStream->status->isTemporary()
                 && $removeTemporaryBefore < $contentStream->created
@@ -176,7 +168,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
                 $outputFn(sprintf('Could not catchup after removing unused content streams: %s. You might need to use ./flow contentstream:pruneremovedfromeventstream and replay.', $e->getMessage()));
             }
         } else {
-            $outputFn('There are no unused content streams.');
+            $outputFn('Okay. No pruneable streams in the event stream');
         }
     }
 
@@ -185,7 +177,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
      *
      * This is not so easy for nested workspaces / content streams:
      *   - As long as content streams are used as basis for others which are IN_USE_BY_WORKSPACE,
-     *     these dependent Content Streams are not allowed to be removed in the event store.
+     *     these dependent Content Streams are not allowed to be removed in the event stream.
      *
      *   - Otherwise, we cannot replay the other content streams correctly (if the base content streams are missing).
      */
@@ -207,7 +199,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
         }
 
         if ($unusedContentStreamsPresent === false) {
-            $outputFn('There are no unused content streams.');
+            $outputFn('Okay. There are no pruneable content streams.');
         }
     }
 
