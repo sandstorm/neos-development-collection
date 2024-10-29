@@ -27,7 +27,6 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindSubtreeFilter
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\NodeType\NodeTypeCriteria;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Subtree;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
-use Neos\ContentRepository\Core\Service\ContentStreamPruner;
 use Neos\ContentRepository\Core\Service\ContentStreamPrunerFactory;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
@@ -251,21 +250,11 @@ trait CRTestSuiteTrait
     }
 
     /**
-     * @When I prune unused content streams
-     */
-    public function iPruneUnusedContentStreams(): void
-    {
-        /** @var ContentStreamPruner $contentStreamPruner */
-        $contentStreamPruner = $this->getContentRepositoryService(new ContentStreamPrunerFactory());
-        $contentStreamPruner->removeDangelingContentStreams(fn () => null);
-    }
-
-    /**
      * @When I prune removed content streams from the event stream
      */
     public function iPruneRemovedContentStreamsFromTheEventStream(): void
     {
-        $this->getContentRepositoryService(new ContentStreamPrunerFactory())->pruneRemovedFromEventStream();
+        $this->getContentRepositoryService(new ContentStreamPrunerFactory())->pruneRemovedFromEventStream(fn () => null);
     }
 
     abstract protected function getContentRepositoryService(
