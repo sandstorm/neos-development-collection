@@ -36,15 +36,56 @@ Feature: Workspace publication - complex chained functionality
       | nodeTypeName    | "Neos.ContentRepository:Root" |
 
     And the following CreateNodeAggregateWithNode commands are executed:
-      | nodeAggregateId        | nodeTypeName                            | parentNodeAggregateId  | nodeName   | tetheredDescendantNodeAggregateIds |
-      | sir-david-nodenborough | Neos.ContentRepository.Testing:Document | lady-eleonode-rootford | document   | {"tethered": "nodewyn-tetherton"}  |
-      | nody-mc-nodeface       | Neos.ContentRepository.Testing:Content  | nodewyn-tetherton      | grandchild | {}                                 |
+      | nodeAggregateId        | nodeTypeName                            | parentNodeAggregateId  | tetheredDescendantNodeAggregateIds | properties                |
+      | sir-david-nodenborough | Neos.ContentRepository.Testing:Document | lady-eleonode-rootford | {"tethered": "nodewyn-tetherton"}  |                           |
+      | sir-nodebelig          | Neos.ContentRepository.Testing:Content  | lady-eleonode-rootford |                                  |                           |
+      | nobody-node          | Neos.ContentRepository.Testing:Content  | lady-eleonode-rootford |                                  |                           |
+      | nody-mc-nodeface       | Neos.ContentRepository.Testing:Content  | nodewyn-tetherton      |                                  |  |
 
     And the command CreateWorkspace is executed with payload:
       | Key                | Value        |
       | workspaceName      | "user-ws"    |
       | baseWorkspaceName  | "live"       |
       | newContentStreamId | "user-cs-id" |
+
+  Scenario: Deleted nodes cannot be edited
+    When the command RemoveNodeAggregate is executed with payload:
+      | Key                          | Value              |
+      | workspaceName                | "live"             |
+      | nodeAggregateId              | "sir-nodebelig"    |
+      | coveredDimensionSpacePoint   | {"language": "de"} |
+      | nodeVariantSelectionStrategy | "allVariants"      |
+
+    When the command RemoveNodeAggregate is executed with payload:
+      | Key                          | Value              |
+      | workspaceName                | "live"             |
+      | nodeAggregateId              | "nobody-node"      |
+      | coveredDimensionSpacePoint   | {"language": "de"} |
+      | nodeVariantSelectionStrategy | "allVariants"      |
+
+    And the command SetNodeProperties is executed with payload:
+      | Key                       | Value                     |
+      | workspaceName             | "user-ws"                 |
+      | nodeAggregateId           | "sir-nodebelig"           |
+      | originDimensionSpacePoint | {"language": "de"}        |
+      | propertyValues            | {"text": "Modified text"} |
+
+    And the command SetNodeProperties is executed with payload:
+      | Key                       | Value                     |
+      | workspaceName             | "user-ws"                 |
+      | nodeAggregateId           | "nobody-node"             |
+      | originDimensionSpacePoint | {"language": "de"}        |
+      | propertyValues            | {"text": "Modified text"} |
+
+    When the command PublishIndividualNodesFromWorkspace is executed with payload and exceptions are caught:
+      | Key                | Value                                                                             |
+      | workspaceName      | "user-ws"                                                                         |
+      | nodesToPublish     | [{"dimensionSpacePoint": {"language": "de"}, "nodeAggregateId": "sir-nodebelig"}] |
+      | newContentStreamId | "user-cs-id-rebased"                                                              |
+    Then the last command should have thrown the WorkspaceRebaseFailed exception with:
+      | SequenceNumber | Command                     | Exception                          |
+      | 13             | SetSerializedNodeProperties | NodeAggregateCurrentlyDoesNotExist |
+      | 14             | SetSerializedNodeProperties | NodeAggregateCurrentlyDoesNotExist |
 
   Scenario: Vary to generalization, then publish only the child node so that an exception is thrown. Ensure that the workspace recovers from this
     When the command CreateNodeVariant is executed with payload:
@@ -65,7 +106,9 @@ Feature: Workspace publication - complex chained functionality
       | workspaceName      | "user-ws"                                                                                                        |
       | nodesToPublish     | [{"workspaceName": "user-ws", "dimensionSpacePoint": {"language": "en"}, "nodeAggregateId": "nody-mc-nodeface"}] |
       | newContentStreamId | "user-cs-id-rebased"                                                                                             |
-    Then the last command should have thrown an exception of type "NodeAggregateDoesCurrentlyNotCoverDimensionSpacePoint"
+    Then the last command should have thrown the WorkspaceRebaseFailed exception with:
+      | SequenceNumber | Command           | Exception                                             |
+      | 13             | CreateNodeVariant | NodeAggregateDoesCurrentlyNotCoverDimensionSpacePoint |
 
     When the command PublishWorkspace is executed with payload:
       | Key                | Value                          |

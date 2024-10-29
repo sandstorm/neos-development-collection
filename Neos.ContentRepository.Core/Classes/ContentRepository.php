@@ -19,12 +19,10 @@ use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
-use Neos\ContentRepository\Core\EventStore\DecoratedEvent;
-use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\EventStore\EventPersister;
-use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
+use Neos\ContentRepository\Core\EventStore\InitiatingEventMetadata;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryFactory;
 use Neos\ContentRepository\Core\Feature\Security\AuthProviderInterface;
 use Neos\ContentRepository\Core\Feature\Security\Dto\UserId;
@@ -51,8 +49,6 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
 use Neos\EventStore\EventStoreInterface;
-use Neos\EventStore\Exception\ConcurrencyException;
-use Neos\EventStore\Model\Event\EventMetadata;
 use Neos\EventStore\Model\EventEnvelope;
 use Neos\EventStore\Model\EventStream\VirtualStreamName;
 use Psr\Clock\ClockInterface;
@@ -75,8 +71,6 @@ final class ContentRepository
      */
     private array $projectionStateCache;
 
-    private CommandHandlingDependencies $commandHandlingDependencies;
-
     /**
      * @internal use the {@see ContentRepositoryFactory::getOrBuild()} to instantiate
      */
@@ -94,7 +88,6 @@ final class ContentRepository
         private readonly ClockInterface $clock,
         private readonly ContentGraphReadModelInterface $contentGraphReadModel
     ) {
-        $this->commandHandlingDependencies = new CommandHandlingDependencies($this, $this->contentGraphReadModel);
     }
 
     /**
@@ -111,7 +104,7 @@ final class ContentRepository
         }
         // the commands only calculate which events they want to have published, but do not do the
         // publishing themselves
-        $eventsToPublishOrGenerator = $this->commandBus->handle($command, $this->commandHandlingDependencies);
+        $eventsToPublishOrGenerator = $this->commandBus->handle($command);
 
         if ($eventsToPublishOrGenerator instanceof EventsToPublish) {
             $eventsToPublish = $this->enrichEventsToPublishWithMetadata($eventsToPublishOrGenerator);
@@ -120,25 +113,7 @@ final class ContentRepository
             foreach ($eventsToPublishOrGenerator as $eventsToPublish) {
                 assert($eventsToPublish instanceof EventsToPublish); // just for the ide
                 $eventsToPublish = $this->enrichEventsToPublishWithMetadata($eventsToPublish);
-                try {
-                    $this->eventPersister->publishEvents($this, $eventsToPublish);
-                } catch (ConcurrencyException $e) {
-                    // we pass the exception into the generator, so it could be try-caught and reacted upon:
-                    //
-                    //   try {
-                    //      yield EventsToPublish();
-                    //   } catch (ConcurrencyException $e) {
-                    //      yield $restoreState();
-                    //      throw $e;
-                    //   }
-
-                    $errorStrategy = $eventsToPublishOrGenerator->throw($e);
-
-                    if ($errorStrategy instanceof EventsToPublish) {
-                        $eventsToPublish = $this->enrichEventsToPublishWithMetadata($errorStrategy);
-                        $this->eventPersister->publishEvents($this, $this->enrichEventsToPublishWithMetadata($eventsToPublish));
-                    }
-                }
+                $this->eventPersister->publishEvents($this, $eventsToPublish);
             }
         }
     }
@@ -329,34 +304,17 @@ final class ContentRepository
         return $this->contentDimensionSource;
     }
 
-    /**
-     * Add "initiatingUserId" and "initiatingTimestamp" metadata to all events.
-     *                        This is done in order to keep information about the _original_ metadata when an
-     *                        event is re-applied during publishing/rebasing
-     * "initiatingUserId": The identifier of the user that originally triggered this event. This will never
-     *                     be overridden if it is set once.
-     * "initiatingTimestamp": The timestamp of the original event. The "recordedAt" timestamp will always be
-     *                        re-created and reflects the time an event was actually persisted in a stream,
-     *                        the "initiatingTimestamp" will be kept and is never overridden again.
-     */
     private function enrichEventsToPublishWithMetadata(EventsToPublish $eventsToPublish): EventsToPublish
     {
         $initiatingUserId = $this->authProvider->getAuthenticatedUserId() ?? UserId::forSystemUser();
-        $initiatingTimestamp = $this->clock->now()->format(\DateTimeInterface::ATOM);
+        $initiatingTimestamp = $this->clock->now();
 
         return new EventsToPublish(
             $eventsToPublish->streamName,
-            Events::fromArray(
-                $eventsToPublish->events->map(function (EventInterface|DecoratedEvent $event) use (
-                    $initiatingUserId,
-                    $initiatingTimestamp
-                ) {
-                    $metadata = $event instanceof DecoratedEvent ? $event->eventMetadata?->value ?? [] : [];
-                    $metadata['initiatingUserId'] ??= $initiatingUserId;
-                    $metadata['initiatingTimestamp'] ??= $initiatingTimestamp;
-
-                    return DecoratedEvent::create($event, metadata: EventMetadata::fromArray($metadata));
-                })
+            InitiatingEventMetadata::enrichEventsWithInitiatingMetadata(
+                $eventsToPublish->events,
+                $initiatingUserId,
+                $initiatingTimestamp
             ),
             $eventsToPublish->expectedVersion,
         );

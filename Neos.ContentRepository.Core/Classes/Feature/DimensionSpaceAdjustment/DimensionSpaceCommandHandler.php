@@ -16,7 +16,7 @@ namespace Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandHandlerInterface;
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
-use Neos\ContentRepository\Core\CommandHandlingDependencies;
+use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\DimensionSpace\ContentDimensionZookeeper;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
@@ -26,6 +26,7 @@ use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
 use Neos\ContentRepository\Core\DimensionSpace\VariantType;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
+use Neos\ContentRepository\Core\Feature\RebaseableCommand;
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\AddDimensionShineThrough;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\MoveDimensionSpacePoint;
@@ -77,13 +78,16 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
 
         return new EventsToPublish(
             $streamName,
-            Events::with(
-                new DimensionSpacePointWasMoved(
-                    $contentGraph->getWorkspaceName(),
-                    $contentGraph->getContentStreamId(),
-                    $command->source,
-                    $command->target
-                ),
+            RebaseableCommand::enrichWithCommand(
+                $command,
+                Events::with(
+                    new DimensionSpacePointWasMoved(
+                        $contentGraph->getWorkspaceName(),
+                        $contentGraph->getContentStreamId(),
+                        $command->source,
+                        $command->target
+                    ),
+                )
             ),
             ExpectedVersion::ANY()
         );
@@ -107,12 +111,15 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
 
         return new EventsToPublish(
             $streamName,
-            Events::with(
-                new DimensionShineThroughWasAdded(
-                    $contentGraph->getWorkspaceName(),
-                    $contentGraph->getContentStreamId(),
-                    $command->source,
-                    $command->target
+            RebaseableCommand::enrichWithCommand(
+                $command,
+                Events::with(
+                    new DimensionShineThroughWasAdded(
+                        $contentGraph->getWorkspaceName(),
+                        $contentGraph->getContentStreamId(),
+                        $command->source,
+                        $command->target
+                    )
                 )
             ),
             ExpectedVersion::ANY()
