@@ -37,12 +37,17 @@ Feature: Change base workspace works :D what else
       | parentNodeAggregateId     | "lady-eleonode-rootford"                 |
       | initialPropertyValues     | {"text": "Original text"}                |
 
-    # Create user workspace
     And the command CreateWorkspace is executed with payload:
       | Key                | Value                |
       | workspaceName      | "user-test"          |
       | baseWorkspaceName  | "live"               |
       | newContentStreamId | "user-cs-identifier" |
+
+    And the command CreateWorkspace is executed with payload:
+      | Key                | Value                  |
+      | workspaceName      | "shared"               |
+      | baseWorkspaceName  | "live"                 |
+      | newContentStreamId | "shared-cs-identifier" |
 
   Scenario: Change base workspace is a no-op if the base already matches
     When the command ChangeBaseWorkspace is executed with payload:
@@ -93,12 +98,6 @@ Feature: Change base workspace works :D what else
     Then I expect node aggregate identifier "holy-nody" to lead to node cs-identifier;holy-nody;{}
 
   Scenario: Change base workspace if user has no changes and is up to date with new base
-    And the command CreateWorkspace is executed with payload:
-      | Key                | Value                  |
-      | workspaceName      | "shared"               |
-      | baseWorkspaceName  | "live"                 |
-      | newContentStreamId | "shared-cs-identifier" |
-
     When the command ChangeBaseWorkspace is executed with payload:
       | Key                | Value                        |
       | workspaceName      | "user-test"                  |
@@ -112,12 +111,6 @@ Feature: Change base workspace works :D what else
     Then I expect node aggregate identifier "nody-mc-nodeface" to lead to node user-rebased-cs-identifier;nody-mc-nodeface;{}
 
   Scenario: Change base workspace if user has no changes and is not up to date with new base
-    And the command CreateWorkspace is executed with payload:
-      | Key                | Value                  |
-      | workspaceName      | "shared"               |
-      | baseWorkspaceName  | "live"                 |
-      | newContentStreamId | "shared-cs-identifier" |
-
     When the command CreateNodeAggregateWithNode is executed with payload:
       | Key                       | Value                                    |
       | workspaceName             | "shared"                                 |
