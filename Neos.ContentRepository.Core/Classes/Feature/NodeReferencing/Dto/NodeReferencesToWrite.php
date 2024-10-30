@@ -23,7 +23,7 @@ namespace Neos\ContentRepository\Core\Feature\NodeReferencing\Dto;
  * @implements \IteratorAggregate<NodeReferencesForName>
  * @api used as part of commands
  */
-final readonly class NodeReferencesToWrite implements \JsonSerializable, \IteratorAggregate
+final readonly class NodeReferencesToWrite implements \IteratorAggregate
 {
     /**
      * @var array<NodeReferencesForName>
@@ -74,10 +74,5 @@ final readonly class NodeReferencesToWrite implements \JsonSerializable, \Iterat
     public function isEmpty(): bool
     {
         return count($this->references) === 0;
-    }
-
-    public function jsonSerialize(): mixed
-    {
-        return $this->references;
     }
 }
