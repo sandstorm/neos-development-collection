@@ -26,21 +26,20 @@ namespace Neos\ContentRepository\Core\Feature\NodeReferencing\Dto;
 final readonly class NodeReferencesToWrite implements \IteratorAggregate
 {
     /**
-     * @var array<NodeReferencesForName>
+     * @var array<string, NodeReferencesForName>
      */
     public array $references;
 
     private function __construct(NodeReferencesForName ...$references)
     {
-        $seenNames = [];
+        $referencesByName = [];
         foreach ($references as $reference) {
-            $referenceNameExists = isset($seenNames[$reference->referenceName->value]);
-            if ($referenceNameExists) {
-                throw new \InvalidArgumentException(sprintf('You cannot set references for the same ReferenceName %s multiple times.', $reference->referenceName->value), 1718193720);
+            if (isset($referencesByName[$reference->referenceName->value])) {
+                throw new \InvalidArgumentException(sprintf('NodeReferencesToWrite does not accept references for the same name %s multiple times.', $reference->referenceName->value), 1718193720);
             }
-            $seenNames[$reference->referenceName->value] = true;
+            $referencesByName[$reference->referenceName->value] = $reference;
         }
-        $this->references = $references;
+        $this->references = $referencesByName;
     }
 
     public static function createEmpty(): self
@@ -58,17 +57,21 @@ final readonly class NodeReferencesToWrite implements \IteratorAggregate
         return new self(...$references);
     }
 
-    public function merge(NodeReferencesToWrite $nodeReferencesToWrite): self
+    public function withReference(NodeReferencesForName $referencesForName): self
     {
-        return new self(...$this->references, ...$nodeReferencesToWrite->references);
+        $references = $this->references;
+        $references[$referencesForName->referenceName->value] = $referencesForName;
+        return new self(...$references);
     }
 
-    /**
-     * @return \Traversable<NodeReferencesForName>
-     */
+    public function merge(NodeReferencesToWrite $other): self
+    {
+        return new self(...array_merge($this->references, $other->references));
+    }
+
     public function getIterator(): \Traversable
     {
-        yield from $this->references;
+        yield from array_values($this->references);
     }
 
     public function isEmpty(): bool
