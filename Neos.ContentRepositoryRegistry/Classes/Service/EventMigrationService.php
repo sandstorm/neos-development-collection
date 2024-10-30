@@ -253,11 +253,11 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
         $this->copyEventTable($backupEventTableName);
 
         $streamName = VirtualStreamName::all();
-        $eventStream = $this->eventStore->load($streamName, EventStreamFilter::create(EventTypes::create(EventType::fromString(NodeReferencesWereSet::class))));
+        $eventStream = $this->eventStore->load($streamName, EventStreamFilter::create(EventTypes::create(EventType::fromString('NodeReferencesWereSet'))));
         foreach ($eventStream as $eventEnvelope) {
             $outputRewriteNotice = fn(string $message) => $outputFn(sprintf('%s@%s %s', $eventEnvelope->sequenceNumber->value, $eventEnvelope->event->type->value, $message));
             if ($eventEnvelope->event->type->value !== 'NodeReferencesWereSet') {
-                continue;
+                throw new \RuntimeException(sprintf('Unhandled event: %s', $eventEnvelope->event->type->value));
             }
 
             // migrate payload
