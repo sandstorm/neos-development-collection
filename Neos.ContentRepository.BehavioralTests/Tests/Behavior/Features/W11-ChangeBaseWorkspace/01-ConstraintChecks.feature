@@ -75,7 +75,15 @@ Feature: Change base workspace constraints
 
     Then the last command should have thrown an exception of type "WorkspaceIsNotEmptyException"
 
-  Scenario: Changing the base workspace does not work if the new base if a base of the current (cyclic)
+  Scenario: Changing the base workspace does not work if the new base is the current workspace (cyclic)
+    When the command ChangeBaseWorkspace is executed with payload and exceptions are caught:
+      | Key                | Value                        |
+      | workspaceName      | "user-test"                  |
+      | baseWorkspaceName  | "user-test"                  |
+
+    Then the last command should have thrown an exception of type "BaseWorkspaceEqualsWorkspaceException"
+
+  Scenario: Changing the base workspace does not work if the new base is a base of the current (cyclic)
     And the command CreateWorkspace is executed with payload:
       | Key                | Value                           |
       | workspaceName      | "shared-branched"               |
