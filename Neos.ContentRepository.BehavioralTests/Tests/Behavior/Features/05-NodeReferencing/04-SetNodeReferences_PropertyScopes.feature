@@ -63,7 +63,7 @@ Feature: Set node properties with different scopes
       | sourceOrigin    | {"language":"mul"}  |
       | targetOrigin    | {"language":"gsw"}  |
 
-  Scenario: Set node properties in separate commands
+  Scenario: Set node references in separate commands
     And the command SetNodeReferences is executed with payload:
       | Key                             | Value                             |
       | sourceNodeAggregateId           | "source-nodandaise"               |

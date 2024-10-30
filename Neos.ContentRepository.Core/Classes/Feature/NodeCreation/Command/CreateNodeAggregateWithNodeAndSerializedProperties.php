@@ -103,7 +103,7 @@ final readonly class CreateNodeAggregateWithNodeAndSerializedProperties implemen
             isset($array['tetheredDescendantNodeAggregateIds'])
                 ? NodeAggregateIdsByNodePaths::fromArray($array['tetheredDescendantNodeAggregateIds'])
                 : NodeAggregateIdsByNodePaths::createEmpty(),
-            isset($array['references']) ? SerializedNodeReferences::fromArray($array['references']) : null,
+            isset($array['references']) ? SerializedNodeReferences::fromArray($array['references']) : SerializedNodeReferences::createEmpty(),
         );
     }
 

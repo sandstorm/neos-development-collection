@@ -34,7 +34,7 @@ trait NodeReferencingInternals
     private function mapNodeReferencesToSerializedNodeReferences(NodeReferencesToWrite $references, NodeTypeName $nodeTypeName): SerializedNodeReferences
     {
         $serializedReferencesByProperty = [];
-        foreach ($references->getIterator() as $referencesByProperty) {
+        foreach ($references as $referencesByProperty) {
             $serializedReferences = [];
             foreach ($referencesByProperty->references as $reference) {
                 $serializedReferences[] = SerializedNodeReference::fromTargetAndProperties(

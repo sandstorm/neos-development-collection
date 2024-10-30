@@ -90,7 +90,7 @@ trait NodeCreation
                 $command->initialPropertyValues->withoutUnsets(),
                 $this->requireNodeType($command->nodeTypeName)
             ),
-            $command->references ? $this->mapNodeReferencesToSerializedNodeReferences($command->references, $command->nodeTypeName) : SerializedNodeReferences::createEmpty()
+            $this->mapNodeReferencesToSerializedNodeReferences($command->references, $command->nodeTypeName)
         );
         if (!$command->tetheredDescendantNodeAggregateIds->isEmpty()) {
             $lowLevelCommand = $lowLevelCommand->withTetheredDescendantNodeAggregateIds($command->tetheredDescendantNodeAggregateIds);
