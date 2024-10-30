@@ -52,9 +52,9 @@ final readonly class PublishIndividualNodesFromWorkspace implements CommandInter
     }
 
     /**
-     * See the description of {@see self::withContentStreamIdForMatchingPart()}.
+     * The id of the new content stream that will contain all remaining events
      *
-     * This property adds the ID of the second content stream, so that the command
+     * This method adds its ID, so that the command
      * can run fully deterministic - we need this for the test cases.
      */
     public function withContentStreamIdForRemainingPart(ContentStreamId $contentStreamIdForRemainingPart): self

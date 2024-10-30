@@ -111,6 +111,9 @@ trait WorkspacePublishing
                 : $this->currentWorkspaceName,
             WorkspaceName::fromString($commandArguments['baseWorkspaceName']),
         );
+        if (array_key_exists('newContentStreamId', $commandArguments)) {
+            $command = $command->withNewContentStreamId(ContentStreamId::fromString($commandArguments['newContentStreamId']));
+        }
         $this->currentContentRepository->handle($command);
     }
 

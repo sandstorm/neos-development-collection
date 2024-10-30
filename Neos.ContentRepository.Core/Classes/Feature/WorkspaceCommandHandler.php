@@ -739,13 +739,14 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         $this->requireEmptyWorkspace($workspace);
         $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
-        $baseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
 
-        $this->requireNonCircularRelationBetweenWorkspaces($workspace, $baseWorkspace, $commandHandlingDependencies);
+        $newBaseWorkspace = $this->requireWorkspace($command->baseWorkspaceName, $commandHandlingDependencies);
+
+        $this->requireNonCircularRelationBetweenWorkspaces($workspace, $newBaseWorkspace, $commandHandlingDependencies);
 
         yield $this->forkContentStream(
             $command->newContentStreamId,
-            $baseWorkspace->currentContentStreamId,
+            $newBaseWorkspace->currentContentStreamId,
             $commandHandlingDependencies
         );
 
