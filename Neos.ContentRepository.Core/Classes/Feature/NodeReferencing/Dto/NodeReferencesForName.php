@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Feature\NodeReferencing\Dto;
 
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
 
 /**
@@ -38,6 +39,12 @@ final readonly class NodeReferencesForName
      */
     public static function fromNameAndReferences(ReferenceName $name, array $references): self
     {
+        return new self($name, ...$references);
+    }
+
+    public static function fromNameAndTargets(ReferenceName $name, NodeAggregateIds $nodeAggregateIds): self
+    {
+        $references = array_map(NodeReferenceToWrite::fromTarget(...), iterator_to_array($nodeAggregateIds));
         return new self($name, ...$references);
     }
 

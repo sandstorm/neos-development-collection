@@ -50,34 +50,22 @@ final readonly class SerializedNodeReferences implements \JsonSerializable, \Ite
         return new self();
     }
 
-    /**
-     * @param array<SerializedNodeReferencesForName> $references
-     */
-    public static function fromReferences(array $references): self
+    public static function fromReferences(SerializedNodeReferencesForName ...$references): self
     {
         return new self(...$references);
     }
 
     /**
-     * @param array<int, array{"referenceName": string, "references": array<array{"target": string, "properties": mixed}>}> $namesAndReferences
+     * @param array<int, SerializedNodeReferencesForName|array{"referenceName": string, "references": array<array{"target": string, "properties": mixed}>}> $namesAndReferences
      */
     public static function fromArray(array $namesAndReferences): self
     {
         $result = [];
         foreach ($namesAndReferences as $referencesByProperty) {
-            $result[] = SerializedNodeReferencesForName::fromArray($referencesByProperty);
+            $result[] = $referencesByProperty instanceof SerializedNodeReferencesForName ? $referencesByProperty : SerializedNodeReferencesForName::fromArray($referencesByProperty);
         }
 
         return new self(...$result);
-    }
-
-    public static function fromNameAndTargets(ReferenceName $referenceName, NodeAggregateIds $nodeAggregateIds): self
-    {
-        $references = array_map(static function ($nodeAggregateId) {
-            return SerializedNodeReference::fromTarget($nodeAggregateId);
-        }, iterator_to_array($nodeAggregateIds));
-
-        return new self(SerializedNodeReferencesForName::fromNameAndSerializedReferences($referenceName, $references));
     }
 
     public static function fromReadReferences(References $references): self

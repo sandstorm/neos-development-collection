@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Feature\NodeReferencing\Dto;
 
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
 
 /**
@@ -49,6 +50,12 @@ final readonly class SerializedNodeReferencesForName implements \JsonSerializabl
      */
     public static function fromNameAndSerializedReferences(ReferenceName $referenceName, array $references): self
     {
+        return new self($referenceName, ...$references);
+    }
+
+    public static function fromNameAndTargets(ReferenceName $referenceName, NodeAggregateIds $nodeAggregateIds): self
+    {
+        $references = array_map(SerializedNodeReference::fromTarget(...), iterator_to_array($nodeAggregateIds));
         return new self($referenceName, ...$references);
     }
 

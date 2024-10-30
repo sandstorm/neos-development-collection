@@ -21,8 +21,8 @@ use Neos\ContentRepository\Core\Feature\NodeCreation\Event\NodeAggregateWithNode
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
 use Neos\ContentRepository\Core\Feature\NodeModification\Event\NodePropertiesWereSet;
 use Neos\ContentRepository\Core\Feature\NodeMove\Event\NodeAggregateWasMoved;
-use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\SerializedNodeReference;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\SerializedNodeReferences;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\SerializedNodeReferencesForName;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Event\NodeReferencesWereSet;
 use Neos\ContentRepository\Core\Feature\NodeVariation\Event\NodeGeneralizationVariantWasCreated;
 use Neos\ContentRepository\Core\Feature\NodeVariation\Event\NodePeerVariantWasCreated;
@@ -360,7 +360,12 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
                     if (!is_array($propertyValue)) {
                         $propertyValue = [$propertyValue];
                     }
-                    $references = $references->merge(SerializedNodeReferences::fromNameAndTargets(ReferenceName::fromString($propertyName), NodeAggregateIds::fromArray(array_map(static fn (string $identifier) => NodeAggregateId::fromString($identifier), $propertyValue))));
+                    $references = $references->merge(SerializedNodeReferences::fromReferences(
+                        SerializedNodeReferencesForName::fromNameAndTargets(
+                            ReferenceName::fromString($propertyName),
+                            NodeAggregateIds::fromArray(array_map(NodeAggregateId::fromString(...), $propertyValue))
+                        )
+                    ));
                 }
                 continue;
             }

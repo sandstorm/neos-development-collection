@@ -48,10 +48,12 @@ final readonly class NodeReferencesToWrite implements \JsonSerializable, \Iterat
         return new self();
     }
 
-    /**
-     * @param array<NodeReferencesForName> $references
-     */
-    public static function fromReferences(array $references): self
+    public static function fromReferences(NodeReferencesForName ...$references): self
+    {
+        return new self(...$references);
+    }
+
+    public static function fromArray(array $references): self
     {
         return new self(...$references);
     }

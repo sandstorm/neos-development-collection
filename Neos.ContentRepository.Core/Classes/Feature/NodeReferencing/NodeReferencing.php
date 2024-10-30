@@ -146,7 +146,7 @@ trait NodeReferencing
                 $contentGraph->getContentStreamId(),
                 $command->sourceNodeAggregateId,
                 $affectedOrigins,
-                SerializedNodeReferences::fromReferences([$referencesByProperty]),
+                SerializedNodeReferences::fromReferences($referencesByProperty),
             );
         }
 

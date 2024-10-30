@@ -53,6 +53,6 @@ trait NodeReferencingInternals
             );
         }
 
-        return SerializedNodeReferences::fromReferences($serializedReferencesByProperty);
+        return SerializedNodeReferences::fromArray($serializedReferencesByProperty);
     }
 }

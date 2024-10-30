@@ -109,6 +109,6 @@ trait NodeReferencing
             }
             $referencesForProperty[] = NodeReferencesForName::fromNameAndReferences(ReferenceName::fromString($nodeReferencesForProperty['referenceName']), $references);
         }
-        return NodeReferencesToWrite::fromReferences($referencesForProperty);
+        return NodeReferencesToWrite::fromArray($referencesForProperty);
     }
 }
