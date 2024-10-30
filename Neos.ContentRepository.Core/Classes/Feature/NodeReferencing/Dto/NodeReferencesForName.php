@@ -22,16 +22,15 @@ use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
 final readonly class NodeReferencesForName
 {
     /**
-     * @param ReferenceName $referenceName
-     * @param NodeReferenceToWrite[] $references
+     * @var array<NodeReferenceToWrite>
      */
+    public array $references;
+
     private function __construct(
         public ReferenceName $referenceName,
-        public array $references
+        NodeReferenceToWrite ...$references
     ) {
-        if (!self::isValidReferencesArray($references)) {
-            throw new \InvalidArgumentException('References can only contain NodeReferenceToWrite instances.', 1729510972);
-        }
+        $this->references = $references;
     }
 
     /**
@@ -39,25 +38,11 @@ final readonly class NodeReferencesForName
      */
     public static function fromNameAndReferences(ReferenceName $name, array $references): self
     {
-        return new self($name, $references);
+        return new self($name, ...$references);
     }
 
     public static function emptyForName(ReferenceName $name): self
     {
-        return new self($name, []);
-    }
-
-    /**
-     * @param NodeReferenceToWrite[] $references
-     */
-    private static function isValidReferencesArray(array $references): bool
-    {
-        foreach ($references as $reference) {
-            if (!$reference instanceof NodeReferenceToWrite) {
-                return false;
-            }
-        }
-
-        return true;
+        return new self($name, ...[]);
     }
 }

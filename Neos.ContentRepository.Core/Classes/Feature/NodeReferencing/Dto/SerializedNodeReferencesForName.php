@@ -24,12 +24,13 @@ use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
 final readonly class SerializedNodeReferencesForName implements \JsonSerializable
 {
     /**
-     * @param ReferenceName $referenceName
-     * @param SerializedNodeReference[] $references
+     * @var array<SerializedNodeReference>
      */
+    public array $references;
+
     private function __construct(
         public ReferenceName $referenceName,
-        public array $references
+        SerializedNodeReference ...$references
     ) {
         $existingTargets = [];
         foreach ($references as $reference) {
@@ -38,6 +39,7 @@ final readonly class SerializedNodeReferencesForName implements \JsonSerializabl
             }
             $existingTargets[$reference->targetNodeAggregateId->value] = true;
         }
+        $this->references = $references;
     }
 
     /**
@@ -47,7 +49,7 @@ final readonly class SerializedNodeReferencesForName implements \JsonSerializabl
      */
     public static function fromNameAndSerializedReferences(ReferenceName $referenceName, array $references): self
     {
-        return new self($referenceName, array_values($references));
+        return new self($referenceName, ...$references);
     }
 
     /**
@@ -57,7 +59,7 @@ final readonly class SerializedNodeReferencesForName implements \JsonSerializabl
     {
         return new self(
             ReferenceName::fromString($array['referenceName']),
-            array_map(static fn(array $reference) => SerializedNodeReference::fromArray($reference), array_values($array['references']))
+            ...array_map(static fn(array $reference) => SerializedNodeReference::fromArray($reference), array_values($array['references']))
         );
     }
 
