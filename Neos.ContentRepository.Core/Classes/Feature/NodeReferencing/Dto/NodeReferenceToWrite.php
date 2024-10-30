@@ -27,7 +27,7 @@ use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
  * (this is validated in the command handler).
  * @api used as part of commands
  */
-final readonly class NodeReferenceToWrite
+final readonly class NodeReferenceToWrite implements \JsonSerializable
 {
     public function __construct(
         public NodeAggregateId $targetNodeAggregateId,
@@ -62,7 +62,7 @@ final readonly class NodeReferenceToWrite
      *
      * @return array{"target": NodeAggregateId, "properties": PropertyValuesToWrite|null}
      */
-    public function targetAndPropertiesToArray(): array
+    public function jsonSerialize(): array
     {
         return [
             'target' => $this->targetNodeAggregateId,

@@ -21,7 +21,7 @@ use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
  *
  * @internal implementation detail of {@see SerializedNodeReferences}
  */
-final readonly class SerializedNodeReferencesForName
+final readonly class SerializedNodeReferencesForName implements \JsonSerializable
 {
     /**
      * @param ReferenceName $referenceName
@@ -61,14 +61,11 @@ final readonly class SerializedNodeReferencesForName
         );
     }
 
-    /**
-     * @return array{"referenceName": string, "references": array<array{"target": string, "properties"?: mixed}>}
-     */
-    public function toArray(): array
+    public function jsonSerialize(): mixed
     {
         return [
-            "referenceName" => $this->referenceName->value,
-            "references" => array_map(static fn(SerializedNodeReference $reference) => $reference->toArray(), $this->references)
+            "referenceName" => $this->referenceName,
+            "references" => $this->references
         ];
     }
 

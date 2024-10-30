@@ -58,7 +58,7 @@ final readonly class NodeReferencesToWrite implements \JsonSerializable, \Iterat
 
     public function merge(NodeReferencesToWrite $nodeReferencesToWrite): self
     {
-        return new self(...$this->getIterator(), ...$nodeReferencesToWrite->getIterator());
+        return new self(...$this->references, ...$nodeReferencesToWrite->references);
     }
 
     /**
@@ -66,9 +66,7 @@ final readonly class NodeReferencesToWrite implements \JsonSerializable, \Iterat
      */
     public function getIterator(): \Traversable
     {
-        foreach ($this->references as $reference) {
-            yield $reference;
-        }
+        yield from $this->references;
     }
 
     public function isEmpty(): bool
@@ -76,15 +74,8 @@ final readonly class NodeReferencesToWrite implements \JsonSerializable, \Iterat
         return count($this->references) === 0;
     }
 
-    /**
-     * @return array<string, array<array<string, mixed>>>
-     */
-    public function jsonSerialize(): array
+    public function jsonSerialize(): mixed
     {
-        $result = [];
-        foreach ($this->references as $reference) {
-            $result[$reference->referenceName->value] = array_map(static fn(NodeReferenceToWrite $nodeReference) => $nodeReference->targetAndPropertiesToArray(), $reference->references);
-        }
-        return $result;
+        return $this->references;
     }
 }

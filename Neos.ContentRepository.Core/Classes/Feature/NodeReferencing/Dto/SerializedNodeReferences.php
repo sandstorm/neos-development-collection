@@ -105,7 +105,7 @@ final readonly class SerializedNodeReferences implements \JsonSerializable, \Ite
 
     public function merge(SerializedNodeReferences $serializedNodeReferences): self
     {
-        return new self(...$this->getIterator(), ...$serializedNodeReferences->getIterator());
+        return new self(...$this->references, ...$serializedNodeReferences->references);
     }
 
     /**
@@ -113,9 +113,7 @@ final readonly class SerializedNodeReferences implements \JsonSerializable, \Ite
      */
     public function getIterator(): \Traversable
     {
-        foreach ($this->references as $reference) {
-            yield $reference;
-        }
+        yield from $this->references;
     }
 
     public function isEmpty(): bool
@@ -131,14 +129,8 @@ final readonly class SerializedNodeReferences implements \JsonSerializable, \Ite
         return array_map(static fn(SerializedNodeReferencesForName $referencesForProperty) => $referencesForProperty->referenceName, $this->references);
     }
 
-    /**
-     * @return array<int, array{"referenceName": string, "references": array<array{"target": string, "properties"?: mixed}>}>
-     */
-    public function jsonSerialize(): array
+    public function jsonSerialize(): mixed
     {
-        return array_map(
-            static fn (SerializedNodeReferencesForName $referencesForProperty) => $referencesForProperty->toArray(),
-            $this->references
-        );
+        return $this->references;
     }
 }

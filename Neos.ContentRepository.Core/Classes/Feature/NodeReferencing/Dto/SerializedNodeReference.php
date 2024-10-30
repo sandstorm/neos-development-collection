@@ -22,7 +22,7 @@ use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
  *
  * @api used in commands and events {@see SerializedNodeReferences}
  */
-final readonly class SerializedNodeReference
+final readonly class SerializedNodeReference implements \JsonSerializable
 {
     private function __construct(
         public NodeAggregateId $targetNodeAggregateId,
@@ -52,12 +52,12 @@ final readonly class SerializedNodeReference
     }
 
     /**
-     * @return array{"target": string, "properties"?: mixed}
+     * @return array{"target": NodeAggregateId, "properties"?: SerializedPropertyValues}
      */
-    public function toArray(): array
+    public function jsonSerialize(): array
     {
-        $result = ['target' => $this->targetNodeAggregateId->value];
-        if ($this->properties->count() > 0) {
+        $result = ['target' => $this->targetNodeAggregateId];
+        if (count($this->properties) > 0) {
             $result['properties'] = $this->properties;
         }
         return $result;
