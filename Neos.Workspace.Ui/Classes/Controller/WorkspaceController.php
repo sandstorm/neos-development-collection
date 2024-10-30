@@ -135,6 +135,9 @@ class WorkspaceController extends AbstractModuleController
         $items = [];
         $allWorkspaces = $contentRepository->findWorkspaces();
         foreach ($allWorkspaces as $workspace) {
+            if ($workspace->isRootWorkspace()) {
+                continue;
+            }
             $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspace->workspaceName);
             $permissions = $this->workspaceService->getWorkspacePermissionsForUser($contentRepositoryId, $workspace->workspaceName, $currentUser);
             if (!$permissions->read) {
@@ -145,7 +148,7 @@ class WorkspaceController extends AbstractModuleController
                 classification: $workspaceMetadata->classification->name,
                 title: $workspaceMetadata->title->value,
                 description: $workspaceMetadata->description->value,
-                baseWorkspaceName: $workspace->baseWorkspaceName?->value,
+                baseWorkspaceName: $workspace->baseWorkspaceName->value,
                 pendingChanges: $this->computePendingChanges($workspace, $contentRepository),
                 hasDependantWorkspaces: !$allWorkspaces->getDependantWorkspaces($workspace->workspaceName)->isEmpty(),
                 permissions: $permissions,
