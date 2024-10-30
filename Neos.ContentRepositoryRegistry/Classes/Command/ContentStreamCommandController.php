@@ -63,17 +63,32 @@ class ContentStreamCommandController extends CommandController
      *
      * To prune the removed content streams from the event stream, run ./flow contentStream:pruneRemovedFromEventStream afterwards.
      *
+     * NOTE: To ensure that no temporary content streams of the *current* moment are removed, a time threshold is configurable via --remove-temporary-before
+     *
      * @param string $contentRepository Identifier of the content repository. (Default: 'default')
-     * @param string $removeTemporaryBefore includes all temporary content streams like FORKED or CREATED older than that in the removal
+     * @param string $removeTemporaryBefore includes all temporary content streams like FORKED or CREATED older than that in the removal. To remove all use --remove-temporary-before=-1sec
      */
     public function removeDanglingCommand(string $contentRepository = 'default', string $removeTemporaryBefore = '-1day'): void
     {
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
         $contentStreamPruner = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new ContentStreamPrunerFactory());
 
+        try {
+            $removeTemporaryBeforeDate = new \DateTimeImmutable($removeTemporaryBefore);
+        } catch (\Exception $exception) {
+            $this->outputLine(sprintf('<error>--remove-temporary-before=%s is not a valid date</error>: %s', $removeTemporaryBefore, $exception->getMessage()));
+            $this->quit(1);
+        }
+
+        $now = new \DateTimeImmutable('now');
+        if ($removeTemporaryBeforeDate > $now) {
+            $this->outputLine(sprintf('<error>--remove-temporary-before=%s must be in the past</error>', $removeTemporaryBefore));
+            $this->quit(1);
+        }
+
         $contentStreamPruner->removeDanglingContentStreams(
             $this->outputLine(...),
-            new \DateTimeImmutable($removeTemporaryBefore)
+            $removeTemporaryBeforeDate
         );
     }
 
