@@ -135,9 +135,4 @@ final readonly class CreateRootNodeAggregateWithNode implements
             $this->tetheredDescendantNodeAggregateIds
         );
     }
-
-    public function getWorkspaceName(): WorkspaceName
-    {
-        return $this->workspaceName;
-    }
 }

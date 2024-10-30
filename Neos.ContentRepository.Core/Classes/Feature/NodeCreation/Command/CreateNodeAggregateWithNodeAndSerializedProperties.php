@@ -176,9 +176,4 @@ final readonly class CreateNodeAggregateWithNodeAndSerializedProperties implemen
             $this->tetheredDescendantNodeAggregateIds
         );
     }
-
-    public function getWorkspaceName(): WorkspaceName
-    {
-        return $this->workspaceName;
-    }
 }

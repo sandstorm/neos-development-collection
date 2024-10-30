@@ -84,11 +84,6 @@ final readonly class AddDimensionShineThrough implements
         );
     }
 
-    public function getWorkspaceName(): WorkspaceName
-    {
-        return $this->workspaceName;
-    }
-
     /**
      * @return array<string,\JsonSerializable>
      */

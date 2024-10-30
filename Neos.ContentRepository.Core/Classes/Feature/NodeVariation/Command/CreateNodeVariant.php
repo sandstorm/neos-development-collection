@@ -97,9 +97,4 @@ final readonly class CreateNodeVariant implements
             $this->targetOrigin,
         );
     }
-
-    public function getWorkspaceName(): WorkspaceName
-    {
-        return $this->workspaceName;
-    }
 }

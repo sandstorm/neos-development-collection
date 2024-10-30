@@ -99,9 +99,4 @@ final readonly class DisableNodeAggregate implements
             $this->nodeVariantSelectionStrategy
         );
     }
-
-    public function getWorkspaceName(): WorkspaceName
-    {
-        return $this->workspaceName;
-    }
 }

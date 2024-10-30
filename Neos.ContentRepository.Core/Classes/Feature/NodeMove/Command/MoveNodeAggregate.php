@@ -131,9 +131,4 @@ final readonly class MoveNodeAggregate implements
             $this->newSucceedingSiblingNodeAggregateId
         );
     }
-
-    public function getWorkspaceName(): WorkspaceName
-    {
-        return $this->workspaceName;
-    }
 }

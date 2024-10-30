@@ -118,9 +118,4 @@ final readonly class ChangeNodeAggregateType implements
             $this->tetheredDescendantNodeAggregateIds
         );
     }
-
-    public function getWorkspaceName(): WorkspaceName
-    {
-        return $this->workspaceName;
-    }
 }

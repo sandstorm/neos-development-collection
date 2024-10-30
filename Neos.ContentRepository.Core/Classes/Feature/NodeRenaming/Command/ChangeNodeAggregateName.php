@@ -93,9 +93,4 @@ final readonly class ChangeNodeAggregateName implements
             $this->newNodeName,
         );
     }
-
-    public function getWorkspaceName(): WorkspaceName
-    {
-        return $this->workspaceName;
-    }
 }

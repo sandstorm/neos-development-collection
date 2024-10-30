@@ -31,8 +31,6 @@ interface RebasableToOtherWorkspaceInterface extends CommandInterface
         WorkspaceName $targetWorkspaceName,
     ): self;
 
-    public function getWorkspaceName(): WorkspaceName;
-
     /**
      * called during deserialization from metadata
      * @param array<string,mixed> $array

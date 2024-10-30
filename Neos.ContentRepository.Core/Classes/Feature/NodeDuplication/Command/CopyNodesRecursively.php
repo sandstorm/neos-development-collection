@@ -183,9 +183,4 @@ final readonly class CopyNodesRecursively implements
             $this->nodeAggregateIdMapping
         );
     }
-
-    public function getWorkspaceName(): WorkspaceName
-    {
-        return $this->workspaceName;
-    }
 }

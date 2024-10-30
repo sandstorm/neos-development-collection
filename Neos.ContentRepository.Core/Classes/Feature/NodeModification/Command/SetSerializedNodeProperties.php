@@ -119,9 +119,4 @@ final readonly class SetSerializedNodeProperties implements
             $this->propertiesToUnset,
         );
     }
-
-    public function getWorkspaceName(): WorkspaceName
-    {
-        return $this->workspaceName;
-    }
 }
