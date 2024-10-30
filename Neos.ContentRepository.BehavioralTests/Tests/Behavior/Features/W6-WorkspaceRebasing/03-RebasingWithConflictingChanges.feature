@@ -29,21 +29,18 @@ Feature: Workspace rebasing - conflicting changes
       | nodeTypeName    | "Neos.ContentRepository:Root" |
 
     And the following CreateNodeAggregateWithNode commands are executed:
-      | nodeAggregateId  | nodeTypeName                           | parentNodeAggregateId  | nodeName |
-      | nody-mc-nodeface | Neos.ContentRepository.Testing:Content | lady-eleonode-rootford | child    |
+      | nodeAggregateId  | nodeTypeName                           | parentNodeAggregateId  |
+      | nody-mc-nodeface | Neos.ContentRepository.Testing:Content | lady-eleonode-rootford |
+      | sir-nodebelig    | Neos.ContentRepository.Testing:Content | lady-eleonode-rootford |
+      | nobody-node      | Neos.ContentRepository.Testing:Content | lady-eleonode-rootford |
 
     And the command SetNodeProperties is executed with payload:
       | Key                       | Value                |
       | nodeAggregateId           | "nody-mc-nodeface"   |
       | originDimensionSpacePoint | {}                   |
       | propertyValues            | {"text": "Original"} |
-    And the command CreateWorkspace is executed with payload:
-      | Key                | Value                |
-      | workspaceName      | "user-test"          |
-      | baseWorkspaceName  | "live"               |
-      | newContentStreamId | "user-cs-identifier" |
 
-  Scenario: Conflicting changes lead to OUTDATED which can be recovered from via forced rebase
+  Scenario: Conflicting changes lead to WorkspaceRebaseFailed exception which can be recovered from via forced rebase
 
     When the command CreateWorkspace is executed with payload:
       | Key                | Value              |
@@ -96,6 +93,17 @@ Feature: Workspace rebasing - conflicting changes
     Then workspaces live,user-ws-one have status UP_TO_DATE
     Then workspace user-ws-two has status OUTDATED
 
+    # Rebase without force fails
+    When the command RebaseWorkspace is executed with payload and exceptions are caught:
+      | Key                         | Value                 |
+      | workspaceName               | "user-ws-two"         |
+      | rebasedContentStreamId      | "user-cs-two-rebased" |
+    Then I expect the content stream "user-cs-two" to exist
+    Then I expect the content stream "user-cs-two-rebased" to not exist
+    Then the last command should have thrown the WorkspaceRebaseFailed exception with:
+      | SequenceNumber | Command                     | Exception                          |
+      | 13             | SetSerializedNodeProperties | NodeAggregateCurrentlyDoesNotExist |
+
     When the command RebaseWorkspace is executed with payload:
       | Key                         | Value                 |
       | workspaceName               | "user-ws-two"         |
@@ -103,4 +111,80 @@ Feature: Workspace rebasing - conflicting changes
       | rebaseErrorHandlingStrategy | "force"               |
 
     Then workspaces live,user-ws-one,user-ws-two have status UP_TO_DATE
-    And I expect a node identified by user-cs-two-rebased;noderus-secundus;{} to exist in the content graph
+
+    Then I expect the content stream "user-cs-two" to not exist
+    Then I expect the content stream "user-cs-two-rebased" to exist
+
+    When I am in workspace "user-ws-two" and dimension space point {}
+    Then I expect node aggregate identifier "noderus-secundus" to lead to node user-cs-two-rebased;noderus-secundus;{}
+
+  Scenario: Not conflicting changes are preserved on force rebase
+    And the command CreateWorkspace is executed with payload:
+      | Key                | Value                |
+      | workspaceName      | "user-ws"            |
+      | baseWorkspaceName  | "live"               |
+      | newContentStreamId | "user-cs-identifier" |
+
+    When the command RemoveNodeAggregate is executed with payload:
+      | Key                          | Value           |
+      | workspaceName                | "live"          |
+      | nodeAggregateId              | "sir-nodebelig" |
+      | coveredDimensionSpacePoint   | {}              |
+      | nodeVariantSelectionStrategy | "allVariants"   |
+
+    When the command RemoveNodeAggregate is executed with payload:
+      | Key                          | Value         |
+      | workspaceName                | "live"        |
+      | nodeAggregateId              | "nobody-node" |
+      | coveredDimensionSpacePoint   | {}            |
+      | nodeVariantSelectionStrategy | "allVariants" |
+
+    And the command SetNodeProperties is executed with payload:
+      | Key                       | Value                     |
+      | workspaceName             | "user-ws"                 |
+      | nodeAggregateId           | "sir-nodebelig"           |
+      | originDimensionSpacePoint | {}                        |
+      | propertyValues            | {"text": "Modified text"} |
+
+    # change that is rebaseable
+    And the command SetNodeProperties is executed with payload:
+      | Key                       | Value                               |
+      | workspaceName             | "user-ws"                           |
+      | nodeAggregateId           | "nody-mc-nodeface"                  |
+      | originDimensionSpacePoint | {}                                  |
+      | propertyValues            | {"text": "Rebaseable change in ws"} |
+
+    And the command SetNodeProperties is executed with payload:
+      | Key                       | Value                     |
+      | workspaceName             | "user-ws"                 |
+      | nodeAggregateId           | "nobody-node"             |
+      | originDimensionSpacePoint | {}                        |
+      | propertyValues            | {"text": "Modified text"} |
+
+    # Rebase without force fails
+    When the command RebaseWorkspace is executed with payload and exceptions are caught:
+      | Key                | Value                        |
+      | workspaceName      | "user-ws"                    |
+      | newContentStreamId | "user-cs-identifier-rebased" |
+    Then I expect the content stream "user-cs-identifier" to exist
+    Then I expect the content stream "user-cs-identifier-rebased" to not exist
+    Then the last command should have thrown the WorkspaceRebaseFailed exception with:
+      | SequenceNumber | Command                     | Exception                          |
+      | 12             | SetSerializedNodeProperties | NodeAggregateCurrentlyDoesNotExist |
+      | 14             | SetSerializedNodeProperties | NodeAggregateCurrentlyDoesNotExist |
+
+    When the command RebaseWorkspace is executed with payload:
+      | Key                         | Value                        |
+      | workspaceName               | "user-ws"                    |
+      | rebasedContentStreamId      | "user-cs-identifier-rebased" |
+      | rebaseErrorHandlingStrategy | "force"                      |
+
+    Then I expect the content stream "user-cs-identifier" to not exist
+    Then I expect the content stream "user-cs-identifier-rebased" to exist
+
+    When I am in workspace "user-ws" and dimension space point {}
+    Then I expect node aggregate identifier "sir-nodebelig" to lead to no node
+    Then I expect node aggregate identifier "nody-mc-nodeface" to lead to node user-cs-identifier-rebased;nody-mc-nodeface;{}
+    And I expect this node to have the following properties:
+      | Key  | Value                     |
+      | text | "Rebaseable change in ws" |
