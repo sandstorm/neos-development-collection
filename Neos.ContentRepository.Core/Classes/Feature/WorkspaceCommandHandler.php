@@ -732,14 +732,14 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         CommandHandlingDependencies $commandHandlingDependencies,
     ): \Generator {
         $workspace = $this->requireWorkspace($command->workspaceName, $commandHandlingDependencies);
-        if ($workspace->baseWorkspaceName->equals($command->baseWorkspaceName)) {
+        $currentBaseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
+
+        if ($currentBaseWorkspace->workspaceName->equals($command->baseWorkspaceName)) {
             // no-op
             return;
         }
 
         $this->requireEmptyWorkspace($workspace);
-        $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
-
         $newBaseWorkspace = $this->requireWorkspace($command->baseWorkspaceName, $commandHandlingDependencies);
 
         $this->requireNonCircularRelationBetweenWorkspaces($workspace, $newBaseWorkspace, $commandHandlingDependencies);

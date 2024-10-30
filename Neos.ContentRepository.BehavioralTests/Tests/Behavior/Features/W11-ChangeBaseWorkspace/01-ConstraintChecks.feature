@@ -41,6 +41,19 @@ Feature: Change base workspace constraints
       | baseWorkspaceName  | "live"                 |
       | newContentStreamId | "shared-cs-identifier" |
 
+  Scenario: Changing the base workspace is not allowed for root workspaces
+    And the command CreateRootWorkspace is executed with payload:
+      | Key                | Value                 |
+      | workspaceName      | "groot"               |
+      | newContentStreamId | "cs-groot-identifier" |
+
+    When the command ChangeBaseWorkspace is executed with payload and exceptions are caught:
+      | Key               | Value   |
+      | workspaceName     | "live"  |
+      | baseWorkspaceName | "groot" |
+
+    Then the last command should have thrown an exception of type "WorkspaceHasNoBaseWorkspaceName"
+
   Scenario: Changing the base workspace is not allowed if there are pending changes
     When the command CreateNodeAggregateWithNode is executed with payload:
       | Key                       | Value                                    |
