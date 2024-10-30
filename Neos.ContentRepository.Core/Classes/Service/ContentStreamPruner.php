@@ -70,7 +70,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
      */
     public function outputStatus(\Closure $outputFn): bool
     {
-        $allContentStreams = $this->getContentStreamsForPruning();
+        $allContentStreams = $this->findAllContentStreams();
 
         $danglingContentStreamPresent = false;
         foreach ($allContentStreams as $contentStream) {
@@ -99,15 +99,15 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
             $outputFn();
         }
 
-        $removedContentStreams = $this->findUnusedAndRemovedContentStreamIds($allContentStreams);
+        $pruneableContentStreams = $this->findRemovedContentStreamsThatAreUnused($allContentStreams);
 
         $pruneableContentStreamPresent = false;
-        foreach ($removedContentStreams as $removedContentStream) {
+        foreach ($pruneableContentStreams as $pruneableContentStream) {
             if ($pruneableContentStreamPresent === false) {
                 $outputFn('Removed content streams that can be pruned from the event stream');
             }
             $pruneableContentStreamPresent = true;
-            $outputFn(sprintf('  id: %s previous state: %s', $removedContentStream->id->value, $removedContentStream->status->value));
+            $outputFn(sprintf('  id: %s previous state: %s', $pruneableContentStream->id->value, $pruneableContentStream->status->value));
         }
 
         if ($pruneableContentStreamPresent === true) {
@@ -130,9 +130,9 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
      */
     public function removeDanglingContentStreams(\Closure $outputFn, \DateTimeImmutable $removeTemporaryBefore): void
     {
-        $allContentStreams = $this->getContentStreamsForPruning();
+        $allContentStreams = $this->findAllContentStreams();
 
-        $unusedContentStreamsPresent = false;
+        $danglingContentStreamsPresent = false;
         foreach ($allContentStreams as $contentStream) {
             if (!$contentStream->isDangling()) {
                 continue;
@@ -157,10 +157,10 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
 
             $outputFn(sprintf('Removed %s with status %s', $contentStream->id, $contentStream->status->value));
 
-            $unusedContentStreamsPresent = true;
+            $danglingContentStreamsPresent = true;
         }
 
-        if ($unusedContentStreamsPresent) {
+        if ($danglingContentStreamsPresent) {
             try {
                 $this->contentRepository->catchUpProjections();
             } catch (\Throwable $e) {
@@ -174,30 +174,28 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
     /**
      * Prune removed content streams that are unused from the event stream; effectively REMOVING information completely.
      *
-     * This is not so easy for nested workspaces / content streams:
-     *   - As long as content streams are used as basis for others which are IN_USE_BY_WORKSPACE,
-     *     these dependent Content Streams are not allowed to be removed in the event stream.
+     * Note that replaying to only a previous point in time would not be possible anymore as workspace would reference non-existing content streams.
      *
-     *   - Otherwise, we cannot replay the other content streams correctly (if the base content streams are missing).
+     * @see findRemovedContentStreamsThatAreUnused for implementation
      */
     public function pruneRemovedFromEventStream(\Closure $outputFn): void
     {
-        $allContentStreams = $this->getContentStreamsForPruning();
+        $allContentStreams = $this->findAllContentStreams();
 
-        $removedContentStreams = $this->findUnusedAndRemovedContentStreamIds($allContentStreams);
+        $pruneableContentStreams = $this->findRemovedContentStreamsThatAreUnused($allContentStreams);
 
-        $unusedContentStreamsPresent = false;
-        foreach ($removedContentStreams as $removedContentStream) {
+        $pruneableContentStreamsPresent = false;
+        foreach ($pruneableContentStreams as $pruneableContentStream) {
             $this->eventStore->deleteStream(
                 ContentStreamEventStreamName::fromContentStreamId(
-                    $removedContentStream->id
+                    $pruneableContentStream->id
                 )->getEventStreamName()
             );
-            $unusedContentStreamsPresent = true;
-            $outputFn(sprintf('Removed events for %s', $removedContentStream->id->value));
+            $pruneableContentStreamsPresent = true;
+            $outputFn(sprintf('Removed events for %s', $pruneableContentStream->id->value));
         }
 
-        if ($unusedContentStreamsPresent === false) {
+        if ($pruneableContentStreamsPresent === false) {
             $outputFn('Okay. There are no pruneable content streams.');
         }
     }
@@ -213,14 +211,24 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
     }
 
     /**
+     * Find all removed content streams that are unused in the event stream
+     *
+     * This is not so easy for nested workspaces / content streams:
+     * - As long as content streams are used as basis for others which are IN_USE_BY_WORKSPACE,
+     *   these dependent Content Streams are not allowed to be removed in the event stream.
+     * - Otherwise, we cannot replay the other content streams correctly (if the base content streams are missing).
+     *
      * @param array<string, ContentStreamForPruning> $allContentStreams
      * @return list<ContentStreamForPruning>
      */
-    private function findUnusedAndRemovedContentStreamIds(array $allContentStreams): array
+    private function findRemovedContentStreamsThatAreUnused(array $allContentStreams): array
     {
         /** @var array<string,bool> $transitiveUsedStreams */
         $transitiveUsedStreams = [];
-        /** @var list<ContentStreamId> $contentStreamIdsStack */
+        /**
+         * Collection of content streams we iterate through to build up all streams that are in use transitively (by being a source content stream) or because it is in use
+         * @var list<ContentStreamId> $contentStreamIdsStack
+         */
         $contentStreamIdsStack = [];
 
         // Step 1: Find all content streams currently in direct use by a workspace
@@ -249,20 +257,20 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
         }
 
         // Step 3: Check for removed content streams which we do not need anymore transitively
-        $removedContentStreams = [];
+        $removedContentStreamsThatAreUnused = [];
         foreach ($allContentStreams as $contentStream) {
             if ($contentStream->removed && !array_key_exists($contentStream->id->value, $transitiveUsedStreams)) {
-                $removedContentStreams[] = $contentStream;
+                $removedContentStreamsThatAreUnused[] = $contentStream;
             }
         }
 
-        return $removedContentStreams;
+        return $removedContentStreamsThatAreUnused;
     }
 
     /**
      * @return array<string, ContentStreamForPruning>
      */
-    private function getContentStreamsForPruning(): array
+    private function findAllContentStreams(): array
     {
         $events = $this->eventStore->load(
             VirtualStreamName::forCategory(ContentStreamEventStreamName::EVENT_STREAM_NAME_PREFIX),
@@ -275,14 +283,14 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
             )
         );
 
-        /** @var array<string,ContentStreamForPruning> $status */
-        $status = [];
+        /** @var array<string,ContentStreamForPruning> $cs */
+        $cs = [];
         foreach ($events as $eventEnvelope) {
             $domainEvent = $this->eventNormalizer->denormalize($eventEnvelope->event);
 
             switch ($domainEvent::class) {
                 case ContentStreamWasCreated::class:
-                    $status[$domainEvent->contentStreamId->value] = ContentStreamForPruning::create(
+                    $cs[$domainEvent->contentStreamId->value] = ContentStreamForPruning::create(
                         $domainEvent->contentStreamId,
                         ContentStreamStatus::CREATED,
                         null,
@@ -290,7 +298,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
                     );
                     break;
                 case ContentStreamWasForked::class:
-                    $status[$domainEvent->newContentStreamId->value] = ContentStreamForPruning::create(
+                    $cs[$domainEvent->newContentStreamId->value] = ContentStreamForPruning::create(
                         $domainEvent->newContentStreamId,
                         ContentStreamStatus::FORKED,
                         $domainEvent->sourceContentStreamId,
@@ -298,8 +306,8 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
                     );
                     break;
                 case ContentStreamWasRemoved::class:
-                    if (isset($status[$domainEvent->contentStreamId->value])) {
-                        $status[$domainEvent->contentStreamId->value] = $status[$domainEvent->contentStreamId->value]
+                    if (isset($cs[$domainEvent->contentStreamId->value])) {
+                        $cs[$domainEvent->contentStreamId->value] = $cs[$domainEvent->contentStreamId->value]
                             ->withRemoved();
                     }
                     break;
@@ -329,71 +337,71 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
 
             switch ($domainEvent::class) {
                 case RootWorkspaceWasCreated::class:
-                    if (isset($status[$domainEvent->newContentStreamId->value])) {
-                        $status[$domainEvent->newContentStreamId->value] = $status[$domainEvent->newContentStreamId->value]
+                    if (isset($cs[$domainEvent->newContentStreamId->value])) {
+                        $cs[$domainEvent->newContentStreamId->value] = $cs[$domainEvent->newContentStreamId->value]
                                 ->withStatus(ContentStreamStatus::IN_USE_BY_WORKSPACE);
                     }
                     break;
                 case WorkspaceWasCreated::class:
-                    if (isset($status[$domainEvent->newContentStreamId->value])) {
-                        $status[$domainEvent->newContentStreamId->value] = $status[$domainEvent->newContentStreamId->value]
+                    if (isset($cs[$domainEvent->newContentStreamId->value])) {
+                        $cs[$domainEvent->newContentStreamId->value] = $cs[$domainEvent->newContentStreamId->value]
                                 ->withStatus(ContentStreamStatus::IN_USE_BY_WORKSPACE);
                     }
                     break;
                 case WorkspaceWasDiscarded::class:
-                    if (isset($status[$domainEvent->newContentStreamId->value])) {
-                        $status[$domainEvent->newContentStreamId->value] = $status[$domainEvent->newContentStreamId->value]
+                    if (isset($cs[$domainEvent->newContentStreamId->value])) {
+                        $cs[$domainEvent->newContentStreamId->value] = $cs[$domainEvent->newContentStreamId->value]
                             ->withStatus(ContentStreamStatus::IN_USE_BY_WORKSPACE);
                     }
-                    if (isset($status[$domainEvent->previousContentStreamId->value])) {
-                        $status[$domainEvent->previousContentStreamId->value] = $status[$domainEvent->previousContentStreamId->value]
+                    if (isset($cs[$domainEvent->previousContentStreamId->value])) {
+                        $cs[$domainEvent->previousContentStreamId->value] = $cs[$domainEvent->previousContentStreamId->value]
                             ->withStatus(ContentStreamStatus::NO_LONGER_IN_USE);
                     }
                     break;
                 case WorkspaceWasPartiallyDiscarded::class:
-                    if (isset($status[$domainEvent->newContentStreamId->value])) {
-                        $status[$domainEvent->newContentStreamId->value] = $status[$domainEvent->newContentStreamId->value]
+                    if (isset($cs[$domainEvent->newContentStreamId->value])) {
+                        $cs[$domainEvent->newContentStreamId->value] = $cs[$domainEvent->newContentStreamId->value]
                             ->withStatus(ContentStreamStatus::IN_USE_BY_WORKSPACE);
                     }
-                    if (isset($status[$domainEvent->previousContentStreamId->value])) {
-                        $status[$domainEvent->previousContentStreamId->value] = $status[$domainEvent->previousContentStreamId->value]
+                    if (isset($cs[$domainEvent->previousContentStreamId->value])) {
+                        $cs[$domainEvent->previousContentStreamId->value] = $cs[$domainEvent->previousContentStreamId->value]
                             ->withStatus(ContentStreamStatus::NO_LONGER_IN_USE);
                     }
                     break;
                 case WorkspaceWasPartiallyPublished::class:
-                    if (isset($status[$domainEvent->newSourceContentStreamId->value])) {
-                        $status[$domainEvent->newSourceContentStreamId->value] = $status[$domainEvent->newSourceContentStreamId->value]
+                    if (isset($cs[$domainEvent->newSourceContentStreamId->value])) {
+                        $cs[$domainEvent->newSourceContentStreamId->value] = $cs[$domainEvent->newSourceContentStreamId->value]
                             ->withStatus(ContentStreamStatus::IN_USE_BY_WORKSPACE);
                     }
-                    if (isset($status[$domainEvent->previousSourceContentStreamId->value])) {
-                        $status[$domainEvent->previousSourceContentStreamId->value] = $status[$domainEvent->previousSourceContentStreamId->value]
+                    if (isset($cs[$domainEvent->previousSourceContentStreamId->value])) {
+                        $cs[$domainEvent->previousSourceContentStreamId->value] = $cs[$domainEvent->previousSourceContentStreamId->value]
                             ->withStatus(ContentStreamStatus::NO_LONGER_IN_USE);
                     }
                     break;
                 case WorkspaceWasPublished::class:
-                    if (isset($status[$domainEvent->newSourceContentStreamId->value])) {
-                        $status[$domainEvent->newSourceContentStreamId->value] = $status[$domainEvent->newSourceContentStreamId->value]
+                    if (isset($cs[$domainEvent->newSourceContentStreamId->value])) {
+                        $cs[$domainEvent->newSourceContentStreamId->value] = $cs[$domainEvent->newSourceContentStreamId->value]
                             ->withStatus(ContentStreamStatus::IN_USE_BY_WORKSPACE);
                     }
-                    if (isset($status[$domainEvent->previousSourceContentStreamId->value])) {
-                        $status[$domainEvent->previousSourceContentStreamId->value] = $status[$domainEvent->previousSourceContentStreamId->value]
+                    if (isset($cs[$domainEvent->previousSourceContentStreamId->value])) {
+                        $cs[$domainEvent->previousSourceContentStreamId->value] = $cs[$domainEvent->previousSourceContentStreamId->value]
                             ->withStatus(ContentStreamStatus::NO_LONGER_IN_USE);
                     }
                     break;
                 case WorkspaceWasRebased::class:
-                    if (isset($status[$domainEvent->newContentStreamId->value])) {
-                        $status[$domainEvent->newContentStreamId->value] = $status[$domainEvent->newContentStreamId->value]
+                    if (isset($cs[$domainEvent->newContentStreamId->value])) {
+                        $cs[$domainEvent->newContentStreamId->value] = $cs[$domainEvent->newContentStreamId->value]
                             ->withStatus(ContentStreamStatus::IN_USE_BY_WORKSPACE);
                     }
-                    if (isset($status[$domainEvent->previousContentStreamId->value])) {
-                        $status[$domainEvent->previousContentStreamId->value] = $status[$domainEvent->previousContentStreamId->value]
+                    if (isset($cs[$domainEvent->previousContentStreamId->value])) {
+                        $cs[$domainEvent->previousContentStreamId->value] = $cs[$domainEvent->previousContentStreamId->value]
                             ->withStatus(ContentStreamStatus::NO_LONGER_IN_USE);
                     }
                     break;
                 case WorkspaceRebaseFailed::class:
                     // legacy handling, as we previously kept failed candidateContentStreamId we make it behave like a ContentStreamWasRemoved event to clean up:
-                    if (isset($status[$domainEvent->candidateContentStreamId->value])) {
-                        $status[$domainEvent->candidateContentStreamId->value] = $status[$domainEvent->candidateContentStreamId->value]
+                    if (isset($cs[$domainEvent->candidateContentStreamId->value])) {
+                        $cs[$domainEvent->candidateContentStreamId->value] = $cs[$domainEvent->candidateContentStreamId->value]
                             ->withRemoved();
                     }
                     break;
@@ -401,7 +409,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
                     throw new \RuntimeException(sprintf('Unhandled event %s', $eventEnvelope->event->type->value));
             }
         }
-        return $status;
+        return $cs;
     }
 
     /**
