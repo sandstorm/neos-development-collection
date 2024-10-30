@@ -43,6 +43,11 @@ final readonly class NodeReferencesToWrite implements \JsonSerializable, \Iterat
         $this->references = $references;
     }
 
+    public static function createEmpty(): self
+    {
+        return new self();
+    }
+
     /**
      * @param array<NodeReferencesForName> $references
      */

@@ -23,7 +23,7 @@ use Neos\ContentRepository\Core\NodeType\NodeType;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
 
 /**
- *
+ * @internal implementation detail of command handlers
  */
 trait NodeReferencingInternals
 {

@@ -49,7 +49,7 @@ final readonly class CreateNodeAggregateWithNodeAndSerializedProperties implemen
      * @param NodeAggregateId|null $succeedingSiblingNodeAggregateId Node aggregate id of the node's succeeding sibling (optional). If not given, the node will be added as the parent's first child
      * @param NodeName|null $nodeName The node's optional name. Set if there is a meaningful relation to its parent that should be named.
      * @param NodeAggregateIdsByNodePaths $tetheredDescendantNodeAggregateIds Predefined aggregate ids of tethered child nodes per path. For any tethered node that has no matching entry in this set, the node aggregate id is generated randomly. Since tethered nodes may have tethered child nodes themselves, this works for multiple levels ({@see self::withTetheredDescendantNodeAggregateIds()})
-     * @param SerializedNodeReferences|null $references The node's initial references (serialized).
+     * @param SerializedNodeReferences $references The node's initial references (serialized).
      */
     private function __construct(
         public WorkspaceName $workspaceName,
@@ -61,7 +61,7 @@ final readonly class CreateNodeAggregateWithNodeAndSerializedProperties implemen
         public ?NodeAggregateId $succeedingSiblingNodeAggregateId,
         public ?NodeName $nodeName,
         public NodeAggregateIdsByNodePaths $tetheredDescendantNodeAggregateIds,
-        public ?SerializedNodeReferences $references,
+        public SerializedNodeReferences $references,
     ) {
     }
 
@@ -77,7 +77,7 @@ final readonly class CreateNodeAggregateWithNodeAndSerializedProperties implemen
      */
     public static function create(WorkspaceName $workspaceName, NodeAggregateId $nodeAggregateId, NodeTypeName $nodeTypeName, OriginDimensionSpacePoint $originDimensionSpacePoint, NodeAggregateId $parentNodeAggregateId, NodeAggregateId $succeedingSiblingNodeAggregateId = null, SerializedPropertyValues $initialPropertyValues = null, SerializedNodeReferences $references = null): self
     {
-        return new self($workspaceName, $nodeAggregateId, $nodeTypeName, $originDimensionSpacePoint, $parentNodeAggregateId, $initialPropertyValues ?? SerializedPropertyValues::createEmpty(), $succeedingSiblingNodeAggregateId, null, NodeAggregateIdsByNodePaths::createEmpty(), $references);
+        return new self($workspaceName, $nodeAggregateId, $nodeTypeName, $originDimensionSpacePoint, $parentNodeAggregateId, $initialPropertyValues ?? SerializedPropertyValues::createEmpty(), $succeedingSiblingNodeAggregateId, null, NodeAggregateIdsByNodePaths::createEmpty(), $references ?: SerializedNodeReferences::createEmpty());
     }
 
     /**

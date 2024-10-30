@@ -21,7 +21,7 @@ use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
  *
  * @internal implementation detail of {@see SerializedNodeReferences}
  */
-class SerializedNodeReferencesForName
+final readonly class SerializedNodeReferencesForName
 {
     /**
      * @param ReferenceName $referenceName

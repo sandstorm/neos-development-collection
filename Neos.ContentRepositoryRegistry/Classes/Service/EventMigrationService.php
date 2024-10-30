@@ -15,6 +15,7 @@ use Neos\ContentRepository\Core\Feature\NodeDuplication\Command\CopyNodesRecursi
 use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetSerializedNodeProperties;
 use Neos\ContentRepository\Core\Feature\NodeMove\Command\MoveNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Command\SetSerializedNodeReferences;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Event\NodeReferencesWereSet;
 use Neos\ContentRepository\Core\Feature\NodeRemoval\Command\RemoveNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeRenaming\Command\ChangeNodeAggregateName;
 use Neos\ContentRepository\Core\Feature\NodeTypeChange\Command\ChangeNodeAggregateType;
@@ -252,7 +253,7 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
         $this->copyEventTable($backupEventTableName);
 
         $streamName = VirtualStreamName::all();
-        $eventStream = $this->eventStore->load($streamName);
+        $eventStream = $this->eventStore->load($streamName, EventStreamFilter::create(EventTypes::create(EventType::fromString(NodeReferencesWereSet::class))));
         foreach ($eventStream as $eventEnvelope) {
             $outputRewriteNotice = fn(string $message) => $outputFn(sprintf('%s@%s %s', $eventEnvelope->sequenceNumber->value, $eventEnvelope->event->type->value, $message));
             if ($eventEnvelope->event->type->value !== 'NodeReferencesWereSet') {
