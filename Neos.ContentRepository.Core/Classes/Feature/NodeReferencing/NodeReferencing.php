@@ -18,7 +18,6 @@ use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Feature\Common\ConstraintChecks;
-use Neos\ContentRepository\Core\Feature\RebaseableCommand;
 use Neos\ContentRepository\Core\Feature\Common\NodeReferencingInternals;
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyScope;
@@ -26,6 +25,8 @@ use Neos\ContentRepository\Core\Feature\NodeReferencing\Command\SetNodeReference
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Command\SetSerializedNodeReferences;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\SerializedNodeReferences;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Event\NodeReferencesWereSet;
+use Neos\ContentRepository\Core\Feature\RebaseableCommand;
+use Neos\ContentRepository\Core\NodeType\NodeType;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregate;
 use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamDoesNotExistYet;
@@ -111,14 +112,9 @@ trait NodeReferencing
             $sourceNodeAggregate->nodeTypeName
         );
 
-        foreach ($command->references as $referencesByName) {
-            $referenceName = $referencesByName->referenceName;
-            $this->requireNodeTypeToDeclareReference($sourceNodeAggregate->nodeTypeName, $referenceName);
-            $scopeDeclaration = $sourceNodeType->getReferences()[$referenceName->value]['scope'] ?? '';
-            $scope = PropertyScope::tryFrom($scopeDeclaration) ?: PropertyScope::SCOPE_NODE;
-            // TODO: Optimize affected sets into one event
-
-            foreach ($referencesByName->references as $reference) {
+        foreach ($command->references as $referencesForName) {
+            $this->requireNodeTypeToDeclareReference($sourceNodeAggregate->nodeTypeName, $referencesForName->referenceName);
+            foreach ($referencesForName->references as $reference) {
                 $destinationNodeAggregate = $this->requireProjectedNodeAggregate(
                     $contentGraph,
                     $reference->targetNodeAggregateId
@@ -130,23 +126,25 @@ trait NodeReferencing
                 );
                 $this->requireNodeTypeToAllowNodesOfTypeInReference(
                     $sourceNodeAggregate->nodeTypeName,
-                    $referencesByName->referenceName,
+                    $referencesForName->referenceName,
                     $destinationNodeAggregate->nodeTypeName
                 );
             }
+        }
 
+        foreach (self::splitReferencesByScope($command->references, $sourceNodeType) as $rawScope => $references) {
+            $scope = PropertyScope::from($rawScope);
             $affectedOrigins = $scope->resolveAffectedOrigins(
                 $command->sourceOriginDimensionSpacePoint,
                 $sourceNodeAggregate,
                 $this->interDimensionalVariationGraph
             );
-
             $events[] = new NodeReferencesWereSet(
                 $contentGraph->getWorkspaceName(),
                 $contentGraph->getContentStreamId(),
                 $command->sourceNodeAggregateId,
                 $affectedOrigins,
-                SerializedNodeReferences::fromArray([$referencesByName]),
+                $references,
             );
         }
 
@@ -160,6 +158,24 @@ trait NodeReferencing
                 $events
             ),
             $expectedVersion
+        );
+    }
+
+    /**
+     * @return array<string,SerializedNodeReferences>
+     */
+    private static function splitReferencesByScope(SerializedNodeReferences $nodeReferences, NodeType $nodeType): array
+    {
+        $referencesByScope = [];
+        foreach ($nodeReferences as $nodeReferenceForName) {
+            $scopeDeclaration = $nodeType->getReferences()[$nodeReferenceForName->referenceName->value]['scope'] ?? '';
+            $scope = PropertyScope::tryFrom($scopeDeclaration) ?: PropertyScope::SCOPE_NODE;
+            $referencesByScope[$scope->value][] = $nodeReferenceForName;
+        }
+
+        return array_map(
+            SerializedNodeReferences::fromArray(...),
+            $referencesByScope
         );
     }
 }
