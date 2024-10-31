@@ -107,7 +107,7 @@ trait NodeReferencing
                 $properties = isset($referenceData['properties']) ? $this->deserializeProperties($referenceData['properties']) : PropertyValuesToWrite::createEmpty();
                 $references[] = NodeReferenceToWrite::fromTargetAndProperties(NodeAggregateId::fromString($referenceData['target']), $properties);
             }
-            $referencesForProperty[] = NodeReferencesForName::fromNameAndReferences(ReferenceName::fromString($nodeReferencesForProperty['referenceName']), $references);
+            $referencesForProperty[] = NodeReferencesForName::fromReferences(ReferenceName::fromString($nodeReferencesForProperty['referenceName']), $references);
         }
         return NodeReferencesToWrite::fromArray($referencesForProperty);
     }

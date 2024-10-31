@@ -16,7 +16,6 @@ namespace Neos\ContentRepository\Core\Feature\NodeReferencing\Dto;
 
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
-use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
 
 /**
  * A single node references to write
@@ -40,6 +39,11 @@ final readonly class NodeReferenceToWrite
     ) {
     }
 
+    /**
+     * The node aggregate id as target of the reference to write
+     *
+     * To set a collection of node aggregate ids as targets see {@see NodeReferencesForName::fromTargets()} as utility
+     */
     public static function fromTarget(NodeAggregateId $target): self
     {
         return new self($target, PropertyValuesToWrite::createEmpty());

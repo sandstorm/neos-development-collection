@@ -28,18 +28,18 @@ final readonly class NodeReferencesToWrite implements \IteratorAggregate
     /**
      * @var array<string, NodeReferencesForName>
      */
-    public array $references;
+    public array $referencesForName;
 
-    private function __construct(NodeReferencesForName ...$references)
+    private function __construct(NodeReferencesForName ...$items)
     {
-        $referencesByName = [];
-        foreach ($references as $reference) {
-            if (isset($referencesByName[$reference->referenceName->value])) {
-                throw new \InvalidArgumentException(sprintf('NodeReferencesToWrite does not accept references for the same name %s multiple times.', $reference->referenceName->value), 1718193720);
+        $referencesForName = [];
+        foreach ($items as $item) {
+            if (isset($referencesForName[$item->referenceName->value])) {
+                throw new \InvalidArgumentException(sprintf('NodeReferencesToWrite does not accept references for the same name %s multiple times.', $item->referenceName->value), 1718193720);
             }
-            $referencesByName[$reference->referenceName->value] = $reference;
+            $referencesForName[$item->referenceName->value] = $item;
         }
-        $this->references = $referencesByName;
+        $this->referencesForName = $referencesForName;
     }
 
     public static function createEmpty(): self
@@ -47,9 +47,9 @@ final readonly class NodeReferencesToWrite implements \IteratorAggregate
         return new self();
     }
 
-    public static function fromReferences(NodeReferencesForName ...$references): self
+    public static function create(NodeReferencesForName ...$referencesForName): self
     {
-        return new self(...$references);
+        return new self(...$referencesForName);
     }
 
     /**
@@ -62,23 +62,23 @@ final readonly class NodeReferencesToWrite implements \IteratorAggregate
 
     public function withReference(NodeReferencesForName $referencesForName): self
     {
-        $references = $this->references;
+        $references = $this->referencesForName;
         $references[$referencesForName->referenceName->value] = $referencesForName;
         return new self(...$references);
     }
 
     public function merge(NodeReferencesToWrite $other): self
     {
-        return new self(...array_merge($this->references, $other->references));
+        return new self(...array_merge($this->referencesForName, $other->referencesForName));
     }
 
     public function getIterator(): \Traversable
     {
-        yield from array_values($this->references);
+        yield from array_values($this->referencesForName);
     }
 
     public function isEmpty(): bool
     {
-        return count($this->references) === 0;
+        return count($this->referencesForName) === 0;
     }
 }

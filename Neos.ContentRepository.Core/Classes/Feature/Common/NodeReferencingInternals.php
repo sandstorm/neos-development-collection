@@ -47,7 +47,7 @@ trait NodeReferencingInternals
                 );
             }
 
-            $serializedReferencesByProperty[] = SerializedNodeReferencesForName::fromNameAndSerializedReferences(
+            $serializedReferencesByProperty[] = SerializedNodeReferencesForName::fromSerializedReferences(
                 $referencesByProperty->referenceName,
                 $serializedReferences
             );

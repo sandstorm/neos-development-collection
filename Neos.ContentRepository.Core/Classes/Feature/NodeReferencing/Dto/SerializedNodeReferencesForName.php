@@ -48,12 +48,12 @@ final readonly class SerializedNodeReferencesForName implements \JsonSerializabl
      * @param SerializedNodeReference[] $references
      * @return self
      */
-    public static function fromNameAndSerializedReferences(ReferenceName $referenceName, array $references): self
+    public static function fromSerializedReferences(ReferenceName $referenceName, array $references): self
     {
         return new self($referenceName, ...$references);
     }
 
-    public static function fromNameAndTargets(ReferenceName $referenceName, NodeAggregateIds $nodeAggregateIds): self
+    public static function fromTargets(ReferenceName $referenceName, NodeAggregateIds $nodeAggregateIds): self
     {
         $references = array_map(SerializedNodeReference::fromTarget(...), iterator_to_array($nodeAggregateIds));
         return new self($referenceName, ...$references);

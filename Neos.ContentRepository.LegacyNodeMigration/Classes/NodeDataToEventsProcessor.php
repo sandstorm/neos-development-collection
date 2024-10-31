@@ -360,7 +360,7 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
                     if (!is_array($propertyValue)) {
                         $propertyValue = [$propertyValue];
                     }
-                    $references[] = SerializedNodeReferencesForName::fromNameAndTargets(
+                    $references[] = SerializedNodeReferencesForName::fromTargets(
                         ReferenceName::fromString($propertyName),
                         NodeAggregateIds::fromArray($propertyValue)
                     );

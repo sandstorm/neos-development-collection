@@ -127,7 +127,7 @@ final readonly class NodeSubtreeSnapshot implements \JsonSerializable
         }
 
         foreach ($serializedReferencesByName as $name => $referenceObjects) {
-            $serializedReferences[] = SerializedNodeReferencesForName::fromNameAndSerializedReferences(ReferenceName::fromString($name), $referenceObjects);
+            $serializedReferences[] = SerializedNodeReferencesForName::fromSerializedReferences(ReferenceName::fromString($name), $referenceObjects);
         }
 
         return SerializedNodeReferences::fromArray($serializedReferences);

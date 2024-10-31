@@ -28,32 +28,32 @@ class NodeReferencesToWriteTest extends TestCase
     {
         self::expectException(\InvalidArgumentException::class);
 
-        NodeReferencesToWrite::fromReferences(
+        NodeReferencesToWrite::create(
             NodeReferencesForName::createEmpty(ReferenceName::fromString('foo')),
-            NodeReferencesForName::fromNameAndTargets(ReferenceName::fromString('bar'), NodeAggregateIds::fromArray(['fooo'])),
-            NodeReferencesForName::fromNameAndTargets(ReferenceName::fromString('foo'), NodeAggregateIds::fromArray(['abc'])),
+            NodeReferencesForName::fromTargets(ReferenceName::fromString('bar'), NodeAggregateIds::fromArray(['fooo'])),
+            NodeReferencesForName::fromTargets(ReferenceName::fromString('foo'), NodeAggregateIds::fromArray(['abc'])),
         );
     }
 
     public function testMergeOverridesPrevious(): void
     {
-        $a = NodeReferencesToWrite::fromReferences(
-            NodeReferencesForName::fromNameAndTargets(ReferenceName::fromString('foo'), NodeAggregateIds::fromArray(['abc'])),
-            NodeReferencesForName::fromNameAndTargets(ReferenceName::fromString('bar'), NodeAggregateIds::fromArray(['fooo'])),
+        $a = NodeReferencesToWrite::create(
+            NodeReferencesForName::fromTargets(ReferenceName::fromString('foo'), NodeAggregateIds::fromArray(['abc'])),
+            NodeReferencesForName::fromTargets(ReferenceName::fromString('bar'), NodeAggregateIds::fromArray(['fooo'])),
         );
 
-        $b = NodeReferencesToWrite::fromReferences(
-            NodeReferencesForName::fromNameAndTargets(ReferenceName::fromString('new'), NodeAggregateIds::fromArray(['la-li-lu'])),
+        $b = NodeReferencesToWrite::create(
+            NodeReferencesForName::fromTargets(ReferenceName::fromString('new'), NodeAggregateIds::fromArray(['la-li-lu'])),
             NodeReferencesForName::createEmpty(ReferenceName::fromString('foo')),
         );
 
         $c = $a->merge($b);
 
         self::assertEquals(
-            iterator_to_array(NodeReferencesToWrite::fromReferences(
+            iterator_to_array(NodeReferencesToWrite::create(
                 NodeReferencesForName::createEmpty(ReferenceName::fromString('foo')),
-                NodeReferencesForName::fromNameAndTargets(ReferenceName::fromString('bar'), NodeAggregateIds::fromArray(['fooo'])),
-                NodeReferencesForName::fromNameAndTargets(ReferenceName::fromString('new'), NodeAggregateIds::fromArray(['la-li-lu'])),
+                NodeReferencesForName::fromTargets(ReferenceName::fromString('bar'), NodeAggregateIds::fromArray(['fooo'])),
+                NodeReferencesForName::fromTargets(ReferenceName::fromString('new'), NodeAggregateIds::fromArray(['la-li-lu'])),
             )),
             iterator_to_array($c)
         );
@@ -61,19 +61,19 @@ class NodeReferencesToWriteTest extends TestCase
 
     public function testAppendOverridesPrevious(): void
     {
-        $a = NodeReferencesToWrite::fromReferences(
-            NodeReferencesForName::fromNameAndTargets(ReferenceName::fromString('foo'), NodeAggregateIds::fromArray(['abc'])),
-            NodeReferencesForName::fromNameAndTargets(ReferenceName::fromString('bar'), NodeAggregateIds::fromArray(['fooo'])),
+        $a = NodeReferencesToWrite::create(
+            NodeReferencesForName::fromTargets(ReferenceName::fromString('foo'), NodeAggregateIds::fromArray(['abc'])),
+            NodeReferencesForName::fromTargets(ReferenceName::fromString('bar'), NodeAggregateIds::fromArray(['fooo'])),
         );
 
-        $b = NodeReferencesForName::fromNameAndTargets(ReferenceName::fromString('bar'), NodeAggregateIds::fromArray(['la-li-lu', 'second']));
+        $b = NodeReferencesForName::fromTargets(ReferenceName::fromString('bar'), NodeAggregateIds::fromArray(['la-li-lu', 'second']));
 
         $c = $a->withReference($b);
 
         self::assertEquals(
-            iterator_to_array(NodeReferencesToWrite::fromReferences(
-                NodeReferencesForName::fromNameAndTargets(ReferenceName::fromString('foo'), NodeAggregateIds::fromArray(['abc'])),
-                NodeReferencesForName::fromNameAndTargets(ReferenceName::fromString('bar'), NodeAggregateIds::fromArray(['la-li-lu', 'second']))
+            iterator_to_array(NodeReferencesToWrite::create(
+                NodeReferencesForName::fromTargets(ReferenceName::fromString('foo'), NodeAggregateIds::fromArray(['abc'])),
+                NodeReferencesForName::fromTargets(ReferenceName::fromString('bar'), NodeAggregateIds::fromArray(['la-li-lu', 'second']))
             )),
             iterator_to_array($c)
         );
@@ -83,7 +83,7 @@ class NodeReferencesToWriteTest extends TestCase
     {
         self::expectException(\InvalidArgumentException::class);
 
-        NodeReferencesForName::fromNameAndReferences(ReferenceName::fromString('bar'), [
+        NodeReferencesForName::fromReferences(ReferenceName::fromString('bar'), [
             NodeReferenceToWrite::fromTarget(NodeAggregateId::fromString('node1')),
             NodeReferenceToWrite::fromTarget(NodeAggregateId::fromString('node-other')),
             NodeReferenceToWrite::fromTarget(NodeAggregateId::fromString('node1')),
