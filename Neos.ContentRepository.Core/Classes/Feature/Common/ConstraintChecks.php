@@ -61,7 +61,6 @@ use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
 use Neos\ContentRepository\Core\SharedModel\Node\PropertyName;
 use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamStatus;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\EventStore\Model\EventStream\ExpectedVersion;
 
@@ -88,8 +87,8 @@ trait ConstraintChecks
                 1521386692
             );
         }
-        $state = $commandHandlingDependencies->getContentStreamStatus($contentStreamId);
-        if ($state === ContentStreamStatus::CLOSED) {
+
+        if ($commandHandlingDependencies->isContentStreamClosed($contentStreamId)) {
             throw new ContentStreamIsClosed(
                 'Content stream "' . $contentStreamId->value . '" is closed.',
                 1710260081

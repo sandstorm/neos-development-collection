@@ -23,7 +23,6 @@ use Neos\ContentRepository\Core\DimensionSpace\ContentDimensionZookeeper;
 use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\EventStore\EventPersister;
-use Neos\ContentRepository\Core\Feature\ContentStreamCommandHandler;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\DimensionSpaceCommandHandler;
 use Neos\ContentRepository\Core\Feature\NodeAggregateCommandHandler;
 use Neos\ContentRepository\Core\Feature\NodeDuplication\NodeDuplicationCommandHandler;
@@ -121,7 +120,6 @@ final class ContentRepositoryFactory
         );
 
         $publicCommandBus = $commandBusForRebaseableCommands->withAdditionalHandlers(
-            new ContentStreamCommandHandler(),
             new WorkspaceCommandHandler(
                 $commandSimulatorFactory,
                 $this->projectionFactoryDependencies->eventStore,

@@ -19,6 +19,18 @@ class MigrateEventsCommandController extends CommandController
     }
 
     /**
+     * Temporary low level backup to ensure the prune migration https://github.com/neos/neos-development-collection/pull/5297 is safe
+     *
+     * @param string $contentRepository Identifier of the Content Repository to backup
+     */
+    public function backupCommand(string $contentRepository = 'default'): void
+    {
+        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
+        $eventMigrationService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, $this->eventMigrationServiceFactory);
+        $eventMigrationService->backup($this->outputLine(...));
+    }
+
+    /**
      * Migrates initial metadata & roles from the CR core workspaces to the corresponding Neos database tables
      *
      * Needed to extract these information to Neos.Neos: https://github.com/neos/neos-development-collection/issues/4726
