@@ -459,6 +459,9 @@ class WorkspaceController extends AbstractModuleController
                     [$workspaceMetadata->title->value],
                 )
             );
+
+            // WHY: Redirect to refresh data on page (e.g. workspace list & count)
+            $this->redirect('index');
         // Render a confirmation form if the request is not a POST request
         } else {
             $this->view->assign('workspaceName', $workspace->workspaceName->value);

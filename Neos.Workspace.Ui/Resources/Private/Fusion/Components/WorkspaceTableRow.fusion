@@ -81,7 +81,6 @@ prototype(Neos.Workspace.Ui:Component.WorkspaceTableRow) < prototype(Neos.Fusion
     deleteWorkspacePopoverId = 'workspace-delete-modal'
     editWorkspacePopoverId = 'workspace-edit-modal'
     editWorkspaceRoleAssignmentsPopoverId = 'workspace-edit-role-assignments-modal'
-    deleteWorkspaceRoleAssignmentPopoverId = 'confirm-delete-workspace-role-assignment-popover'
   }
 
   renderer = afx`
@@ -158,7 +157,7 @@ prototype(Neos.Workspace.Ui:Component.WorkspaceTableRow) < prototype(Neos.Fusion
           attributes.hx-get={private.deleteWorkspaceUri}
           attributes.hx-target='#popover-container'
           attributes.hx-swap='innerHTML'
-          attributes.hx-on--after-request={'document.getElementById("' + private.deleteWorkspaceRoleAssignmentPopoverId + '").showPopover()'}
+          attributes.hx-on--after-request={'document.getElementById("' + private.deleteWorkspacePopoverId + '").showPopover()'}
         />
       </td>
     </tr>

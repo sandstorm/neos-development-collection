@@ -6,7 +6,7 @@ prototype(Neos.Workspace.Ui:Component.WorkspaceCount) < prototype(Neos.Fusion:Co
   }
 
   renderer = afx`
-    <div class="workspace-count" hx-swap-oob="true">
+    <div id="workspace-count" class="workspace-count" hx-swap-oob="true">
       {private.i18n.id('workspaces.numberOfWorkspaces').arguments([props.workspaceCount]).translate()}
     </div>
   `
