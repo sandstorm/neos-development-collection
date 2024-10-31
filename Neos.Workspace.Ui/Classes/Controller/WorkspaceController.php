@@ -373,30 +373,13 @@ class WorkspaceController extends AbstractModuleController
             $this->redirect('index');
         }
 
-        $nodesCount = 0;
-
-        try {
-            $nodesCount = $contentRepository->projectionState(ChangeFinder::class)
-                ->countByContentStreamId(
-                    $workspace->currentContentStreamId
-                );
-        } catch (\Exception $exception) {
-            $message = $this->translator->translateById(
-                'workspaces.notDeletedErrorWhileFetchingUnpublishedNodes',
-                [$workspaceMetadata->title->value],
-                null,
-                null,
-                'Main',
-                'Neos.Workspace.Ui'
-            ) ?: 'workspaces.notDeletedErrorWhileFetchingUnpublishedNodes';
-            $this->addFlashMessage($message, '', Message::SEVERITY_WARNING);
-            $this->redirect('index');
-        }
-        if ($nodesCount > 0) {
+        if ($workspace->hasPublishableChanges()) {
+            // todo indicate to the user that theses changes ARE NOT change projection changes
+            $changesCount = $workspace->countPublishableChanges();
             $message = $this->translator->translateById(
                 'workspaces.workspaceCannotBeDeletedBecauseOfUnpublishedNodes',
-                [$workspaceMetadata->title->value, $nodesCount],
-                $nodesCount,
+                [$workspaceMetadata->title->value, $changesCount],
+                $changesCount,
                 null,
                 'Main',
                 'Neos.Workspace.Ui'

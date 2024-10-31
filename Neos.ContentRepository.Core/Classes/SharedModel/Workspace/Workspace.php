@@ -32,7 +32,14 @@ final readonly class Workspace
         public ?WorkspaceName $baseWorkspaceName,
         public ContentStreamId $currentContentStreamId,
         public WorkspaceStatus $status,
+        private int $countOfPublishableChanges
     ) {
+        if ($this->countOfPublishableChanges < 0) {
+            throw new \InvalidArgumentException('The number of changes must be greater than 0', 1730371545);
+        }
+        if ($this->isRootWorkspace() && $this->countOfPublishableChanges !== 0) {
+            throw new \InvalidArgumentException('Root workspaces cannot have changes', 1730371566);
+        }
     }
 
     /**
@@ -43,8 +50,19 @@ final readonly class Workspace
         ?WorkspaceName $baseWorkspaceName,
         ContentStreamId $currentContentStreamId,
         WorkspaceStatus $status,
+        int $countOfPublishableChanges
     ): self {
-        return new self($workspaceName, $baseWorkspaceName, $currentContentStreamId, $status);
+        return new self($workspaceName, $baseWorkspaceName, $currentContentStreamId, $status, $countOfPublishableChanges);
+    }
+
+    public function hasPublishableChanges(): bool
+    {
+        return $this->countOfPublishableChanges !== 0;
+    }
+
+    public function countPublishableChanges(): int
+    {
+        return $this->countOfPublishableChanges;
     }
 
     /**
