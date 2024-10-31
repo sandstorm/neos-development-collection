@@ -17,43 +17,34 @@ namespace Neos\ContentRepository\Core\SharedModel\Workspace;
 /**
  * Workspace Read Model
  *
- * @api
+ * @api Note: The constructor is not part of the public API
  */
 final readonly class Workspace
 {
     /**
-     * @var WorkspaceName Workspace identifier, unique within one Content Repository instance
+     * @param WorkspaceName $workspaceName Workspace identifier, unique within one Content Repository instance
+     * @param WorkspaceName|null $baseWorkspaceName Workspace identifier of the base workspace (i.e. the target when publishing changes) – if null this instance is considered a root (aka public) workspace
+     * @param ContentStreamId $currentContentStreamId The Content Stream this workspace currently points to – usually it is set to a new, empty content stream after publishing/rebasing the workspace
+     * @param WorkspaceStatus $status The current status of this workspace
      */
-    public WorkspaceName $workspaceName;
-
-    /**
-     * @var WorkspaceName|null Workspace identifier of the base workspace (i.e. the target when publishing changes) – if null this instance is considered a root (aka public) workspace
-     */
-    public ?WorkspaceName $baseWorkspaceName;
-
-    /**
-     * The Content Stream this workspace currently points to – usually it is set to a new, empty content stream after publishing/rebasing the workspace
-     */
-    public ContentStreamId $currentContentStreamId;
-
-    /**
-     * The current status of this workspace
-     */
-    public WorkspaceStatus $status;
+    private function __construct(
+        public WorkspaceName $workspaceName,
+        public ?WorkspaceName $baseWorkspaceName,
+        public ContentStreamId $currentContentStreamId,
+        public WorkspaceStatus $status,
+    ) {
+    }
 
     /**
      * @internal
      */
-    public function __construct(
+    public static function create(
         WorkspaceName $workspaceName,
         ?WorkspaceName $baseWorkspaceName,
         ContentStreamId $currentContentStreamId,
         WorkspaceStatus $status,
-    ) {
-        $this->workspaceName = $workspaceName;
-        $this->baseWorkspaceName = $baseWorkspaceName;
-        $this->currentContentStreamId = $currentContentStreamId;
-        $this->status = $status;
+    ): self {
+        return new self($workspaceName, $baseWorkspaceName, $currentContentStreamId, $status);
     }
 
     /**

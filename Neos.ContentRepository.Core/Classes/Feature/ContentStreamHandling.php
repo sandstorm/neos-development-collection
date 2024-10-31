@@ -17,7 +17,6 @@ use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamDoesNotExistY
 use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamIsClosed;
 use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamIsNotClosed;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamStatus;
 use Neos\EventStore\Model\EventStream\ExpectedVersion;
 
 trait ContentStreamHandling
@@ -74,12 +73,10 @@ trait ContentStreamHandling
 
     /**
      * @param ContentStreamId $contentStreamId The id of the content stream to reopen
-     * @param ContentStreamStatus $previousState The state the content stream was in before closing and is to be reset to
      * @phpstan-pure this method is pure, to persist the events they must be handled outside
      */
     private function reopenContentStream(
         ContentStreamId $contentStreamId,
-        ContentStreamStatus $previousState,
         CommandHandlingDependencies $commandHandlingDependencies,
     ): EventsToPublish {
         $this->requireContentStreamToExist($contentStreamId, $commandHandlingDependencies);
@@ -90,8 +87,7 @@ trait ContentStreamHandling
             $streamName,
             Events::with(
                 new ContentStreamWasReopened(
-                    $contentStreamId,
-                    $previousState,
+                    $contentStreamId
                 ),
             ),
             ExpectedVersion::ANY()
@@ -197,7 +193,7 @@ trait ContentStreamHandling
         ContentStreamId $contentStreamId,
         CommandHandlingDependencies $commandHandlingDependencies
     ): void {
-        if ($commandHandlingDependencies->getContentStreamStatus($contentStreamId) === ContentStreamStatus::CLOSED) {
+        if ($commandHandlingDependencies->isContentStreamClosed($contentStreamId)) {
             throw new ContentStreamIsClosed(
                 'Content stream "' . $contentStreamId->value . '" is closed.',
                 1710260081
@@ -209,7 +205,7 @@ trait ContentStreamHandling
         ContentStreamId $contentStreamId,
         CommandHandlingDependencies $commandHandlingDependencies
     ): void {
-        if ($commandHandlingDependencies->getContentStreamStatus($contentStreamId) !== ContentStreamStatus::CLOSED) {
+        if (!$commandHandlingDependencies->isContentStreamClosed($contentStreamId)) {
             throw new ContentStreamIsNotClosed(
                 'Content stream "' . $contentStreamId->value . '" is not closed.',
                 1710405911

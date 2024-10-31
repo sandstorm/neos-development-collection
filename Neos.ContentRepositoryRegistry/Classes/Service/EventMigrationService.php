@@ -56,6 +56,14 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
     ) {
     }
 
+    public function backup(\Closure $outputFn): void
+    {
+        $backupEventTableName = DoctrineEventStoreFactory::databaseTableName($this->contentRepositoryId)
+            . '_bkp_' . date('Y_m_d_H_i_s');
+        $this->copyEventTable($backupEventTableName);
+        $outputFn(sprintf('Backup. Copied events table to %s', $backupEventTableName));
+    }
+
     /**
      * The following things have to be migrated:
      *

@@ -55,7 +55,7 @@ Feature: Constraint checks on SetNodeReferences
       | berta-destinode   | Neos.ContentRepository.Testing:ReferencedNode     | lady-eleonode-rootford |
 
   Scenario: Try to reference nodes in a workspace whose content stream is closed
-    When the command CloseContentStream is executed with payload:
+    When the event ContentStreamWasClosed was published with payload:
       | Key             | Value           |
       | contentStreamId | "cs-identifier" |
     When the command SetNodeReferences is executed with payload and exceptions are caught:
