@@ -27,11 +27,11 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindAncestorNodes
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Nodes;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
-use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAddress;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
+use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Diff\Diff;
@@ -374,12 +374,15 @@ class WorkspaceController extends AbstractModuleController
         }
 
         if ($workspace->hasPublishableChanges()) {
-            // todo indicate to the user that theses changes ARE NOT change projection changes
-            $changesCount = $workspace->countPublishableChanges();
+            try {
+                $nodesCount = $this->workspacePublishingService->countPendingWorkspaceChanges($contentRepositoryId, $workspaceName);
+            } catch (\Exception) {
+                $nodesCount = null;
+            }
             $message = $this->translator->translateById(
                 'workspaces.workspaceCannotBeDeletedBecauseOfUnpublishedNodes',
-                [$workspaceMetadata->title->value, $changesCount],
-                $changesCount,
+                [$workspaceMetadata->title->value, $nodesCount ?? 'NAN'],
+                $nodesCount,
                 null,
                 'Main',
                 'Neos.Workspace.Ui'
