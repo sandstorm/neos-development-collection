@@ -16,6 +16,8 @@ namespace Neos\ContentRepository\Core\Tests\Unit\Feature\NodeReferencing;
 
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\NodeReferencesForName;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\NodeReferencesToWrite;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\NodeReferenceToWrite;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
 use PHPUnit\Framework\TestCase;
@@ -75,5 +77,16 @@ class NodeReferencesToWriteTest extends TestCase
             )),
             iterator_to_array($c)
         );
+    }
+
+    public function testSameTargetsAreNotAllowedMultipleTimes(): void
+    {
+        self::expectException(\InvalidArgumentException::class);
+
+        NodeReferencesForName::fromNameAndReferences(ReferenceName::fromString('bar'), [
+            NodeReferenceToWrite::fromTarget(NodeAggregateId::fromString('node1')),
+            NodeReferenceToWrite::fromTarget(NodeAggregateId::fromString('node-other')),
+            NodeReferenceToWrite::fromTarget(NodeAggregateId::fromString('node1')),
+        ]);
     }
 }

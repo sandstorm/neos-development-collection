@@ -31,6 +31,13 @@ final readonly class NodeReferencesForName
         public ReferenceName $referenceName,
         NodeReferenceToWrite ...$references
     ) {
+        $referencesByTarget = [];
+        foreach ($references as $reference) {
+            if (isset($referencesByTarget[$reference->targetNodeAggregateId->value])) {
+                throw new \InvalidArgumentException(sprintf('Duplicate entry in references to write. Target "%s" already exists in collection.', $reference->targetNodeAggregateId->value), 1730365958);
+            }
+            $referencesByTarget[$reference->targetNodeAggregateId->value] = true;
+        }
         $this->references = $references;
     }
 
