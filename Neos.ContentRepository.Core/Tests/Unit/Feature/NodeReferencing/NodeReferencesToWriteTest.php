@@ -29,7 +29,7 @@ class NodeReferencesToWriteTest extends TestCase
         self::expectException(\InvalidArgumentException::class);
 
         NodeReferencesToWrite::fromReferences(
-            NodeReferencesForName::emptyForName(ReferenceName::fromString('foo')),
+            NodeReferencesForName::createEmpty(ReferenceName::fromString('foo')),
             NodeReferencesForName::fromNameAndTargets(ReferenceName::fromString('bar'), NodeAggregateIds::fromArray(['fooo'])),
             NodeReferencesForName::fromNameAndTargets(ReferenceName::fromString('foo'), NodeAggregateIds::fromArray(['abc'])),
         );
@@ -44,14 +44,14 @@ class NodeReferencesToWriteTest extends TestCase
 
         $b = NodeReferencesToWrite::fromReferences(
             NodeReferencesForName::fromNameAndTargets(ReferenceName::fromString('new'), NodeAggregateIds::fromArray(['la-li-lu'])),
-            NodeReferencesForName::emptyForName(ReferenceName::fromString('foo')),
+            NodeReferencesForName::createEmpty(ReferenceName::fromString('foo')),
         );
 
         $c = $a->merge($b);
 
         self::assertEquals(
             iterator_to_array(NodeReferencesToWrite::fromReferences(
-                NodeReferencesForName::emptyForName(ReferenceName::fromString('foo')),
+                NodeReferencesForName::createEmpty(ReferenceName::fromString('foo')),
                 NodeReferencesForName::fromNameAndTargets(ReferenceName::fromString('bar'), NodeAggregateIds::fromArray(['fooo'])),
                 NodeReferencesForName::fromNameAndTargets(ReferenceName::fromString('new'), NodeAggregateIds::fromArray(['la-li-lu'])),
             )),

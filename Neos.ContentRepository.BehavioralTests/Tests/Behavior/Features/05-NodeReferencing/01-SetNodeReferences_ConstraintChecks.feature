@@ -192,4 +192,4 @@ Feature: Constraint checks on SetNodeReferences
       | Key                   | Value                                                            |
       | sourceNodeAggregateId | "source-nodandaise"                                              |
       | references            | [{"referenceName": "referencesProperty", "references": [{"target":"anthony-destinode"}, {"target":"anthony-destinode"}]}] |
-    Then the last command should have thrown an exception of type "InvalidArgumentException" with code 1700150910
+    Then the last command should have thrown an exception of type "InvalidArgumentException" with code 1730365958

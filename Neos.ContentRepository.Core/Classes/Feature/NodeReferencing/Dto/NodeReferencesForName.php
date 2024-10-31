@@ -18,6 +18,10 @@ use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
 
 /**
+ * Node references to write for a specific reference name
+ *
+ * Will be converted to {@see SerializedNodeReferencesForName} inside the events and persisted commands.
+ *
  * @api used as part of commands
  */
 final readonly class NodeReferencesForName
@@ -41,6 +45,12 @@ final readonly class NodeReferencesForName
         $this->references = $references;
     }
 
+    public static function fromNameAndTargets(ReferenceName $name, NodeAggregateIds $nodeAggregateIds): self
+    {
+        $references = array_map(NodeReferenceToWrite::fromTarget(...), iterator_to_array($nodeAggregateIds));
+        return new self($name, ...$references);
+    }
+
     /**
      * @param NodeReferenceToWrite[] $references
      */
@@ -49,13 +59,11 @@ final readonly class NodeReferencesForName
         return new self($name, ...$references);
     }
 
-    public static function fromNameAndTargets(ReferenceName $name, NodeAggregateIds $nodeAggregateIds): self
-    {
-        $references = array_map(NodeReferenceToWrite::fromTarget(...), iterator_to_array($nodeAggregateIds));
-        return new self($name, ...$references);
-    }
-
-    public static function emptyForName(ReferenceName $name): self
+    /**
+     * As the previously set references will be replaced by writing new references specifying
+     * no references for a name will delete the previous ones
+     */
+    public static function createEmpty(ReferenceName $name): self
     {
         return new self($name, ...[]);
     }

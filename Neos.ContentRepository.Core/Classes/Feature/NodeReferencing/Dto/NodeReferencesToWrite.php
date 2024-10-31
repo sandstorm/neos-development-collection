@@ -15,10 +15,10 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Feature\NodeReferencing\Dto;
 
 /**
- * Node references to write, supports arbitrary objects as reference values.
- * Will be then converted to {@see SerializedNodeReferences} inside the events and persisted commands.
+ * Node references to write
  *
- * We expect the value types to match the NodeType's property types (this is validated in the command handler).
+ * As we support property values on the reference this definition object structure will be converted to its Serialized* counterparts.
+ * These serializable objects will then be part of the events and persisted commands. See {@see SerializedNodeReferences}
  *
  * @implements \IteratorAggregate<NodeReferencesForName>
  * @api used as part of commands

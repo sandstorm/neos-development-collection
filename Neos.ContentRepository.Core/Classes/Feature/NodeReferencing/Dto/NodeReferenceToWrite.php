@@ -19,12 +19,17 @@ use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
 
 /**
- * A single node references to write, supports arbitrary objects as reference property values
- * by using {@see PropertyValuesToWrite}.
- * Will be then converted to {@see SerializedNodeReferences} inside the events and persisted commands.
+ * A single node references to write
  *
- * We expect the property value types to match the NodeType's property types
- * (this is validated in the command handler).
+ * Simple:
+ *   Just a node aggregate id as target {@see fromTarget}
+ *
+ * With properties:
+ *   Additionally to the target also properties can be specified to be set on the references by using {@see PropertyValuesToWrite} in {@see fromTargetAndProperties}.
+ *   We expect the value types to match the configured types of the NodeType
+ *
+ * Will be converted to {@see SerializedNodeReferences} inside the events and persisted commands.
+ *
  * @api used as part of commands
  */
 final readonly class NodeReferenceToWrite
@@ -35,13 +40,13 @@ final readonly class NodeReferenceToWrite
     ) {
     }
 
-    public static function fromTargetAndProperties(NodeAggregateId $target, PropertyValuesToWrite $properties): self
-    {
-        return new self($target, $properties);
-    }
-
     public static function fromTarget(NodeAggregateId $target): self
     {
         return new self($target, PropertyValuesToWrite::createEmpty());
+    }
+
+    public static function fromTargetAndProperties(NodeAggregateId $target, PropertyValuesToWrite $properties): self
+    {
+        return new self($target, $properties);
     }
 }

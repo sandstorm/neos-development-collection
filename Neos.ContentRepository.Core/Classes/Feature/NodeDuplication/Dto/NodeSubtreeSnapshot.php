@@ -63,7 +63,7 @@ final readonly class NodeSubtreeSnapshot implements \JsonSerializable
             $sourceNode->name,
             $sourceNode->classification,
             $properties->serialized(),
-            self::serialiseGraphReferences(
+            self::serializeProjectedReferences(
                 $subgraph->findReferences($sourceNode->aggregateId, FindReferencesFilter::create())
             ),
             $childNodes
@@ -115,7 +115,7 @@ final readonly class NodeSubtreeSnapshot implements \JsonSerializable
         );
     }
 
-    private static function serialiseGraphReferences(References $references): SerializedNodeReferences
+    private static function serializeProjectedReferences(References $references): SerializedNodeReferences
     {
         $serializedReferences = [];
         $serializedReferencesByName = [];
