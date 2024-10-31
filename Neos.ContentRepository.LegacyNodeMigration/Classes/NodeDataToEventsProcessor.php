@@ -342,7 +342,7 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
     public function extractPropertyValuesAndReferences(array $nodeDataRow, NodeType $nodeType): SerializedPropertyValuesAndReferences
     {
         $properties = [];
-        $references = SerializedNodeReferences::createEmpty();
+        $references = [];
 
         // Note: We use a PostgreSQL platform because the implementation is forward-compatible, @see JsonArrayType::convertToPHPValue()
         try {
@@ -360,12 +360,10 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
                     if (!is_array($propertyValue)) {
                         $propertyValue = [$propertyValue];
                     }
-                    $references = $references->merge(SerializedNodeReferences::fromReferences(
-                        SerializedNodeReferencesForName::fromNameAndTargets(
-                            ReferenceName::fromString($propertyName),
-                            NodeAggregateIds::fromArray(array_map(NodeAggregateId::fromString(...), $propertyValue))
-                        )
-                    ));
+                    $references[] = SerializedNodeReferencesForName::fromNameAndTargets(
+                        ReferenceName::fromString($propertyName),
+                        NodeAggregateIds::fromArray($propertyValue)
+                    );
                 }
                 continue;
             }
@@ -410,7 +408,7 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
             }
         }
 
-        return new SerializedPropertyValuesAndReferences($this->propertyConverter->serializePropertyValues(PropertyValuesToWrite::fromArray($properties)->withoutUnsets(), $nodeType), $references);
+        return new SerializedPropertyValuesAndReferences($this->propertyConverter->serializePropertyValues(PropertyValuesToWrite::fromArray($properties)->withoutUnsets(), $nodeType), SerializedNodeReferences::fromArray($references));
     }
 
     /**

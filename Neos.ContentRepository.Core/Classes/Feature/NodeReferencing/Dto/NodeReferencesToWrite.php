@@ -52,6 +52,9 @@ final readonly class NodeReferencesToWrite implements \IteratorAggregate
         return new self(...$references);
     }
 
+    /**
+     * @param array<NodeReferencesForName> $references
+     */
     public static function fromArray(array $references): self
     {
         return new self(...$references);

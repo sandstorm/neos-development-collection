@@ -33,12 +33,12 @@ final readonly class SerializedNodeReferencesForName implements \JsonSerializabl
         public ReferenceName $referenceName,
         SerializedNodeReference ...$references
     ) {
-        $existingTargets = [];
+        $referencesByTarget = [];
         foreach ($references as $reference) {
-            if (isset($existingTargets[$reference->targetNodeAggregateId->value])) {
+            if (isset($referencesByTarget[$reference->targetNodeAggregateId->value])) {
                 throw new \InvalidArgumentException(sprintf('Duplicate entry in references to write. Target "%s" already exists in collection.', $reference->targetNodeAggregateId->value), 1700150910);
             }
-            $existingTargets[$reference->targetNodeAggregateId->value] = true;
+            $referencesByTarget[$reference->targetNodeAggregateId->value] = true;
         }
         $this->references = $references;
     }

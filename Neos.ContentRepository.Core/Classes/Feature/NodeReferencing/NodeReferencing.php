@@ -111,14 +111,14 @@ trait NodeReferencing
             $sourceNodeAggregate->nodeTypeName
         );
 
-        foreach ($command->references as $referencesByProperty) {
-            $referenceName = $referencesByProperty->referenceName;
+        foreach ($command->references as $referencesByName) {
+            $referenceName = $referencesByName->referenceName;
             $this->requireNodeTypeToDeclareReference($sourceNodeAggregate->nodeTypeName, $referenceName);
             $scopeDeclaration = $sourceNodeType->getReferences()[$referenceName->value]['scope'] ?? '';
             $scope = PropertyScope::tryFrom($scopeDeclaration) ?: PropertyScope::SCOPE_NODE;
             // TODO: Optimize affected sets into one event
 
-            foreach ($referencesByProperty->references as $reference) {
+            foreach ($referencesByName->references as $reference) {
                 $destinationNodeAggregate = $this->requireProjectedNodeAggregate(
                     $contentGraph,
                     $reference->targetNodeAggregateId
@@ -130,7 +130,7 @@ trait NodeReferencing
                 );
                 $this->requireNodeTypeToAllowNodesOfTypeInReference(
                     $sourceNodeAggregate->nodeTypeName,
-                    $referencesByProperty->referenceName,
+                    $referencesByName->referenceName,
                     $destinationNodeAggregate->nodeTypeName
                 );
             }
@@ -146,7 +146,7 @@ trait NodeReferencing
                 $contentGraph->getContentStreamId(),
                 $command->sourceNodeAggregateId,
                 $affectedOrigins,
-                SerializedNodeReferences::fromReferences($referencesByProperty),
+                SerializedNodeReferences::fromArray([$referencesByName]),
             );
         }
 

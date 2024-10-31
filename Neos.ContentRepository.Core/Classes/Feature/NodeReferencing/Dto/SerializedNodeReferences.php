@@ -16,7 +16,6 @@ namespace Neos\ContentRepository\Core\Feature\NodeReferencing\Dto;
 
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\SerializedPropertyValues;
 use Neos\ContentRepository\Core\Projection\ContentGraph\References;
-use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
 
 /**
@@ -48,11 +47,6 @@ final readonly class SerializedNodeReferences implements \JsonSerializable, \Ite
     public static function createEmpty(): self
     {
         return new self();
-    }
-
-    public static function fromReferences(SerializedNodeReferencesForName ...$references): self
-    {
-        return new self(...$references);
     }
 
     /**
@@ -91,14 +85,6 @@ final readonly class SerializedNodeReferences implements \JsonSerializable, \Ite
         return self::fromArray(\json_decode($jsonString, true, 512, JSON_THROW_ON_ERROR));
     }
 
-    public function merge(SerializedNodeReferences $serializedNodeReferences): self
-    {
-        return new self(...$this->references, ...$serializedNodeReferences->references);
-    }
-
-    /**
-     * @return \Traversable<SerializedNodeReferencesForName>
-     */
     public function getIterator(): \Traversable
     {
         yield from $this->references;

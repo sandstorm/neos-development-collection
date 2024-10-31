@@ -29,7 +29,7 @@ use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
  */
 final readonly class NodeReferenceToWrite
 {
-    public function __construct(
+    private function __construct(
         public NodeAggregateId $targetNodeAggregateId,
         public PropertyValuesToWrite $properties
     ) {
