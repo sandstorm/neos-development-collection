@@ -374,14 +374,10 @@ class WorkspaceController extends AbstractModuleController
         }
 
         if ($workspace->hasPublishableChanges()) {
-            try {
-                $nodesCount = $this->workspacePublishingService->countPendingWorkspaceChanges($contentRepositoryId, $workspaceName);
-            } catch (\Exception) {
-                $nodesCount = null;
-            }
+            $nodesCount = $this->workspacePublishingService->countPendingWorkspaceChanges($contentRepositoryId, $workspaceName);
             $message = $this->translator->translateById(
                 'workspaces.workspaceCannotBeDeletedBecauseOfUnpublishedNodes',
-                [$workspaceMetadata->title->value, $nodesCount ?? 'NAN'],
+                [$workspaceMetadata->title->value, $nodesCount],
                 $nodesCount,
                 null,
                 'Main',
