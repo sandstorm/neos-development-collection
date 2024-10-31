@@ -5,15 +5,19 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Feature\NodeDuplication\Dto;
 
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\SerializedPropertyValues;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\SerializedNodeReference;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\SerializedNodeReferences;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\SerializedNodeReferencesForName;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindChildNodesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindReferencesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
+use Neos\ContentRepository\Core\Projection\ContentGraph\References;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateClassification;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
+use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
 
 /**
  * Implementation detail of {@see CopyNodesRecursively}
@@ -59,7 +63,7 @@ final readonly class NodeSubtreeSnapshot implements \JsonSerializable
             $sourceNode->name,
             $sourceNode->classification,
             $properties->serialized(),
-            SerializedNodeReferences::fromReadReferences(
+            self::serialiseGraphReferences(
                 $subgraph->findReferences($sourceNode->aggregateId, FindReferencesFilter::create())
             ),
             $childNodes
@@ -109,5 +113,23 @@ final readonly class NodeSubtreeSnapshot implements \JsonSerializable
             SerializedNodeReferences::fromArray($array['nodeReferences']),
             $childNodes
         );
+    }
+
+    private static function serialiseGraphReferences(References $references): SerializedNodeReferences
+    {
+        $serializedReferences = [];
+        $serializedReferencesByName = [];
+        foreach ($references as $reference) {
+            if (!isset($serializedReferencesByName[$reference->name->value])) {
+                $serializedReferencesByName[$reference->name->value] = [];
+            }
+            $serializedReferencesByName[$reference->name->value][] = SerializedNodeReference::fromTargetAndProperties($reference->node->aggregateId, $reference->properties ? $reference->properties->serialized() : SerializedPropertyValues::createEmpty());
+        }
+
+        foreach ($serializedReferencesByName as $name => $referenceObjects) {
+            $serializedReferences[] = SerializedNodeReferencesForName::fromNameAndSerializedReferences(ReferenceName::fromString($name), $referenceObjects);
+        }
+
+        return SerializedNodeReferences::fromArray($serializedReferences);
     }
 }

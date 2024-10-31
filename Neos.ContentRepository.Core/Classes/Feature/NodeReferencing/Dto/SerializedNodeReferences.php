@@ -14,8 +14,6 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Feature\NodeReferencing\Dto;
 
-use Neos\ContentRepository\Core\Feature\NodeModification\Dto\SerializedPropertyValues;
-use Neos\ContentRepository\Core\Projection\ContentGraph\References;
 use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
 
 /**
@@ -60,24 +58,6 @@ final readonly class SerializedNodeReferences implements \JsonSerializable, \Ite
         }
 
         return new self(...$result);
-    }
-
-    public static function fromReadReferences(References $references): self
-    {
-        $serializedReferences = [];
-        $serializedReferencesByName = [];
-        foreach ($references as $reference) {
-            if (!isset($serializedReferencesByName[$reference->name->value])) {
-                $serializedReferencesByName[$reference->name->value] = [];
-            }
-            $serializedReferencesByName[$reference->name->value][] = SerializedNodeReference::fromTargetAndProperties($reference->node->aggregateId, $reference->properties ? $reference->properties->serialized() : SerializedPropertyValues::createEmpty());
-        }
-
-        foreach ($serializedReferencesByName as $name => $referenceObjects) {
-            $serializedReferences[] = SerializedNodeReferencesForName::fromNameAndSerializedReferences(ReferenceName::fromString($name), $referenceObjects);
-        }
-
-        return new self(...$serializedReferences);
     }
 
     public static function fromJsonString(string $jsonString): self
