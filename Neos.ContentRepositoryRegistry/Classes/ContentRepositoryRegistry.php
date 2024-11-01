@@ -286,7 +286,7 @@ final class ContentRepositoryRegistry
             throw InvalidConfigurationException::fromMessage('Content repository "%s" does not have the "commandHooks" configured properly. Expected array, got %s.', $contentRepositoryId->value, get_debug_type($commandHooksSettings));
         }
         $commandHookFactories = [];
-        foreach ($commandHooksSettings as $name => $commandHookSettings) {
+        foreach ((new PositionalArraySorter($commandHooksSettings))->toArray() as $name => $commandHookSettings) {
             // Allow to unset/disable command hooks
             if ($commandHookSettings === null) {
                 continue;
