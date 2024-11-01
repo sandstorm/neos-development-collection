@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Factory;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandBus;
+use Neos\ContentRepository\Core\CommandHandler\CommandHooks;
 use Neos\ContentRepository\Core\CommandHandler\CommandSimulatorFactory;
 use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\ContentRepository;
@@ -55,6 +56,7 @@ final class ContentRepositoryFactory
         ProjectionsAndCatchUpHooksFactory $projectionsAndCatchUpHooksFactory,
         private readonly UserIdProviderInterface $userIdProvider,
         private readonly ClockInterface $clock,
+        private readonly CommandHooksFactory|null $commandHooksFactory = null,
     ) {
         $contentDimensionZookeeper = new ContentDimensionZookeeper($contentDimensionSource);
         $interDimensionalVariationGraph = new InterDimensionalVariationGraph(
@@ -96,6 +98,7 @@ final class ContentRepositoryFactory
         // we dont need full recursion in rebase - e.g apply workspace commands - and thus we can use this set for simulation
         $commandBusForRebaseableCommands = new CommandBus(
             $commandHandlingDependencies,
+            CommandHooks::none(),
             new NodeAggregateCommandHandler(
                 $this->projectionFactoryDependencies->nodeTypeManager,
                 $this->projectionFactoryDependencies->contentDimensionZookeeper,
@@ -126,6 +129,10 @@ final class ContentRepositoryFactory
                 $this->projectionFactoryDependencies->eventNormalizer,
             )
         );
+        if ($this->commandHooksFactory !== null) {
+            $commandHooks = $this->commandHooksFactory->build(CommandHooksFactoryDependencies::create($this->contentRepositoryId));
+            $publicCommandBus = $publicCommandBus->withCommandHooks($commandHooks);
+        }
 
         return $this->contentRepository = new ContentRepository(
             $this->contentRepositoryId,
