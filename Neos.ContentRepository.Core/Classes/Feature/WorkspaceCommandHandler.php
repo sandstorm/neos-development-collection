@@ -48,6 +48,7 @@ use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishIndi
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasDiscarded;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPublished;
+use Neos\ContentRepository\Core\Feature\WorkspacePublication\Exception\NoChangesException;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Command\RebaseWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\ConflictingEvent;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Dto\RebaseErrorHandlingStrategy;
@@ -192,8 +193,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         $workspace = $this->requireWorkspace($command->workspaceName, $commandHandlingDependencies);
         $baseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
         if (!$workspace->hasPublishableChanges()) {
-            // no-op
-            return;
+            throw NoChangesException::inWorkspaceToPublish($command->workspaceName);
         }
         $workspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($workspace, $commandHandlingDependencies);
         $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($baseWorkspace, $commandHandlingDependencies);
@@ -344,23 +344,12 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             && $command->rebaseErrorHandlingStrategy !== RebaseErrorHandlingStrategy::STRATEGY_FORCE
         ) {
             // no-op if workspace is not outdated and not forcing it
+            // TODO throw here too?
             return;
         }
 
         if (!$workspace->hasPublishableChanges()) {
-            // if we have no changes in the workspace we can fork from the base directly
-            yield $this->closeContentStream(
-                $workspace->currentContentStreamId,
-                $workspaceContentStreamVersion
-            );
-
-            yield from $this->rebaseWorkspaceWithoutChanges(
-                $workspace,
-                $baseWorkspace,
-                $baseWorkspaceContentStreamVersion,
-                $command->rebasedContentStreamId
-            );
-            return;
+            NoChangesException::noChangesToRebase($command->workspaceName);
         }
 
         $rebaseableCommands = RebaseableCommands::extractFromEventStream(
@@ -436,9 +425,11 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
     ): \Generator {
         $workspace = $this->requireWorkspace($command->workspaceName, $commandHandlingDependencies);
         $baseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
-        if ($command->nodesToPublish->isEmpty() || !$workspace->hasPublishableChanges()) {
-            // noop
-            return;
+        if ($command->nodesToPublish->isEmpty()) {
+            throw NoChangesException::nothingSelectedForPublish($command->workspaceName);
+        }
+        if (!$workspace->hasPublishableChanges()) {
+            throw NoChangesException::inWorkspaceToPublish($command->workspaceName);
         }
 
         $workspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($workspace, $commandHandlingDependencies);
