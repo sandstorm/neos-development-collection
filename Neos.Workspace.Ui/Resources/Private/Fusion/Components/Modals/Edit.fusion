@@ -60,7 +60,7 @@ prototype(Neos.Workspace.Ui:Component.Modal.Edit) < prototype(Neos.Fusion:Compon
             >
               <Neos.Fusion.Form:Textfield
                 attributes.required
-                attributes.pattern="/^[\p{L}\p{P}\d \.]{1,200}$/u"
+                attributes.pattern="^[\\p{L}\\p{P}\\d \\.]{1,200}$"
                 attributes.autofocus
                 attributes.placeholder={props.workspaceName}
               />
@@ -73,7 +73,7 @@ prototype(Neos.Workspace.Ui:Component.Modal.Edit) < prototype(Neos.Fusion:Compon
               class="neos-control-group"
             >
               <Neos.Fusion.Form:Textfield
-                attributes.pattern="/^[\p{L}\p{P}\d \.]{0,500}$/u"
+                attributes.pattern="^[\\p{L}\\p{P}\\d \\.]{0,500}$"
               />
             </Neos.Fusion.Form:Neos.BackendModule.FieldContainer>
 
