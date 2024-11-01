@@ -40,7 +40,7 @@ final readonly class CommandBus
                 continue;
             }
             foreach ($this->commandHooks as $commandHook) {
-                $command = $commandHook->beforeHandle($command);
+                $command = $commandHook->onBeforeHandle($command);
             }
             return $handler->handle($command, $this->commandHandlingDependencies);
         }
