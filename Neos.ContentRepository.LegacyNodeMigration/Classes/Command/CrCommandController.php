@@ -22,10 +22,10 @@ use Neos\ContentRepository\Core\Projection\CatchUpOptions;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\LegacyNodeMigration\LegacyMigrationService;
 use Neos\ContentRepository\LegacyNodeMigration\LegacyMigrationServiceFactory;
+use Neos\ContentRepository\LegacyNodeMigration\RootNodeTypeMapping;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\ContentRepositoryRegistry\Factory\EventStore\DoctrineEventStoreFactory;
 use Neos\ContentRepositoryRegistry\Service\ProjectionReplayServiceFactory;
-use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Cli\CommandController;
 use Neos\Flow\Persistence\PersistenceManagerInterface;
 use Neos\Flow\Property\PropertyMapper;
@@ -35,6 +35,7 @@ use Neos\Flow\Utility\Environment;
 use Neos\Media\Domain\Repository\AssetRepository;
 use Neos\Neos\Domain\Model\Site;
 use Neos\Neos\Domain\Repository\SiteRepository;
+use Neos\Neos\Domain\Service\NodeTypeNameFactory;
 
 class CrCommandController extends CommandController
 {
@@ -49,8 +50,6 @@ class CrCommandController extends CommandController
         private readonly ContentRepositoryRegistry $contentRepositoryRegistry,
         private readonly SiteRepository $siteRepository,
         private readonly ProjectionReplayServiceFactory $projectionReplayServiceFactory,
-        #[Flow\InjectConfiguration(path: "rootNodeMapping")]
-        protected readonly array $rootNodeTypeMappingByContentRepository,
     ) {
         parent::__construct();
     }
@@ -59,7 +58,7 @@ class CrCommandController extends CommandController
      * Migrate from the Legacy CR
      *
      * @param bool $verbose If set, all notices will be rendered
-     * @param string|null $config JSON encoded configuration, for example '{"dbal": {"dbname": "some-other-db"}, "resourcesPath": "/some/absolute/path"}'
+     * @param string|null $config JSON encoded configuration, for example '{"dbal": {"dbname": "some-other-db"}, "resourcesPath": "/some/absolute/path", "rootNodes": {"/sites": "Neos.Neos:Sites", "/other": "My.Package:SomeOtherRoot"}}'
      * @throws \Exception
      */
     public function migrateLegacyDataCommand(bool $verbose = false, string $config = null): void
@@ -71,6 +70,7 @@ class CrCommandController extends CommandController
                 throw new \InvalidArgumentException(sprintf('Failed to parse --config parameter: %s', $e->getMessage()), 1659526855, $e);
             }
             $resourcesPath = $parsedConfig['resourcesPath'] ?? self::defaultResourcesPath();
+            $rootNodes = isset($parsedConfig['rootNodes']) ? RootNodeTypeMapping::fromArray($parsedConfig['rootNodes']) : $this->getDefaultRootNodes();
             try {
                 $connection = isset($parsedConfig['dbal']) ? DriverManager::getConnection(array_merge($this->connection->getParams(), $parsedConfig['dbal']), new Configuration()) : $this->connection;
             } catch (DBALException $e) {
@@ -78,6 +78,7 @@ class CrCommandController extends CommandController
             }
         } else {
             $resourcesPath = $this->determineResourcesPath();
+            $rootNodes = $this->getDefaultRootNodes();
             if (!$this->output->askConfirmation(sprintf('Do you want to migrate nodes from the current database "%s@%s" (y/n)? ', $this->connection->getParams()['dbname'] ?? '?', $this->connection->getParams()['host'] ?? '?'))) {
                 $connection = $this->adjustDataBaseConnection($this->connection);
             } else {
@@ -141,7 +142,7 @@ class CrCommandController extends CommandController
                 $this->resourceManager,
                 $this->propertyMapper,
                 $liveContentStreamId,
-                $this->rootNodeTypeMappingByContentRepository[$contentRepositoryId->value] ?? [],
+                $rootNodes,
             )
         );
         assert($legacyMigrationService instanceof LegacyMigrationService);
@@ -162,14 +163,14 @@ class CrCommandController extends CommandController
     {
         $connectionParams = $connection->getParams();
         $connectionParams['driver'] = $this->output->select(sprintf('Driver? [%s] ', $connectionParams['driver'] ?? ''), ['pdo_mysql', 'pdo_sqlite', 'pdo_pgsql'], $connectionParams['driver'] ?? null);
-        $connectionParams['host'] = $this->output->ask(sprintf('Host? [%s] ',$connectionParams['host'] ?? ''), $connectionParams['host'] ?? null);
-        $port = $this->output->ask(sprintf('Port? [%s] ',$connectionParams['port'] ?? ''), isset($connectionParams['port']) ? (string)$connectionParams['port'] : null);
+        $connectionParams['host'] = $this->output->ask(sprintf('Host? [%s] ', $connectionParams['host'] ?? ''), $connectionParams['host'] ?? null);
+        $port = $this->output->ask(sprintf('Port? [%s] ', $connectionParams['port'] ?? ''), isset($connectionParams['port']) ? (string)$connectionParams['port'] : null);
         $connectionParams['port'] = isset($port) ? (int)$port : null;
-        $connectionParams['dbname'] = $this->output->ask(sprintf('DB name? [%s] ',$connectionParams['dbname'] ?? ''), $connectionParams['dbname'] ?? null);
-        $connectionParams['user'] = $this->output->ask(sprintf('DB user? [%s] ',$connectionParams['user'] ?? ''), $connectionParams['user'] ?? null);
+        $connectionParams['dbname'] = $this->output->ask(sprintf('DB name? [%s] ', $connectionParams['dbname'] ?? ''), $connectionParams['dbname'] ?? null);
+        $connectionParams['user'] = $this->output->ask(sprintf('DB user? [%s] ', $connectionParams['user'] ?? ''), $connectionParams['user'] ?? null);
         /** @phpstan-ignore-next-line */
         $connectionParams['password'] = $this->output->askHiddenResponse(sprintf('DB password? [%s]', str_repeat('*', strlen($connectionParams['password'] ?? '')))) ?? $connectionParams['password'];
-        /** @phpstan-ignore-next-line  */
+        /** @phpstan-ignore-next-line */
         return DriverManager::getConnection($connectionParams, new Configuration());
     }
 
@@ -205,5 +206,10 @@ class CrCommandController extends CommandController
     private static function defaultResourcesPath(): string
     {
         return FLOW_PATH_DATA . 'Persistent/Resources';
+    }
+
+    private function getDefaultRootNodes(): RootNodeTypeMapping
+    {
+        return RootNodeTypeMapping::fromArray(['/sites' => NodeTypeNameFactory::NAME_SITES]);
     }
 }

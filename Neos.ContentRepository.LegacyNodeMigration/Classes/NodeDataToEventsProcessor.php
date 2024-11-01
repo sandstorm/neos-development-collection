@@ -89,7 +89,7 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
         private readonly InterDimensionalVariationGraph $interDimensionalVariationGraph,
         private readonly EventNormalizer $eventNormalizer,
         private readonly Filesystem $files,
-        private readonly array $rootNodeTypeMapping,
+        private readonly RootNodeTypeMapping $rootNodeTypeMapping,
         private readonly iterable $nodeDataRows,
     ) {
         $this->contentStreamId = ContentStreamId::create();
@@ -113,10 +113,10 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
 
         foreach ($this->nodeDataRows as $nodeDataRow) {
             if ($this->isRootNodePath($nodeDataRow['path'])) {
-                $rootNodeTypeName = $this->getRootNodeTypeByPath($nodeDataRow['path']);
+                $rootNodeTypeName = $this->rootNodeTypeMapping->getByPath($nodeDataRow['path']);
                 if ($rootNodeTypeName) {
                     $rootNodeAggregateId = NodeAggregateId::fromString($nodeDataRow['identifier']);
-                    $this->visitedNodes->addRootNode($rootNodeAggregateId, $rootNodeTypeName, NodePath::fromString('/sites'), $this->interDimensionalVariationGraph->getDimensionSpacePoints());
+                    $this->visitedNodes->addRootNode($rootNodeAggregateId, $rootNodeTypeName, NodePath::fromString($nodeDataRow['path']), $this->interDimensionalVariationGraph->getDimensionSpacePoints());
                     $this->exportEvent(new RootNodeAggregateWithNodeWasCreated($this->workspaceName, $this->contentStreamId, $rootNodeAggregateId, $rootNodeTypeName, $this->interDimensionalVariationGraph->getDimensionSpacePoints(), NodeAggregateClassification::CLASSIFICATION_ROOT));
                     continue;
                 }
@@ -544,11 +544,6 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
 
         return false;
 
-    }
-
-    private function getRootNodeTypeByPath(string $path): ?NodeTypeName
-    {
-        return isset($this->rootNodeTypeMapping[$path]) ? NodeTypeName::fromString($this->rootNodeTypeMapping[$path]) : null;
     }
 
     private function isRootNodePath(string $path): bool

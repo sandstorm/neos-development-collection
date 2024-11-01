@@ -58,7 +58,7 @@ class LegacyMigrationService implements ContentRepositoryServiceInterface
         private readonly PropertyConverter $propertyConverter,
         private readonly EventStoreInterface $eventStore,
         private readonly ContentStreamId $contentStreamId,
-        private readonly array $rootNodeTypeMapping
+        private readonly RootNodeTypeMapping $rootNodeTypeMapping
     ) {
     }
 

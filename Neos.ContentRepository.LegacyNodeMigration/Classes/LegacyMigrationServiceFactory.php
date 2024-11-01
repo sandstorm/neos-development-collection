@@ -41,7 +41,7 @@ class LegacyMigrationServiceFactory implements ContentRepositoryServiceFactoryIn
         private readonly ResourceManager $resourceManager,
         private readonly PropertyMapper $propertyMapper,
         private readonly ContentStreamId $contentStreamId,
-        private readonly array $rootNodeTypeMapping,
+        private readonly RootNodeTypeMapping $rootNodeTypeMapping,
     ) {
     }
 
