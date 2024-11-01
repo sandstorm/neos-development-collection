@@ -18,6 +18,7 @@ prototype(Neos.Workspace.Ui:Component.WorkspaceRoleAssignmentTableRow) < prototy
       arguments {
         workspaceName = ${props.workspaceName}
         subjectValue = ${props.roleAssignmentFormData.subjectValue}
+        subjectType = ${props.roleAssignmentFormData.subjectType}
       }
     }
   }
@@ -25,14 +26,14 @@ prototype(Neos.Workspace.Ui:Component.WorkspaceRoleAssignmentTableRow) < prototy
   renderer = afx`
     <tr>
       <td
-        title={roleAssignment.subjectTypeValue == 'USER' ? 'TODO Translate user' : 'TODO Translate users'}
+        title={props.roleAssignmentFormData.subjectTypeValue == 'USER' ? 'TODO Translate user' : 'TODO Translate users'}
       >
         <Neos.Workspace.Ui:Component.Icon
-          icon={roleAssignment.subjectTypeValue == 'USER' ? 'user' : 'users'}
+          icon={props.roleAssignmentFormData.subjectTypeValue == 'USER' ? 'user' : 'users'}
         />
       </td>
-      <td>{roleAssignment.subjectLabel}</td>
-      <td>{roleAssignment.roleLabel}</td>
+      <td>{props.roleAssignmentFormData.subjectLabel}</td>
+      <td>{props.roleAssignmentFormData.roleLabel}</td>
       <td>
         <Neos.Workspace.Ui:Component.Button
           isDanger

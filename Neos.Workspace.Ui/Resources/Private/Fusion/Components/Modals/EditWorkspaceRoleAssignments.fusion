@@ -15,6 +15,7 @@ prototype(Neos.Workspace.Ui:Component.Modal.EditWorkspaceRoleAssignments) < prot
     createWorkspaceRoleAssignmentPopoverId = 'create-workspace-role-assignment-popover'
     createWorkspaceRoleAssignmentUri = Neos.Fusion:ActionUri {
       action = 'createWorkspaceRoleAssignment'
+      format = 'htmx'
       arguments {
         workspaceName = ${props.workspaceName}
       }
@@ -22,7 +23,7 @@ prototype(Neos.Workspace.Ui:Component.Modal.EditWorkspaceRoleAssignments) < prot
   }
 
   renderer = afx`
-    <div popover id={private.popoverId}>
+    <div popover id={private.popoverId} hx-on--load="this.showPopover();" hx-indicator="#indicator">
       <header>
         <button
           type="button"

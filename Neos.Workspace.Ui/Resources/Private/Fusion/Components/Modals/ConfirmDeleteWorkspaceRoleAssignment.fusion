@@ -2,6 +2,7 @@ prototype(Neos.Workspace.Ui:Component.Modal.ConfirmDeleteWorkspaceRoleAssignment
   workspaceName=''
   workspaceTitle=''
   subjectValue=''
+  subjectType=''
 
   # TODO: maybe just use system confirm dialog...
 
@@ -15,12 +16,13 @@ prototype(Neos.Workspace.Ui:Component.Modal.ConfirmDeleteWorkspaceRoleAssignment
       arguments {
         workspaceName = ${props.workspaceName}
         subjectValue = ${props.subjectValue}
+        subjectType = ${props.subjectType}
       }
     }
   }
 
   renderer = afx`
-    <div popover id={private.popoverId}>
+    <div popover id={private.popoverId} hx-indicator="#indicator">
       <header>
         <button
           type="button"
@@ -47,7 +49,6 @@ prototype(Neos.Workspace.Ui:Component.Modal.ConfirmDeleteWorkspaceRoleAssignment
           attributes.hx-target={'#popover-container'}
           attributes.hx-swap='innerHTML'
           attributes.hx-get={private.deleteWorkspaceRoleAssignmentUri}
-          attributes.hx-on--after-request={'console.log(document.getElementById("' + private.editWorkspaceRoleAssignmentsPopoverId + '"));document.getElementById("' + private.editWorkspaceRoleAssignmentsPopoverId + '").showPopover();'}
         />
       </section>
     </div>

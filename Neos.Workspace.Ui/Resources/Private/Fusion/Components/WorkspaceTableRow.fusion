@@ -61,12 +61,14 @@ prototype(Neos.Workspace.Ui:Component.WorkspaceTableRow) < prototype(Neos.Fusion
     }
     editWorkspaceUri = Neos.Fusion:ActionUri {
       action = 'edit'
+      format = 'htmx'
       arguments {
         workspaceName = ${props.workspaceListItem.name}
       }
     }
     editWorkspaceRoleAssignmentsUri = Neos.Fusion:ActionUri {
       action = 'editWorkspaceRoleAssignments'
+      format = 'htmx'
       arguments {
         workspaceName = ${props.workspaceListItem.name}
       }

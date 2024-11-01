@@ -16,18 +16,16 @@ namespace Neos\Workspace\Ui\ViewModel;
 
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\Flow\Annotations as Flow;
-use Neos\Neos\Domain\Model\WorkspaceDescription;
-use Neos\Neos\Domain\Model\WorkspaceRoleAssignment;
-use Neos\Neos\Domain\Model\WorkspaceRoleSubject;
 use Neos\Neos\Domain\Model\WorkspaceTitle;
 
 #[Flow\Proxy(false)]
 final readonly class ConfirmDeleteWorkspaceRoleAssignmentFormData
 {
     public function __construct(
-        public WorkspaceName        $workspaceName,
-        public WorkspaceTitle       $workspaceTitle,
-        public string               $subjectValue,
+        public WorkspaceName  $workspaceName,
+        public WorkspaceTitle $workspaceTitle,
+        public string         $subjectValue,
+        public string         $subjectType,
     )
     {
     }

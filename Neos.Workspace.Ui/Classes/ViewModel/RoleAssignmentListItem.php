@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace Neos\Workspace\Ui\ViewModel;
 
 use Neos\Flow\Annotations as Flow;
+use Neos\Neos\Domain\Model\WorkspaceRoleSubjectType;
 
 /**
  * Derived from Neos\Neos\Domain\Model\WorkspaceRoleAssignment
@@ -31,6 +32,7 @@ final readonly class RoleAssignmentListItem
         public string $subjectLabel,
         public string $subjectTypeValue,
         public string $roleLabel,
+        public string $subjectType,
     )
     {
     }

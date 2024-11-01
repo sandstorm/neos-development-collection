@@ -57,6 +57,7 @@ use Neos\Neos\Domain\Model\WorkspaceClassification;
 use Neos\Neos\Domain\Model\WorkspaceDescription;
 use Neos\Neos\Domain\Model\WorkspaceRole;
 use Neos\Neos\Domain\Model\WorkspaceRoleAssignment;
+use Neos\Neos\Domain\Model\WorkspaceRoleSubject;
 use Neos\Neos\Domain\Model\WorkspaceRoleSubjectType;
 use Neos\Neos\Domain\Model\WorkspaceTitle;
 use Neos\Neos\Domain\NodeLabel\NodeLabelGeneratorInterface;
@@ -496,6 +497,7 @@ class WorkspaceController extends AbstractModuleController
                 subjectLabel: $subjectLabel,
                 subjectTypeValue: $workspaceRoleAssignment->subjectType->value,
                 roleLabel: $roleLabel,
+                subjectType: $workspaceRoleAssignment->subjectType->value,
             );
         }
 
@@ -555,9 +557,8 @@ class WorkspaceController extends AbstractModuleController
         // TODO: Add a new role assignment
     }
 
-    public function confirmDeleteWorkspaceRoleAssignmentAction(string $workspaceName, string $subjectValue): void
+    public function confirmDeleteWorkspaceRoleAssignmentAction(WorkspaceName $workspaceName, string $subjectValue, string $subjectType): void
     {
-        $workspaceName = WorkspaceName::fromString($workspaceName);
         $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
         $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspaceName);
 
@@ -565,13 +566,32 @@ class WorkspaceController extends AbstractModuleController
             workspaceName: $workspaceName,
             workspaceTitle: $workspaceMetadata->title,
             subjectValue: $subjectValue,
+            subjectType: $subjectType,
         );
 
         $this->view->assign('confirmDeleteWorkspaceRoleAssignmentFormData', $confirmDeleteWorkspaceRoleAssignmentFormData);
     }
 
-    public function deleteWorkspaceRoleAssignmentAction(WorkspaceName $workspaceName, string $subjectValue): void
+    public function deleteWorkspaceRoleAssignmentAction(WorkspaceName $workspaceName, string $subjectValue, string $subjectType): void
     {
+        $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
+        try {
+            $this->workspaceService->unassignWorkspaceRole(
+                $contentRepositoryId,
+                $workspaceName,
+                WorkspaceRoleSubjectType::from($subjectType),
+                WorkspaceRoleSubject::fromString($subjectValue),
+            );
+        } catch (\Exception $e) {
+            // TODO: error handling
+            $this->addFlashMessage(
+                $this->getModuleLabel('workspaces.roleAssignmentCouldNotBeDeleted'),
+                '',
+                Message::SEVERITY_ERROR
+            );
+            $this->throwStatus(500, 'Role assignment could not be deleted');
+        }
+
         $this->redirect('editWorkspaceRoleAssignments', null, null, ['workspaceName' => $workspaceName->value]);
     }
 
