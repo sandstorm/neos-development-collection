@@ -37,6 +37,9 @@ interface ContentGraphReadModelInterface extends ProjectionStateInterface
 
     public function findWorkspaces(): Workspaces;
 
+    /**
+     * @internal only used for constraint checks and in testcases
+     */
     public function findContentStreamById(ContentStreamId $contentStreamId): ?ContentStream;
 
     /**
