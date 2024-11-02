@@ -27,7 +27,7 @@ final class ProjectionCatchupProcessorFactory implements ContentRepositoryServic
     {
         return new ProjectionCatchupProcessor(
             new ProjectionService(
-                $serviceFactoryDependencies->projections,
+                $serviceFactoryDependencies->projectionsAndCatchUpHooks->projections,
                 $serviceFactoryDependencies->contentRepository,
                 $serviceFactoryDependencies->eventStore,
             )
