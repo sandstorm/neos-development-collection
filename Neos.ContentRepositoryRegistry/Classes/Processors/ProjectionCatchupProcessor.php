@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepositoryRegistry\Processors;
 
-use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
 use Neos\ContentRepository\Core\Projection\CatchUpOptions;
 use Neos\ContentRepository\Export\ProcessingContext;
 use Neos\ContentRepository\Export\ProcessorInterface;
@@ -14,9 +13,8 @@ use Neos\ContentRepositoryRegistry\Service\ProjectionService;
  *
  * @internal this is currently only used by the {@see SiteImportService} {@see SitePruningService}
  */
-final class ProjectionCatchupProcessor implements ProcessorInterface, ContentRepositoryServiceInterface
+final class ProjectionCatchupProcessor implements ProcessorInterface
 {
-
     public function __construct(
         private readonly ProjectionService $projectionservice,
     ) {
