@@ -40,12 +40,10 @@ use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceDoesNotExist;
 use Neos\ContentRepository\Core\SharedModel\User\UserIdProviderInterface;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStream;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreams;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
 use Neos\EventStore\EventStoreInterface;
-use Neos\EventStore\Exception\ConcurrencyException;
 use Neos\EventStore\Model\EventEnvelope;
 use Neos\EventStore\Model\EventStream\VirtualStreamName;
 use Psr\Clock\ClockInterface;
@@ -255,11 +253,6 @@ final class ContentRepository
     public function findContentStreamById(ContentStreamId $contentStreamId): ?ContentStream
     {
         return $this->contentGraphReadModel->findContentStreamById($contentStreamId);
-    }
-
-    public function findContentStreams(): ContentStreams
-    {
-        return $this->contentGraphReadModel->findContentStreams();
     }
 
     public function getNodeTypeManager(): NodeTypeManager

@@ -18,7 +18,6 @@ use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceDoesNotExist;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStream;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreams;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
@@ -39,8 +38,6 @@ interface ContentGraphReadModelInterface extends ProjectionStateInterface
     public function findWorkspaces(): Workspaces;
 
     public function findContentStreamById(ContentStreamId $contentStreamId): ?ContentStream;
-
-    public function findContentStreams(): ContentStreams;
 
     /**
      * Provides the total number of projected nodes regardless of workspace or content stream.
