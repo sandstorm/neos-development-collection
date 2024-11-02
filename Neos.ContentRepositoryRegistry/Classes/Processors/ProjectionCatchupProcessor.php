@@ -9,9 +9,7 @@ use Neos\ContentRepository\Export\ProcessorInterface;
 use Neos\ContentRepositoryRegistry\Service\ProjectionService;
 
 /**
- * Content Repository service to perform Projection replays
- *
- * @internal this is currently only used by the {@see SiteImportService} {@see SitePruningService}
+ * @internal
  */
 final class ProjectionCatchupProcessor implements ProcessorInterface
 {

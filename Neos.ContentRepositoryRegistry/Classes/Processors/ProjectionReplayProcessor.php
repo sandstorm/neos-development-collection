@@ -7,12 +7,9 @@ use Neos\ContentRepository\Core\Projection\CatchUpOptions;
 use Neos\ContentRepository\Export\ProcessingContext;
 use Neos\ContentRepository\Export\ProcessorInterface;
 use Neos\ContentRepositoryRegistry\Service\ProjectionService;
-use Neos\Neos\Domain\Service\SitePruningService;
 
 /**
- * Content Repository service to perform Projection replays
- *
- * @internal this is currently only used by the {@see SitePruningService}
+ * @internal
  */
 final class ProjectionReplayProcessor implements ProcessorInterface
 {
