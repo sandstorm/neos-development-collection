@@ -18,17 +18,17 @@ use Neos\ContentRepository\Core\CommandHandler\CommandBus;
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
 use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
-use Neos\ContentRepository\Core\EventStore\DecoratedEvent;
-use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\EventStore\EventPersister;
-use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
+use Neos\ContentRepository\Core\EventStore\InitiatingEventMetadata;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryFactory;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\CatchUp;
 use Neos\ContentRepository\Core\Projection\CatchUpOptions;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionInterface;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionsAndCatchUpHooks;
 use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
@@ -45,7 +45,7 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
 use Neos\EventStore\EventStoreInterface;
-use Neos\EventStore\Model\Event\EventMetadata;
+use Neos\EventStore\Exception\ConcurrencyException;
 use Neos\EventStore\Model\EventEnvelope;
 use Neos\EventStore\Model\EventStream\VirtualStreamName;
 use Psr\Clock\ClockInterface;
@@ -68,9 +68,6 @@ final class ContentRepository
      */
     private array $projectionStateCache;
 
-    private CommandHandlingDependencies $commandHandlingDependencies;
-
-
     /**
      * @internal use the {@see ContentRepositoryFactory::getOrBuild()} to instantiate
      */
@@ -86,8 +83,8 @@ final class ContentRepository
         private readonly ContentDimensionSourceInterface $contentDimensionSource,
         private readonly UserIdProviderInterface $userIdProvider,
         private readonly ClockInterface $clock,
+        private readonly ContentGraphReadModelInterface $contentGraphReadModel
     ) {
-        $this->commandHandlingDependencies = new CommandHandlingDependencies($this);
     }
 
     /**
@@ -99,38 +96,18 @@ final class ContentRepository
     {
         // the commands only calculate which events they want to have published, but do not do the
         // publishing themselves
-        $eventsToPublish = $this->commandBus->handle($command, $this->commandHandlingDependencies);
+        $eventsToPublishOrGenerator = $this->commandBus->handle($command);
 
-        // TODO meaningful exception message
-        $initiatingUserId = $this->userIdProvider->getUserId();
-        $initiatingTimestamp = $this->clock->now()->format(\DateTimeInterface::ATOM);
-
-        // Add "initiatingUserId" and "initiatingTimestamp" metadata to all events.
-        //                        This is done in order to keep information about the _original_ metadata when an
-        //                        event is re-applied during publishing/rebasing
-        // "initiatingUserId": The identifier of the user that originally triggered this event. This will never
-        //                     be overridden if it is set once.
-        // "initiatingTimestamp": The timestamp of the original event. The "recordedAt" timestamp will always be
-        //                        re-created and reflects the time an event was actually persisted in a stream,
-        // the "initiatingTimestamp" will be kept and is never overridden again.
-        // TODO: cleanup
-        $eventsToPublish = new EventsToPublish(
-            $eventsToPublish->streamName,
-            Events::fromArray(
-                $eventsToPublish->events->map(function (EventInterface|DecoratedEvent $event) use (
-                    $initiatingUserId,
-                    $initiatingTimestamp
-                ) {
-                    $metadata = $event instanceof DecoratedEvent ? $event->eventMetadata?->value ?? [] : [];
-                    $metadata['initiatingUserId'] ??= $initiatingUserId;
-                    $metadata['initiatingTimestamp'] ??= $initiatingTimestamp;
-                    return DecoratedEvent::create($event, metadata: EventMetadata::fromArray($metadata));
-                })
-            ),
-            $eventsToPublish->expectedVersion,
-        );
-
-        $this->eventPersister->publishEvents($this, $eventsToPublish);
+        if ($eventsToPublishOrGenerator instanceof EventsToPublish) {
+            $eventsToPublish = $this->enrichEventsToPublishWithMetadata($eventsToPublishOrGenerator);
+            $this->eventPersister->publishEvents($this, $eventsToPublish);
+        } else {
+            foreach ($eventsToPublishOrGenerator as $eventsToPublish) {
+                assert($eventsToPublish instanceof EventsToPublish); // just for the ide
+                $eventsToPublish = $this->enrichEventsToPublishWithMetadata($eventsToPublish);
+                $this->eventPersister->publishEvents($this, $eventsToPublish);
+            }
+        }
     }
 
 
@@ -141,18 +118,24 @@ final class ContentRepository
      */
     public function projectionState(string $projectionStateClassName): ProjectionStateInterface
     {
+        if (!isset($this->projectionStateCache)) {
+            foreach ($this->projectionsAndCatchUpHooks->projections as $projection) {
+                if ($projection instanceof ContentGraphProjectionInterface) {
+                    continue;
+                }
+                $projectionState = $projection->getState();
+                $this->projectionStateCache[$projectionState::class] = $projectionState;
+            }
+        }
         if (isset($this->projectionStateCache[$projectionStateClassName])) {
             /** @var T $projectionState */
             $projectionState = $this->projectionStateCache[$projectionStateClassName];
             return $projectionState;
         }
-        foreach ($this->projectionsAndCatchUpHooks->projections as $projection) {
-            $projectionState = $projection->getState();
-            if ($projectionState instanceof $projectionStateClassName) {
-                $this->projectionStateCache[$projectionStateClassName] = $projectionState;
-                return $projectionState;
-            }
+        if (in_array(ContentGraphReadModelInterface::class, class_implements($projectionStateClassName), true)) {
+            throw new \InvalidArgumentException(sprintf('Accessing the internal content repository projection state via %s(%s) is not allowed. Please use the API on the content repository instead.', __FUNCTION__, $projectionStateClassName), 1729338679);
         }
+
         throw new \InvalidArgumentException(sprintf('A projection state of type "%s" is not registered in this content repository instance.', $projectionStateClassName), 1662033650);
     }
 
@@ -218,7 +201,7 @@ final class ContentRepository
 
     public function status(): ContentRepositoryStatus
     {
-        $projectionStatuses = ProjectionStatuses::create();
+        $projectionStatuses = ProjectionStatuses::createEmpty();
         foreach ($this->projectionsAndCatchUpHooks->projections as $projectionClassName => $projection) {
             $projectionStatuses = $projectionStatuses->with($projectionClassName, $projection->status());
         }
@@ -249,7 +232,7 @@ final class ContentRepository
      */
     public function getContentGraph(WorkspaceName $workspaceName): ContentGraphInterface
     {
-        return $this->getContentRepositoryReadModel()->getContentGraphByWorkspaceName($workspaceName);
+        return $this->contentGraphReadModel->getContentGraph($workspaceName);
     }
 
     /**
@@ -257,7 +240,7 @@ final class ContentRepository
      */
     public function findWorkspaceByName(WorkspaceName $workspaceName): ?Workspace
     {
-        return $this->getContentRepositoryReadModel()->findWorkspaceByName($workspaceName);
+        return $this->contentGraphReadModel->findWorkspaceByName($workspaceName);
     }
 
     /**
@@ -266,17 +249,17 @@ final class ContentRepository
      */
     public function findWorkspaces(): Workspaces
     {
-        return $this->getContentRepositoryReadModel()->findWorkspaces();
+        return $this->contentGraphReadModel->findWorkspaces();
     }
 
     public function findContentStreamById(ContentStreamId $contentStreamId): ?ContentStream
     {
-        return $this->getContentRepositoryReadModel()->findContentStreamById($contentStreamId);
+        return $this->contentGraphReadModel->findContentStreamById($contentStreamId);
     }
 
     public function findContentStreams(): ContentStreams
     {
-        return $this->getContentRepositoryReadModel()->findContentStreams();
+        return $this->contentGraphReadModel->findContentStreams();
     }
 
     public function getNodeTypeManager(): NodeTypeManager
@@ -294,8 +277,19 @@ final class ContentRepository
         return $this->contentDimensionSource;
     }
 
-    private function getContentRepositoryReadModel(): ContentRepositoryReadModel
+    private function enrichEventsToPublishWithMetadata(EventsToPublish $eventsToPublish): EventsToPublish
     {
-        return $this->projectionState(ContentRepositoryReadModel::class);
+        $initiatingUserId = $this->userIdProvider->getUserId();
+        $initiatingTimestamp = $this->clock->now();
+
+        return new EventsToPublish(
+            $eventsToPublish->streamName,
+            InitiatingEventMetadata::enrichEventsWithInitiatingMetadata(
+                $eventsToPublish->events,
+                $initiatingUserId,
+                $initiatingTimestamp
+            ),
+            $eventsToPublish->expectedVersion,
+        );
     }
 }

@@ -21,7 +21,7 @@ final class ProjectionServiceFactory implements ContentRepositoryServiceFactoryI
     public function build(ContentRepositoryServiceFactoryDependencies $serviceFactoryDependencies): ContentRepositoryServiceInterface
     {
         return new ProjectionService(
-            $serviceFactoryDependencies->projections,
+            $serviceFactoryDependencies->projectionsAndCatchUpHooks->projections,
             $serviceFactoryDependencies->contentRepository,
             $serviceFactoryDependencies->eventStore,
         );

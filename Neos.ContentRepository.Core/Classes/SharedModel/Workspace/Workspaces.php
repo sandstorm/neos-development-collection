@@ -21,7 +21,6 @@ namespace Neos\ContentRepository\Core\SharedModel\Workspace;
  *
  * @api
  */
-
 final class Workspaces implements \IteratorAggregate, \Countable
 {
     /**
@@ -97,9 +96,6 @@ final class Workspaces implements \IteratorAggregate, \Countable
         );
     }
 
-    /**
-     * @return \Traversable<Workspace>
-     */
     public function getIterator(): \Traversable
     {
         yield from array_values($this->workspaces);

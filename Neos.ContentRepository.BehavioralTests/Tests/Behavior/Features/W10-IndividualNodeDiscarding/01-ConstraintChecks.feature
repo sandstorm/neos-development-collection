@@ -72,7 +72,9 @@ Feature: Workspace discarding - complex chained functionality
       | workspaceName      | "user-ws"                                                                                                                                                                                                                                    |
       | nodesToDiscard     | [{"workspaceName": "user-ws", "dimensionSpacePoint": {"language": "en"}, "nodeAggregateId": "sir-david-nodenborough"}, {"workspaceName": "user-ws", "dimensionSpacePoint": {"language": "en"}, "nodeAggregateId": "sir-david-nodenborough"}] |
       | newContentStreamId | "user-cs-id-rebased"                                                                                                                                                                                                                         |
-    Then the last command should have thrown an exception of type "NodeAggregateDoesCurrentlyNotCoverDimensionSpacePoint"
+    Then the last command should have thrown the WorkspaceRebaseFailed exception with:
+      | SequenceNumber | Command           | Exception                                             |
+      | 11             | CreateNodeVariant | NodeAggregateDoesCurrentlyNotCoverDimensionSpacePoint |
 
     When the command DiscardWorkspace is executed with payload:
       | Key                | Value                          |

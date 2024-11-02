@@ -19,7 +19,6 @@ use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
 use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Export\Asset\AssetExporter;
 use Neos\ContentRepository\Export\Asset\AssetLoaderInterface;
 use Neos\ContentRepository\Export\Asset\ResourceLoaderInterface;
@@ -45,8 +44,6 @@ class FeatureContext implements Context
     use CRBehavioralTestsSubjectProvider;
     use CrImportExportTrait;
 
-    protected $isolated = false;
-
     private array $nodeDataRows = [];
     private array $siteDataRows = [];
     private array $domainDataRows = [];
@@ -54,7 +51,6 @@ class FeatureContext implements Context
     private array $mockResources = [];
     /** @var array<SerializedAsset|SerializedImageVariant> */
     private array $mockAssets = [];
-    private ContentRepository $contentRepository;
 
     protected ContentRepositoryRegistry $contentRepositoryRegistry;
 
