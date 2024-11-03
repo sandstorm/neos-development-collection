@@ -39,7 +39,7 @@ Feature: Create a root node aggregate
     Then the last command should have thrown an exception of type "WorkspaceDoesNotExist"
 
   Scenario: Try to create a root node aggregate in a closed content stream:
-    When the command CloseContentStream is executed with payload:
+    When the event ContentStreamWasClosed was published with payload:
       | Key             | Value           |
       | contentStreamId | "cs-identifier" |
     And the command CreateRootNodeAggregateWithNode is executed with payload and exceptions are caught:

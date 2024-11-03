@@ -36,11 +36,11 @@ Feature: Workspace publication - complex chained functionality
       | nodeTypeName    | "Neos.ContentRepository:Root" |
 
     And the following CreateNodeAggregateWithNode commands are executed:
-      | nodeAggregateId        | nodeTypeName                            | parentNodeAggregateId  | tetheredDescendantNodeAggregateIds | properties                |
-      | sir-david-nodenborough | Neos.ContentRepository.Testing:Document | lady-eleonode-rootford | {"tethered": "nodewyn-tetherton"}  |                           |
-      | sir-nodebelig          | Neos.ContentRepository.Testing:Content  | lady-eleonode-rootford |                                  |                           |
-      | nobody-node          | Neos.ContentRepository.Testing:Content  | lady-eleonode-rootford |                                  |                           |
-      | nody-mc-nodeface       | Neos.ContentRepository.Testing:Content  | nodewyn-tetherton      |                                  |  |
+      | nodeAggregateId        | nodeTypeName                            | parentNodeAggregateId  | tetheredDescendantNodeAggregateIds | properties |
+      | sir-david-nodenborough | Neos.ContentRepository.Testing:Document | lady-eleonode-rootford | {"tethered": "nodewyn-tetherton"}  |            |
+      | sir-nodebelig          | Neos.ContentRepository.Testing:Content  | lady-eleonode-rootford |                                    |            |
+      | nobody-node            | Neos.ContentRepository.Testing:Content  | lady-eleonode-rootford |                                    |            |
+      | nody-mc-nodeface       | Neos.ContentRepository.Testing:Content  | nodewyn-tetherton      |                                    |            |
 
     And the command CreateWorkspace is executed with payload:
       | Key                | Value        |

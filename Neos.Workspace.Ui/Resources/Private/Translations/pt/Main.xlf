@@ -215,10 +215,6 @@
         <source>Workspace "{0}" cannot be deleted because the following workspaces are based on it: {1}</source>
         <target state="translated">A área de Trabalho "{0}" não pode ser apagada porque outras baseiam-se nela: {1}</target>
       </trans-unit>
-      <trans-unit id="workspaces.notDeletedErrorWhileFetchingUnpublishedNodes" xml:space="preserve">
-        <source>An error occurred while fetching unpublished nodes from workspace "{0}", nothing was deleted.</source>
-        <target state="translated">Ocorreu um erro ao angariar os Nós não publicados da área de trabalho "{0}", nada foi apagado.</target>
-      </trans-unit>
       <trans-unit id="workspaces.cantEditBecauseWorkspaceContainsChanges" xml:space="preserve">
         <source>Your personal workspace contains changes, please publish or discard them first.</source>
         <target state="translated">A sua área de trabalho pessoal contém alterações, por favor, publique ou descarte-as primeiro.</target>
