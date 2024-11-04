@@ -8,6 +8,7 @@ use Neos\ContentRepository\Core\ContentRepository;
 use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Exception\ConcurrencyException;
 use Neos\EventStore\Model\Events;
+use Neos\EventStore\Model\EventStore\CommitResult;
 
 /**
  * Internal service to persist {@see EventInterface} with the proper normalization, and triggering the
@@ -31,15 +32,22 @@ final readonly class EventPersister
         if ($eventsToPublish->events->isEmpty()) {
             return;
         }
+        $this->publishWithoutCatchup($eventsToPublish);
+        $contentRepository->catchUpProjections();
+    }
+
+    /**
+     * @throws ConcurrencyException in case the expectedVersion does not match
+     */
+    public function publishWithoutCatchup(EventsToPublish $eventsToPublish): CommitResult
+    {
         $normalizedEvents = Events::fromArray(
             $eventsToPublish->events->map($this->eventNormalizer->normalize(...))
         );
-        $this->eventStore->commit(
+        return $this->eventStore->commit(
             $eventsToPublish->streamName,
             $normalizedEvents,
             $eventsToPublish->expectedVersion
         );
-
-        $contentRepository->catchUpProjections();
     }
 }

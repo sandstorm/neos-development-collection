@@ -94,19 +94,35 @@ final class ContentRepository
      */
     public function handle(CommandInterface $command): void
     {
-        // the commands only calculate which events they want to have published, but do not do the
-        // publishing themselves
-        $eventsToPublishOrGenerator = $this->commandBus->handle($command);
+        $toPublish = $this->commandBus->handle($command);
 
-        if ($eventsToPublishOrGenerator instanceof EventsToPublish) {
-            $eventsToPublish = $this->enrichEventsToPublishWithMetadata($eventsToPublishOrGenerator);
-            $this->eventPersister->publishEvents($this, $eventsToPublish);
-        } else {
-            foreach ($eventsToPublishOrGenerator as $eventsToPublish) {
-                assert($eventsToPublish instanceof EventsToPublish); // just for the ide
-                $eventsToPublish = $this->enrichEventsToPublishWithMetadata($eventsToPublish);
-                $this->eventPersister->publishEvents($this, $eventsToPublish);
+        if ($toPublish instanceof EventsToPublish) {
+            // simple case
+            $eventsToPublish = $this->enrichEventsToPublishWithMetadata($toPublish);
+            if ($eventsToPublish->events->isEmpty()) {
+                return;
             }
+            $this->eventPersister->publishWithoutCatchup($eventsToPublish);
+            $this->catchupProjections();
+            return;
+        }
+
+        // control-flow aware command handling via generator
+        try {
+            $yieldedEventsToPublish = $toPublish->current();
+            while ($yieldedEventsToPublish !== null) {
+                if ($yieldedEventsToPublish->events->isEmpty()) {
+                    $yieldedEventsToPublish = $toPublish->send(null);
+                    continue;
+                }
+                $eventsToPublish = $this->enrichEventsToPublishWithMetadata($yieldedEventsToPublish);
+                $commitResult = $this->eventPersister->publishWithoutCatchup($eventsToPublish);
+                $yieldedEventsToPublish = $toPublish->send($commitResult);
+            }
+        } finally {
+            // We always NEED to catchup even if there was an unexpected ConcurrencyException to make sure previous commits are handled.
+            // Technically it would be acceptable for the catchup to fail here (due to hook errors) because all the events are already persisted.
+            $this->catchupProjections();
         }
     }
 

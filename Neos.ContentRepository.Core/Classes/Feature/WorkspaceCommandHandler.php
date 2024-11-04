@@ -20,14 +20,14 @@ use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\CommandHandler\CommandSimulatorFactory;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\EventStore\DecoratedEvent;
-use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Feature\Common\PublishableToWorkspaceInterface;
 use Neos\ContentRepository\Core\Feature\ContentStreamClosing\Event\ContentStreamWasClosed;
 use Neos\ContentRepository\Core\Feature\ContentStreamClosing\Event\ContentStreamWasReopened;
-use Neos\ContentRepository\Core\Feature\ContentStreamForking\Event\ContentStreamWasForked;
+use Neos\ContentRepository\Core\Feature\ContentStreamCreation\Event\ContentStreamWasCreated;
+use Neos\ContentRepository\Core\Feature\ContentStreamRemoval\Event\ContentStreamWasRemoved;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Command\CreateRootWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Command\CreateWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Event\RootWorkspaceWasCreated;
@@ -55,6 +55,7 @@ use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Event\WorkspaceWasRebase
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\WorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamAlreadyExists;
 use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamDoesNotExistYet;
+use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamIsClosed;
 use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceDoesNotExist;
 use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceHasNoBaseWorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
@@ -62,13 +63,13 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceStatus;
 use Neos\EventStore\EventStoreInterface;
-use Neos\EventStore\Model\Event\EventType;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Neos\EventStore\Model\Event\Version;
 use Neos\EventStore\Model\EventStream\EventStreamInterface;
 use Neos\EventStore\Model\EventStream\ExpectedVersion;
 
 /**
+ * @phpstan-import-type YieldedEventsToPublish from CommandHandlerInterface
  * @internal from userland, you'll use ContentRepository::handle to dispatch commands
  */
 final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
@@ -87,6 +88,9 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         return method_exists($this, 'handle' . (new \ReflectionClass($command))->getShortName());
     }
 
+    /**
+     * @return YieldedEventsToPublish
+     */
     public function handle(CommandInterface $command, CommandHandlingDependencies $commandHandlingDependencies): \Generator
     {
         /** @phpstan-ignore-next-line */
@@ -115,7 +119,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
     ): \Generator {
         $this->requireWorkspaceToNotExist($command->workspaceName, $commandHandlingDependencies);
         $baseWorkspace = $commandHandlingDependencies->findWorkspaceByName($command->baseWorkspaceName);
-
         if ($baseWorkspace === null) {
             throw new BaseWorkspaceDoesNotExist(sprintf(
                 'The workspace %s (base workspace of %s) does not exist',
@@ -123,12 +126,15 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                 $command->workspaceName->value
             ), 1513890708);
         }
+        $sourceContentStreamVersion = $commandHandlingDependencies->getContentStreamVersion($baseWorkspace->currentContentStreamId);
+        $this->requireContentStreamToNotBeClosed($baseWorkspace->currentContentStreamId, $commandHandlingDependencies);
+        $this->requireContentStreamToNotExistYet($command->newContentStreamId, $commandHandlingDependencies);
 
         // When the workspace is created, we first have to fork the content stream
         yield $this->forkContentStream(
             $command->newContentStreamId,
             $baseWorkspace->currentContentStreamId,
-            $commandHandlingDependencies
+            $sourceContentStreamVersion
         );
 
         yield new EventsToPublish(
@@ -154,11 +160,16 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         CommandHandlingDependencies $commandHandlingDependencies,
     ): \Generator {
         $this->requireWorkspaceToNotExist($command->workspaceName, $commandHandlingDependencies);
+        $this->requireContentStreamToNotExistYet($command->newContentStreamId, $commandHandlingDependencies);
 
-        $newContentStreamId = $command->newContentStreamId;
-        yield $this->createContentStream(
-            $newContentStreamId,
-            $commandHandlingDependencies
+        yield new EventsToPublish(
+            ContentStreamEventStreamName::fromContentStreamId($command->newContentStreamId)->getEventStreamName(),
+            Events::with(
+                new ContentStreamWasCreated(
+                    $command->newContentStreamId,
+                )
+            ),
+            ExpectedVersion::NO_STREAM()
         );
 
         yield new EventsToPublish(
@@ -166,7 +177,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             Events::with(
                 new RootWorkspaceWasCreated(
                     $command->workspaceName,
-                    $newContentStreamId
+                    $command->newContentStreamId
                 )
             ),
             ExpectedVersion::ANY()
@@ -183,16 +194,12 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             // no-op
             return;
         }
-
-        if (!$commandHandlingDependencies->contentStreamExists($workspace->currentContentStreamId)) {
-            throw new \RuntimeException('Cannot publish nodes on a workspace with a stateless content stream', 1729711258);
-        }
-        $this->requireContentStreamToNotBeClosed($baseWorkspace->currentContentStreamId, $commandHandlingDependencies);
-        $baseContentStreamVersion = $commandHandlingDependencies->getContentStreamVersion($baseWorkspace->currentContentStreamId);
+        $workspaceContentStreamVersion = $this->requireOpenContentStreamVersion($workspace, $commandHandlingDependencies);
+        $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamVersion($baseWorkspace, $commandHandlingDependencies);
 
         yield $this->closeContentStream(
             $workspace->currentContentStreamId,
-            $commandHandlingDependencies
+            $workspaceContentStreamVersion
         );
 
         $rebaseableCommands = RebaseableCommands::extractFromEventStream(
@@ -206,15 +213,14 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             yield from $this->publishWorkspace(
                 $workspace,
                 $baseWorkspace,
+                $baseWorkspaceContentStreamVersion,
                 $command->newContentStreamId,
-                $baseContentStreamVersion,
-                $rebaseableCommands,
-                $commandHandlingDependencies
+                $rebaseableCommands
             );
-        } catch (WorkspaceRebaseFailed $workspaceRebaseFailed) {
-            yield $this->reopenContentStream(
-                $workspace->currentContentStreamId,
-                $commandHandlingDependencies
+        } catch (WorkspaceRebaseFailed $workspaceRebaseFailed) { // and rethrow in yield
+            // todo catch all
+            yield $this->reopenContentStreamWithoutConstraints(
+                $workspace->currentContentStreamId
             );
             throw $workspaceRebaseFailed;
         }
@@ -223,10 +229,9 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
     private function publishWorkspace(
         Workspace $workspace,
         Workspace $baseWorkspace,
+        Version $baseWorkspaceContentStreamVersion,
         ContentStreamId $newContentStreamId,
-        Version $baseContentStreamVersion,
-        RebaseableCommands $rebaseableCommands,
-        CommandHandlingDependencies $commandHandlingDependencies,
+        RebaseableCommands $rebaseableCommands
     ): \Generator {
         $commandSimulator = $this->commandSimulatorFactory->createSimulatorForWorkspace($baseWorkspace->workspaceName);
 
@@ -242,7 +247,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getCommandsThatFailed());
         }
 
-        yield new EventsToPublish(
+        $commitResult = yield new EventsToPublish(
             ContentStreamEventStreamName::fromContentStreamId($baseWorkspace->currentContentStreamId)
                 ->getEventStreamName(),
             $this->getCopiedEventsOfEventStream(
@@ -250,13 +255,14 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                 $baseWorkspace->currentContentStreamId,
                 $commandSimulator->eventStream(),
             ),
-            ExpectedVersion::fromVersion($baseContentStreamVersion)
+            // todo can fail; must reopen!!!!!
+            ExpectedVersion::fromVersion($baseWorkspaceContentStreamVersion)
         );
 
         yield $this->forkContentStream(
             $newContentStreamId,
             $baseWorkspace->currentContentStreamId,
-            $commandHandlingDependencies
+            $commitResult->highestCommittedVersion
         );
 
         yield new EventsToPublish(
@@ -272,19 +278,19 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             ExpectedVersion::ANY()
         );
 
-        yield $this->removeContentStream($workspace->currentContentStreamId, $commandHandlingDependencies);
+        yield $this->removeContentStreamWithoutConstraints($workspace->currentContentStreamId);
     }
 
     private function rebaseWorkspaceWithoutChanges(
         Workspace $workspace,
         Workspace $baseWorkspace,
-        ContentStreamId $newContentStreamId,
-        CommandHandlingDependencies $commandHandlingDependencies,
+        Version $baseWorkspaceContentStreamVersion,
+        ContentStreamId $newContentStreamId
     ): \Generator {
         yield $this->forkContentStream(
             $newContentStreamId,
             $baseWorkspace->currentContentStreamId,
-            $commandHandlingDependencies
+            $baseWorkspaceContentStreamVersion
         );
 
         yield new EventsToPublish(
@@ -299,11 +305,11 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             ExpectedVersion::ANY()
         );
 
-        yield $this->removeContentStream($workspace->currentContentStreamId, $commandHandlingDependencies);
+        yield $this->removeContentStreamWithoutConstraints($workspace->currentContentStreamId);
     }
 
     /**
-     * Copy all events from the passed event stream which implement the {@see PublishableToOtherContentStreamsInterface}
+     * Copy all events from the passed event stream which implement the {@see PublishableToWorkspaceInterface}
      */
     private function getCopiedEventsOfEventStream(
         WorkspaceName $targetWorkspaceName,
@@ -339,6 +345,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         if (!$commandHandlingDependencies->contentStreamExists($workspace->currentContentStreamId)) {
             throw new \RuntimeException('Cannot rebase a workspace with a stateless content stream', 1711718314);
         }
+        $workspaceContentStreamVersion = $this->requireOpenContentStreamVersion($workspace, $commandHandlingDependencies);
+        $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamVersion($baseWorkspace, $commandHandlingDependencies);
 
         if (
             $workspace->status === WorkspaceStatus::UP_TO_DATE
@@ -350,7 +358,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         yield $this->closeContentStream(
             $workspace->currentContentStreamId,
-            $commandHandlingDependencies
+            $workspaceContentStreamVersion
         );
 
         if (!$workspace->hasPublishableChanges()) {
@@ -358,8 +366,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             yield from $this->rebaseWorkspaceWithoutChanges(
                 $workspace,
                 $baseWorkspace,
-                $command->rebasedContentStreamId,
-                $commandHandlingDependencies
+                $baseWorkspaceContentStreamVersion,
+                $command->rebasedContentStreamId
             );
             return;
         }
@@ -385,9 +393,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             $command->rebaseErrorHandlingStrategy === RebaseErrorHandlingStrategy::STRATEGY_FAIL
             && $commandSimulator->hasCommandsThatFailed()
         ) {
-            yield $this->reopenContentStream(
-                $workspace->currentContentStreamId,
-                $commandHandlingDependencies
+            yield $this->reopenContentStreamWithoutConstraints(
+                $workspace->currentContentStreamId
             );
 
             // throw an exception that contains all the information about what exactly failed
@@ -398,6 +405,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         yield from $this->forkNewContentStreamAndApplyEvents(
             $command->rebasedContentStreamId,
             $baseWorkspace->currentContentStreamId,
+            $baseWorkspaceContentStreamVersion,
             new EventsToPublish(
                 WorkspaceEventStreamName::fromWorkspaceName($command->workspaceName)->getEventStreamName(),
                 Events::with(
@@ -413,21 +421,16 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                 $command->workspaceName,
                 $command->rebasedContentStreamId,
                 $commandSimulator->eventStream(),
-            ),
-            $commandHandlingDependencies
+            )
         );
 
-        yield $this->removeContentStream($workspace->currentContentStreamId, $commandHandlingDependencies);
+        yield $this->removeContentStreamWithoutConstraints($workspace->currentContentStreamId);
     }
 
     /**
      * This method is like a combined Rebase and Publish!
      *
-     * @throws BaseWorkspaceDoesNotExist
-     * @throws ContentStreamAlreadyExists
-     * @throws ContentStreamDoesNotExistYet
-     * @throws WorkspaceDoesNotExist
-     * @throws \Exception
+     * @return YieldedEventsToPublish
      */
     private function handlePublishIndividualNodesFromWorkspace(
         PublishIndividualNodesFromWorkspace $command,
@@ -444,12 +447,12 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         if (!$commandHandlingDependencies->contentStreamExists($workspace->currentContentStreamId)) {
             throw new \RuntimeException('Cannot publish nodes on a workspace with a stateless content stream', 1710410114);
         }
-        $this->requireContentStreamToNotBeClosed($baseWorkspace->currentContentStreamId, $commandHandlingDependencies);
-        $baseContentStreamVersion = $commandHandlingDependencies->getContentStreamVersion($baseWorkspace->currentContentStreamId);
+        $workspaceContentStreamVersion = $this->requireOpenContentStreamVersion($workspace, $commandHandlingDependencies);
+        $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamVersion($baseWorkspace, $commandHandlingDependencies);
 
         yield $this->closeContentStream(
             $workspace->currentContentStreamId,
-            $commandHandlingDependencies
+            $workspaceContentStreamVersion
         );
 
         $rebaseableCommands = RebaseableCommands::extractFromEventStream(
@@ -463,9 +466,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         if ($matchingCommands->isEmpty()) {
             // almost a noop (e.g. random node ids were specified) ;)
-            yield $this->reopenContentStream(
-                $workspace->currentContentStreamId,
-                $commandHandlingDependencies
+            yield $this->reopenContentStreamWithoutConstraints(
+                $workspace->currentContentStreamId
             );
             return;
         }
@@ -476,16 +478,14 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                 yield from $this->publishWorkspace(
                     $workspace,
                     $baseWorkspace,
+                    $baseWorkspaceContentStreamVersion,
                     $command->contentStreamIdForRemainingPart,
-                    $baseContentStreamVersion,
-                    $matchingCommands,
-                    $commandHandlingDependencies
+                    $matchingCommands
                 );
                 return;
             } catch (WorkspaceRebaseFailed $workspaceRebaseFailed) {
-                yield $this->reopenContentStream(
-                    $workspace->currentContentStreamId,
-                    $commandHandlingDependencies
+                yield $this->reopenContentStreamWithoutConstraints(
+                    $workspace->currentContentStreamId
                 );
                 throw $workspaceRebaseFailed;
             }
@@ -507,16 +507,15 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         );
 
         if ($commandSimulator->hasCommandsThatFailed()) {
-            yield $this->reopenContentStream(
-                $workspace->currentContentStreamId,
-                $commandHandlingDependencies
+            yield $this->reopenContentStreamWithoutConstraints(
+                $workspace->currentContentStreamId
             );
 
             throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getCommandsThatFailed());
         }
 
         // this could be a no-op for the rare case when a command returns empty events e.g. the node was already tagged with this subtree tag, meaning we actually just rebase
-        yield new EventsToPublish(
+        $commitResult = yield new EventsToPublish(
             ContentStreamEventStreamName::fromContentStreamId($baseWorkspace->currentContentStreamId)
                 ->getEventStreamName(),
             $this->getCopiedEventsOfEventStream(
@@ -524,12 +523,14 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                 $baseWorkspace->currentContentStreamId,
                 $commandSimulator->eventStream()->withMaximumSequenceNumber($highestSequenceNumberForMatching),
             ),
-            ExpectedVersion::fromVersion($baseContentStreamVersion)
+            ExpectedVersion::fromVersion($baseWorkspaceContentStreamVersion)
         );
 
         yield from $this->forkNewContentStreamAndApplyEvents(
             $command->contentStreamIdForRemainingPart,
             $baseWorkspace->currentContentStreamId,
+            // todo otherwise Features/W8-IndividualNodePublication/03-MoreBasicFeatures.feature:185 fails, see comment about emptiness above ... or should we manually count?
+            $commitResult?->highestCommittedVersion ?: $baseWorkspaceContentStreamVersion,
             new EventsToPublish(
                 WorkspaceEventStreamName::fromWorkspaceName($command->workspaceName)->getEventStreamName(),
                 Events::fromArray([
@@ -547,11 +548,10 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                 $command->workspaceName,
                 $command->contentStreamIdForRemainingPart,
                 $commandSimulator->eventStream()->withMinimumSequenceNumber($highestSequenceNumberForMatching->next())
-            ),
-            $commandHandlingDependencies
+            )
         );
 
-        yield $this->removeContentStream($workspace->currentContentStreamId, $commandHandlingDependencies);
+        yield $this->removeContentStreamWithoutConstraints($workspace->currentContentStreamId);
     }
 
     /**
@@ -576,13 +576,12 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             return;
         }
 
-        if (!$commandHandlingDependencies->contentStreamExists($workspace->currentContentStreamId)) {
-            throw new \RuntimeException('Cannot discard nodes on a workspace with a stateless content stream', 1710408112);
-        }
+        $workspaceContentStreamVersion = $this->requireOpenContentStreamVersion($workspace, $commandHandlingDependencies);
+        $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamVersion($baseWorkspace, $commandHandlingDependencies);
 
         yield $this->closeContentStream(
             $workspace->currentContentStreamId,
-            $commandHandlingDependencies
+            $workspaceContentStreamVersion
         );
 
         // filter commands, only keeping the ones NOT MATCHING the nodes from the command (i.e. the modifications we want to keep)
@@ -596,9 +595,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         if ($commandsToDiscard->isEmpty()) {
             // if we have nothing to discard, we can just keep all. (e.g. random node ids were specified) It's almost a noop ;)
-            yield $this->reopenContentStream(
-                $workspace->currentContentStreamId,
-                $commandHandlingDependencies
+            yield $this->reopenContentStreamWithoutConstraints(
+                $workspace->currentContentStreamId
             );
             return;
         }
@@ -607,9 +605,10 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             // quick path everything was discarded
             yield from $this->discardWorkspace(
                 $workspace,
+                $workspaceContentStreamVersion,
                 $baseWorkspace,
-                $command->newContentStreamId,
-                $commandHandlingDependencies
+                $baseWorkspaceContentStreamVersion,
+                $command->newContentStreamId
             );
             return;
         }
@@ -625,9 +624,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         );
 
         if ($commandSimulator->hasCommandsThatFailed()) {
-            yield $this->reopenContentStream(
-                $workspace->currentContentStreamId,
-                $commandHandlingDependencies
+            yield $this->reopenContentStreamWithoutConstraints(
+                $workspace->currentContentStreamId
             );
             throw WorkspaceRebaseFailed::duringDiscard($commandSimulator->getCommandsThatFailed());
         }
@@ -635,6 +633,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         yield from $this->forkNewContentStreamAndApplyEvents(
             $command->newContentStreamId,
             $baseWorkspace->currentContentStreamId,
+            $baseWorkspaceContentStreamVersion,
             new EventsToPublish(
                 WorkspaceEventStreamName::fromWorkspaceName($command->workspaceName)->getEventStreamName(),
                 Events::with(
@@ -651,11 +650,10 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                 $command->workspaceName,
                 $command->newContentStreamId,
                 $commandSimulator->eventStream(),
-            ),
-            $commandHandlingDependencies
+            )
         );
 
-        yield $this->removeContentStream($workspace->currentContentStreamId, $commandHandlingDependencies);
+        yield $this->removeContentStreamWithoutConstraints($workspace->currentContentStreamId);
     }
 
     /**
@@ -674,31 +672,32 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             return;
         }
 
+        $workspaceContentStreamVersion = $this->requireOpenContentStreamVersion($workspace, $commandHandlingDependencies);
+        $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamVersion($baseWorkspace, $commandHandlingDependencies);
+
         yield from $this->discardWorkspace(
             $workspace,
+            $workspaceContentStreamVersion,
             $baseWorkspace,
-            $command->newContentStreamId,
-            $commandHandlingDependencies
+            $baseWorkspaceContentStreamVersion,
+            $command->newContentStreamId
         );
     }
 
     /**
-     * @param Workspace $workspace
-     * @param Workspace $baseWorkspace
-     * @param ContentStreamId $newContentStream
-     * @param CommandHandlingDependencies $commandHandlingDependencies
      * @phpstan-pure this method is pure, to persist the events they must be handled outside
      */
     private function discardWorkspace(
         Workspace $workspace,
+        Version $workspaceContentStreamVersion,
         Workspace $baseWorkspace,
-        ContentStreamId $newContentStream,
-        CommandHandlingDependencies $commandHandlingDependencies
+        Version $baseWorkspaceContentStreamVersion,
+        ContentStreamId $newContentStream
     ): \Generator {
         yield $this->forkContentStream(
             $newContentStream,
             $baseWorkspace->currentContentStreamId,
-            $commandHandlingDependencies
+            $baseWorkspaceContentStreamVersion
         );
 
         yield new EventsToPublish(
@@ -713,7 +712,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             ExpectedVersion::ANY()
         );
 
-        yield $this->removeContentStream($workspace->currentContentStreamId, $commandHandlingDependencies);
+        yield $this->removeContentStreamWithoutConstraints($workspace->currentContentStreamId);
     }
 
     /**
@@ -731,6 +730,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         $workspace = $this->requireWorkspace($command->workspaceName, $commandHandlingDependencies);
         $currentBaseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
 
+        $this->requireContentStreamToNotBeClosed($workspace->currentContentStreamId, $commandHandlingDependencies);
+
         if ($currentBaseWorkspace->workspaceName->equals($command->baseWorkspaceName)) {
             // no-op
             return;
@@ -738,13 +739,14 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         $this->requireEmptyWorkspace($workspace);
         $newBaseWorkspace = $this->requireWorkspace($command->baseWorkspaceName, $commandHandlingDependencies);
-
         $this->requireNonCircularRelationBetweenWorkspaces($workspace, $newBaseWorkspace, $commandHandlingDependencies);
+
+        $newBaseWorkspaceContentStreamVersion = $this->requireOpenContentStreamVersion($newBaseWorkspace, $commandHandlingDependencies);
 
         yield $this->forkContentStream(
             $command->newContentStreamId,
             $newBaseWorkspace->currentContentStreamId,
-            $commandHandlingDependencies
+            $newBaseWorkspaceContentStreamVersion
         );
 
         yield new EventsToPublish(
@@ -768,10 +770,16 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         CommandHandlingDependencies $commandHandlingDependencies,
     ): \Generator {
         $workspace = $this->requireWorkspace($command->workspaceName, $commandHandlingDependencies);
+        $contentStreamVersion = $commandHandlingDependencies->getContentStreamVersion($workspace->currentContentStreamId);
 
-        yield $this->removeContentStream(
-            $workspace->currentContentStreamId,
-            $commandHandlingDependencies
+        yield new EventsToPublish(
+            ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)->getEventStreamName(),
+            Events::with(
+                new ContentStreamWasRemoved(
+                    $workspace->currentContentStreamId,
+                ),
+            ),
+            ExpectedVersion::fromVersion($contentStreamVersion)
         );
 
         yield new EventsToPublish(
@@ -788,14 +796,14 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
     private function forkNewContentStreamAndApplyEvents(
         ContentStreamId $newContentStreamId,
         ContentStreamId $sourceContentStreamId,
+        Version $sourceContentStreamVersion,
         EventsToPublish $pointWorkspaceToNewContentStream,
         Events $eventsToApplyOnNewContentStream,
-        CommandHandlingDependencies $commandHandlingDependencies,
     ): \Generator {
         yield $this->forkContentStream(
             $newContentStreamId,
             $sourceContentStreamId,
-            $commandHandlingDependencies
+            $sourceContentStreamVersion
         )->withAppendedEvents(Events::with(
             new ContentStreamWasClosed(
                 $newContentStreamId
@@ -828,6 +836,17 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             'The workspace %s already exists',
             $workspaceName->value
         ), 1715341085);
+    }
+
+    private function requireOpenContentStreamVersion(Workspace $workspace, CommandHandlingDependencies $commandHandlingDependencies): Version
+    {
+        if ($commandHandlingDependencies->isContentStreamClosed($workspace->currentContentStreamId)) {
+            throw new ContentStreamIsClosed(
+                'Content stream "' . $workspace->currentContentStreamId . '" is closed.',
+                1730730516
+            );
+        }
+        return $commandHandlingDependencies->getContentStreamVersion($workspace->currentContentStreamId);
     }
 
     /**
