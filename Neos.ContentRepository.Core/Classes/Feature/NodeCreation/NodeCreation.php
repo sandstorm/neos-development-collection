@@ -14,14 +14,15 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Feature\NodeCreation;
 
-use Neos\ContentRepository\Core\CommandHandlingDependencies;
+use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\DimensionSpace;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Feature\Common\InterdimensionalSiblings;
-use Neos\ContentRepository\Core\Feature\Common\NodeAggregateEventPublisher;
+use Neos\ContentRepository\Core\Feature\RebaseableCommand;
 use Neos\ContentRepository\Core\Feature\Common\NodeCreationInternals;
+use Neos\ContentRepository\Core\Feature\Common\NodeReferencingInternals;
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNode;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNodeAndSerializedProperties;
@@ -29,6 +30,7 @@ use Neos\ContentRepository\Core\Feature\NodeCreation\Dto\NodeAggregateIdsByNodeP
 use Neos\ContentRepository\Core\Feature\NodeCreation\Event\NodeAggregateWithNodeWasCreated;
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\SerializedPropertyValues;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\SerializedNodeReferences;
 use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\Infrastructure\Property\PropertyType;
 use Neos\ContentRepository\Core\NodeType\NodeType;
@@ -50,6 +52,7 @@ use Neos\ContentRepository\Core\SharedModel\Node\PropertyName;
 trait NodeCreation
 {
     use NodeCreationInternals;
+    use NodeReferencingInternals;
 
     abstract protected function getInterDimensionalVariationGraph(): DimensionSpace\InterDimensionalVariationGraph;
 
@@ -86,7 +89,8 @@ trait NodeCreation
             $this->getPropertyConverter()->serializePropertyValues(
                 $command->initialPropertyValues->withoutUnsets(),
                 $this->requireNodeType($command->nodeTypeName)
-            )
+            ),
+            $this->mapNodeReferencesToSerializedNodeReferences($command->references, $command->nodeTypeName)
         );
         if (!$command->tetheredDescendantNodeAggregateIds->isEmpty()) {
             $lowLevelCommand = $lowLevelCommand->withTetheredDescendantNodeAggregateIds($command->tetheredDescendantNodeAggregateIds);
@@ -221,7 +225,7 @@ trait NodeCreation
         return new EventsToPublish(
             ContentStreamEventStreamName::fromContentStreamId($contentGraph->getContentStreamId())
                 ->getEventStreamName(),
-            NodeAggregateEventPublisher::enrichWithCommand($command, Events::fromArray($events)),
+            RebaseableCommand::enrichWithCommand($command, Events::fromArray($events)),
             $expectedVersion
         );
     }
@@ -250,6 +254,7 @@ trait NodeCreation
             $command->nodeName,
             $initialPropertyValues,
             NodeAggregateClassification::CLASSIFICATION_REGULAR,
+            $command->references ?? SerializedNodeReferences::createEmpty()
         );
     }
 
@@ -290,6 +295,7 @@ trait NodeCreation
                 $tetheredNodeTypeDefinition->name,
                 $initialPropertyValues,
                 NodeAggregateClassification::CLASSIFICATION_TETHERED,
+                SerializedNodeReferences::createEmpty(),
             );
 
             array_push($events, ...iterator_to_array($this->handleTetheredChildNodes(

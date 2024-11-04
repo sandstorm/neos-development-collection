@@ -26,6 +26,7 @@ final readonly class ProjectionsAndCatchUpHooks
 
     /**
      * @param ProjectionInterface<ProjectionStateInterface> $projection
+     * @return ?CatchUpHookFactoryInterface<ProjectionStateInterface>
      */
     public function getCatchUpHookFactoryForProjection(ProjectionInterface $projection): ?CatchUpHookFactoryInterface
     {

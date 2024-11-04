@@ -2,34 +2,61 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\Core\Feature\Common;
+namespace Neos\ContentRepository\Core\Feature;
 
-/*
- * This file is part of the Neos.ContentRepository package.
- *
- * (c) Contributors of the Neos Project - www.neos.io
- *
- * This package is Open Source Software. For the full copyright and license
- * information, please view the LICENSE file which was distributed with this
- * source code.
- */
-
-use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\EventStore\DecoratedEvent;
 use Neos\ContentRepository\Core\EventStore\Events;
+use Neos\ContentRepository\Core\EventStore\InitiatingEventMetadata;
+use Neos\ContentRepository\Core\Feature\Common\PublishableToWorkspaceInterface;
+use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
 use Neos\EventStore\Model\Event\EventId;
 use Neos\EventStore\Model\Event\EventMetadata;
+use Neos\EventStore\Model\Event\SequenceNumber;
 
 /**
- * Stores the command in the event's metadata for events on a content stream. This is an important prerequisite
- * for the rebase functionality-
- *
  * @internal
  */
-final class NodeAggregateEventPublisher
+final readonly class RebaseableCommand
 {
+    public function __construct(
+        public RebasableToOtherWorkspaceInterface $originalCommand,
+        public EventMetadata $initiatingMetaData,
+        public SequenceNumber $originalSequenceNumber
+    ) {
+    }
+
+    public static function extractFromEventMetaData(EventMetadata $eventMetadata, SequenceNumber $sequenceNumber): self
+    {
+        $commandToRebaseClass = $eventMetadata->value['commandClass'] ?? null;
+        $commandToRebasePayload = $eventMetadata->value['commandPayload'] ?? null;
+
+        if ($commandToRebaseClass === null || $commandToRebasePayload === null) {
+            throw new \RuntimeException('Command cannot be extracted from metadata, missing commandClass or commandPayload.', 1729847804);
+        }
+
+        if (!in_array(RebasableToOtherWorkspaceInterface::class, class_implements($commandToRebaseClass) ?: [], true)) {
+            throw new \RuntimeException(sprintf(
+                'Command "%s" can\'t be rebased because it does not implement %s',
+                $commandToRebaseClass,
+                RebasableToOtherWorkspaceInterface::class
+            ), 1547815341);
+        }
+        /** @var class-string<RebasableToOtherWorkspaceInterface> $commandToRebaseClass */
+        /** @var RebasableToOtherWorkspaceInterface $commandInstance */
+        $commandInstance = $commandToRebaseClass::fromArray($commandToRebasePayload);
+        return new self(
+            $commandInstance,
+            InitiatingEventMetadata::extractInitiatingMetadata($eventMetadata),
+            $sequenceNumber
+        );
+    }
+
+    /**
+     * Stores the command in the event's metadata for events on a content stream. This is an important prerequisite
+     * for the rebase functionality-
+     */
     public static function enrichWithCommand(
-        CommandInterface $command,
+        RebasableToOtherWorkspaceInterface $command,
         Events $events,
     ): Events {
         $processedEvents = [];
@@ -54,7 +81,7 @@ final class NodeAggregateEventPublisher
             if ($i === 0) {
                 if (!$command instanceof \JsonSerializable) {
                     throw new \RuntimeException(sprintf(
-                        'Command %s must be JSON Serializable to be used with NodeAggregateEventPublisher.',
+                        'Command %s must be JSON Serializable to be rebase able.',
                         get_class($command)
                     ));
                 }
@@ -80,7 +107,6 @@ final class NodeAggregateEventPublisher
             $processedEvents[] = $event;
             $i++;
         }
-
 
         return Events::fromArray($processedEvents);
     }

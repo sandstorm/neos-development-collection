@@ -16,6 +16,7 @@ namespace Neos\Workspace\Ui\Controller;
 
 use Doctrine\DBAL\Exception as DBALException;
 use Neos\ContentRepository\Core\ContentRepository;
+use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Exception\WorkspaceAlreadyExists;
 use Neos\ContentRepository\Core\Feature\WorkspaceModification\Command\DeleteWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\DiscardIndividualNodesFromWorkspace;
@@ -26,11 +27,11 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindAncestorNodes
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Nodes;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
-use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAddress;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
+use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Diff\Diff;
@@ -134,6 +135,9 @@ class WorkspaceController extends AbstractModuleController
         $items = [];
         $allWorkspaces = $contentRepository->findWorkspaces();
         foreach ($allWorkspaces as $workspace) {
+            if ($workspace->isRootWorkspace()) {
+                continue;
+            }
             $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspace->workspaceName);
             $permissions = $this->workspaceService->getWorkspacePermissionsForUser($contentRepositoryId, $workspace->workspaceName, $currentUser);
             if (!$permissions->read) {
@@ -144,7 +148,7 @@ class WorkspaceController extends AbstractModuleController
                 classification: $workspaceMetadata->classification->name,
                 title: $workspaceMetadata->title->value,
                 description: $workspaceMetadata->description->value,
-                baseWorkspaceName: $workspace->baseWorkspaceName?->value,
+                baseWorkspaceName: $workspace->baseWorkspaceName->value,
                 pendingChanges: $this->computePendingChanges($workspace, $contentRepository),
                 hasDependantWorkspaces: !$allWorkspaces->getDependantWorkspaces($workspace->workspaceName)->isEmpty(),
                 permissions: $permissions,
@@ -369,26 +373,8 @@ class WorkspaceController extends AbstractModuleController
             $this->redirect('index');
         }
 
-        $nodesCount = 0;
-
-        try {
-            $nodesCount = $contentRepository->projectionState(ChangeFinder::class)
-                ->countByContentStreamId(
-                    $workspace->currentContentStreamId
-                );
-        } catch (\Exception $exception) {
-            $message = $this->translator->translateById(
-                'workspaces.notDeletedErrorWhileFetchingUnpublishedNodes',
-                [$workspaceMetadata->title->value],
-                null,
-                null,
-                'Main',
-                'Neos.Workspace.Ui'
-            ) ?: 'workspaces.notDeletedErrorWhileFetchingUnpublishedNodes';
-            $this->addFlashMessage($message, '', Message::SEVERITY_WARNING);
-            $this->redirect('index');
-        }
-        if ($nodesCount > 0) {
+        if ($workspace->hasPublishableChanges()) {
+            $nodesCount = $this->workspacePublishingService->countPendingWorkspaceChanges($contentRepositoryId, $workspaceName);
             $message = $this->translator->translateById(
                 'workspaces.workspaceCannotBeDeletedBecauseOfUnpublishedNodes',
                 [$workspaceMetadata->title->value, $nodesCount],
@@ -684,20 +670,23 @@ class WorkspaceController extends AbstractModuleController
             ->findByContentStreamId(
                 $selectedWorkspace->currentContentStreamId
             );
+        $dimensionSpacePoints = iterator_to_array($contentRepository->getVariationGraph()->getDimensionSpacePoints());
+        /** @var DimensionSpacePoint $arbitraryDimensionSpacePoint */
+        $arbitraryDimensionSpacePoint = reset($dimensionSpacePoints);
+
+        $selectedWorkspaceContentGraph = $contentRepository->getContentGraph($selectedWorkspace->workspaceName);
+        // If we deleted a node, there is no way for us to anymore find the deleted node in the ContentStream
+        // where the node was deleted.
+        // Thus, to figure out the rootline for display, we check the *base workspace* Content Stream.
+        //
+        // This is safe because the UI basically shows what would be removed once the deletion is published.
+        $baseWorkspace = $this->getBaseWorkspaceWhenSureItExists($selectedWorkspace, $contentRepository);
+        $baseWorkspaceContentGraph = $contentRepository->getContentGraph($baseWorkspace->workspaceName);
 
         foreach ($changes as $change) {
-            $workspaceName = $selectedWorkspace->workspaceName;
-            if ($change->deleted) {
-                // If we deleted a node, there is no way for us to anymore find the deleted node in the ContentStream
-                // where the node was deleted.
-                // Thus, to figure out the rootline for display, we check the *base workspace* Content Stream.
-                //
-                // This is safe because the UI basically shows what would be removed once the deletion is published.
-                $baseWorkspace = $this->getBaseWorkspaceWhenSureItExists($selectedWorkspace, $contentRepository);
-                $workspaceName = $baseWorkspace->workspaceName;
-            }
-            $subgraph = $contentRepository->getContentGraph($workspaceName)->getSubgraph(
-                $change->originDimensionSpacePoint->toDimensionSpacePoint(),
+            $contentGraph = $change->deleted ? $baseWorkspaceContentGraph : $selectedWorkspaceContentGraph;
+            $subgraph = $contentGraph->getSubgraph(
+                $change->originDimensionSpacePoint?->toDimensionSpacePoint() ?: $arbitraryDimensionSpacePoint,
                 VisibilityConstraints::withoutRestrictions()
             );
 
@@ -765,7 +754,7 @@ class WorkspaceController extends AbstractModuleController
                     $nodeAddress = NodeAddress::create(
                         $contentRepository->id,
                         $selectedWorkspace->workspaceName,
-                        $change->originDimensionSpacePoint->toDimensionSpacePoint(),
+                        $change->originDimensionSpacePoint?->toDimensionSpacePoint() ?: $arbitraryDimensionSpacePoint,
                         $change->nodeAggregateId
                     );
 
@@ -882,8 +871,8 @@ class WorkspaceController extends AbstractModuleController
                         'diff' => $diffArray
                     ];
                 }
-            // The && in belows condition is on purpose as creating a thumbnail for comparison only works
-            // if actually BOTH are ImageInterface (or NULL).
+                // The && in belows condition is on purpose as creating a thumbnail for comparison only works
+                // if actually BOTH are ImageInterface (or NULL).
             } elseif (
                 ($originalPropertyValue instanceof ImageInterface || $originalPropertyValue === null)
                 && ($changedPropertyValue instanceof ImageInterface || $changedPropertyValue === null)
