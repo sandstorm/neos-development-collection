@@ -15,6 +15,7 @@ use Neos\ContentRepository\Core\Feature\NodeDuplication\Command\CopyNodesRecursi
 use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetSerializedNodeProperties;
 use Neos\ContentRepository\Core\Feature\NodeMove\Command\MoveNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Command\SetSerializedNodeReferences;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Event\NodeReferencesWereSet;
 use Neos\ContentRepository\Core\Feature\NodeRemoval\Command\RemoveNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeRenaming\Command\ChangeNodeAggregateName;
 use Neos\ContentRepository\Core\Feature\NodeTypeChange\Command\ChangeNodeAggregateType;
@@ -54,6 +55,14 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
         private readonly EventStoreInterface $eventStore,
         private readonly Connection $connection
     ) {
+    }
+
+    public function backup(\Closure $outputFn): void
+    {
+        $backupEventTableName = DoctrineEventStoreFactory::databaseTableName($this->contentRepositoryId)
+            . '_bkp_' . date('Y_m_d_H_i_s');
+        $this->copyEventTable($backupEventTableName);
+        $outputFn(sprintf('Backup. Copied events table to %s', $backupEventTableName));
     }
 
     /**
@@ -240,6 +249,107 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
         }
     }
 
+    public function migrateReferencesToMultiFormat(\Closure $outputFn): void
+    {
+        $this->eventsModified = [];
+        $warnings = 0;
+
+        $backupEventTableName = DoctrineEventStoreFactory::databaseTableName($this->contentRepositoryId)
+            . '_bkp_' . date('Y_m_d_H_i_s');
+        $outputFn(sprintf('Backup: copying events table to %s', $backupEventTableName));
+
+        $this->copyEventTable($backupEventTableName);
+
+        $streamName = VirtualStreamName::all();
+        $eventStream = $this->eventStore->load($streamName, EventStreamFilter::create(EventTypes::create(EventType::fromString('NodeReferencesWereSet'))));
+        foreach ($eventStream as $eventEnvelope) {
+            $outputRewriteNotice = fn(string $message) => $outputFn(sprintf('%s@%s %s', $eventEnvelope->sequenceNumber->value, $eventEnvelope->event->type->value, $message));
+            if ($eventEnvelope->event->type->value !== 'NodeReferencesWereSet') {
+                throw new \RuntimeException(sprintf('Unhandled event: %s', $eventEnvelope->event->type->value));
+            }
+
+            // migrate payload
+            $eventData = self::decodeEventPayload($eventEnvelope);
+            if (!isset($eventData['referenceName'])) {
+                // this event must have the new format already
+                continue;
+            }
+
+            $referenceNameString = $eventData['referenceName'];
+            // double array is not a mistake
+            $newReferencesPayload = [[
+                'referenceName' => $referenceNameString,
+                'references' => []
+            ]];
+
+            unset($eventData['referenceName']);
+
+            // technically the false case should never happen, but we update it anyway
+            if (is_array($eventData['references'])) {
+                foreach ($eventData['references'] as $reference) {
+                    $reference['target'] = $reference['targetNodeAggregateId'];
+                    unset($reference['targetNodeAggregateId']);
+                    if ($reference['properties'] === null) {
+                        unset($reference['properties']);
+                    }
+                    $newReferencesPayload[0]['references'][] = $reference;
+                }
+            }
+
+            $eventData['references'] = $newReferencesPayload;
+            $this->updateEventPayload($eventEnvelope->sequenceNumber, $eventData);
+            $outputRewriteNotice('Payload: references migrated');
+
+            // optionally also migrate metadata
+            $eventMetaData = $eventEnvelope->event->metadata?->value;
+            if (!isset($eventMetaData['commandClass'])) {
+                continue;
+            }
+
+            if ($eventMetaData['commandClass'] !== SetSerializedNodeReferences::class) {
+                $warnings++;
+                $outputFn(sprintf('WARNING: Cannot migrate event metadata of %s as commandClass %s was not expected.', $eventEnvelope->event->type->value, $eventMetaData['commandClass']));
+                continue;
+            }
+
+            $referenceNameString = $eventMetaData['commandPayload']['referenceName'];
+            $newReferencesPayload = [
+                [
+                    'referenceName' => $referenceNameString,
+                    'references' => []
+                ]
+            ];
+
+            unset($eventMetaData['commandPayload']['referenceName']);
+
+            // technically the false case should never happen, but we update it anyway
+            if (is_array($eventMetaData['commandPayload']['references'])) {
+                foreach ($eventMetaData['commandPayload']['references'] as $reference) {
+                    $reference['target'] = $reference['targetNodeAggregateId'];
+                    unset($reference['targetNodeAggregateId']);
+                    if ($reference['properties'] === null) {
+                        unset($reference['properties']);
+                    }
+                    $newReferencesPayload[0]['references'][] = $reference;
+                }
+            }
+
+            $eventMetaData['commandPayload']['references'] = $newReferencesPayload;
+            $outputRewriteNotice('Metadata: references migrated');
+            $this->updateEventMetaData($eventEnvelope->sequenceNumber, $eventMetaData);
+        }
+
+        if (!count($this->eventsModified)) {
+            $outputFn('Migration was not necessary.');
+            return;
+        }
+
+        $outputFn();
+        $outputFn(sprintf('Migration applied to %s events.', count($this->eventsModified)));
+        if ($warnings) {
+            $outputFn(sprintf('WARNING: Finished but %d warnings emitted.', $warnings));
+        }
+    }
 
     /**
      * Adds a dummy workspace name to the events meta-data, so it can be rebased

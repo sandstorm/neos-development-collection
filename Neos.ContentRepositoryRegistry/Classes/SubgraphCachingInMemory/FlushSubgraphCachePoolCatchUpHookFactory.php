@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepositoryRegistry\SubgraphCachingInMemory;
 
-use Neos\ContentRepository\Core\ContentRepository;
+use Neos\ContentRepository\Core\Projection\CatchUpHookFactoryDependencies;
 use Neos\ContentRepository\Core\Projection\CatchUpHookFactoryInterface;
 use Neos\ContentRepository\Core\Projection\CatchUpHookInterface;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
 
 /**
  * Factory for {@see FlushSubgraphCachePoolCatchUpHook}, auto-registered in Settings.yaml for GraphProjection
  *
+ * @implements CatchUpHookFactoryInterface<ContentGraphReadModelInterface>
  * @internal
  */
 class FlushSubgraphCachePoolCatchUpHookFactory implements CatchUpHookFactoryInterface
@@ -20,7 +22,8 @@ class FlushSubgraphCachePoolCatchUpHookFactory implements CatchUpHookFactoryInte
         private readonly SubgraphCachePool $subgraphCachePool
     ) {
     }
-    public function build(ContentRepository $contentRepository): CatchUpHookInterface
+
+    public function build(CatchUpHookFactoryDependencies $dependencies): CatchUpHookInterface
     {
         return new FlushSubgraphCachePoolCatchUpHook($this->subgraphCachePool);
     }

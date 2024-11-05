@@ -29,6 +29,7 @@ use Neos\ContentRepository\Core\Feature\Security\Dto\UserId;
 use Neos\ContentRepository\Core\Feature\Security\Exception\AccessDenied;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\CatchUp;
+use Neos\ContentRepository\Core\Projection\CatchUpHookFactoryDependencies;
 use Neos\ContentRepository\Core\Projection\CatchUpOptions;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionInterface;
@@ -155,7 +156,13 @@ final class ContentRepository
         $projection = $this->projectionsAndCatchUpHooks->projections->get($projectionClassName);
 
         $catchUpHookFactory = $this->projectionsAndCatchUpHooks->getCatchUpHookFactoryForProjection($projection);
-        $catchUpHook = $catchUpHookFactory?->build($this);
+        $catchUpHook = $catchUpHookFactory?->build(new CatchUpHookFactoryDependencies(
+            $this->id,
+            $projection->getState(),
+            $this->nodeTypeManager,
+            $this->contentDimensionSource,
+            $this->variationGraph
+        ));
 
         // TODO allow custom stream name per projection
         $streamName = VirtualStreamName::all();

@@ -21,6 +21,7 @@ use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Dto\NodeAggregateIdsByNodePaths;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Event\NodeAggregateWithNodeWasCreated;
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\SerializedPropertyValues;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\SerializedNodeReferences;
 use Neos\ContentRepository\Core\Feature\NodeModification\Event\NodePropertiesWereSet;
 use Neos\ContentRepository\Core\Feature\NodeTypeChange\Dto\NodeAggregateTypeChangeChildConstraintConflictResolutionStrategy;
 use Neos\ContentRepository\Core\Feature\NodeTypeChange\Event\NodeAggregateTypeWasChanged;
@@ -116,6 +117,7 @@ trait TetheredNodeInternals
                             $tetheredNodeTypeDefinition->name,
                             $defaultProperties,
                             NodeAggregateClassification::CLASSIFICATION_TETHERED,
+                            SerializedNodeReferences::createEmpty()
                         );
                         $creationOriginDimensionSpacePoint = $rootGeneralizationOrigin;
                     }
@@ -136,6 +138,7 @@ trait TetheredNodeInternals
                     $tetheredNodeTypeDefinition->name,
                     $defaultProperties,
                     NodeAggregateClassification::CLASSIFICATION_TETHERED,
+                    SerializedNodeReferences::createEmpty(),
                 )
             );
         }
@@ -231,6 +234,7 @@ trait TetheredNodeInternals
                     $tetheredNodeTypeDefinition->name,
                     $defaultValues,
                     NodeAggregateClassification::CLASSIFICATION_TETHERED,
+                    SerializedNodeReferences::createEmpty(),
                 );
 
             $creationOrigin ??= $originDimensionSpacePoint;

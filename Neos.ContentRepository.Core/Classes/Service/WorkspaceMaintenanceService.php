@@ -6,13 +6,11 @@ namespace Neos\ContentRepository\Core\Service;
 
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
-use Neos\ContentRepository\Core\Feature\WorkspaceEventStreamName;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Command\RebaseWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Dto\RebaseErrorHandlingStrategy;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceStatus;
-use Neos\EventStore\EventStoreInterface;
 
 /**
  * @api
@@ -20,8 +18,7 @@ use Neos\EventStore\EventStoreInterface;
 class WorkspaceMaintenanceService implements ContentRepositoryServiceInterface
 {
     public function __construct(
-        private readonly ContentRepository $contentRepository,
-        private readonly EventStoreInterface $eventStore,
+        private readonly ContentRepository $contentRepository
     ) {
     }
 
@@ -33,7 +30,7 @@ class WorkspaceMaintenanceService implements ContentRepositoryServiceInterface
         $outdatedWorkspaces = $this->contentRepository->findWorkspaces()->filter(
             fn (Workspace $workspace) => $workspace->status === WorkspaceStatus::OUTDATED
         );
-        /** @var Workspace $workspace */
+        // todo we need to loop through the workspaces from root level first
         foreach ($outdatedWorkspaces as $workspace) {
             if ($workspace->status !== WorkspaceStatus::OUTDATED) {
                 continue;
@@ -48,13 +45,5 @@ class WorkspaceMaintenanceService implements ContentRepositoryServiceInterface
         }
 
         return $outdatedWorkspaces;
-    }
-
-    public function pruneAll(): void
-    {
-        foreach ($this->contentRepository->findWorkspaces() as $workspace) {
-            $streamName = WorkspaceEventStreamName::fromWorkspaceName($workspace->workspaceName)->getEventStreamName();
-            $this->eventStore->deleteStream($streamName);
-        }
     }
 }
