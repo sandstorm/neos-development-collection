@@ -32,6 +32,7 @@ use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\ProjectionsAndCatchUpHooks;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
+use Neos\ContentRepositoryRegistry\Factory\AuthProvider\AuthProviderFactoryInterface;
 use Neos\EventStore\EventStoreInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Serializer\Serializer;
@@ -53,7 +54,7 @@ final class ContentRepositoryFactory
         ContentDimensionSourceInterface $contentDimensionSource,
         Serializer $propertySerializer,
         ProjectionsAndCatchUpHooksFactory $projectionsAndCatchUpHooksFactory,
-        private readonly AuthProviderInterface $authProvider,
+        private readonly AuthProviderFactoryInterface $authProviderFactory,
         private readonly ClockInterface $clock,
     ) {
         $contentDimensionZookeeper = new ContentDimensionZookeeper($contentDimensionSource);
@@ -70,7 +71,6 @@ final class ContentRepositoryFactory
             $contentDimensionZookeeper,
             $interDimensionalVariationGraph,
             new PropertyConverter($propertySerializer),
-            $this->authProvider,
         );
         $this->projectionsAndCatchUpHooks = $projectionsAndCatchUpHooksFactory->build($this->projectionFactoryDependencies);
     }
@@ -128,6 +128,7 @@ final class ContentRepositoryFactory
             )
         );
 
+        $authProvider = $this->authProviderFactory->build($this->contentRepositoryId, $contentGraphReadModel);
         return $this->contentRepository = new ContentRepository(
             $this->contentRepositoryId,
             $publicCommandBus,
@@ -138,7 +139,7 @@ final class ContentRepositoryFactory
             $this->projectionFactoryDependencies->nodeTypeManager,
             $this->projectionFactoryDependencies->interDimensionalVariationGraph,
             $this->projectionFactoryDependencies->contentDimensionSource,
-            $this->authProvider,
+            $authProvider,
             $this->clock,
             $contentGraphReadModel
         );

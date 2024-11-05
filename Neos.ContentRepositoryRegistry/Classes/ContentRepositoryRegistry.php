@@ -175,7 +175,7 @@ final class ContentRepositoryRegistry
                 $this->buildContentDimensionSource($contentRepositoryId, $contentRepositorySettings),
                 $this->buildPropertySerializer($contentRepositoryId, $contentRepositorySettings),
                 $this->buildProjectionsFactory($contentRepositoryId, $contentRepositorySettings),
-                $this->buildAuthProvider($contentRepositoryId, $contentRepositorySettings),
+                $this->buildAuthProviderFactory($contentRepositoryId, $contentRepositorySettings),
                 $clock
             );
         } catch (\Exception $exception) {
@@ -293,14 +293,14 @@ final class ContentRepositoryRegistry
     }
 
     /** @param array<string, mixed> $contentRepositorySettings */
-    private function buildAuthProvider(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): AuthProviderInterface
+    private function buildAuthProviderFactory(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): AuthProviderFactoryInterface
     {
         isset($contentRepositorySettings['authProvider']['factoryObjectName']) || throw InvalidConfigurationException::fromMessage('Content repository "%s" does not have authProvider.factoryObjectName configured.', $contentRepositoryId->value);
         $authProviderFactory = $this->objectManager->get($contentRepositorySettings['authProvider']['factoryObjectName']);
         if (!$authProviderFactory instanceof AuthProviderFactoryInterface) {
             throw InvalidConfigurationException::fromMessage('authProvider.factoryObjectName for content repository "%s" is not an instance of %s but %s.', $contentRepositoryId->value, AuthProviderFactoryInterface::class, get_debug_type($authProviderFactory));
         }
-        return $authProviderFactory->build($contentRepositoryId, $contentRepositorySettings['authProvider']['options'] ?? []);
+        return $authProviderFactory;
     }
 
     /** @param array<string, mixed> $contentRepositorySettings */

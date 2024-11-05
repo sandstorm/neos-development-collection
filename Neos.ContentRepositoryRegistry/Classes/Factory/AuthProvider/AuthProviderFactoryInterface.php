@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepositoryRegistry\Factory\AuthProvider;
 
 use Neos\ContentRepository\Core\Feature\Security\AuthProviderInterface;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 
 /**
@@ -12,6 +13,5 @@ use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryI
  */
 interface AuthProviderFactoryInterface
 {
-    /** @param array<string, mixed> $options */
-    public function build(ContentRepositoryId $contentRepositoryId, array $options): AuthProviderInterface;
+    public function build(ContentRepositoryId $contentRepositoryId, ContentGraphReadModelInterface $contentGraphReadModel): AuthProviderInterface;
 }
