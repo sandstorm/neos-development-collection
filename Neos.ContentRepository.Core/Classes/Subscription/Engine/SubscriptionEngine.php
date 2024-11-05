@@ -96,6 +96,9 @@ final class SubscriptionEngine
         }
 
         $this->lockSubscriptions($subscriptions);
+        foreach ($subscriptions as $subscription) {
+            $this->subscribers->get($subscription->id)->handler->onBeforeCatchUp($subscription->status);
+        }
 
         $startSequenceNumber = $this->lowestSubscriptionPosition($subscriptions)->next();
         $this->logger?->debug(
@@ -182,6 +185,9 @@ final class SubscriptionEngine
             ),
         );
         $this->releaseSubscriptions($subscriptions);
+        foreach ($subscriptions as $subscription) {
+            $this->subscribers->get($subscription->id)->handler->onAfterCatchUp();
+        }
 
         return;// new ProcessedResult($messageCounter, true, $errors);
     }
@@ -190,7 +196,7 @@ final class SubscriptionEngine
     {
         $subscriber = $this->subscribers->get($subscription->id);
         try {
-            $subscriber->handler->handle($domainEvent, $eventEnvelope, $subscription);
+            $subscriber->handler->handle($domainEvent, $eventEnvelope);
         } catch (\Throwable $e) {
             $this->logger?->error(
                 sprintf(

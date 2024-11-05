@@ -55,6 +55,9 @@ final class Projections implements \IteratorAggregate, \Countable
         return new self(...$projectionsByClassName);
     }
 
+    /**
+     * @return ProjectionInterface<ProjectionStateInterface>
+     */
     public function get(SubscriptionId $id): ProjectionInterface
     {
         if (!$this->has($id)) {

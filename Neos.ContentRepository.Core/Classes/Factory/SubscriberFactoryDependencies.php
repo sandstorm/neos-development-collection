@@ -12,30 +12,30 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\Core\Projection;
+namespace Neos\ContentRepository\Core\Factory;
 
 use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
+use Neos\ContentRepository\Core\DimensionSpace\ContentDimensionZookeeper;
 use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
+use Neos\ContentRepository\Core\EventStore\EventNormalizer;
+use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
+use Neos\EventStore\EventStoreInterface;
 
 /**
- * @template-covariant T of ProjectionStateInterface
- *
- * @api provides available dependencies for implementing a catch-up hook.
+ * @api because it is used inside the ProjectionsFactory
  */
-final readonly class CatchUpHookFactoryDependencies
+final readonly class SubscriberFactoryDependencies
 {
-    /**
-     * @param ContentRepositoryId $contentRepositoryId the content repository the catchup was registered in
-     * @param ProjectionStateInterface&T $projectionState the state of the projection the catchup was registered to (Its only safe to access this projections state)
-     */
     public function __construct(
         public ContentRepositoryId $contentRepositoryId,
-        public ProjectionStateInterface $projectionState,
+        public EventNormalizer $eventNormalizer,
         public NodeTypeManager $nodeTypeManager,
         public ContentDimensionSourceInterface $contentDimensionSource,
-        public InterDimensionalVariationGraph $variationGraph
+        public ContentDimensionZookeeper $contentDimensionZookeeper,
+        public InterDimensionalVariationGraph $interDimensionalVariationGraph,
+        public PropertyConverter $propertyConverter,
     ) {
     }
 }

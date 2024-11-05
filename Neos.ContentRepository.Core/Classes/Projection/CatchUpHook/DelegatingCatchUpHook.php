@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\Core\Projection;
+namespace Neos\ContentRepository\Core\Projection\CatchUpHook;
 
 use Neos\ContentRepository\Core\EventStore\EventInterface;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\EventStore\Model\EventEnvelope;
 
 /**
@@ -13,7 +14,7 @@ use Neos\EventStore\Model\EventEnvelope;
  *
  * @internal
  */
-class DelegatingCatchUpHook implements CatchUpHookInterface
+final class DelegatingCatchUpHook implements CatchUpHookInterface
 {
     /**
      * @var CatchUpHookInterface[]
@@ -26,10 +27,10 @@ class DelegatingCatchUpHook implements CatchUpHookInterface
         $this->catchUpHooks = $catchUpHooks;
     }
 
-    public function onBeforeCatchUp(): void
+    public function onBeforeCatchUp(SubscriptionStatus $subscriptionStatus): void
     {
         foreach ($this->catchUpHooks as $catchUpHook) {
-            $catchUpHook->onBeforeCatchUp();
+            $catchUpHook->onBeforeCatchUp($subscriptionStatus);
         }
     }
 
@@ -44,13 +45,6 @@ class DelegatingCatchUpHook implements CatchUpHookInterface
     {
         foreach ($this->catchUpHooks as $catchUpHook) {
             $catchUpHook->onAfterEvent($eventInstance, $eventEnvelope);
-        }
-    }
-
-    public function onBeforeBatchCompleted(): void
-    {
-        foreach ($this->catchUpHooks as $catchUpHook) {
-            $catchUpHook->onBeforeBatchCompleted();
         }
     }
 

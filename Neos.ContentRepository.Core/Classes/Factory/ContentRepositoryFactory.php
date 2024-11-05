@@ -29,6 +29,10 @@ use Neos\ContentRepository\Core\Feature\NodeDuplication\NodeDuplicationCommandHa
 use Neos\ContentRepository\Core\Feature\WorkspaceCommandHandler;
 use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
+use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookFactoryDependencies;
+use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookFactoryInterface;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionFactoryInterface;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionEventHandler;
 use Neos\ContentRepository\Core\Projection\ProjectionStates;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
@@ -38,6 +42,7 @@ use Neos\ContentRepository\Core\Subscription\EventStore\RunSubscriptionEventStor
 use Neos\ContentRepository\Core\Subscription\RetryStrategy\NoRetryStrategy;
 use Neos\ContentRepository\Core\Subscription\RunMode;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
+use Neos\ContentRepository\Core\Subscription\Subscriber\ProjectionEventHandlerInterface;
 use Neos\ContentRepository\Core\Subscription\Subscriber\Subscriber;
 use Neos\ContentRepository\Core\Subscription\Subscriber\Subscribers;
 use Neos\ContentRepository\Core\Subscription\SubscriptionGroup;
@@ -53,10 +58,13 @@ use Symfony\Component\Serializer\Serializer;
  */
 final class ContentRepositoryFactory
 {
-    private ProjectionFactoryDependencies $projectionFactoryDependencies;
+    private SubscriberFactoryDependencies $subscriberFactoryDependencies;
     private EventStoreInterface $eventStore;
-
     private SubscriptionEngine $subscriptionEngine;
+
+    private ProjectionStates $projectionStates;
+
+    private ContentGraphProjectionInterface $contentGraphProjection;
 
     public function __construct(
         private readonly ContentRepositoryId $contentRepositoryId,
@@ -67,6 +75,9 @@ final class ContentRepositoryFactory
         private readonly UserIdProviderInterface $userIdProvider,
         private readonly ClockInterface $clock,
         SubscriptionStoreInterface $subscriptionStore,
+        ContentGraphProjectionFactoryInterface $contentGraphProjectionFactory,
+        CatchUpHookFactoryInterface $contentGraphCatchUpHookFactory,
+        ContentRepositorySubscriberFactories $additionalSubscriberFactories,
     ) {
         $contentDimensionZookeeper = new ContentDimensionZookeeper($contentDimensionSource);
         $interDimensionalVariationGraph = new InterDimensionalVariationGraph(
@@ -74,7 +85,7 @@ final class ContentRepositoryFactory
             $contentDimensionZookeeper
         );
         $eventNormalizer = new EventNormalizer();
-        $this->projectionFactoryDependencies = new ProjectionFactoryDependencies(
+        $this->subscriberFactoryDependencies = new SubscriberFactoryDependencies(
             $contentRepositoryId,
             $eventNormalizer,
             $nodeTypeManager,
@@ -83,18 +94,26 @@ final class ContentRepositoryFactory
             $interDimensionalVariationGraph,
             new PropertyConverter($propertySerializer)
         );
-        $subscribers = [];
-        foreach ($this->projectionsAndCatchUpHooks->projections as $projection) {
-            $subscribers[] = new Subscriber(
-                SubscriptionId::fromString(substr(strrchr($projection::class, '\\'), 1)),
-                SubscriptionGroup::fromString('default'),
-                RunMode::FROM_BEGINNING,
-                new ProjectionEventHandler(
-                    $projection,
-                    $this->projectionsAndCatchUpHooks->getCatchUpHookFactoryForProjection($projection)?->build($this->getOrBuild()),
-                ),
-            );
+        $this->contentGraphProjection = $contentGraphProjectionFactory->build($this->subscriberFactoryDependencies);
+        $contentGraphSubscriber = new Subscriber(
+            SubscriptionId::fromString('contentGraph'),
+            SubscriptionGroup::fromString('default'),
+            RunMode::FROM_BEGINNING,
+            ProjectionEventHandler::createWithCatchUpHook(
+                $this->contentGraphProjection,
+                $contentGraphCatchUpHookFactory->build(new CatchUpHookFactoryDependencies($this->contentRepositoryId, $this->contentGraphProjection->getState(), $nodeTypeManager, $contentDimensionSource, $interDimensionalVariationGraph)),
+            ),
+        );
+        $subscribers = [$contentGraphSubscriber];
+        $projectionStates = [];
+        foreach ($additionalSubscriberFactories as $subscriberFactory) {
+            $subscriber = $subscriberFactory->build($this->subscriberFactoryDependencies);
+            $subscribers[] = $subscriber;
+            if ($subscriber->handler instanceof ProjectionEventHandler) {
+                $projectionStates[] = $subscriber->handler->projection->getState();
+            }
         }
+        $this->projectionStates = ProjectionStates::fromArray($projectionStates);
         $this->subscriptionEngine = new SubscriptionEngine($eventStore, $subscriptionStore, Subscribers::fromArray($subscribers), $eventNormalizer, new NoRetryStrategy());
         $this->eventStore = new RunSubscriptionEventStore($eventStore, $this->subscriptionEngine);
     }
@@ -115,32 +134,32 @@ final class ContentRepositoryFactory
             return $this->contentRepository;
         }
 
-        $contentGraphReadModel = $this->projectionsAndCatchUpHooks->contentGraphProjection->getState();
+        $contentGraphReadModel = $this->contentGraphProjection->getState();
         $commandHandlingDependencies = new CommandHandlingDependencies($contentGraphReadModel);
 
         // we dont need full recursion in rebase - e.g apply workspace commands - and thus we can use this set for simulation
         $commandBusForRebaseableCommands = new CommandBus(
             $commandHandlingDependencies,
             new NodeAggregateCommandHandler(
-                $this->projectionFactoryDependencies->nodeTypeManager,
-                $this->projectionFactoryDependencies->contentDimensionZookeeper,
-                $this->projectionFactoryDependencies->interDimensionalVariationGraph,
-                $this->projectionFactoryDependencies->propertyConverter,
+                $this->subscriberFactoryDependencies->nodeTypeManager,
+                $this->subscriberFactoryDependencies->contentDimensionZookeeper,
+                $this->subscriberFactoryDependencies->interDimensionalVariationGraph,
+                $this->subscriberFactoryDependencies->propertyConverter,
             ),
             new DimensionSpaceCommandHandler(
-                $this->projectionFactoryDependencies->contentDimensionZookeeper,
-                $this->projectionFactoryDependencies->interDimensionalVariationGraph,
+                $this->subscriberFactoryDependencies->contentDimensionZookeeper,
+                $this->subscriberFactoryDependencies->interDimensionalVariationGraph,
             ),
             new NodeDuplicationCommandHandler(
-                $this->projectionFactoryDependencies->nodeTypeManager,
-                $this->projectionFactoryDependencies->contentDimensionZookeeper,
-                $this->projectionFactoryDependencies->interDimensionalVariationGraph,
+                $this->subscriberFactoryDependencies->nodeTypeManager,
+                $this->subscriberFactoryDependencies->contentDimensionZookeeper,
+                $this->subscriberFactoryDependencies->interDimensionalVariationGraph,
             )
         );
 
         $commandSimulatorFactory = new CommandSimulatorFactory(
-            $this->projectionsAndCatchUpHooks->contentGraphProjection,
-            $this->projectionFactoryDependencies->eventNormalizer,
+            $this->contentGraphProjection,
+            $this->subscriberFactoryDependencies->eventNormalizer,
             $commandBusForRebaseableCommands
         );
 
@@ -148,26 +167,21 @@ final class ContentRepositoryFactory
             new WorkspaceCommandHandler(
                 $commandSimulatorFactory,
                 $this->eventStore,
-                $this->projectionFactoryDependencies->eventNormalizer,
+                $this->subscriberFactoryDependencies->eventNormalizer,
             )
         );
-
-        $projectionStates = [];
-        foreach ($this->projectionsAndCatchUpHooks->projections as $projection) {
-            $projectionStates[] = $projection->getState();
-        }
 
         return $this->contentRepository = new ContentRepository(
             $this->contentRepositoryId,
             $publicCommandBus,
             $this->buildEventPersister(),
-            $this->projectionFactoryDependencies->nodeTypeManager,
-            $this->projectionFactoryDependencies->interDimensionalVariationGraph,
-            $this->projectionFactoryDependencies->contentDimensionSource,
+            $this->subscriberFactoryDependencies->nodeTypeManager,
+            $this->subscriberFactoryDependencies->interDimensionalVariationGraph,
+            $this->subscriberFactoryDependencies->contentDimensionSource,
             $this->userIdProvider,
             $this->clock,
             $contentGraphReadModel,
-            ProjectionStates::fromArray($projectionStates),
+            $this->projectionStates,
         );
     }
 
@@ -187,7 +201,7 @@ final class ContentRepositoryFactory
     ): ContentRepositoryServiceInterface {
 
         $serviceFactoryDependencies = ContentRepositoryServiceFactoryDependencies::create(
-            $this->projectionFactoryDependencies,
+            $this->subscriberFactoryDependencies,
             $this->eventStore,
             $this->getOrBuild(),
             $this->buildEventPersister(),
@@ -201,7 +215,7 @@ final class ContentRepositoryFactory
         if (!$this->eventPersister) {
             $this->eventPersister = new EventPersister(
                 $this->eventStore,
-                $this->projectionFactoryDependencies->eventNormalizer,
+                $this->subscriberFactoryDependencies->eventNormalizer,
             );
         }
         return $this->eventPersister;

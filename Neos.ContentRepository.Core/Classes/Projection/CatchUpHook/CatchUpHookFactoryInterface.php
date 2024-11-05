@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\Core\Projection;
+namespace Neos\ContentRepository\Core\Projection\CatchUpHook;
+
+use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 
 /**
  * @template T of ProjectionStateInterface

@@ -17,7 +17,8 @@ namespace Neos\ContentRepository\BehavioralTests\ProjectionRaceConditionTester;
 use Neos\ContentRepository\BehavioralTests\ProjectionRaceConditionTester\Dto\TraceEntries;
 use Neos\ContentRepository\BehavioralTests\ProjectionRaceConditionTester\Dto\TraceEntryType;
 use Neos\ContentRepository\Core\EventStore\EventInterface;
-use Neos\ContentRepository\Core\Projection\CatchUpHookInterface;
+use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookInterface;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\EventStore\Model\EventEnvelope;
 use Neos\Flow\Annotations as Flow;
 
@@ -107,7 +108,7 @@ final class RaceTrackerCatchUpHook implements CatchUpHookInterface
     protected $configuration;
     private bool $inCriticalSection = false;
 
-    public function onBeforeCatchUp(): void
+    public function onBeforeCatchUp(SubscriptionStatus $subscriptionStatus): void
     {
         RedisInterleavingLogger::connect($this->configuration['redis']['host'], $this->configuration['redis']['port']);
     }
@@ -126,16 +127,12 @@ final class RaceTrackerCatchUpHook implements CatchUpHookInterface
     {
     }
 
-    public function onBeforeBatchCompleted(): void
+    public function onAfterCatchUp(): void
     {
         // we only want to track relevant lock release calls (i.e. if we were in the event processing loop before)
         if ($this->inCriticalSection) {
             $this->inCriticalSection = false;
             RedisInterleavingLogger::trace(TraceEntryType::LockWillBeReleasedIfItWasAcquiredBefore);
         }
-    }
-
-    public function onAfterCatchUp(): void
-    {
     }
 }

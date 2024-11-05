@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\Core\Projection;
+namespace Neos\ContentRepository\Core\Projection\CatchUpHook;
 
 use Neos\ContentRepository\Core\EventStore\EventInterface;
+use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\EventStore\Model\EventEnvelope;
 
 /**
@@ -18,12 +20,12 @@ use Neos\EventStore\Model\EventEnvelope;
 interface CatchUpHookInterface
 {
     /**
-     * This hook is called at the beginning of {@see ProjectionInterface::catchUpProjection()};
-     * BEFORE the Database Lock is acquired (by {@see CheckpointStorageInterface::acquireLock()}).
+     * This hook is called at the beginning of a catch-up run;
+     * BEFORE the Database Lock is acquired ({@see SubscriptionEngine::run()}).
      *
      * @return void
      */
-    public function onBeforeCatchUp(): void;
+    public function onBeforeCatchUp(SubscriptionStatus $subscriptionStatus): void;
 
     /**
      * This hook is called for every event during the catchup process, **before** the projection
@@ -38,20 +40,7 @@ interface CatchUpHookInterface
     public function onAfterEvent(EventInterface $eventInstance, EventEnvelope $eventEnvelope): void;
 
     /**
-     * This hook is called directly before the database lock is RELEASED
-     * in {@see CheckpointStorageInterface::updateAndReleaseLock()}.
-     *
-     * It can happen that this method is called multiple times, even without
-     * having seen Events in the meantime.
-     *
-     * If there exist more events which need to be processed, the database lock
-     * is directly acquired again after it is released.
-     */
-    public function onBeforeBatchCompleted(): void;
-
-    /**
-     * This hook is called at the END of {@see ProjectionInterface::catchUpProjection()}, directly
-     * before exiting the method.
+     * This hook is called at the END of a catch-up run
      *
      * At this point, the Database Lock has already been released.
      */

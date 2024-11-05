@@ -27,6 +27,9 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Psr\Clock\ClockInterface;
 
+/**
+ * @internal
+ */
 final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
 {
     public function __construct(

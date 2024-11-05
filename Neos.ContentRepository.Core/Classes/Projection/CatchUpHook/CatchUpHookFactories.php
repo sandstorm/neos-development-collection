@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\Core\Projection;
+namespace Neos\ContentRepository\Core\Projection\CatchUpHook;
+
+use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 
 /**
  * @implements CatchUpHookFactoryInterface<ProjectionStateInterface>
@@ -30,7 +32,6 @@ final class CatchUpHookFactories implements CatchUpHookFactoryInterface
 
     /**
      * @param CatchUpHookFactoryInterface<ProjectionStateInterface> $catchUpHookFactory
-     * @return self
      */
     public function with(CatchUpHookFactoryInterface $catchUpHookFactory): self
     {

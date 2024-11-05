@@ -54,7 +54,7 @@ final readonly class ContentRepositoryServiceFactoryDependencies
      * @internal
      */
     public static function create(
-        ProjectionFactoryDependencies $projectionFactoryDependencies,
+        SubscriberFactoryDependencies $projectionFactoryDependencies,
         EventStoreInterface $eventStore,
         ContentRepository $contentRepository,
         EventPersister $eventPersister,
