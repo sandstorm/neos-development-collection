@@ -7,6 +7,6 @@ Neos:
         clock:
           factoryObjectName: 'Neos\ContentRepository\TestSuite\Fakes\FakeClockFactory'
         nodeTypeManager:
-          factoryObjectName: 'Neos\ContentRepository\TestSuite\Fakes\GherkinPyStringNodeBasedNodeTypeManagerFactory'
+          factoryObjectName: 'Neos\ContentRepository\TestSuite\Fakes\FakeNodeTypeManagerFactory'
         contentDimensionSource:
-          factoryObjectName: 'Neos\ContentRepository\TestSuite\Fakes\GherkinTableNodeBasedContentDimensionSourceFactory'
+          factoryObjectName: 'Neos\ContentRepository\TestSuite\Fakes\FakeContentDimensionSourceFactory'

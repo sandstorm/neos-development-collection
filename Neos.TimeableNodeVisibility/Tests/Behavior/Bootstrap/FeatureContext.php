@@ -12,8 +12,8 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\CRTestSuiteTrait;
-use Neos\ContentRepository\TestSuite\Fakes\GherkinPyStringNodeBasedNodeTypeManagerFactory;
-use Neos\ContentRepository\TestSuite\Fakes\GherkinTableNodeBasedContentDimensionSourceFactory;
+use Neos\ContentRepository\TestSuite\Fakes\FakeNodeTypeManagerFactory;
+use Neos\ContentRepository\TestSuite\Fakes\FakeContentDimensionSourceFactory;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\TimeableNodeVisibility\Service\TimeableNodeVisibilityService;
 use PHPUnit\Framework\Assert;
@@ -91,8 +91,8 @@ class FeatureContext implements Context
     ): ContentRepository {
         $this->contentRepositoryRegistry->resetFactoryInstance($contentRepositoryId);
         $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
-        GherkinTableNodeBasedContentDimensionSourceFactory::reset();
-        GherkinPyStringNodeBasedNodeTypeManagerFactory::reset();
+        FakeContentDimensionSourceFactory::reset();
+        FakeNodeTypeManagerFactory::reset();
 
         return $contentRepository;
     }

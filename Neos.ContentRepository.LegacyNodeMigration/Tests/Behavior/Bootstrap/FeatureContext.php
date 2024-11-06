@@ -31,8 +31,8 @@ use Neos\ContentRepository\LegacyNodeMigration\NodeDataToAssetsProcessor;
 use Neos\ContentRepository\LegacyNodeMigration\NodeDataToEventsProcessor;
 use Neos\ContentRepository\LegacyNodeMigration\RootNodeTypeMapping;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\CRTestSuiteTrait;
-use Neos\ContentRepository\TestSuite\Fakes\GherkinPyStringNodeBasedNodeTypeManagerFactory;
-use Neos\ContentRepository\TestSuite\Fakes\GherkinTableNodeBasedContentDimensionSourceFactory;
+use Neos\ContentRepository\TestSuite\Fakes\FakeNodeTypeManagerFactory;
+use Neos\ContentRepository\TestSuite\Fakes\FakeContentDimensionSourceFactory;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Property\PropertyMapper;
 use Neos\Flow\ResourceManagement\PersistentResource;
@@ -425,8 +425,8 @@ class FeatureContext implements Context
     ): ContentRepository {
         $this->contentRepositoryRegistry->resetFactoryInstance($contentRepositoryId);
         $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
-        GherkinTableNodeBasedContentDimensionSourceFactory::reset();
-        GherkinPyStringNodeBasedNodeTypeManagerFactory::reset();
+        FakeContentDimensionSourceFactory::reset();
+        FakeNodeTypeManagerFactory::reset();
 
         return $contentRepository;
     }

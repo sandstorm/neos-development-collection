@@ -19,9 +19,10 @@ use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryI
 use Neos\ContentRepositoryRegistry\Factory\NodeTypeManager\NodeTypeManagerFactoryInterface;
 
 /**
- * Factory for node type managers from gherkin py strings
+ * Fake factory for testing. Note that the factory MUST be initialised BEFORE the content repository is fetched.
+ * Any changes after initialing a cr are lost UNLESS the content repository is rebuild.
  */
-final class GherkinPyStringNodeBasedNodeTypeManagerFactory implements NodeTypeManagerFactoryInterface
+final class FakeNodeTypeManagerFactory implements NodeTypeManagerFactoryInterface
 {
     private static ?NodeTypeManager $nodeTypeManager = null;
 

@@ -19,9 +19,9 @@ use Behat\Gherkin\Node\TableNode;
 use Doctrine\DBAL\Connection;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
-use Neos\ContentRepository\TestSuite\Fakes\GherkinPyStringNodeBasedNodeTypeManagerFactory;
+use Neos\ContentRepository\TestSuite\Fakes\FakeNodeTypeManagerFactory;
 use Neos\ContentRepository\TestSuite\Fakes\GherkinTableNodeBasedContentDimensionSource;
-use Neos\ContentRepository\TestSuite\Fakes\GherkinTableNodeBasedContentDimensionSourceFactory;
+use Neos\ContentRepository\TestSuite\Fakes\FakeContentDimensionSourceFactory;
 use Neos\EventStore\EventStoreInterface;
 use Symfony\Component\Yaml\Yaml;
 
@@ -60,7 +60,7 @@ trait CRBehavioralTestsSubjectProvider
      */
     public function usingNoContentDimensions(): void
     {
-        GherkinTableNodeBasedContentDimensionSourceFactory::setWithoutDimensions();
+        FakeContentDimensionSourceFactory::setWithoutDimensions();
     }
 
     /**
@@ -68,7 +68,7 @@ trait CRBehavioralTestsSubjectProvider
      */
     public function usingTheFollowingContentDimensions(TableNode $contentDimensions): void
     {
-        GherkinTableNodeBasedContentDimensionSourceFactory::setContentDimensionSource(
+        FakeContentDimensionSourceFactory::setContentDimensionSource(
             GherkinTableNodeBasedContentDimensionSource::fromGherkinTableNode($contentDimensions)
         );
     }
@@ -78,7 +78,7 @@ trait CRBehavioralTestsSubjectProvider
      */
     public function usingTheFollowingNodeTypes(PyStringNode $serializedNodeTypesConfiguration): void
     {
-        GherkinPyStringNodeBasedNodeTypeManagerFactory::setConfiguration(Yaml::parse($serializedNodeTypesConfiguration->getRaw()) ?? []);
+        FakeNodeTypeManagerFactory::setConfiguration(Yaml::parse($serializedNodeTypesConfiguration->getRaw()) ?? []);
     }
 
     /**
@@ -103,8 +103,8 @@ trait CRBehavioralTestsSubjectProvider
         } else {
             $contentRepository = $this->contentRepositories[$contentRepositoryId];
             // ensure that the current node types of exactly THE content repository are preserved
-            GherkinPyStringNodeBasedNodeTypeManagerFactory::setNodeTypeManager($contentRepository->getNodeTypeManager());
-            GherkinTableNodeBasedContentDimensionSourceFactory::setContentDimensionSource(
+            FakeNodeTypeManagerFactory::setNodeTypeManager($contentRepository->getNodeTypeManager());
+            FakeContentDimensionSourceFactory::setContentDimensionSource(
                 GherkinTableNodeBasedContentDimensionSource::fromGherkinTableNode($contentDimensions)
             );
             $this->contentRepositories[$contentRepositoryId] = $this->createContentRepository(ContentRepositoryId::fromString($contentRepositoryId));
@@ -126,8 +126,8 @@ trait CRBehavioralTestsSubjectProvider
         } else {
             $contentRepository = $this->contentRepositories[$contentRepositoryId];
             // ensure that the current node types of exactly THE content repository are preserved
-            GherkinTableNodeBasedContentDimensionSourceFactory::setContentDimensionSource($contentRepository->getContentDimensionSource());
-            GherkinPyStringNodeBasedNodeTypeManagerFactory::setConfiguration(Yaml::parse($serializedNodeTypesConfiguration->getRaw()) ?? []);
+            FakeContentDimensionSourceFactory::setContentDimensionSource($contentRepository->getContentDimensionSource());
+            FakeNodeTypeManagerFactory::setConfiguration(Yaml::parse($serializedNodeTypesConfiguration->getRaw()) ?? []);
             $this->contentRepositories[$contentRepositoryId] = $this->createContentRepository(ContentRepositoryId::fromString($contentRepositoryId));
             if ($this->currentContentRepository->id->value === $contentRepositoryId) {
                 $this->currentContentRepository = $this->contentRepositories[$contentRepositoryId];
