@@ -12,7 +12,7 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\TestSuite\Fakes;
+namespace Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Helpers;
 
 use Behat\Gherkin\Node\TableNode;
 use Neos\ContentRepository\Core\Dimension\ContentDimension;
@@ -27,7 +27,9 @@ use Neos\ContentRepository\Core\Dimension\ContentDimensionValueVariationEdges;
 use Neos\Utility\Arrays;
 
 /**
- * The node creation trait for behavioral tests
+ * Compact syntax to declare content dimensions in gherkin tables.
+ *
+ * see also {@see \Neos\ContentRepository\TestSuite\Tests\Unit\GherkinTableNodeBasedContentDimensionSourceTest}
  */
 final readonly class GherkinTableNodeBasedContentDimensionSource implements ContentDimensionSourceInterface
 {
