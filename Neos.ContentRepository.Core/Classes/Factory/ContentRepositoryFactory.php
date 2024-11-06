@@ -31,6 +31,7 @@ use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookFactoryDependencies;
 use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookFactoryInterface;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionFactoryInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionEventHandler;
@@ -66,6 +67,9 @@ final class ContentRepositoryFactory
 
     private ContentGraphProjectionInterface $contentGraphProjection;
 
+    /**
+     * @param CatchUpHookFactoryInterface<ContentGraphInterface> $contentGraphCatchUpHookFactory
+     */
     public function __construct(
         private readonly ContentRepositoryId $contentRepositoryId,
         EventStoreInterface $eventStore,
