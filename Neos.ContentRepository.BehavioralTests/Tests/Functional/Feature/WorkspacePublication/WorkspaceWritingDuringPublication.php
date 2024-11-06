@@ -21,6 +21,7 @@ use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Dimension\ContentDimension;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionId;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
+use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNode;
 use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetNodeProperties;
@@ -32,6 +33,7 @@ use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Command\RebaseWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Dto\RebaseErrorHandlingStrategy;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
+use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamIsClosed;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
@@ -49,21 +51,19 @@ use PHPUnit\Framework\TestCase;
  */
 class WorkspaceWritingDuringPublication extends TestCase // we don't use Flows functional test case as it would reset the database afterwards (see FlowEntitiesTrait)
 {
+    private const LOGGING_PATH = __DIR__ . '/log.txt';
+    private const SETUP_LOCK_PATH = __DIR__ . '/setup-lock';
     private const REBASE_IS_RUNNING_FLAG_PATH = __DIR__ . '/rebase-is-running-flag';
-    private const SETUP_IS_RUNNING_FLAG_PATH = __DIR__ . '/setup-running.lock';
-    private const SETUP_IS_DONE_FLAG_PATH = __DIR__ . '/setup-is-done-flag';
 
     private ?ContentRepository $contentRepository = null;
 
     private ?ContentRepositoryRegistry $contentRepositoryRegistry = null;
 
-    private static bool $wasContentRepositorySetupCalled = false;
-
-    /** @deprecated please use {@see self::getObject()} instead */
     protected ObjectManagerInterface $objectManager;
 
     public function setUp(): void
     {
+        $this->log('------ process started ------');
         $this->objectManager = Bootstrap::$staticObjectManager;
         GherkinTableNodeBasedContentDimensionSourceFactory::$contentDimensionsToUse = new class implements ContentDimensionSourceInterface
         {
@@ -92,44 +92,20 @@ class WorkspaceWritingDuringPublication extends TestCase // we don't use Flows f
         $this->contentRepositoryRegistry = $this->objectManager->get(ContentRepositoryRegistry::class);
         $this->contentRepositoryRegistry->resetFactoryInstance(ContentRepositoryId::fromString('test_parallel'));
 
-        if (is_file(self::SETUP_IS_DONE_FLAG_PATH)) {
+        $setupLockResource = fopen(self::SETUP_LOCK_PATH, 'w+');
+
+        $exclusiveNonBlockingLockResult = flock($setupLockResource, LOCK_EX | LOCK_NB);
+        if ($exclusiveNonBlockingLockResult === false) {
+            $this->log('waiting for setup');
+            $this->awaitSharedLock($setupLockResource);
             $this->contentRepository = $this->contentRepositoryRegistry
                 ->get(ContentRepositoryId::fromString('test_parallel'));
+            $this->log('wait for setup finished');
             return;
         }
 
-        $runningFile = fopen(self::SETUP_IS_RUNNING_FLAG_PATH, 'w+');
-        if( !$runningFile) {
-            $this->awaitFileSlowly(self::SETUP_IS_DONE_FLAG_PATH, 60000); // 60s for CR setup
-            $this->contentRepository = $this->contentRepositoryRegistry
-                ->get(ContentRepositoryId::fromString('test_parallel'));
-            // throw new \RuntimeException('failed to open lock file');
-        }
-        if( !flock($runningFile, LOCK_EX | LOCK_NB)) {
-            $this->awaitFileSlowly(self::SETUP_IS_DONE_FLAG_PATH, 60000); // 60s for CR setup
-            $this->contentRepository = $this->contentRepositoryRegistry
-                ->get(ContentRepositoryId::fromString('test_parallel'));
-            // throw new \RuntimeException('failed to lock file');
-        }
-        ftruncate($runningFile, 0);
-        //write something to just help debugging
-        fwrite( $runningFile, "Locked\n" . getmypid());
-        fflush( $runningFile );
-
-
-
-
-        // touch(self::SETUP_IS_RUNNING_FLAG_PATH);
-        // $runningFile = fopen(self::SETUP_IS_RUNNING_FLAG_PATH, 'r+');
-        // if (!flock($runningFile, LOCK_EX)) {
-        //     $this->awaitFileRemoval(self::SETUP_IS_DONE_FLAG_PATH, 60000); // 60s for CR setup
-        //     $this->contentRepository = $this->contentRepositoryRegistry
-        //         ->get(ContentRepositoryId::fromString('test_parallel'));
-        //     return;
-        // }
-
+        $this->log('setup started');
         $contentRepository = $this->setUpContentRepository(ContentRepositoryId::fromString('test_parallel'));
-
 
         $origin = OriginDimensionSpacePoint::createWithoutDimensions();
         $contentRepository->handle(CreateRootWorkspace::create(
@@ -148,7 +124,7 @@ class WorkspaceWritingDuringPublication extends TestCase // we don't use Flows f
             $origin,
             NodeAggregateId::fromString('lady-eleonode-rootford'),
             initialPropertyValues: PropertyValuesToWrite::fromArray([
-                'title' => 'title'
+                'title' => 'title-original'
             ])
         ));
         $contentRepository->handle(CreateWorkspace::create(
@@ -168,24 +144,15 @@ class WorkspaceWritingDuringPublication extends TestCase // we don't use Flows f
                 ])
             ));
             // give the database lock some time to recover
-            // usleep(5000);
+            // TODO? Why? usleep(5000);
         }
         $this->contentRepository = $contentRepository;
 
-        touch(self::SETUP_IS_DONE_FLAG_PATH);
-
-
-        if( !flock($runningFile, LOCK_UN) ) {
-            throw new \RuntimeException('failed to release lock file');
+        if (!flock($setupLockResource, LOCK_UN)) {
+            throw new \RuntimeException('failed to release setup lock');
         }
-        ftruncate($runningFile, 0);
-        // write something to just help debugging
-        fwrite( $runningFile, "Unlocked\n");
-        fflush( $runningFile );
 
-
-        // fclose($runningFile);
-        // unlink(self::SETUP_IS_RUNNING_FLAG_PATH);
+        $this->log('setup finished');
     }
 
     /**
@@ -194,20 +161,22 @@ class WorkspaceWritingDuringPublication extends TestCase // we don't use Flows f
      */
     public function whileAWorkspaceIsBeingRebased(): void
     {
-        touch(self::REBASE_IS_RUNNING_FLAG_PATH);
         $workspaceName = WorkspaceName::fromString('user-test');
-        $exception = null;
+        $this->log('rebase started');
+
+        touch(self::REBASE_IS_RUNNING_FLAG_PATH);
+
         try {
-            // force rebase
-            $this->contentRepository->handle(RebaseWorkspace::create(
-                $workspaceName,
-            )->withRebasedContentStreamId(ContentStreamId::create())
-            ->withErrorHandlingStrategy(RebaseErrorHandlingStrategy::STRATEGY_FORCE));
-        } catch (\RuntimeException $runtimeException) {
-            $exception = $runtimeException;
+            $this->contentRepository->handle(
+                RebaseWorkspace::create($workspaceName)
+                    ->withRebasedContentStreamId(ContentStreamId::create())
+                    ->withErrorHandlingStrategy(RebaseErrorHandlingStrategy::STRATEGY_FORCE));
+        } finally {
+            unlink(self::REBASE_IS_RUNNING_FLAG_PATH);
         }
-        unlink(self::REBASE_IS_RUNNING_FLAG_PATH);
-        Assert::assertNull($exception);
+
+        $this->log('rebase finished');
+        Assert::assertTrue(true, 'No exception was thrown ;)');
     }
 
     /**
@@ -216,9 +185,20 @@ class WorkspaceWritingDuringPublication extends TestCase // we don't use Flows f
      */
     public function thenConcurrentCommandsLeadToAnException(): void
     {
-        $this->awaitFile(self::REBASE_IS_RUNNING_FLAG_PATH);
-        // give the CR some time to close the content stream
-        /// usleep(10000);
+        if (!is_file(self::REBASE_IS_RUNNING_FLAG_PATH)) {
+            $this->log('write waiting');
+
+            $this->awaitFile(self::REBASE_IS_RUNNING_FLAG_PATH);
+            // If write is the process that does the (slowish) setup, and then waits for the rebase to start,
+            // We give the CR some time to close the content stream
+            // TODO find another way than to randomly wait!!!
+            // The problem is, if we dont sleep it happens often that the modification works only then the rebase is startet _really_
+            // Doing the modification several times in hope that the second one fails will likely just stop the rebase thread as it cannot close
+            usleep(10000);
+        }
+
+        $this->log('write started');
+
         $origin = OriginDimensionSpacePoint::createWithoutDimensions();
         $actualException = null;
         try {
@@ -234,12 +214,22 @@ class WorkspaceWritingDuringPublication extends TestCase // we don't use Flows f
             $actualException = $thrownException;
         }
 
-        unlink(self::SETUP_IS_DONE_FLAG_PATH);
+        $this->log('write finished');
+
+        $node = $this->contentRepository->getContentGraph(WorkspaceName::fromString('user-test'))
+            ->getSubgraph(DimensionSpacePoint::createWithoutDimensions(), VisibilityConstraints::withoutRestrictions())
+            ->findNodeById(NodeAggregateId::fromString('nody-mc-nodeface'));
+
+        if ($actualException === null) {
+            Assert::fail(sprintf('No exception was thrown. Mutated Node: %s', json_encode($node?->properties->serialized())));
+        }
 
         Assert::assertThat($actualException, self::logicalOr(
             self::isInstanceOf(ContentStreamIsClosed::class),
             self::isInstanceOf(ConcurrencyException::class),
         ));
+
+        Assert::assertSame('title-original', $node?->getProperty('title'));
     }
 
     private function awaitFile(string $filename): void
@@ -255,15 +245,14 @@ class WorkspaceWritingDuringPublication extends TestCase // we don't use Flows f
         }
     }
 
-    private function awaitFileSlowly(string $filename, int $maximumCycles = 2000): void
+    private function awaitSharedLock($resource, int $maximumCycles = 2000): void
     {
         $waiting = 0;
-        while (!is_file($filename)) {
+        while (!flock($resource, LOCK_SH)) {
             usleep(10000);
             $waiting++;
-            clearstatcache(true, $filename);
             if ($waiting > $maximumCycles) {
-                throw new \Exception('timeout while waiting on file ' . $filename);
+                throw new \Exception('timeout while waiting on shared lock');
             }
         }
     }
@@ -271,36 +260,21 @@ class WorkspaceWritingDuringPublication extends TestCase // we don't use Flows f
     protected function setUpContentRepository(
         ContentRepositoryId $contentRepositoryId
     ): ContentRepository {
-
         $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
-        // Performance optimization: only run the setup once
-        // if (!self::$wasContentRepositorySetupCalled) {
-            $contentRepository->setUp();
-        //     self::$wasContentRepositorySetupCalled = true;
-        // }
+        $contentRepository->setUp();
 
-        $connection = $this->getObject(Connection::class);
+        $connection = $this->objectManager->get(Connection::class);
 
         // reset events and projections
         $eventTableName = sprintf('cr_%s_events', $contentRepositoryId->value);
         $connection->executeStatement('TRUNCATE ' . $eventTableName);
         $contentRepository->resetProjectionStates();
 
-        // $this->contentRepositoryRegistry->resetFactoryInstance($contentRepositoryId);
-
         return $contentRepository;
     }
 
-    /**
-     * @template T of object
-     * @param class-string<T> $className
-     *
-     * @return T
-     */
-    final protected function getObject(string $className): object
+    private function log(string $message): void
     {
-        return $this->objectManager->get($className);
+        file_put_contents(self::LOGGING_PATH, getmypid() . ': ' .  $message . PHP_EOL, FILE_APPEND);
     }
-
-
 }
