@@ -12,7 +12,7 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Feature\WorkspacePublication;
+namespace Neos\ContentRepository\BehavioralTests\Tests\Parallel\WorkspaceWritingDuringRebase;
 
 use Doctrine\DBAL\Connection;
 use Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinPyStringNodeBasedNodeTypeManagerFactory;
@@ -49,9 +49,9 @@ use PHPUnit\Framework\TestCase;
 /**
  * Parallel test cases for workspace publication
  */
-class WorkspaceWritingDuringPublication extends TestCase // we don't use Flows functional test case as it would reset the database afterwards (see FlowEntitiesTrait)
+class WorkspaceWritingDuringRebase extends TestCase // we don't use Flows functional test case as it would reset the database afterwards (see FlowEntitiesTrait)
 {
-    private const LOGGING_PATH = __DIR__ . '/log.txt';
+    private const LOGGING_PATH = __DIR__ . '/../log.txt';
     private const SETUP_LOCK_PATH = __DIR__ . '/setup-lock';
     private const REBASE_IS_RUNNING_FLAG_PATH = __DIR__ . '/rebase-is-running-flag';
 
@@ -275,6 +275,6 @@ class WorkspaceWritingDuringPublication extends TestCase // we don't use Flows f
 
     private function log(string $message): void
     {
-        file_put_contents(self::LOGGING_PATH, getmypid() . ': ' .  $message . PHP_EOL, FILE_APPEND);
+        file_put_contents(self::LOGGING_PATH, substr(self::class, strrpos(self::class, '\\') + 1) . ': ' . getmypid() . ': ' .  $message . PHP_EOL, FILE_APPEND);
     }
 }

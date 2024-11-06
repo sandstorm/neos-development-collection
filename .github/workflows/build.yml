@@ -233,9 +233,9 @@ jobs:
         if: matrix.parallel-parts == 'escr-behavioral'
         run: |
           cd Packages/Neos
-          hasFailure=1
+          hasFailure=0
           composer test:parallel || hasFailure=1
-          cat Neos.ContentRepository.BehavioralTests/Tests/Functional/Feature/WorkspacePublication/log.txt
+          cat Neos.ContentRepository.BehavioralTests/Tests/Parallel/log.txt
           exit $hasFailure
       - name: Run Behavioral Tests (ES CR && Neos.Neos)
         id: escrtests
