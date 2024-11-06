@@ -15,8 +15,6 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\BehavioralTests\Tests\Parallel\WorkspaceWritingDuringRebase;
 
 use Neos\ContentRepository\BehavioralTests\Tests\Parallel\AbstractParallelTestCase;
-use Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinPyStringNodeBasedNodeTypeManagerFactory;
-use Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinTableNodeBasedContentDimensionSourceFactory;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Dimension\ContentDimension;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionId;
@@ -39,6 +37,8 @@ use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamIsClosed;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
+use Neos\ContentRepository\TestSuite\Fakes\GherkinPyStringNodeBasedNodeTypeManagerFactory;
+use Neos\ContentRepository\TestSuite\Fakes\GherkinTableNodeBasedContentDimensionSourceFactory;
 use Neos\EventStore\Exception\ConcurrencyException;
 use Neos\Flow\ObjectManagement\ObjectManagerInterface;
 use PHPUnit\Framework\Assert;

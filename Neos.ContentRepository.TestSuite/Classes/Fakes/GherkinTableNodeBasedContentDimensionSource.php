@@ -12,7 +12,7 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Helpers;
+namespace Neos\ContentRepository\TestSuite\Fakes;
 
 use Behat\Gherkin\Node\TableNode;
 use Neos\ContentRepository\Core\Dimension\ContentDimension;

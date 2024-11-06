@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Helpers;
+namespace Neos\ContentRepository\TestSuite\Fakes;
 
 use Neos\ContentRepository\Core\SharedModel\User\UserId;
 use Neos\ContentRepository\Core\SharedModel\User\UserIdProviderInterface;

@@ -2,10 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\BehavioralTests\TestSuite\Behavior;
+namespace Neos\ContentRepository\TestSuite\Fakes;
 
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
-use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Helpers\FakeClock;
 use Neos\ContentRepositoryRegistry\Factory\Clock\ClockFactoryInterface;
 use Psr\Clock\ClockInterface;
 

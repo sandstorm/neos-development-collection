@@ -12,7 +12,7 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\BehavioralTests\TestSuite\Behavior;
+namespace Neos\ContentRepository\TestSuite\Fakes;
 
 use Behat\Gherkin\Node\PyStringNode;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;

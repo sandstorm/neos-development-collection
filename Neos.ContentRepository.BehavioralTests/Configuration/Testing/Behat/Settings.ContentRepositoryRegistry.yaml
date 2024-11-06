@@ -3,10 +3,10 @@ Neos:
     presets:
       default:
         userIdProvider:
-          factoryObjectName: 'Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\FakeUserIdProviderFactory'
+          factoryObjectName: 'Neos\ContentRepository\TestSuite\Fakes\FakeUserIdProviderFactory'
         clock:
-          factoryObjectName: 'Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\FakeClockFactory'
+          factoryObjectName: 'Neos\ContentRepository\TestSuite\Fakes\FakeClockFactory'
         nodeTypeManager:
-          factoryObjectName: 'Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinPyStringNodeBasedNodeTypeManagerFactory'
+          factoryObjectName: 'Neos\ContentRepository\TestSuite\Fakes\GherkinPyStringNodeBasedNodeTypeManagerFactory'
         contentDimensionSource:
-          factoryObjectName: 'Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinTableNodeBasedContentDimensionSourceFactory'
+          factoryObjectName: 'Neos\ContentRepository\TestSuite\Fakes\GherkinTableNodeBasedContentDimensionSourceFactory'

@@ -19,7 +19,9 @@ use Behat\Gherkin\Node\TableNode;
 use Doctrine\DBAL\Connection;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
-use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Helpers\GherkinTableNodeBasedContentDimensionSource;
+use Neos\ContentRepository\TestSuite\Fakes\GherkinPyStringNodeBasedNodeTypeManagerFactory;
+use Neos\ContentRepository\TestSuite\Fakes\GherkinTableNodeBasedContentDimensionSource;
+use Neos\ContentRepository\TestSuite\Fakes\GherkinTableNodeBasedContentDimensionSourceFactory;
 use Neos\EventStore\EventStoreInterface;
 
 /**
