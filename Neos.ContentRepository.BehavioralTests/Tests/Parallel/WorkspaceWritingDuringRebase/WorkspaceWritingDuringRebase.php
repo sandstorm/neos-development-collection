@@ -63,7 +63,7 @@ class WorkspaceWritingDuringRebase extends AbstractParallelTestCase
                     ]
                 ]
             ]
-        );
+        ]);
 
         $setupLockResource = fopen(self::SETUP_LOCK_PATH, 'w+');
 

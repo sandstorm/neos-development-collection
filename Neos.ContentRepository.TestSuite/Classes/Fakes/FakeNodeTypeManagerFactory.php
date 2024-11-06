@@ -41,6 +41,9 @@ final class FakeNodeTypeManagerFactory implements NodeTypeManagerFactoryInterfac
         throw new \RuntimeException('NodeTypeManagerFactory uninitialized');
     }
 
+    /**
+     * @param array<string,mixed> $nodeTypesToUse
+     */
     public static function setConfiguration(array $nodeTypesToUse): void
     {
         self::$nodeTypeManager = new NodeTypeManager(
