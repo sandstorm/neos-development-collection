@@ -14,7 +14,7 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\BehavioralTests\Tests\Parallel\WorkspaceWritingDuringRebase;
 
-use Doctrine\DBAL\Connection;
+use Neos\ContentRepository\BehavioralTests\Tests\Parallel\AbstractParallelTestCase;
 use Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinPyStringNodeBasedNodeTypeManagerFactory;
 use Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinTableNodeBasedContentDimensionSourceFactory;
 use Neos\ContentRepository\Core\ContentRepository;
@@ -39,32 +39,24 @@ use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamIsClosed;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
-use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\EventStore\Exception\ConcurrencyException;
-use Neos\Flow\Core\Bootstrap;
 use Neos\Flow\ObjectManagement\ObjectManagerInterface;
 use PHPUnit\Framework\Assert;
-use PHPUnit\Framework\TestCase;
 
-/**
- * Parallel test cases for workspace publication
- */
-class WorkspaceWritingDuringRebase extends TestCase // we don't use Flows functional test case as it would reset the database afterwards (see FlowEntitiesTrait)
+class WorkspaceWritingDuringRebase extends AbstractParallelTestCase
+
 {
-    private const LOGGING_PATH = __DIR__ . '/../log.txt';
     private const SETUP_LOCK_PATH = __DIR__ . '/setup-lock';
     private const REBASE_IS_RUNNING_FLAG_PATH = __DIR__ . '/rebase-is-running-flag';
 
-    private ?ContentRepository $contentRepository = null;
-
-    private ?ContentRepositoryRegistry $contentRepositoryRegistry = null;
+    private ContentRepository $contentRepository;
 
     protected ObjectManagerInterface $objectManager;
 
     public function setUp(): void
     {
+        parent::setUp();
         $this->log('------ process started ------');
-        $this->objectManager = Bootstrap::$staticObjectManager;
         GherkinTableNodeBasedContentDimensionSourceFactory::$contentDimensionsToUse = new class implements ContentDimensionSourceInterface
         {
             public function getDimension(ContentDimensionId $dimensionId): ?ContentDimension
@@ -89,7 +81,8 @@ class WorkspaceWritingDuringRebase extends TestCase // we don't use Flows functi
                 ]
             ]
         );
-        $this->contentRepositoryRegistry = $this->objectManager->get(ContentRepositoryRegistry::class);
+
+        // todo remove?
         $this->contentRepositoryRegistry->resetFactoryInstance(ContentRepositoryId::fromString('test_parallel'));
 
         $setupLockResource = fopen(self::SETUP_LOCK_PATH, 'w+');
@@ -230,51 +223,5 @@ class WorkspaceWritingDuringRebase extends TestCase // we don't use Flows functi
         ));
 
         Assert::assertSame('title-original', $node?->getProperty('title'));
-    }
-
-    private function awaitFile(string $filename): void
-    {
-        $waiting = 0;
-        while (!is_file($filename)) {
-            usleep(1000);
-            $waiting++;
-            clearstatcache(true, $filename);
-            if ($waiting > 60000) {
-                throw new \Exception('timeout while waiting on file ' . $filename);
-            }
-        }
-    }
-
-    private function awaitSharedLock($resource, int $maximumCycles = 2000): void
-    {
-        $waiting = 0;
-        while (!flock($resource, LOCK_SH)) {
-            usleep(10000);
-            $waiting++;
-            if ($waiting > $maximumCycles) {
-                throw new \Exception('timeout while waiting on shared lock');
-            }
-        }
-    }
-
-    protected function setUpContentRepository(
-        ContentRepositoryId $contentRepositoryId
-    ): ContentRepository {
-        $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
-        $contentRepository->setUp();
-
-        $connection = $this->objectManager->get(Connection::class);
-
-        // reset events and projections
-        $eventTableName = sprintf('cr_%s_events', $contentRepositoryId->value);
-        $connection->executeStatement('TRUNCATE ' . $eventTableName);
-        $contentRepository->resetProjectionStates();
-
-        return $contentRepository;
-    }
-
-    private function log(string $message): void
-    {
-        file_put_contents(self::LOGGING_PATH, substr(self::class, strrpos(self::class, '\\') + 1) . ': ' . getmypid() . ': ' .  $message . PHP_EOL, FILE_APPEND);
     }
 }
