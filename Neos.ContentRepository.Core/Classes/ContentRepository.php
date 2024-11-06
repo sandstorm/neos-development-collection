@@ -101,7 +101,7 @@ final class ContentRepository
     {
         $privilege = $this->authProvider->canExecuteCommand($command);
         if (!$privilege->granted) {
-            throw AccessDenied::becauseCommandIsNotGranted($command, $privilege->reason);
+            throw AccessDenied::becauseCommandIsNotGranted($command, $privilege->getReason());
         }
         // the commands only calculate which events they want to have published, but do not do the
         // publishing themselves
@@ -250,7 +250,7 @@ final class ContentRepository
     {
         $privilege = $this->authProvider->canReadNodesFromWorkspace($workspaceName);
         if (!$privilege->granted) {
-            throw AccessDenied::becauseWorkspaceCantBeRead($workspaceName, $privilege->reason);
+            throw AccessDenied::becauseWorkspaceCantBeRead($workspaceName, $privilege->getReason());
         }
         return $this->contentGraphReadModel->getContentGraph($workspaceName);
     }

@@ -22,7 +22,7 @@ final readonly class Privilege
 {
     private function __construct(
         public bool $granted,
-        public string $reason,
+        private string $reason,
     ) {
     }
 
@@ -34,5 +34,10 @@ final readonly class Privilege
     public static function denied(string $reason): self
     {
         return new self(false, $reason);
+    }
+
+    public function getReason(): string
+    {
+        return $this->reason;
     }
 }
