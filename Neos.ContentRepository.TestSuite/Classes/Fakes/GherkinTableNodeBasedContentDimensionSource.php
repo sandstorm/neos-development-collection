@@ -28,12 +28,11 @@ use Neos\Utility\Arrays;
 
 /**
  * The node creation trait for behavioral tests
- * todo colocate with GherkinTableNodeBasedContentDimensionSourceFactory
  */
 final readonly class GherkinTableNodeBasedContentDimensionSource implements ContentDimensionSourceInterface
 {
+    /** @param array<string,ContentDimension> $contentDimensions */
     private function __construct(
-        /** @var array<string,ContentDimension> */
         private array $contentDimensions
     ) {
     }

@@ -14,39 +14,42 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\TestSuite\Fakes;
 
-use Behat\Gherkin\Node\PyStringNode;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepositoryRegistry\Factory\NodeTypeManager\NodeTypeManagerFactoryInterface;
-use Symfony\Component\Yaml\Yaml;
 
 /**
  * Factory for node type managers from gherkin py strings
  */
 final class GherkinPyStringNodeBasedNodeTypeManagerFactory implements NodeTypeManagerFactoryInterface
 {
-    public static ?NodeTypeManager $nodeTypesToUse = null;
+    private static ?NodeTypeManager $nodeTypeManager = null;
 
     /**
      * @param array<string,mixed> $options
      */
     public function build(ContentRepositoryId $contentRepositoryId, array $options): NodeTypeManager
     {
-        if (!self::$nodeTypesToUse) {
-            throw new \DomainException('NodeTypeManagerFactory uninitialized');
+        if (!self::$nodeTypeManager) {
+            throw new \RuntimeException('NodeTypeManagerFactory uninitialized');
         }
-        return self::$nodeTypesToUse;
+        return self::$nodeTypeManager;
     }
 
-    public static function initializeWithPyStringNode(PyStringNode $nodeTypesToUse): void
+    public static function setConfiguration(array $nodeTypesToUse): void
     {
-        self::$nodeTypesToUse = new NodeTypeManager(
-            fn (): array => Yaml::parse($nodeTypesToUse->getRaw()) ?? []
+        self::$nodeTypeManager = new NodeTypeManager(
+            fn (): array => $nodeTypesToUse
         );
+    }
+
+    public static function setNodeTypeManager(NodeTypeManager $nodeTypeManager): void
+    {
+        self::$nodeTypeManager = $nodeTypeManager;
     }
 
     public static function reset(): void
     {
-        self::$nodeTypesToUse = null;
+        self::$nodeTypeManager = null;
     }
 }
