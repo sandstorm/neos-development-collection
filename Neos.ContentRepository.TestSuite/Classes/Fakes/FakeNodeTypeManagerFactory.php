@@ -31,10 +31,14 @@ final class FakeNodeTypeManagerFactory implements NodeTypeManagerFactoryInterfac
      */
     public function build(ContentRepositoryId $contentRepositoryId, array $options): NodeTypeManager
     {
-        if (!self::$nodeTypeManager) {
-            throw new \RuntimeException('NodeTypeManagerFactory uninitialized');
+        if (self::$nodeTypeManager) {
+            return self::$nodeTypeManager;
         }
-        return self::$nodeTypeManager;
+        if (isset($options['nodeTypes'])) {
+            // allows to be configured for testing
+            return new NodeTypeManager(fn (): array => $options['nodeTypes']);
+        }
+        throw new \RuntimeException('NodeTypeManagerFactory uninitialized');
     }
 
     public static function setConfiguration(array $nodeTypesToUse): void
