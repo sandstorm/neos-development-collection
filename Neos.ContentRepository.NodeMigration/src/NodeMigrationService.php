@@ -16,7 +16,6 @@ use Neos\ContentRepository\NodeMigration\Command\ExecuteMigration;
 use Neos\ContentRepository\NodeMigration\Filter\FiltersFactory;
 use Neos\ContentRepository\NodeMigration\Filter\InvalidMigrationFilterSpecified;
 use Neos\ContentRepository\NodeMigration\Transformation\TransformationsFactory;
-use Neos\Neos\PendingChangesProjection\ChangeFinder;
 
 /**
  * Node Migrations are manually written adjustments to the Node tree;
@@ -68,7 +67,7 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
 
         $targetWorkspaceWasCreated = false;
         if ($targetWorkspace = $this->contentRepository->findWorkspaceByName($command->targetWorkspaceName)) {
-            if (!$this->workspaceIsEmpty($targetWorkspace)) {
+            if ($targetWorkspace->hasPublishableChanges()) {
                 throw new MigrationException(sprintf('Target workspace "%s" already exists an is not empty. Please clear the workspace before.', $targetWorkspace->workspaceName->value));
             }
 
@@ -195,13 +194,5 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
                 }
             }
         }
-    }
-
-    private function workspaceIsEmpty(Workspace $workspace): bool
-    {
-        // todo introduce Workspace::hasPendingChanges
-        return $this->contentRepository
-                ->projectionState(ChangeFinder::class)
-                ->countByContentStreamId($workspace->currentContentStreamId) === 0;
     }
 }

@@ -27,11 +27,11 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindAncestorNodes
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Nodes;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
-use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAddress;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
+use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Diff\Diff;
@@ -373,26 +373,8 @@ class WorkspaceController extends AbstractModuleController
             $this->redirect('index');
         }
 
-        $nodesCount = 0;
-
-        try {
-            $nodesCount = $contentRepository->projectionState(ChangeFinder::class)
-                ->countByContentStreamId(
-                    $workspace->currentContentStreamId
-                );
-        } catch (\Exception $exception) {
-            $message = $this->translator->translateById(
-                'workspaces.notDeletedErrorWhileFetchingUnpublishedNodes',
-                [$workspaceMetadata->title->value],
-                null,
-                null,
-                'Main',
-                'Neos.Workspace.Ui'
-            ) ?: 'workspaces.notDeletedErrorWhileFetchingUnpublishedNodes';
-            $this->addFlashMessage($message, '', Message::SEVERITY_WARNING);
-            $this->redirect('index');
-        }
-        if ($nodesCount > 0) {
+        if ($workspace->hasPublishableChanges()) {
+            $nodesCount = $this->workspacePublishingService->countPendingWorkspaceChanges($contentRepositoryId, $workspaceName);
             $message = $this->translator->translateById(
                 'workspaces.workspaceCannotBeDeletedBecauseOfUnpublishedNodes',
                 [$workspaceMetadata->title->value, $nodesCount],

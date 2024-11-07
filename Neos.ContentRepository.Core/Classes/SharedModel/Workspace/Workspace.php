@@ -32,7 +32,11 @@ final readonly class Workspace
         public ?WorkspaceName $baseWorkspaceName,
         public ContentStreamId $currentContentStreamId,
         public WorkspaceStatus $status,
+        private bool $hasPublishableChanges
     ) {
+        if ($this->isRootWorkspace() && $this->hasPublishableChanges) {
+            throw new \InvalidArgumentException('Root workspaces cannot have changes', 1730371566);
+        }
     }
 
     /**
@@ -43,8 +47,17 @@ final readonly class Workspace
         ?WorkspaceName $baseWorkspaceName,
         ContentStreamId $currentContentStreamId,
         WorkspaceStatus $status,
+        bool $hasPublishableChanges
     ): self {
-        return new self($workspaceName, $baseWorkspaceName, $currentContentStreamId, $status);
+        return new self($workspaceName, $baseWorkspaceName, $currentContentStreamId, $status, $hasPublishableChanges);
+    }
+
+    /**
+     * Indicates if the workspace contains changed to be published
+     */
+    public function hasPublishableChanges(): bool
+    {
+        return $this->hasPublishableChanges;
     }
 
     /**

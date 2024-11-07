@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Neos\ContentGraph\DoctrineDbalAdapter;
 
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception as DBALException;
 use Neos\ContentGraph\DoctrineDbalAdapter\Domain\Projection\Feature\ContentStream;
@@ -24,6 +25,7 @@ use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\InitiatingEventMetadata;
 use Neos\ContentRepository\Core\Feature\Common\EmbedsContentStreamId;
 use Neos\ContentRepository\Core\Feature\Common\InterdimensionalSiblings;
+use Neos\ContentRepository\Core\Feature\Common\PublishableToWorkspaceInterface;
 use Neos\ContentRepository\Core\Feature\ContentStreamClosing\Event\ContentStreamWasClosed;
 use Neos\ContentRepository\Core\Feature\ContentStreamClosing\Event\ContentStreamWasReopened;
 use Neos\ContentRepository\Core\Feature\ContentStreamCreation\Event\ContentStreamWasCreated;
@@ -36,7 +38,7 @@ use Neos\ContentRepository\Core\Feature\NodeCreation\Event\NodeAggregateWithNode
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\SerializedPropertyValues;
 use Neos\ContentRepository\Core\Feature\NodeModification\Event\NodePropertiesWereSet;
 use Neos\ContentRepository\Core\Feature\NodeMove\Event\NodeAggregateWasMoved;
-use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\SerializedNodeReference;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\SerializedNodeReferences;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Event\NodeReferencesWereSet;
 use Neos\ContentRepository\Core\Feature\NodeRemoval\Event\NodeAggregateWasRemoved;
 use Neos\ContentRepository\Core\Feature\NodeRenaming\Event\NodeAggregateNameWasChanged;
@@ -71,6 +73,7 @@ use Neos\ContentRepository\Core\Projection\ProjectionStatus;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateClassification;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
+use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Neos\EventStore\Model\EventEnvelope;
@@ -142,6 +145,7 @@ final class DoctrineDbalContentGraphProjection implements ContentGraphProjection
         if ($requiredSqlStatements !== []) {
             return ProjectionStatus::setupRequired(sprintf('The following SQL statement%s required: %s', count($requiredSqlStatements) !== 1 ? 's are' : ' is', implode(chr(10), $requiredSqlStatements)));
         }
+
         return ProjectionStatus::ok();
     }
 
@@ -236,8 +240,16 @@ final class DoctrineDbalContentGraphProjection implements ContentGraphProjection
             WorkspaceWasRemoved::class => $this->whenWorkspaceWasRemoved($event),
             default => $event instanceof EmbedsContentStreamId || throw new \InvalidArgumentException(sprintf('Unsupported event %s', get_debug_type($event))),
         };
-        if ($event instanceof EmbedsContentStreamId && ContentStreamEventStreamName::isContentStreamStreamName($eventEnvelope->streamName)) {
-            $this->updateContentStreamVersion($event->getContentStreamId(), $eventEnvelope->version);
+        if (
+            $event instanceof EmbedsContentStreamId
+            && ContentStreamEventStreamName::isContentStreamStreamName($eventEnvelope->streamName)
+            && !(
+                // special case as we dont need to update anything. The handling above takes care of setting the version to 0
+                $event instanceof ContentStreamWasForked
+                || $event instanceof ContentStreamWasCreated
+            )
+        ) {
+            $this->updateContentStreamVersion($event->getContentStreamId(), $eventEnvelope->version, $event instanceof PublishableToWorkspaceInterface);
         }
     }
 
@@ -510,6 +522,7 @@ final class DoctrineDbalContentGraphProjection implements ContentGraphProjection
             $event->originDimensionSpacePoint,
             $event->succeedingSiblingsForCoverage,
             $event->initialPropertyValues,
+            $event->nodeReferences,
             $event->nodeAggregateClassification,
             $event->nodeName,
             $eventEnvelope,
@@ -595,22 +608,40 @@ final class DoctrineDbalContentGraphProjection implements ContentGraphProjection
                     $event->contentStreamId
                 );
 
+
             // remove old
+            $deleteOldReferencesSql = <<<SQL
+            DELETE FROM {$this->tableNames->referenceRelation()}
+                WHERE nodeanchorpoint = :nodeanchorpoint
+                AND name in (:names)
+            SQL;
             try {
-                $this->dbal->delete($this->tableNames->referenceRelation(), [
-                    'nodeanchorpoint' => $nodeAnchorPoint?->value,
-                    'name' => $event->referenceName->value
-                ]);
-            } catch (DBALException $e) {
+                $this->dbal->executeStatement(
+                    $deleteOldReferencesSql,
+                    [
+                        'nodeanchorpoint' => $nodeAnchorPoint?->value,
+                        'names' => array_map(fn (ReferenceName $name) => $name->value, $event->references->getReferenceNames())
+                    ],
+                    [
+                        'names' => ArrayParameterType::STRING
+                    ]
+                );
+            } catch (DbalException $e) {
                 throw new \RuntimeException(sprintf('Failed to remove reference relation: %s', $e->getMessage()), 1716486309, $e);
             }
 
             // set new
-            $position = 0;
-            /** @var SerializedNodeReference $reference */
-            foreach ($event->references as $reference) {
+            $nodeAnchorPoint && $this->writeReferencesForTargetAnchorPoint($event->references, $nodeAnchorPoint);
+        }
+    }
+
+    private function writeReferencesForTargetAnchorPoint(SerializedNodeReferences $nodeReferences, NodeRelationAnchorPoint $nodeAnchorPoint): void
+    {
+        $position = 0;
+        foreach ($nodeReferences as $referencesByProperty) {
+            foreach ($referencesByProperty->references as $reference) {
                 $referencePropertiesJson = null;
-                if ($reference->properties !== null) {
+                if ($reference->properties !== null && $reference->properties->count() > 0) {
                     try {
                         $referencePropertiesJson = \json_encode($reference->properties, JSON_THROW_ON_ERROR | JSON_FORCE_OBJECT);
                     } catch (\JsonException $e) {
@@ -619,13 +650,13 @@ final class DoctrineDbalContentGraphProjection implements ContentGraphProjection
                 }
                 try {
                     $this->dbal->insert($this->tableNames->referenceRelation(), [
-                        'name' => $event->referenceName->value,
+                        'name' => $referencesByProperty->referenceName->value,
                         'position' => $position,
-                        'nodeanchorpoint' => $nodeAnchorPoint?->value,
+                        'nodeanchorpoint' => $nodeAnchorPoint->value,
                         'destinationnodeaggregateid' => $reference->targetNodeAggregateId->value,
                         'properties' => $referencePropertiesJson,
                     ]);
-                } catch (DBALException $e) {
+                } catch (DbalException $e) {
                     throw new \RuntimeException(sprintf('Failed to insert reference relation: %s', $e->getMessage()), 1716486309, $e);
                 }
                 $position++;
@@ -909,6 +940,7 @@ final class DoctrineDbalContentGraphProjection implements ContentGraphProjection
         OriginDimensionSpacePoint $originDimensionSpacePoint,
         InterdimensionalSiblings $coverageSucceedingSiblings,
         SerializedPropertyValues $propertyDefaultValuesAndTypes,
+        SerializedNodeReferences $references,
         NodeAggregateClassification $nodeAggregateClassification,
         ?NodeName $nodeName,
         EventEnvelope $eventEnvelope,
@@ -964,6 +996,8 @@ final class DoctrineDbalContentGraphProjection implements ContentGraphProjection
                 }
             }
         }
+
+        $this->writeReferencesForTargetAnchorPoint($references, $node->relationAnchorPoint);
     }
 
     private function connectHierarchy(

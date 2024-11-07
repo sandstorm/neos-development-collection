@@ -25,6 +25,7 @@ use Neos\ContentRepository\Core\EventStore\InitiatingEventMetadata;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryFactory;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\CatchUp;
+use Neos\ContentRepository\Core\Projection\CatchUpHookFactoryDependencies;
 use Neos\ContentRepository\Core\Projection\CatchUpOptions;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionInterface;
@@ -45,7 +46,6 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
 use Neos\EventStore\EventStoreInterface;
-use Neos\EventStore\Exception\ConcurrencyException;
 use Neos\EventStore\Model\EventEnvelope;
 use Neos\EventStore\Model\EventStream\VirtualStreamName;
 use Psr\Clock\ClockInterface;
@@ -147,7 +147,13 @@ final class ContentRepository
         $projection = $this->projectionsAndCatchUpHooks->projections->get($projectionClassName);
 
         $catchUpHookFactory = $this->projectionsAndCatchUpHooks->getCatchUpHookFactoryForProjection($projection);
-        $catchUpHook = $catchUpHookFactory?->build($this);
+        $catchUpHook = $catchUpHookFactory?->build(new CatchUpHookFactoryDependencies(
+            $this->id,
+            $projection->getState(),
+            $this->nodeTypeManager,
+            $this->contentDimensionSource,
+            $this->variationGraph
+        ));
 
         // TODO allow custom stream name per projection
         $streamName = VirtualStreamName::all();

@@ -177,10 +177,7 @@ Feature: Workspace based content publishing
 
     # the user and live workspace are unchanged
     Then I expect exactly 1 event to be published on stream "Workspace:user-test"
-    Then I expect exactly 3 event to be published on stream "ContentStream:user-cs-identifier"
-    And event at index 2 is of type "ContentStreamWasReopened" with payload:
-      | Key                  | Expected                 |
-      | contentStreamId      | "user-cs-identifier"     |
+    Then I expect exactly 1 event to be published on stream "ContentStream:user-cs-identifier"
 
     Then I expect node aggregate identifier "nody-mc-nodeface" to lead to node user-cs-identifier;nody-mc-nodeface;{}
 
