@@ -56,7 +56,7 @@ final class ContentRepositoryFactory
         ProjectionsAndCatchUpHooksFactory $projectionsAndCatchUpHooksFactory,
         private readonly UserIdProviderInterface $userIdProvider,
         private readonly ClockInterface $clock,
-        private readonly CommandHooksFactory|null $commandHooksFactory = null,
+        private readonly CommandHooksFactory|null $commandHooksFactory,
     ) {
         $contentDimensionZookeeper = new ContentDimensionZookeeper($contentDimensionSource);
         $interDimensionalVariationGraph = new InterDimensionalVariationGraph(
