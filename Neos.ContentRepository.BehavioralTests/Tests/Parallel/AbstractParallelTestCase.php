@@ -82,6 +82,6 @@ abstract class AbstractParallelTestCase extends TestCase // we don't use Flows f
 
     final protected function log(string $message): void
     {
-        file_put_contents(self::LOGGING_PATH, substr(self::class, strrpos(self::class, '\\') + 1) . ': ' . getmypid() . ': ' .  $message . PHP_EOL, FILE_APPEND);
+        file_put_contents(self::LOGGING_PATH, substr($this::class, strrpos($this::class, '\\') + 1) . ': ' . getmypid() . ': ' .  $message . PHP_EOL, FILE_APPEND);
     }
 }

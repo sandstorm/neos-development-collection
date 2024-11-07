@@ -57,6 +57,7 @@ class WorkspaceWritingDuringRebase extends AbstractParallelTestCase
     {
         parent::setUp();
         $this->log('------ process started ------');
+        // todo refrain from Gherkin naming here and make fakes easier to use: https://github.com/neos/neos-development-collection/pull/5346
         GherkinTableNodeBasedContentDimensionSourceFactory::$contentDimensionsToUse = new class implements ContentDimensionSourceInterface
         {
             public function getDimension(ContentDimensionId $dimensionId): ?ContentDimension
@@ -68,8 +69,8 @@ class WorkspaceWritingDuringRebase extends AbstractParallelTestCase
                 return [];
             }
         };
-
-        GherkinPyStringNodeBasedNodeTypeManagerFactory::$nodeTypesToUse = $n = new NodeTypeManager(
+        // todo refrain from Gherkin naming here and make fakes easier to use: https://github.com/neos/neos-development-collection/pull/5346
+        GherkinPyStringNodeBasedNodeTypeManagerFactory::$nodeTypesToUse = new NodeTypeManager(
             fn (): array => [
                 'Neos.ContentRepository:Root' => [],
                 'Neos.ContentRepository.Testing:Document' => [
@@ -81,9 +82,6 @@ class WorkspaceWritingDuringRebase extends AbstractParallelTestCase
                 ]
             ]
         );
-
-        // todo remove?
-        $this->contentRepositoryRegistry->resetFactoryInstance(ContentRepositoryId::fromString('test_parallel'));
 
         $setupLockResource = fopen(self::SETUP_LOCK_PATH, 'w+');
 
@@ -136,8 +134,6 @@ class WorkspaceWritingDuringRebase extends AbstractParallelTestCase
                     'title' => 'title'
                 ])
             ));
-            // give the database lock some time to recover
-            // TODO? Why? usleep(5000);
         }
         $this->contentRepository = $contentRepository;
 
