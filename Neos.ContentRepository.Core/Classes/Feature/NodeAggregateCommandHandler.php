@@ -17,6 +17,7 @@ namespace Neos\ContentRepository\Core\Feature;
 use Neos\ContentRepository\Core\CommandHandler\CommandHandlerInterface;
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
+use Neos\ContentRepository\Core\CommandHandler\SerializedCommandInterface;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\DimensionSpace;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
@@ -86,12 +87,12 @@ final class NodeAggregateCommandHandler implements CommandHandlerInterface
     ) {
     }
 
-    public function canHandle(CommandInterface $command): bool
+    public function canHandle(CommandInterface|SerializedCommandInterface $command): bool
     {
         return method_exists($this, 'handle' . (new \ReflectionClass($command))->getShortName());
     }
 
-    public function handle(CommandInterface $command, CommandHandlingDependencies $commandHandlingDependencies): EventsToPublish
+    public function handle(CommandInterface|SerializedCommandInterface $command, CommandHandlingDependencies $commandHandlingDependencies): EventsToPublish
     {
         /** @phpstan-ignore-next-line */
         return match ($command::class) {

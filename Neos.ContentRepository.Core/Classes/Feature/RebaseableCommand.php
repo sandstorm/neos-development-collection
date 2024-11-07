@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Feature;
 
+use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
+use Neos\ContentRepository\Core\CommandHandler\SerializedCommandInterface;
 use Neos\ContentRepository\Core\EventStore\DecoratedEvent;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\InitiatingEventMetadata;
@@ -19,7 +21,7 @@ use Neos\EventStore\Model\Event\SequenceNumber;
 final readonly class RebaseableCommand
 {
     public function __construct(
-        public RebasableToOtherWorkspaceInterface $originalCommand,
+        public (RebasableToOtherWorkspaceInterface&CommandInterface)|(RebasableToOtherWorkspaceInterface&SerializedCommandInterface) $originalCommand,
         public EventMetadata $initiatingMetaData,
         public SequenceNumber $originalSequenceNumber
     ) {
@@ -42,7 +44,7 @@ final readonly class RebaseableCommand
             ), 1547815341);
         }
         /** @var class-string<RebasableToOtherWorkspaceInterface> $commandToRebaseClass */
-        /** @var RebasableToOtherWorkspaceInterface $commandInstance */
+        /** @var (RebasableToOtherWorkspaceInterface&CommandInterface)|(RebasableToOtherWorkspaceInterface&SerializedCommandInterface) $commandInstance */
         $commandInstance = $commandToRebaseClass::fromArray($commandToRebasePayload);
         return new self(
             $commandInstance,

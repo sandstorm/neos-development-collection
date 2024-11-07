@@ -14,7 +14,7 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Feature\NodeReferencing\Command;
 
-use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
+use Neos\ContentRepository\Core\CommandHandler\SerializedCommandInterface;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\Common\MatchableWithNodeIdToPublishOrDiscardInterface;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
@@ -31,7 +31,7 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
  * @internal implementation detail, use {@see SetNodeReferences} instead.
  */
 final readonly class SetSerializedNodeReferences implements
-    CommandInterface,
+    SerializedCommandInterface,
     \JsonSerializable,
     MatchableWithNodeIdToPublishOrDiscardInterface,
     RebasableToOtherWorkspaceInterface

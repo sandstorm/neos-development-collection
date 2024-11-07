@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Feature\Common;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
+use Neos\ContentRepository\Core\CommandHandler\SerializedCommandInterface;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 
 /**
@@ -25,11 +26,11 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
  *
  * @internal used internally for the rebasing mechanism of content streams
  */
-interface RebasableToOtherWorkspaceInterface extends CommandInterface
+interface RebasableToOtherWorkspaceInterface
 {
     public function createCopyForWorkspace(
         WorkspaceName $targetWorkspaceName,
-    ): self;
+    ): (self&CommandInterface)|(self&SerializedCommandInterface);
 
     /**
      * called during deserialization from metadata
