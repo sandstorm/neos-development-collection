@@ -84,5 +84,5 @@ Neos:
         # Command Hooks
         #
         # commandHooks:
-        #   'My.Package:SomeProjection': # just a name
+        #   'My.Package:SomeCommandHook': # just a name
         #     factoryObjectName: My\Package\CommandHook\SomeCommandHookFactory
