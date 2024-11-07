@@ -80,3 +80,9 @@ Neos:
         #     factoryObjectName: My\Package\Projection\SomeProjectionFactory
         #     options: {}
         #     catchUpHooks: {}
+
+        # Command Hooks
+        #
+        # commandHooks:
+        #   'My.Package:SomeProjection': # just a name
+        #     factoryObjectName: My\Package\CommandHook\SomeCommandHookFactory
