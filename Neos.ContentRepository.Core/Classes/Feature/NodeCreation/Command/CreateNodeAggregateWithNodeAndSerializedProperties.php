@@ -14,7 +14,6 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Feature\NodeCreation\Command;
 
-use Neos\ContentRepository\Core\CommandHandler\SerializedCommandInterface;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\Common\MatchableWithNodeIdToPublishOrDiscardInterface;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
@@ -34,7 +33,6 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
  * @internal implementation detail, use {@see CreateNodeAggregateWithNode} instead.
  */
 final readonly class CreateNodeAggregateWithNodeAndSerializedProperties implements
-    SerializedCommandInterface,
     \JsonSerializable,
     MatchableWithNodeIdToPublishOrDiscardInterface,
     RebasableToOtherWorkspaceInterface

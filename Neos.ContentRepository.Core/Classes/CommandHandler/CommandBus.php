@@ -6,6 +6,7 @@ namespace Neos\ContentRepository\Core\CommandHandler;
 
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
+use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
 
 /**
  * Implementation Detail of {@see ContentRepository::handle}, which does the command dispatching to the different
@@ -31,7 +32,7 @@ final readonly class CommandBus
     /**
      * @return EventsToPublish|\Generator<int, EventsToPublish>
      */
-    public function handle(CommandInterface|SerializedCommandInterface $command): EventsToPublish|\Generator
+    public function handle(CommandInterface|RebasableToOtherWorkspaceInterface $command): EventsToPublish|\Generator
     {
         // multiple handlers must not handle the same command
         foreach ($this->handlers as $handler) {
