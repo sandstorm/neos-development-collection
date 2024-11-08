@@ -23,6 +23,7 @@ use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregatesTypeIsAmbiguous;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
@@ -109,6 +110,13 @@ interface ContentGraphInterface extends ProjectionStateInterface
     ): NodeAggregates;
 
     /**
+     * @internal the returned order of node aggregate ids is undefined and not to be relied upon
+     */
+    public function findAncestorNodeAggregateIds(
+        NodeAggregateId $entryNodeAggregateId
+    ): NodeAggregateIds;
+
+    /**
      * @internal only for consumption inside the Command Handler
      */
     public function findChildNodeAggregates(
@@ -141,13 +149,6 @@ interface ContentGraphInterface extends ProjectionStateInterface
         OriginDimensionSpacePoint $parentNodeOriginDimensionSpacePoint,
         DimensionSpacePointSet $dimensionSpacePointsToCheck
     ): DimensionSpacePointSet;
-
-    /**
-     * Provides the total number of projected nodes regardless of workspace or content stream.
-     *
-     * @internal only for consumption in testcases
-     */
-    public function countNodes(): int;
 
     /** @internal The content stream id where the workspace name points to for this instance */
     public function getContentStreamId(): ContentStreamId;

@@ -12,7 +12,6 @@ use Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\CRBehavioralTestsS
 use Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinPyStringNodeBasedNodeTypeManagerFactory;
 use Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinTableNodeBasedContentDimensionSourceFactory;
 use Neos\ContentRepository\Core\ContentRepository;
-use Neos\ContentRepository\Core\ContentRepositoryReadModel;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryDependencies;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryInterface;
@@ -33,10 +32,12 @@ use Neos\ContentRepository\Export\ProcessorResult;
 use Neos\ContentRepository\Export\Severity;
 use Neos\ContentRepository\LegacyNodeMigration\NodeDataToAssetsProcessor;
 use Neos\ContentRepository\LegacyNodeMigration\NodeDataToEventsProcessor;
+use Neos\ContentRepository\LegacyNodeMigration\RootNodeTypeMapping;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\CRTestSuiteTrait;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Property\PropertyMapper;
 use Neos\Flow\ResourceManagement\PersistentResource;
+use Neos\Neos\Domain\Service\NodeTypeNameFactory;
 use PHPUnit\Framework\Assert;
 use PHPUnit\Framework\MockObject\Generator as MockGenerator;
 
@@ -48,8 +49,6 @@ class FeatureContext implements Context
     use FlowBootstrapTrait;
     use CRTestSuiteTrait;
     use CRBehavioralTestsSubjectProvider;
-
-    protected $isolated = false;
 
     private array $nodeDataRows = [];
     /** @var array<PersistentResource> */
@@ -70,8 +69,6 @@ class FeatureContext implements Context
      * @var array<string>
      */
     private array $loggedWarnings = [];
-
-    private ContentRepository $contentRepository;
 
     protected ContentRepositoryRegistry $contentRepositoryRegistry;
 
@@ -111,18 +108,28 @@ class FeatureContext implements Context
                 'properties' => !empty($row['Properties']) ? $row['Properties'] : '{}',
                 'dimensionvalues' => !empty($row['Dimension Values']) ? $row['Dimension Values'] : '{}',
                 'hiddeninindex' => $row['Hidden in index'] ?? '0',
-                'hiddenbeforedatetime' =>  !empty($row['Hidden before DateTime']) ? ($row['Hidden before DateTime']): null,
-                'hiddenafterdatetime' =>  !empty($row['Hidden after DateTime']) ? ($row['Hidden after DateTime']) : null,
+                'hiddenbeforedatetime' => !empty($row['Hidden before DateTime']) ? ($row['Hidden before DateTime']) : null,
+                'hiddenafterdatetime' => !empty($row['Hidden after DateTime']) ? ($row['Hidden after DateTime']) : null,
                 'hidden' => $row['Hidden'] ?? '0',
             ];
         }, $nodeDataRows->getHash());
     }
 
     /**
+     * @When /^I run the event migration for content stream (.*) with rootNode mapping (.*)$/
+     */
+    public function iRunTheEventMigrationForContentStreamWithRootnodeMapping(string $contentStream = null, string $rootNodeMapping): void
+    {
+        $contentStream = trim($contentStream, '"');
+        $rootNodeTypeMapping = RootNodeTypeMapping::fromArray(json_decode($rootNodeMapping, true));
+        $this->iRunTheEventMigration($contentStream, $rootNodeTypeMapping);
+    }
+
+    /**
      * @When I run the event migration
      * @When I run the event migration for content stream :contentStream
      */
-    public function iRunTheEventMigration(string $contentStream = null): void
+    public function iRunTheEventMigration(string $contentStream = null, RootNodeTypeMapping $rootNodeTypeMapping = null): void
     {
         $nodeTypeManager = $this->currentContentRepository->getNodeTypeManager();
         $propertyMapper = $this->getObject(PropertyMapper::class);
@@ -147,6 +154,7 @@ class FeatureContext implements Context
             $this->currentContentRepository->getVariationGraph(),
             $this->getObject(EventNormalizer::class),
             $this->mockFilesystem,
+            $rootNodeTypeMapping ?? RootNodeTypeMapping::fromArray(['/sites' => NodeTypeNameFactory::NAME_SITES]),
             $this->nodeDataRows
         );
         if ($contentStream !== null) {

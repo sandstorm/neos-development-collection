@@ -32,6 +32,7 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregates;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
@@ -183,6 +184,19 @@ final class ContentHypergraph implements ContentGraphInterface
         );
     }
 
+    public function findAncestorNodeAggregateIds(NodeAggregateId $entryNodeAggregateId): NodeAggregateIds
+    {
+        $stack = iterator_to_array($this->findParentNodeAggregates($entryNodeAggregateId));
+
+        $ancestorNodeAggregateIds = [];
+        while ($stack !== []) {
+            $nodeAggregate = array_shift($stack);
+            $ancestorNodeAggregateIds[] = $nodeAggregate->nodeAggregateId;
+            array_push($stack, ...iterator_to_array($this->findParentNodeAggregates($nodeAggregate->nodeAggregateId)));
+        }
+        return NodeAggregateIds::fromArray($ancestorNodeAggregateIds);
+    }
+
     public function findChildNodeAggregates(
         NodeAggregateId $parentNodeAggregateId
     ): NodeAggregates {
@@ -257,17 +271,6 @@ final class ContentHypergraph implements ContentGraphInterface
         }
 
         return new DimensionSpacePointSet($occupiedDimensionSpacePoints);
-    }
-
-    /**
-     * @throws \Doctrine\DBAL\Driver\Exception
-     * @throws \Doctrine\DBAL\Exception
-     */
-    public function countNodes(): int
-    {
-        $query = 'SELECT COUNT(*) FROM ' . $this->tableNamePrefix . '_node';
-
-        return $this->dbal->executeQuery($query)->fetchOne();
     }
 
     public function findUsedNodeTypeNames(): NodeTypeNames

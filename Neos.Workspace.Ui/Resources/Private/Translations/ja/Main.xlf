@@ -215,10 +215,6 @@
         <source>Workspace "{0}" cannot be deleted because the following workspaces are based on it: {1}</source>
         <target state="needs-translation">Workspace "{0}" cannot be deleted because the following workspaces are based on it: {1}</target>
       </trans-unit>
-      <trans-unit id="workspaces.notDeletedErrorWhileFetchingUnpublishedNodes">
-        <source>An error occurred while fetching unpublished nodes from workspace "{0}", nothing was deleted.</source>
-        <target state="needs-translation">An error occurred while fetching unpublished nodes from workspace "{0}", nothing was deleted.</target>
-      </trans-unit>
       <trans-unit id="workspaces.cantEditBecauseWorkspaceContainsChanges">
         <source>Your personal workspace contains changes, please publish or discard them first.</source>
         <target state="needs-translation">Your personal workspace contains changes, please publish or discard them first.</target>

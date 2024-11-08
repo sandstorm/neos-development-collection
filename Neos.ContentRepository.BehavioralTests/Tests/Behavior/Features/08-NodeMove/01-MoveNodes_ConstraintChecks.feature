@@ -59,7 +59,7 @@ Feature: Move node to a new parent / within the current parent before a sibling 
     Then the last command should have thrown an exception of type "WorkspaceDoesNotExist"
 
   Scenario: Try to move a node in a workspace whose content stream is closed:
-    When the command CloseContentStream is executed with payload:
+    When the event ContentStreamWasClosed was published with payload:
       | Key             | Value           |
       | contentStreamId | "cs-identifier" |
     When the command MoveNodeAggregate is executed with payload and exceptions are caught:

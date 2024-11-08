@@ -47,7 +47,7 @@ Feature: Create node variant
     Then the last command should have thrown an exception of type "WorkspaceDoesNotExist"
 
   Scenario: Try to create a variant in a workspace that does not exist
-    When the command CloseContentStream is executed with payload:
+    When the event ContentStreamWasClosed was published with payload:
       | Key             | Value           |
       | contentStreamId | "cs-identifier" |
     And the command CreateNodeVariant is executed with payload and exceptions are caught:

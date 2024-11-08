@@ -19,7 +19,7 @@ namespace Neos\ContentRepository\Core\Feature\WorkspaceRebase;
  *
  * @api part of the exception exposed when rebasing failed
  */
-final readonly class CommandsThatFailedDuringRebase implements \IteratorAggregate
+final readonly class CommandsThatFailedDuringRebase implements \IteratorAggregate, \Countable
 {
     /**
      * @var array<int,CommandThatFailedDuringRebase>
@@ -31,12 +31,14 @@ final readonly class CommandsThatFailedDuringRebase implements \IteratorAggregat
         $this->items = array_values($items);
     }
 
-    public function add(CommandThatFailedDuringRebase $item): self
+    public function withAppended(CommandThatFailedDuringRebase $item): self
     {
-        $items = $this->items;
-        $items[] = $item;
+        return new self(...[...$this->items, $item]);
+    }
 
-        return new self(...$items);
+    public function first(): ?CommandThatFailedDuringRebase
+    {
+        return $this->items[0] ?? null;
     }
 
     public function isEmpty(): bool
@@ -44,11 +46,13 @@ final readonly class CommandsThatFailedDuringRebase implements \IteratorAggregat
         return $this->items === [];
     }
 
-    /**
-     * @return \Traversable<int,CommandThatFailedDuringRebase>
-     */
     public function getIterator(): \Traversable
     {
         yield from $this->items;
+    }
+
+    public function count(): int
+    {
+        return count($this->items);
     }
 }

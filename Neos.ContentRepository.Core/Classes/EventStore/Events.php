@@ -27,6 +27,11 @@ final class Events implements \IteratorAggregate, \Countable
         return new self($event);
     }
 
+    public function withAppendedEvents(Events $events): self
+    {
+        return new self(...$this->events, ...$events->events);
+    }
+
     /**
      * @param array<EventInterface|DecoratedEvent> $events
      * @return static
@@ -36,9 +41,6 @@ final class Events implements \IteratorAggregate, \Countable
         return new self(...$events);
     }
 
-    /**
-     * @return \Traversable<EventInterface|DecoratedEvent>
-     */
     public function getIterator(): \Traversable
     {
         yield from $this->events;

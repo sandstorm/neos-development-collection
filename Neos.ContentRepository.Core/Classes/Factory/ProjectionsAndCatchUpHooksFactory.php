@@ -6,6 +6,7 @@ namespace Neos\ContentRepository\Core\Factory;
 
 use Neos\ContentRepository\Core\Projection\CatchUpHookFactories;
 use Neos\ContentRepository\Core\Projection\CatchUpHookFactoryInterface;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionFactoryInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 use Neos\ContentRepository\Core\Projection\Projections;
@@ -18,7 +19,7 @@ use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 final class ProjectionsAndCatchUpHooksFactory
 {
     /**
-     * @var array<string, array{factory: ProjectionFactoryInterface<ProjectionInterface<ProjectionStateInterface>>, options: array<string, mixed>, catchUpHooksFactories: array<CatchUpHookFactoryInterface>}>
+     * @var array<string, array{factory: ProjectionFactoryInterface<ProjectionInterface<ProjectionStateInterface>>, options: array<string, mixed>, catchUpHooksFactories: array<CatchUpHookFactoryInterface<ProjectionStateInterface>>}>
      */
     private array $factories = [];
 
@@ -39,7 +40,7 @@ final class ProjectionsAndCatchUpHooksFactory
 
     /**
      * @param ProjectionFactoryInterface<ProjectionInterface<ProjectionStateInterface>> $factory
-     * @param CatchUpHookFactoryInterface $catchUpHookFactory
+     * @param CatchUpHookFactoryInterface<ProjectionStateInterface> $catchUpHookFactory
      * @return void
      * @api
      */
@@ -53,6 +54,7 @@ final class ProjectionsAndCatchUpHooksFactory
      */
     public function build(ProjectionFactoryDependencies $projectionFactoryDependencies): ProjectionsAndCatchUpHooks
     {
+        $contentGraphProjection = null;
         $projectionsArray = [];
         $catchUpHookFactoriesByProjectionClassName = [];
         foreach ($this->factories as $factoryDefinition) {
@@ -71,9 +73,20 @@ final class ProjectionsAndCatchUpHooksFactory
                 $options,
             );
             $catchUpHookFactoriesByProjectionClassName[$projection::class] = $catchUpHookFactories;
-            $projectionsArray[] = $projection;
+            if ($projection instanceof ContentGraphProjectionInterface) {
+                if ($contentGraphProjection !== null) {
+                    throw new \RuntimeException(sprintf('Content repository requires exactly one %s to be registered.', ContentGraphProjectionInterface::class));
+                }
+                $contentGraphProjection = $projection;
+            } else {
+                $projectionsArray[] = $projection;
+            }
         }
 
-        return new ProjectionsAndCatchUpHooks(Projections::fromArray($projectionsArray), $catchUpHookFactoriesByProjectionClassName);
+        if ($contentGraphProjection === null) {
+            throw new \RuntimeException(sprintf('Content repository requires the %s to be registered.', ContentGraphProjectionInterface::class));
+        }
+
+        return new ProjectionsAndCatchUpHooks($contentGraphProjection, Projections::fromArray($projectionsArray), $catchUpHookFactoriesByProjectionClassName);
     }
 }

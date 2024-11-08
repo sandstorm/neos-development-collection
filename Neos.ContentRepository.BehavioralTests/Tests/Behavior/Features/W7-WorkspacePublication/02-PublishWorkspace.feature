@@ -95,6 +95,7 @@ Feature: Workspace based content publishing
     When the command PublishWorkspace is executed with payload:
       | Key           | Value       |
       | workspaceName | "user-test" |
+    Then I expect the content stream "user-cs-identifier" to not exist
 
     When I am in workspace "live" and dimension space point {}
     Then I expect node aggregate identifier "nody-mc-nodeface" to lead to node cs-identifier;nody-mc-nodeface;{}
@@ -102,7 +103,7 @@ Feature: Workspace based content publishing
       | Key  | Value      |
       | text | "Modified" |
 
-  Scenario: modify the property in the nested workspace, do modification in live workspace; publish afterwards will not work because rebase is missing; then rebase and publish
+  Scenario: modify the property in the nested workspace, do modification in live workspace; publish afterwards will rebase the changes
 
     When the command SetNodeProperties is executed with payload:
       | Key                       | Value                                  |
@@ -117,22 +118,11 @@ Feature: Workspace based content publishing
       | originDimensionSpacePoint | {}                                     |
       | propertyValues            | {"text": "Modified in live workspace"} |
 
-    # PUBLISHING without rebase: error
-    When the command PublishWorkspace is executed with payload and exceptions are caught:
-      | Key           | Value       |
-      | workspaceName | "user-test" |
-
-    Then the last command should have thrown an exception of type "BaseWorkspaceHasBeenModifiedInTheMeantime"
-
-    # REBASING + Publishing: works now (TODO soft constraint check for old value)
-    When the command RebaseWorkspace is executed with payload:
-      | Key                    | Value           |
-      | workspaceName          | "user-test"     |
-      | rebasedContentStreamId | "rebased-cs-id" |
-
-    And the command PublishWorkspace is executed with payload:
-      | Key           | Value       |
-      | workspaceName | "user-test" |
+    # PUBLISHING (with rebase internally)
+    When the command PublishWorkspace is executed with payload:
+      | Key                | Value         |
+      | workspaceName      | "user-test"   |
+      | newContentStreamId | "user-cs-new" |
 
     When I am in workspace "live" and dimension space point {}
 
@@ -175,3 +165,45 @@ Feature: Workspace based content publishing
     And I expect this node to have the following properties:
       | Key  | Value           |
       | text | "Modified anew" |
+
+  Scenario: Publish is a no-op if there are no changes
+    And I am in workspace "user-test" and dimension space point {}
+    Then I expect node aggregate identifier "nody-mc-nodeface" to lead to node user-cs-identifier;nody-mc-nodeface;{}
+
+    And the command PublishWorkspace is executed with payload:
+      | Key                | Value         |
+      | workspaceName      | "user-test"   |
+      | newContentStreamId | "user-cs-new" |
+
+    # the user and live workspace are unchanged
+    Then I expect exactly 1 event to be published on stream "Workspace:user-test"
+    Then I expect exactly 1 event to be published on stream "ContentStream:user-cs-identifier"
+
+    Then I expect node aggregate identifier "nody-mc-nodeface" to lead to node user-cs-identifier;nody-mc-nodeface;{}
+
+    # checks for the live workspace (same as above)
+    Then I expect exactly 4 events to be published on stream "ContentStream:cs-identifier"
+    Then I expect exactly 1 event to be published on stream "Workspace:live"
+
+  Scenario: Publish is a no-op if there are no changes (and the workspace is outdated)
+    And the command SetNodeProperties is executed with payload:
+      | Key                       | Value                                  |
+      | workspaceName             | "live"                                 |
+      | nodeAggregateId           | "nody-mc-nodeface"                     |
+      | originDimensionSpacePoint | {}                                     |
+      | propertyValues            | {"text": "Modified in live workspace"} |
+
+    And the command PublishWorkspace is executed with payload:
+      | Key                | Value         |
+      | workspaceName      | "user-test"   |
+      | newContentStreamId | "user-cs-new" |
+    Then workspaces user-test has status OUTDATED
+
+    Then I expect exactly 1 events to be published on stream with prefix "Workspace:user-test"
+
+    And I am in workspace "user-test" and dimension space point {}
+    Then I expect node aggregate identifier "nody-mc-nodeface" to lead to node user-cs-identifier;nody-mc-nodeface;{}
+    And I expect this node to have the following properties:
+      | Key  | Value      |
+      | text | "Original" |
+    Then I expect the content stream "user-cs-new" to not exist

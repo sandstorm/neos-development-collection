@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features;
 
 use Behat\Gherkin\Node\TableNode;
+use Neos\ContentRepository\Core\Feature\WorkspaceModification\Command\ChangeBaseWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishIndividualNodesFromWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Dto\NodeIdsToPublishOrDiscard;
@@ -46,9 +47,6 @@ trait WorkspacePublishing
                 : $this->currentWorkspaceName,
             $nodesToPublish,
         );
-        if (isset($commandArguments['contentStreamIdForMatchingPart'])) {
-            $command = $command->withContentStreamIdForMatchingPart(ContentStreamId::fromString($commandArguments['contentStreamIdForMatchingPart']));
-        }
         if (isset($commandArguments['contentStreamIdForRemainingPart'])) {
             $command = $command->withContentStreamIdForRemainingPart(ContentStreamId::fromString($commandArguments['contentStreamIdForRemainingPart']));
         }
@@ -95,6 +93,37 @@ trait WorkspacePublishing
     {
         try {
             $this->theCommandPublishWorkspaceIsExecuted($payloadTable);
+        } catch (\Exception $exception) {
+            $this->lastCommandException = $exception;
+        }
+    }
+
+    /**
+     * @Given /^the command ChangeBaseWorkspace is executed with payload:$/
+     * @throws \Exception
+     */
+    public function theCommandChangeBaseWorkspaceIsExecuted(TableNode $payloadTable): void
+    {
+        $commandArguments = $this->readPayloadTable($payloadTable);
+        $command = ChangeBaseWorkspace::create(
+            array_key_exists('workspaceName', $commandArguments)
+                ? WorkspaceName::fromString($commandArguments['workspaceName'])
+                : $this->currentWorkspaceName,
+            WorkspaceName::fromString($commandArguments['baseWorkspaceName']),
+        );
+        if (array_key_exists('newContentStreamId', $commandArguments)) {
+            $command = $command->withNewContentStreamId(ContentStreamId::fromString($commandArguments['newContentStreamId']));
+        }
+        $this->currentContentRepository->handle($command);
+    }
+
+    /**
+     * @Given /^the command ChangeBaseWorkspace is executed with payload and exceptions are caught:$/
+     */
+    public function theCommandChangeBaseWorkspaceIsExecutedAndExceptionsAreCaught(TableNode $payloadTable): void
+    {
+        try {
+            $this->theCommandChangeBaseWorkspaceIsExecuted($payloadTable);
         } catch (\Exception $exception) {
             $this->lastCommandException = $exception;
         }

@@ -258,9 +258,6 @@
       <trans-unit id="workspaces.workspaceCannotBeDeletedBecauseOfDependencies">
         <source>Workspace "{0}" cannot be deleted because the following workspaces are based on it: {1}</source>
       </trans-unit>
-      <trans-unit id="workspaces.notDeletedErrorWhileFetchingUnpublishedNodes">
-        <source>An error occurred while fetching unpublished nodes from workspace "{0}", nothing was deleted.</source>
-      </trans-unit>
       <trans-unit id="workspaces.cantEditBecauseWorkspaceContainsChanges">
         <source>Your personal workspace contains changes, please publish or discard them first.</source>
       </trans-unit>
