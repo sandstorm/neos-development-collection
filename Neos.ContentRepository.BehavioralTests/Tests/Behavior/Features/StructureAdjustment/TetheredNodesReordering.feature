@@ -28,7 +28,7 @@ Feature: Tethered Nodes Reordering Structure changes
       | Key             | Value                         |
       | nodeAggregateId | "lady-eleonode-rootford"      |
       | nodeTypeName    | "Neos.ContentRepository:Root" |
-    And the command CreateNodeAggregateWithNodeAndSerializedProperties is executed with payload:
+    And the command CreateNodeAggregateWithNode is executed with payload:
       | Key                                | Value                                                                                                                                      |
       | nodeAggregateId                    | "sir-david-nodenborough"                                                                                                                   |
       | nodeTypeName                       | "Neos.ContentRepository.Testing:Document"                                                                                                  |

@@ -20,10 +20,9 @@ use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\EventStore\EventPersister;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
-use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNodeAndSerializedProperties;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\DisableNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\EnableNodeAggregate;
-use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetSerializedNodeProperties;
+use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetNodeProperties;
 use Neos\ContentRepository\Core\Feature\NodeMove\Command\MoveNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Command\SetNodeReferences;
 use Neos\ContentRepository\Core\Feature\NodeRenaming\Command\ChangeNodeAggregateName;
@@ -104,9 +103,8 @@ trait GenericCommandExecutionAndEventPublication
             'PublishWorkspace' => PublishWorkspace::class,
             'PublishIndividualNodesFromWorkspace' => PublishIndividualNodesFromWorkspace::class,
             'RebaseWorkspace' => RebaseWorkspace::class,
-            'CreateNodeAggregateWithNodeAndSerializedProperties' => CreateNodeAggregateWithNodeAndSerializedProperties::class,
             'ChangeNodeAggregateName' => ChangeNodeAggregateName::class,
-            'SetSerializedNodeProperties' => SetSerializedNodeProperties::class,
+            'SetNodeProperties' => SetNodeProperties::class,
             'DisableNodeAggregate' => DisableNodeAggregate::class,
             'EnableNodeAggregate' => EnableNodeAggregate::class,
             'TagSubtree' => TagSubtree::class,
