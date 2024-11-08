@@ -21,7 +21,7 @@ use Neos\EventStore\Model\Event\SequenceNumber;
 final readonly class RebaseableCommand
 {
     public function __construct(
-        public (RebasableToOtherWorkspaceInterface&CommandInterface)|(RebasableToOtherWorkspaceInterface&SerializedCommandInterface) $originalCommand,
+        public RebasableToOtherWorkspaceInterface $originalCommand,
         public EventMetadata $initiatingMetaData,
         public SequenceNumber $originalSequenceNumber
     ) {
