@@ -12,9 +12,6 @@ use Neos\ContentRepository\Core\Feature\ContentStreamCreation\Event\ContentStrea
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\ContentStreamForking\Event\ContentStreamWasForked;
 use Neos\ContentRepository\Core\Feature\ContentStreamRemoval\Event\ContentStreamWasRemoved;
-use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Event\RootWorkspaceWasCreated;
-use Neos\ContentRepository\Core\Feature\WorkspaceEventStreamName;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Export\Event\ValueObject\ExportedEvent;
 use Neos\ContentRepository\Export\ProcessingContext;
@@ -23,6 +20,7 @@ use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Exception\ConcurrencyException;
 use Neos\EventStore\Model\Event;
 use Neos\EventStore\Model\Event\EventId;
+use Neos\EventStore\Model\Event\Version;
 use Neos\EventStore\Model\Events;
 use Neos\EventStore\Model\EventStream\ExpectedVersion;
 use Neos\Flow\Utility\Algorithms;
@@ -100,9 +98,9 @@ final readonly class EventStoreImportProcessor implements ProcessorInterface, Co
 
         $contentStreamStreamName = ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)->getEventStreamName();
         try {
-            $this->eventStore->commit($contentStreamStreamName, Events::fromArray($domainEvents), ExpectedVersion::ANY());
+            $this->eventStore->commit($contentStreamStreamName, Events::fromArray($domainEvents), ExpectedVersion::fromVersion(Version::first()));
         } catch (ConcurrencyException $e) {
-            throw new \RuntimeException(sprintf('Failed to publish %d events because the event stream "%s" already exists (3)', count($domainEvents), $contentStreamStreamName->value), 1729506818, $e);
+            throw new \RuntimeException(sprintf('Failed to publish %d events because the event stream "%s" for workspace "%s" already contains events.', count($domainEvents), $contentStreamStreamName->value, $workspace->workspaceName->value), 1729506818, $e);
         }
     }
 }
