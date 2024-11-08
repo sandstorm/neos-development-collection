@@ -14,6 +14,8 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Feature\Common;
 
+use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
+use Neos\ContentRepository\Core\CommandHandler\CommandSimulator;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 
 /**
@@ -23,7 +25,7 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
  * For complex commands a serialized counterpart - which is not api - will be build which implements this interface.
  *
  * During a rebase, the command (either the original {@see CommandInterface} or its serialized counterpart) will be deserialized
- * from array {@see SerializedCommandInterface::fromArray()} and reapplied via the {@see CommandSimulator}
+ * from array {@see RebasableToOtherWorkspaceInterface::fromArray()} and reapplied via the {@see CommandSimulator}
  *
  * Reminder: a rebase can fail, because the target content stream might contain conflicting changes.
  *
