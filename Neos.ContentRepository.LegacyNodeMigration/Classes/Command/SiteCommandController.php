@@ -23,12 +23,14 @@ use Neos\ContentRepository\Export\Severity;
 use Neos\ContentRepository\LegacyNodeMigration\LegacyExportServiceFactory;
 use Neos\ContentRepository\LegacyNodeMigration\LegacyMigrationService;
 use Neos\ContentRepository\LegacyNodeMigration\LegacyMigrationServiceFactory;
+use Neos\ContentRepository\LegacyNodeMigration\RootNodeTypeMapping;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Cli\CommandController;
 use Neos\Flow\Property\PropertyMapper;
 use Neos\Flow\Utility\Environment;
 use Neos\Neos\Domain\Service\SiteImportService;
 use Neos\Utility\Files;
+use Neos\Neos\Domain\Service\NodeTypeNameFactory;
 
 class SiteCommandController extends CommandController
 {
@@ -45,7 +47,7 @@ class SiteCommandController extends CommandController
     /**
      * Migrate from the Legacy CR
      *
-     * @param string|null $config JSON encoded configuration, for example '{"dbal": {"dbname": "some-other-db"}, "resourcesPath": "/some/absolute/path"}'
+     * @param string|null $config JSON encoded configuration, for example '{"dbal": {"dbname": "some-other-db"}, "resourcesPath": "/some/absolute/path", "rootNodes": {"/sites": "Neos.Neos:Sites", "/other": "My.Package:SomeOtherRoot"}}'
      * @throws \Exception
      */
     public function migrateLegacyDataCommand(string $contentRepository = 'default', bool $verbose = false, string $config = null): void
@@ -57,6 +59,7 @@ class SiteCommandController extends CommandController
                 throw new \InvalidArgumentException(sprintf('Failed to parse --config parameter: %s', $e->getMessage()), 1659526855, $e);
             }
             $resourcesPath = $parsedConfig['resourcesPath'] ?? self::defaultResourcesPath();
+            $rootNodes = isset($parsedConfig['rootNodes']) ? RootNodeTypeMapping::fromArray($parsedConfig['rootNodes']) : $this->getDefaultRootNodes();
             try {
                 $connection = isset($parsedConfig['dbal']) ? DriverManager::getConnection(array_merge($this->connection->getParams(), $parsedConfig['dbal']), new Configuration()) : $this->connection;
             } catch (DBALException $e) {
@@ -64,6 +67,7 @@ class SiteCommandController extends CommandController
             }
         } else {
             $resourcesPath = $this->determineResourcesPath();
+            $rootNodes = $this->getDefaultRootNodes();
             if (!$this->output->askConfirmation(sprintf('Do you want to migrate nodes from the current database "%s@%s" (y/n)? ', $this->connection->getParams()['dbname'] ?? '?', $this->connection->getParams()['host'] ?? '?'))) {
                 $connection = $this->adjustDataBaseConnection($this->connection);
             } else {
@@ -82,6 +86,7 @@ class SiteCommandController extends CommandController
                 $connection,
                 $resourcesPath,
                 $this->propertyMapper,
+                $rootNodes
             )
         );
 
@@ -107,7 +112,7 @@ class SiteCommandController extends CommandController
      * Export from the Legacy CR into a specified directory path
      *
      * @param string $path The path to the directory, will be created if missing
-     * @param string|null $config JSON encoded configuration, for example '{"dbal": {"dbname": "some-other-db"}, "resourcesPath": "/some/absolute/path"}'
+     * @param string|null $config JSON encoded configuration, for example '{"dbal": {"dbname": "some-other-db"}, "resourcesPath": "/some/absolute/path", "rootNodes": {"/sites": "Neos.Neos:Sites", "/other": "My.Package:SomeOtherRoot"}}'
      * @throws \Exception
      */
     public function exportLegacyDataCommand(string $path, bool $verbose = false, string $config = null): void
@@ -119,6 +124,7 @@ class SiteCommandController extends CommandController
                 throw new \InvalidArgumentException(sprintf('Failed to parse --config parameter: %s', $e->getMessage()), 1659526855, $e);
             }
             $resourcesPath = $parsedConfig['resourcesPath'] ?? self::defaultResourcesPath();
+            $rootNodes = isset($parsedConfig['rootNodes']) ? RootNodeTypeMapping::fromArray($parsedConfig['rootNodes']) : $this->getDefaultRootNodes();
             try {
                 $connection = isset($parsedConfig['dbal']) ? DriverManager::getConnection(array_merge($this->connection->getParams(), $parsedConfig['dbal']), new Configuration()) : $this->connection;
             } catch (DBALException $e) {
@@ -126,6 +132,7 @@ class SiteCommandController extends CommandController
             }
         } else {
             $resourcesPath = $this->determineResourcesPath();
+            $rootNodes = $this->getDefaultRootNodes();
             if (!$this->output->askConfirmation(sprintf('Do you want to migrate nodes from the current database "%s@%s" (y/n)? ', $this->connection->getParams()['dbname'] ?? '?', $this->connection->getParams()['host'] ?? '?'))) {
                 $connection = $this->adjustDataBaseConnection($this->connection);
             } else {
@@ -141,6 +148,7 @@ class SiteCommandController extends CommandController
                 $connection,
                 $resourcesPath,
                 $this->propertyMapper,
+                $rootNodes,
             )
         );
 
@@ -160,14 +168,14 @@ class SiteCommandController extends CommandController
     {
         $connectionParams = $connection->getParams();
         $connectionParams['driver'] = $this->output->select(sprintf('Driver? [%s] ', $connectionParams['driver'] ?? ''), ['pdo_mysql', 'pdo_sqlite', 'pdo_pgsql'], $connectionParams['driver'] ?? null);
-        $connectionParams['host'] = $this->output->ask(sprintf('Host? [%s] ',$connectionParams['host'] ?? ''), $connectionParams['host'] ?? null);
-        $port = $this->output->ask(sprintf('Port? [%s] ',$connectionParams['port'] ?? ''), isset($connectionParams['port']) ? (string)$connectionParams['port'] : null);
+        $connectionParams['host'] = $this->output->ask(sprintf('Host? [%s] ', $connectionParams['host'] ?? ''), $connectionParams['host'] ?? null);
+        $port = $this->output->ask(sprintf('Port? [%s] ', $connectionParams['port'] ?? ''), isset($connectionParams['port']) ? (string)$connectionParams['port'] : null);
         $connectionParams['port'] = isset($port) ? (int)$port : null;
-        $connectionParams['dbname'] = $this->output->ask(sprintf('DB name? [%s] ',$connectionParams['dbname'] ?? ''), $connectionParams['dbname'] ?? null);
-        $connectionParams['user'] = $this->output->ask(sprintf('DB user? [%s] ',$connectionParams['user'] ?? ''), $connectionParams['user'] ?? null);
+        $connectionParams['dbname'] = $this->output->ask(sprintf('DB name? [%s] ', $connectionParams['dbname'] ?? ''), $connectionParams['dbname'] ?? null);
+        $connectionParams['user'] = $this->output->ask(sprintf('DB user? [%s] ', $connectionParams['user'] ?? ''), $connectionParams['user'] ?? null);
         /** @phpstan-ignore-next-line */
         $connectionParams['password'] = $this->output->askHiddenResponse(sprintf('DB password? [%s]', str_repeat('*', strlen($connectionParams['password'] ?? '')))) ?? $connectionParams['password'];
-        /** @phpstan-ignore-next-line  */
+        /** @phpstan-ignore-next-line */
         return DriverManager::getConnection($connectionParams, new Configuration());
     }
 
@@ -225,5 +233,10 @@ class SiteCommandController extends CommandController
                 Severity::ERROR => sprintf('<error>Error: %s</error>', $message),
             });
         };
+    }
+
+    private function getDefaultRootNodes(): RootNodeTypeMapping
+    {
+        return RootNodeTypeMapping::fromArray(['/sites' => NodeTypeNameFactory::NAME_SITES]);
     }
 }

@@ -18,7 +18,6 @@ use Doctrine\DBAL\Connection;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryDependencies;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryInterface;
 use Neos\Flow\Property\PropertyMapper;
-use Neos\Flow\Utility\Environment;
 
 /**
  * @implements ContentRepositoryServiceFactoryInterface<LegacyExportService>
@@ -29,6 +28,7 @@ class LegacyExportServiceFactory implements ContentRepositoryServiceFactoryInter
         private readonly Connection $connection,
         private readonly string $resourcesPath,
         private readonly PropertyMapper $propertyMapper,
+        private readonly RootNodeTypeMapping $rootNodeTypeMapping,
     ) {
     }
 
@@ -43,6 +43,7 @@ class LegacyExportServiceFactory implements ContentRepositoryServiceFactoryInter
             $this->propertyMapper,
             $serviceFactoryDependencies->eventNormalizer,
             $serviceFactoryDependencies->propertyConverter,
+            $this->rootNodeTypeMapping,
         );
     }
 }

@@ -50,6 +50,7 @@ use Neos\ContentRepository\LegacyNodeMigration\Exception\MigrationException;
 use Neos\ContentRepository\LegacyNodeMigration\Helpers\SerializedPropertyValuesAndReferences;
 use Neos\ContentRepository\LegacyNodeMigration\Helpers\VisitedNodeAggregate;
 use Neos\ContentRepository\LegacyNodeMigration\Helpers\VisitedNodeAggregates;
+use Neos\ContentRepository\LegacyNodeMigration\RootNodeTypeMapping;
 use Neos\Flow\Persistence\Doctrine\DataTypes\JsonArrayType;
 use Neos\Flow\Property\PropertyMapper;
 use Neos\Neos\Domain\Service\NodeTypeNameFactory;
@@ -57,7 +58,6 @@ use Webmozart\Assert\Assert;
 
 final class EventExportProcessor implements ProcessorInterface
 {
-    private NodeTypeName $sitesNodeTypeName;
     private WorkspaceName $workspaceName;
     private ContentStreamId $contentStreamId;
     private VisitedNodeAggregates $visitedNodes;
@@ -83,9 +83,9 @@ final class EventExportProcessor implements ProcessorInterface
         private readonly PropertyConverter $propertyConverter,
         private readonly InterDimensionalVariationGraph $interDimensionalVariationGraph,
         private readonly EventNormalizer $eventNormalizer,
+        private readonly RootNodeTypeMapping $rootNodeTypeMapping,
         private readonly iterable $nodeDataRows,
     ) {
-        $this->sitesNodeTypeName = NodeTypeNameFactory::forSites();
         $this->contentStreamId = ContentStreamId::create();
         $this->workspaceName = WorkspaceName::forLive();
         $this->visitedNodes = new VisitedNodeAggregates();
@@ -96,11 +96,14 @@ final class EventExportProcessor implements ProcessorInterface
         $this->resetRuntimeState();
 
         foreach ($this->nodeDataRows as $nodeDataRow) {
-            if ($nodeDataRow['path'] === '/sites') {
-                $sitesNodeAggregateId = NodeAggregateId::fromString($nodeDataRow['identifier']);
-                $this->visitedNodes->addRootNode($sitesNodeAggregateId, $this->sitesNodeTypeName, NodePath::fromString('/sites'), $this->interDimensionalVariationGraph->getDimensionSpacePoints());
-                $this->exportEvent(new RootNodeAggregateWithNodeWasCreated($this->workspaceName, $this->contentStreamId, $sitesNodeAggregateId, $this->sitesNodeTypeName, $this->interDimensionalVariationGraph->getDimensionSpacePoints(), NodeAggregateClassification::CLASSIFICATION_ROOT));
-                continue;
+            if ($this->isRootNodePath($nodeDataRow['path'])) {
+                $rootNodeTypeName = $this->rootNodeTypeMapping->getByPath($nodeDataRow['path']);
+                if ($rootNodeTypeName) {
+                    $rootNodeAggregateId = NodeAggregateId::fromString($nodeDataRow['identifier']);
+                    $this->visitedNodes->addRootNode($rootNodeAggregateId, $rootNodeTypeName, NodePath::fromString($nodeDataRow['path']), $this->interDimensionalVariationGraph->getDimensionSpacePoints());
+                    $this->exportEvent(new RootNodeAggregateWithNodeWasCreated($this->workspaceName, $this->contentStreamId, $rootNodeAggregateId, $rootNodeTypeName, $this->interDimensionalVariationGraph->getDimensionSpacePoints(), NodeAggregateClassification::CLASSIFICATION_ROOT));
+                    continue;
+                }
             }
             try {
                 $this->processNodeData($context, $nodeDataRow);
@@ -503,5 +506,11 @@ final class EventExportProcessor implements ProcessorInterface
         }
 
         return false;
+
+    }
+
+    private function isRootNodePath(string $path): bool
+    {
+        return strpos($path, '/') === 0 && strpos($path, '/', 1) === false;
     }
 }

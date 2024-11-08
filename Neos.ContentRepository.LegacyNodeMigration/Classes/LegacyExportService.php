@@ -47,6 +47,7 @@ class LegacyExportService implements ContentRepositoryServiceInterface
         private readonly PropertyMapper $propertyMapper,
         private readonly EventNormalizer $eventNormalizer,
         private readonly PropertyConverter $propertyConverter,
+        private readonly RootNodeTypeMapping $rootNodeTypeMapping,
     ) {
     }
 
@@ -61,7 +62,7 @@ class LegacyExportService implements ContentRepositoryServiceInterface
 
         $processors = Processors::fromArray([
             'Exporting assets' => new AssetExportProcessor($this->nodeTypeManager, $assetExporter, new NodeDataLoader($this->connection)),
-            'Exporting node data' => new EventExportProcessor($this->nodeTypeManager, $this->propertyMapper, $this->propertyConverter, $this->interDimensionalVariationGraph, $this->eventNormalizer, new NodeDataLoader($this->connection)),
+            'Exporting node data' => new EventExportProcessor( $this->nodeTypeManager, $this->propertyMapper, $this->propertyConverter, $this->interDimensionalVariationGraph, $this->eventNormalizer, $this->rootNodeTypeMapping,new NodeDataLoader($this->connection)),
             'Exporting sites data' => new SitesExportProcessor(new SiteDataLoader($this->connection), new DomainDataLoader($this->connection)),
         ]);
 
