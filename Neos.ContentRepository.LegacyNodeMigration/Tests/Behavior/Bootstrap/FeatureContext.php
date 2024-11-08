@@ -86,13 +86,12 @@ class FeatureContext implements Context
     }
 
     /**
-     * @When /^I run the event migration for content stream (.*) with rootNode mapping (.*)$/
+     * @When /^I run the event migration with rootNode mapping (.*)$/
      */
-    public function iRunTheEventMigrationForContentStreamWithRootnodeMapping(string $contentStream = null, string $rootNodeMapping): void
+    public function iRunTheEventMigrationWithRootnodeMapping(string $rootNodeMapping): void
     {
-        $contentStream = trim($contentStream, '"');
         $rootNodeTypeMapping = RootNodeTypeMapping::fromArray(json_decode($rootNodeMapping, true));
-        $this->iRunTheEventMigration($contentStream, $rootNodeTypeMapping);
+        $this->iRunTheEventMigration(null, $rootNodeTypeMapping);
     }
 
     /**
