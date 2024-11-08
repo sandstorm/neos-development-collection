@@ -21,8 +21,6 @@ use Doctrine\DBAL\Exception\ConnectionException;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Export\Severity;
 use Neos\ContentRepository\LegacyNodeMigration\LegacyExportServiceFactory;
-use Neos\ContentRepository\LegacyNodeMigration\LegacyMigrationService;
-use Neos\ContentRepository\LegacyNodeMigration\LegacyMigrationServiceFactory;
 use Neos\ContentRepository\LegacyNodeMigration\RootNodeTypeMapping;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Cli\CommandController;
@@ -47,10 +45,13 @@ class SiteCommandController extends CommandController
     /**
      * Migrate from the Legacy CR
      *
+     * Note that the dimension configuration and the node type schema must be migrated of the content repository to import to and it must be setup.
+     *
+     * @param string $contentRepository The target content repository that will be used for importing into
      * @param string|null $config JSON encoded configuration, for example '{"dbal": {"dbname": "some-other-db"}, "resourcesPath": "/some/absolute/path", "rootNodes": {"/sites": "Neos.Neos:Sites", "/other": "My.Package:SomeOtherRoot"}}'
      * @throws \Exception
      */
-    public function migrateLegacyDataCommand(string $contentRepository = 'default', bool $verbose = false, string $config = null): void
+    public function migrateLegacyDataCommand(string $contentRepository = 'default', string $config = null, bool $verbose = false, ): void
     {
         if ($config !== null) {
             try {
@@ -69,7 +70,7 @@ class SiteCommandController extends CommandController
             $resourcesPath = $this->determineResourcesPath();
             $rootNodes = $this->getDefaultRootNodes();
             if (!$this->output->askConfirmation(sprintf('Do you want to migrate nodes from the current database "%s@%s" (y/n)? ', $this->connection->getParams()['dbname'] ?? '?', $this->connection->getParams()['host'] ?? '?'))) {
-                $connection = $this->adjustDataBaseConnection($this->connection);
+                $connection = $this->adjustDatabaseConnection($this->connection);
             } else {
                 $connection = $this->connection;
             }
@@ -96,6 +97,9 @@ class SiteCommandController extends CommandController
             $this->createOnMessageClosure($verbose)
         );
 
+        $this->outputLine('Migrated data. Importing into new content repository ...');
+
+        // todo check if cr is setup before!!! do not fail here!!!
         $this->siteImportService->importFromPath(
             $contentRepositoryId,
             $temporaryFilePath,
@@ -111,11 +115,14 @@ class SiteCommandController extends CommandController
     /**
      * Export from the Legacy CR into a specified directory path
      *
+     * Note that the dimension configuration and the node type schema must be migrated of the reference content repository
+     *
+     * @param string $contentRepository The reference content repository that can later be used for importing into
      * @param string $path The path to the directory, will be created if missing
      * @param string|null $config JSON encoded configuration, for example '{"dbal": {"dbname": "some-other-db"}, "resourcesPath": "/some/absolute/path", "rootNodes": {"/sites": "Neos.Neos:Sites", "/other": "My.Package:SomeOtherRoot"}}'
      * @throws \Exception
      */
-    public function exportLegacyDataCommand(string $path, bool $verbose = false, string $config = null): void
+    public function exportLegacyDataCommand(string $path, string $contentRepository = 'default', string $config = null, bool $verbose = false): void
     {
         if ($config !== null) {
             try {
@@ -134,7 +141,7 @@ class SiteCommandController extends CommandController
             $resourcesPath = $this->determineResourcesPath();
             $rootNodes = $this->getDefaultRootNodes();
             if (!$this->output->askConfirmation(sprintf('Do you want to migrate nodes from the current database "%s@%s" (y/n)? ', $this->connection->getParams()['dbname'] ?? '?', $this->connection->getParams()['host'] ?? '?'))) {
-                $connection = $this->adjustDataBaseConnection($this->connection);
+                $connection = $this->adjustDatabaseConnection($this->connection);
             } else {
                 $connection = $this->connection;
             }
@@ -143,7 +150,7 @@ class SiteCommandController extends CommandController
 
         Files::createDirectoryRecursively($path);
         $legacyExportService = $this->contentRepositoryRegistry->buildService(
-            ContentRepositoryId::fromString('default'),
+            ContentRepositoryId::fromString($contentRepository),
             new LegacyExportServiceFactory(
                 $connection,
                 $resourcesPath,
@@ -164,7 +171,7 @@ class SiteCommandController extends CommandController
     /**
      * @throws DBALException
      */
-    private function adjustDataBaseConnection(Connection $connection): Connection
+    private function adjustDatabaseConnection(Connection $connection): Connection
     {
         $connectionParams = $connection->getParams();
         $connectionParams['driver'] = $this->output->select(sprintf('Driver? [%s] ', $connectionParams['driver'] ?? ''), ['pdo_mysql', 'pdo_sqlite', 'pdo_pgsql'], $connectionParams['driver'] ?? null);
@@ -189,7 +196,7 @@ class SiteCommandController extends CommandController
             } catch (ConnectionException $exception) {
                 $this->outputLine('<error>Failed to connect to database "%s": %s</error>', [$connection->getDatabase(), $exception->getMessage()]);
                 $this->outputLine('Please verify connection parameters...');
-                $this->adjustDataBaseConnection($connection);
+                $this->adjustDatabaseConnection($connection);
             }
         } while (true);
     }

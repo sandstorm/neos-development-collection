@@ -70,22 +70,14 @@ You can chose from one of the following options:
 #### Migrating an existing (Neos < 9.0) Site
 
 ``` bash
-# WORKAROUND: for now, you still need to create a site (which must match the root node name)
-# !! in the future, you would want to import *INTO* a given site (and replace its root node)
-./flow site:create neosdemo Neos.Demo Neos.Demo:Document.Homepage
-
-# the following config points to a Neos 8.0 database (adjust to your needs), created by
-# the legacy "./flow site:import Neos.Demo" command.
+# the following config points to a Neos 8.0 database (adjust to your needs)
 ./flow site:migrateLegacyData --config '{"dbal": {"dbname": "neos80"}, "resourcesPath": "/path/to/neos-8.0/Data/Persistent/Resources"}'
 ```
 
 #### Importing an existing (Neos >= 9.0) Site from an Export
 
 ``` bash
-# make sure this cr is empty
-./flow site:pruneAll
-# import the event stream from the Neos.Demo package
-./flow site:importAll Packages/Sites/Neos.Demo/Resources/Private/Content
+./flow site:importAll --package-key Neos.Demo
 ```
 
 ### Running Neos

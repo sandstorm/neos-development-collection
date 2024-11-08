@@ -105,11 +105,7 @@ final class EventExportProcessor implements ProcessorInterface
                     continue;
                 }
             }
-            try {
-                $this->processNodeData($context, $nodeDataRow);
-            } catch (MigrationException $e) {
-                throw new \RuntimeException($e->getMessage(), 1729506899, $e);
-            }
+            $this->processNodeData($context, $nodeDataRow);
         }
         // Set References, now when the full import is done.
         foreach ($this->nodeReferencesWereSetEvents as $nodeReferencesWereSetEvent) {
