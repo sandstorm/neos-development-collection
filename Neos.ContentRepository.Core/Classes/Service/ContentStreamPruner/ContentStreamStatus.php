@@ -12,19 +12,19 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\Core\SharedModel\Workspace;
+namespace Neos\ContentRepository\Core\Service\ContentStreamPruner;
 
 /**
  * @api
  */
-enum ContentStreamStatus: string implements \JsonSerializable
+enum ContentStreamStatus: string
 {
     /**
      * the content stream was created, but not yet assigned to a workspace.
      *
      * **temporary state** which should not appear if the system is idle (for content streams which are used with workspaces).
      */
-    case CREATED = 'CREATED';
+    case CREATED = 'created';
 
     /**
      * FORKED means the content stream was forked from an existing content stream, but not yet assigned
@@ -32,38 +32,23 @@ enum ContentStreamStatus: string implements \JsonSerializable
      *
      * **temporary state** which should not appear if the system is idle (for content streams which are used with workspaces).
      */
-    case FORKED = 'FORKED';
+    case FORKED = 'forked';
 
     /**
      * the content stream is currently referenced as the "active" content stream by a workspace.
      */
-    case IN_USE_BY_WORKSPACE = 'IN_USE_BY_WORKSPACE';
-
-    /**
-     * a workspace was tried to be rebased, and during the rebase an error occured. This is the content stream
-     * which contains the errored state - so that we can recover content from it (probably manually)
-     *
-     * @deprecated legacy status, FIXME clean up! https://github.com/neos/neos-development-collection/issues/5101
-     */
-    case REBASE_ERROR = 'REBASE_ERROR';
-
-    /**
-     * the content stream was closed and must no longer accept new events
-     */
-    case CLOSED = 'CLOSED';
+    case IN_USE_BY_WORKSPACE = 'in use by workspace';
 
     /**
      * the content stream is not used anymore, and can be removed.
      */
-    case NO_LONGER_IN_USE = 'NO_LONGER_IN_USE';
+    case NO_LONGER_IN_USE = 'no longer in use';
 
-    public static function fromString(string $value): self
+    public function isTemporary(): bool
     {
-        return self::from($value);
-    }
-
-    public function jsonSerialize(): string
-    {
-        return $this->value;
+        return match ($this) {
+            self::CREATED, self::FORKED => true,
+            default => false
+        };
     }
 }

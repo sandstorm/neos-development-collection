@@ -31,8 +31,6 @@ final readonly class EventPersister
         if ($eventsToPublish->events->isEmpty()) {
             return;
         }
-        // the following logic could also be done in an AppEventStore::commit method (being called
-        // directly from the individual Command Handlers).
         $normalizedEvents = Events::fromArray(
             $eventsToPublish->events->map($this->eventNormalizer->normalize(...))
         );

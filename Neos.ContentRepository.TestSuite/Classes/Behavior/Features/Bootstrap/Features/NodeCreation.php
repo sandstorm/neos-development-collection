@@ -201,8 +201,9 @@ trait NodeCreation
                 isset($row['initialPropertyValues'])
                     ? $this->parsePropertyValuesJsonString($row['initialPropertyValues'])
                     : null,
+                isset($row['references']) ? json_decode($row['references']) : null,
             );
-            if (isset($row['tetheredDescendantNodeAggregateIds'])) {
+            if (!empty($row['tetheredDescendantNodeAggregateIds'])) {
                 $command = $command->withTetheredDescendantNodeAggregateIds(NodeAggregateIdsByNodePaths::fromJsonString($row['tetheredDescendantNodeAggregateIds']));
             }
             if (!empty($row['nodeName'])) {

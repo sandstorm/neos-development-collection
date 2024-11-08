@@ -4,12 +4,18 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Projection;
 
-use Neos\ContentRepository\Core\ContentRepository;
-
 /**
+ * @template T of ProjectionStateInterface
  * @api
  */
 interface CatchUpHookFactoryInterface
 {
-    public function build(ContentRepository $contentRepository): CatchUpHookInterface;
+    /**
+     * Note that a catchup doesn't have access to the full content repository, as it would allow full recursion via handle and accessing other projections
+     * state is not safe as the other projection might not be behind - the order is undefined.
+     *
+     * @param CatchUpHookFactoryDependencies<T> $dependencies available dependencies to intialise the catchup hook
+     * @return CatchUpHookInterface
+     */
+    public function build(CatchUpHookFactoryDependencies $dependencies): CatchUpHookInterface;
 }

@@ -58,6 +58,7 @@ class LegacyMigrationService implements ContentRepositoryServiceInterface
         private readonly PropertyConverter $propertyConverter,
         private readonly EventStoreInterface $eventStore,
         private readonly ContentStreamId $contentStreamId,
+        private readonly RootNodeTypeMapping $rootNodeTypeMapping
     ) {
     }
 
@@ -73,7 +74,7 @@ class LegacyMigrationService implements ContentRepositoryServiceInterface
         /** @var ProcessorInterface[] $processors */
         $processors = [
             'Exporting assets' => new NodeDataToAssetsProcessor($this->nodeTypeManager, $assetExporter, new NodeDataLoader($this->connection)),
-            'Exporting node data' => new NodeDataToEventsProcessor($this->nodeTypeManager, $this->propertyMapper, $this->propertyConverter, $this->interDimensionalVariationGraph, $this->eventNormalizer, $filesystem, new NodeDataLoader($this->connection)),
+            'Exporting node data' => new NodeDataToEventsProcessor($this->nodeTypeManager, $this->propertyMapper, $this->propertyConverter, $this->interDimensionalVariationGraph, $this->eventNormalizer, $filesystem, $this->rootNodeTypeMapping,new NodeDataLoader($this->connection)),
             'Importing assets' => new AssetRepositoryImportProcessor($filesystem, $this->assetRepository, $this->resourceRepository, $this->resourceManager, $this->persistenceManager),
             'Importing events' => new EventStoreImportProcessor(true, $filesystem, $this->eventStore, $this->eventNormalizer, $this->contentStreamId),
         ];

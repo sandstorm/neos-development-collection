@@ -22,6 +22,7 @@ use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWri
 use Neos\ContentRepository\Core\Feature\NodeModification\Event\NodePropertiesWereSet;
 use Neos\ContentRepository\Core\Feature\NodeMove\Event\NodeAggregateWasMoved;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\SerializedNodeReferences;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\SerializedNodeReferencesForName;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Event\NodeReferencesWereSet;
 use Neos\ContentRepository\Core\Feature\NodeVariation\Event\NodeGeneralizationVariantWasCreated;
 use Neos\ContentRepository\Core\Feature\NodeVariation\Event\NodePeerVariantWasCreated;
@@ -61,7 +62,6 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
      * @var array<\Closure>
      */
     private array $callbacks = [];
-    private NodeTypeName $sitesNodeTypeName;
     private WorkspaceName $workspaceName;
     private ContentStreamId $contentStreamId;
     private VisitedNodeAggregates $visitedNodes;
@@ -90,9 +90,9 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
         private readonly InterDimensionalVariationGraph $interDimensionalVariationGraph,
         private readonly EventNormalizer $eventNormalizer,
         private readonly Filesystem $files,
+        private readonly RootNodeTypeMapping $rootNodeTypeMapping,
         private readonly iterable $nodeDataRows,
     ) {
-        $this->sitesNodeTypeName = NodeTypeNameFactory::forSites();
         $this->contentStreamId = ContentStreamId::create();
         $this->workspaceName = WorkspaceName::forLive();
         $this->visitedNodes = new VisitedNodeAggregates();
@@ -101,18 +101,6 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
     public function setContentStreamId(ContentStreamId $contentStreamId): void
     {
         $this->contentStreamId = $contentStreamId;
-    }
-
-    public function setSitesNodeType(NodeTypeName $nodeTypeName): void
-    {
-        $nodeType = $this->nodeTypeManager->getNodeType($nodeTypeName);
-        if (!$nodeType?->isOfType(NodeTypeNameFactory::NAME_SITES)) {
-            throw new \InvalidArgumentException(
-                sprintf('Sites NodeType "%s" must be of type "%s"', $nodeTypeName->value, NodeTypeNameFactory::NAME_SITES),
-                1695802415
-            );
-        }
-        $this->sitesNodeTypeName = $nodeTypeName;
     }
 
     public function onMessage(\Closure $callback): void
@@ -125,11 +113,14 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
         $this->resetRuntimeState();
 
         foreach ($this->nodeDataRows as $nodeDataRow) {
-            if ($nodeDataRow['path'] === '/sites') {
-                $sitesNodeAggregateId = NodeAggregateId::fromString($nodeDataRow['identifier']);
-                $this->visitedNodes->addRootNode($sitesNodeAggregateId, $this->sitesNodeTypeName, NodePath::fromString('/sites'), $this->interDimensionalVariationGraph->getDimensionSpacePoints());
-                $this->exportEvent(new RootNodeAggregateWithNodeWasCreated($this->workspaceName, $this->contentStreamId, $sitesNodeAggregateId, $this->sitesNodeTypeName, $this->interDimensionalVariationGraph->getDimensionSpacePoints(), NodeAggregateClassification::CLASSIFICATION_ROOT));
-                continue;
+            if ($this->isRootNodePath($nodeDataRow['path'])) {
+                $rootNodeTypeName = $this->rootNodeTypeMapping->getByPath($nodeDataRow['path']);
+                if ($rootNodeTypeName) {
+                    $rootNodeAggregateId = NodeAggregateId::fromString($nodeDataRow['identifier']);
+                    $this->visitedNodes->addRootNode($rootNodeAggregateId, $rootNodeTypeName, NodePath::fromString($nodeDataRow['path']), $this->interDimensionalVariationGraph->getDimensionSpacePoints());
+                    $this->exportEvent(new RootNodeAggregateWithNodeWasCreated($this->workspaceName, $this->contentStreamId, $rootNodeAggregateId, $rootNodeTypeName, $this->interDimensionalVariationGraph->getDimensionSpacePoints(), NodeAggregateClassification::CLASSIFICATION_ROOT));
+                    continue;
+                }
             }
             if ($this->metaDataExported === false && $nodeDataRow['parentpath'] === '/sites') {
                 $this->exportMetaData($nodeDataRow);
@@ -295,6 +286,7 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
                     $nodeName,
                     $serializedPropertyValuesAndReferences->serializedPropertyValues,
                     NodeAggregateClassification::CLASSIFICATION_TETHERED,
+                    $serializedPropertyValuesAndReferences->references,
                 )
             );
         } elseif ($this->visitedNodes->containsNodeAggregate($nodeAggregateId)) {
@@ -318,6 +310,7 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
                     $nodeName,
                     $serializedPropertyValuesAndReferences->serializedPropertyValues,
                     NodeAggregateClassification::CLASSIFICATION_REGULAR,
+                    $serializedPropertyValuesAndReferences->references,
                 )
             );
         }
@@ -325,8 +318,9 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
         if ($this->isNodeHidden($nodeDataRow)) {
             $this->exportEvent(new SubtreeWasTagged($this->workspaceName, $this->contentStreamId, $nodeAggregateId, $this->interDimensionalVariationGraph->getSpecializationSet($originDimensionSpacePoint->toDimensionSpacePoint(), true, $this->visitedNodes->alreadyVisitedOriginDimensionSpacePoints($nodeAggregateId)->toDimensionSpacePointSet()), SubtreeTag::disabled()));
         }
-        foreach ($serializedPropertyValuesAndReferences->references as $referencePropertyName => $destinationNodeAggregateIds) {
-            $this->nodeReferencesWereSetEvents[] = new NodeReferencesWereSet($this->workspaceName, $this->contentStreamId, $nodeAggregateId, new OriginDimensionSpacePointSet([$originDimensionSpacePoint]), ReferenceName::fromString($referencePropertyName), SerializedNodeReferences::fromNodeAggregateIds($destinationNodeAggregateIds));
+
+        if (!$serializedPropertyValuesAndReferences->references->isEmpty()) {
+            $this->nodeReferencesWereSetEvents[] = new NodeReferencesWereSet($this->workspaceName, $this->contentStreamId, $nodeAggregateId, new OriginDimensionSpacePointSet([$originDimensionSpacePoint]), $serializedPropertyValuesAndReferences->references);
         }
 
         $this->visitedNodes->add($nodeAggregateId, new DimensionSpacePointSet([$originDimensionSpacePoint->toDimensionSpacePoint()]), $nodeTypeName, $nodePath, $parentNodeAggregate->nodeAggregateId);
@@ -356,7 +350,10 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
                     if (!is_array($propertyValue)) {
                         $propertyValue = [$propertyValue];
                     }
-                    $references[$propertyName] = NodeAggregateIds::fromArray(array_map(static fn (string $identifier) => NodeAggregateId::fromString($identifier), $propertyValue));
+                    $references[] = SerializedNodeReferencesForName::fromTargets(
+                        ReferenceName::fromString($propertyName),
+                        NodeAggregateIds::fromArray($propertyValue)
+                    );
                 }
                 continue;
             }
@@ -401,7 +398,7 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
             }
         }
 
-        return new SerializedPropertyValuesAndReferences($this->propertyConverter->serializePropertyValues(PropertyValuesToWrite::fromArray($properties)->withoutUnsets(), $nodeType), $references);
+        return new SerializedPropertyValuesAndReferences($this->propertyConverter->serializePropertyValues(PropertyValuesToWrite::fromArray($properties)->withoutUnsets(), $nodeType), SerializedNodeReferences::fromArray($references));
     }
 
     /**
@@ -474,6 +471,9 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
                 )
             );
         }
+
+        // TODO: We should also set references here, shouldn't we?
+
         // When we specialize/generalize, we create a node variant at exactly the same tree location as the source node
         // If the parent node aggregate id differs, we need to move the just created variant to the new location
         $nodeAggregate = $this->visitedNodes->getByNodeAggregateId($nodeAggregateId);
@@ -535,7 +535,7 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
             && (
                 $hiddenBeforeDateTime == null
                 || $hiddenBeforeDateTime > $now
-                || $hiddenBeforeDateTime<= $hiddenAfterDateTime
+                || $hiddenBeforeDateTime <= $hiddenAfterDateTime
             )
         ) {
             return true;
@@ -554,5 +554,10 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
 
         return false;
 
+    }
+
+    private function isRootNodePath(string $path): bool
+    {
+        return strpos($path, '/') === 0 && strpos($path, '/', 1) === false;
     }
 }

@@ -24,7 +24,11 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
 
 /**
- * @api for creating a custom content repository graph projection implementation, **not for users of the CR**
+ * This low level interface gives access to the content graph and workspaces
+ *
+ * Generally this is not accessible for users of the CR, except for registering a catchup-hook on the content graph
+ *
+ * @api as dependency in catchup hooks and for creating a custom content repository graph projection implementation
  */
 interface ContentGraphReadModelInterface extends ProjectionStateInterface
 {
@@ -33,11 +37,6 @@ interface ContentGraphReadModelInterface extends ProjectionStateInterface
      * todo cache instances to reduce queries (revert https://github.com/neos/neos-development-collection/pull/5246)
      */
     public function getContentGraph(WorkspaceName $workspaceName): ContentGraphInterface;
-
-    /**
-     * @deprecated todo remove me after https://github.com/neos/neos-development-collection/pull/5301 ;)
-     */
-    public function buildContentGraph(WorkspaceName $workspaceName, ContentStreamId $contentStreamId): ContentGraphInterface;
 
     public function findWorkspaceByName(WorkspaceName $workspaceName): ?Workspace;
 

@@ -7,7 +7,10 @@ Feature: Individual node publication
     Given using no content dimensions
     And using the following node types:
     """yaml
-    'Neos.ContentRepository.Testing:Content': {}
+    'Neos.ContentRepository.Testing:Content':
+      properties:
+        text:
+          type: string
     'Neos.ContentRepository.Testing:Document':
       childNodes:
         child1:
@@ -53,9 +56,34 @@ Feature: Individual node publication
       | Key                             | Value                                                                                                    |
       | nodesToPublish                  | [{"workspaceName": "user-test", "dimensionSpacePoint": {}, "nodeAggregateId": "sir-david-nodenborough"}] |
       | contentStreamIdForRemainingPart | "user-cs-identifier-remaining"                                                                           |
-      | contentStreamIdForMatchingPart  | "user-cs-identifier-matching"                                                                            |
 
     And I am in workspace "live"
 
     Then I expect a node identified by cs-identifier;sir-david-nodenborough;{} to exist in the content graph
 
+
+  Scenario: Partial publish is a no-op if the workspace doesnt contain any changes (and the workspace is outdated)
+
+    When the command CreateNodeAggregateWithNode is executed with payload:
+      | Key                       | Value                                    |
+      | workspaceName             | "live"                                   |
+      | nodeAggregateId           | "nody-mc-nodeface"                       |
+      | nodeTypeName              | "Neos.ContentRepository.Testing:Content" |
+      | originDimensionSpacePoint | {}                                       |
+      | parentNodeAggregateId     | "lady-eleonode-rootford"                 |
+      | initialPropertyValues     | {"text": "Original text"}                |
+
+    And I am in workspace "user-test" and dimension space point {}
+    Then I expect node aggregate identifier "nody-mc-nodeface" to lead to no node
+
+    When the command PublishIndividualNodesFromWorkspace is executed with payload:
+      | Key                             | Value                                                            |
+      | workspaceName                   | "user-test"                                                      |
+      | nodesToPublish                  | [{"dimensionSpacePoint": {}, "nodeAggregateId": "non-existing"}] |
+      | contentStreamIdForRemainingPart | "user-cs-new"                                                    |
+    Then workspaces user-test has status OUTDATED
+
+    And I am in workspace "user-test" and dimension space point {}
+    Then I expect node aggregate identifier "nody-mc-nodeface" to lead to no node
+
+    Then I expect the content stream "user-cs-new" to not exist
