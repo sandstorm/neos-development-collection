@@ -30,7 +30,7 @@ interface RebasableToOtherWorkspaceInterface
 {
     public function createCopyForWorkspace(
         WorkspaceName $targetWorkspaceName,
-    ): (self&CommandInterface)|(self&SerializedCommandInterface);
+    ): (RebasableToOtherWorkspaceInterface&CommandInterface)|(RebasableToOtherWorkspaceInterface&SerializedCommandInterface);
 
     /**
      * called during deserialization from metadata

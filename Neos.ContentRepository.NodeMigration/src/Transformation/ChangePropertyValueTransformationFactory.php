@@ -16,9 +16,12 @@ namespace Neos\ContentRepository\NodeMigration\Transformation;
 
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
+use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetNodeProperties;
 use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetSerializedNodeProperties;
+use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\SerializedPropertyValue;
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\SerializedPropertyValues;
+use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\SharedModel\Node\PropertyNames;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
@@ -41,7 +44,8 @@ class ChangePropertyValueTransformationFactory implements TransformationFactoryI
      */
     public function build(
         array $settings,
-        ContentRepository $contentRepository
+        ContentRepository $contentRepository,
+        PropertyConverter $propertyConverter,
     ): GlobalTransformationInterface|NodeAggregateBasedTransformationInterface|NodeBasedTransformationInterface {
         $newSerializedValue = '{current}';
         if (isset($settings['newSerializedValue'])) {
@@ -69,7 +73,8 @@ class ChangePropertyValueTransformationFactory implements TransformationFactoryI
             $search,
             $replace,
             $currentValuePlaceholder,
-            $contentRepository
+            $contentRepository,
+            $propertyConverter,
         ) implements NodeBasedTransformationInterface {
             public function __construct(
                 /**
@@ -96,7 +101,8 @@ class ChangePropertyValueTransformationFactory implements TransformationFactoryI
                  * current property value into the new value.
                  */
                 private readonly string $currentValuePlaceholder,
-                private readonly ContentRepository $contentRepository
+                private readonly ContentRepository $contentRepository,
+                private readonly PropertyConverter $propertyConverter,
             ) {
             }
 
@@ -126,19 +132,17 @@ class ChangePropertyValueTransformationFactory implements TransformationFactoryI
                         $this->replace,
                         $newValueWithReplacedCurrentValue
                     );
+                    /** @phpstan-ignore-next-line */
+                    $deserializedPropertyValue = $this->propertyConverter->deserializePropertyValue(SerializedPropertyValue::create($newValueWithReplacedSearch, $currentProperty->type));
 
                     $this->contentRepository->handle(
-                        SetSerializedNodeProperties::create(
+                        SetNodeProperties::create(
                             $workspaceNameForWriting,
                             $node->aggregateId,
                             $node->originDimensionSpacePoint,
-                            SerializedPropertyValues::fromArray([
-                                $this->propertyName => SerializedPropertyValue::create(
-                                    $newValueWithReplacedSearch,
-                                    $currentProperty->type
-                                )
-                            ]),
-                            PropertyNames::createEmpty()
+                            PropertyValuesToWrite::fromArray([
+                                $this->propertyName => $deserializedPropertyValue,
+                            ])
                         )
                     );
                 }

@@ -16,9 +16,11 @@ namespace Neos\ContentRepository\NodeMigration\Transformation;
 
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
-use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetSerializedNodeProperties;
+use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetNodeProperties;
+use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\SerializedPropertyValue;
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\SerializedPropertyValues;
+use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\SharedModel\Node\PropertyNames;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
@@ -31,13 +33,15 @@ class AddNewPropertyTransformationFactory implements TransformationFactoryInterf
      */
     public function build(
         array $settings,
-        ContentRepository $contentRepository
+        ContentRepository $contentRepository,
+        PropertyConverter $propertyConverter,
     ): GlobalTransformationInterface|NodeAggregateBasedTransformationInterface|NodeBasedTransformationInterface {
         return new class (
             $settings['newPropertyName'],
             $settings['type'],
             $settings['serializedValue'],
-            $contentRepository
+            $contentRepository,
+            $propertyConverter,
         ) implements NodeBasedTransformationInterface {
             public function __construct(
                 /**
@@ -50,6 +54,7 @@ class AddNewPropertyTransformationFactory implements TransformationFactoryInterf
                  */
                 private readonly mixed $serializedValue,
                 private readonly ContentRepository $contentRepository,
+                private readonly PropertyConverter $propertyConverter,
             ) {
             }
 
@@ -63,20 +68,18 @@ class AddNewPropertyTransformationFactory implements TransformationFactoryInterf
                     // we don't need to unset a non-existing property
                     return;
                 }
+                /** @phpstan-ignore-next-line */
+                $deserializedPropertyValue = $this->propertyConverter->deserializePropertyValue(SerializedPropertyValue::create($this->serializedValue, $this->type));
 
                 if (!$node->hasProperty($this->newPropertyName)) {
                     $this->contentRepository->handle(
-                        SetSerializedNodeProperties::create(
+                        SetNodeProperties::create(
                             $workspaceNameForWriting,
                             $node->aggregateId,
                             $node->originDimensionSpacePoint,
-                            SerializedPropertyValues::fromArray([
-                                $this->newPropertyName => SerializedPropertyValue::create(
-                                    $this->serializedValue,
-                                    $this->type
-                                )
-                            ]),
-                            PropertyNames::createEmpty()
+                            PropertyValuesToWrite::fromArray([
+                                $this->newPropertyName => $deserializedPropertyValue,
+                            ])
                         )
                     );
                 }
