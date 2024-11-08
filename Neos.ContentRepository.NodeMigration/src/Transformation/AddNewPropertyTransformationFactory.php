@@ -68,8 +68,7 @@ class AddNewPropertyTransformationFactory implements TransformationFactoryInterf
                     // we don't need to unset a non-existing property
                     return;
                 }
-                /** @phpstan-ignore-next-line */
-                $deserializedPropertyValue = $this->propertyConverter->deserializePropertyValue(SerializedPropertyValue::create($this->serializedValue, $this->type));
+                $deserializedPropertyValue = $this->propertyConverter->deserializePropertyValue(SerializedPropertyValue::create($this->serializedValue, $this->type)); // @phpstan-ignore neos.cr.internal
 
                 if (!$node->hasProperty($this->newPropertyName)) {
                     $this->contentRepository->handle(

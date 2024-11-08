@@ -132,8 +132,7 @@ class ChangePropertyValueTransformationFactory implements TransformationFactoryI
                         $this->replace,
                         $newValueWithReplacedCurrentValue
                     );
-                    /** @phpstan-ignore-next-line */
-                    $deserializedPropertyValue = $this->propertyConverter->deserializePropertyValue(SerializedPropertyValue::create($newValueWithReplacedSearch, $currentProperty->type));
+                    $deserializedPropertyValue = $this->propertyConverter->deserializePropertyValue(SerializedPropertyValue::create($newValueWithReplacedSearch, $currentProperty->type));  // @phpstan-ignore neos.cr.internal
 
                     $this->contentRepository->handle(
                         SetNodeProperties::create(
