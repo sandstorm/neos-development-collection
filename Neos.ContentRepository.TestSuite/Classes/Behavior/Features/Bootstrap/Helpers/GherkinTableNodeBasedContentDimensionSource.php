@@ -28,6 +28,7 @@ use Neos\Utility\Arrays;
 
 /**
  * The node creation trait for behavioral tests
+ * todo colocate with GherkinTableNodeBasedContentDimensionSourceFactory
  */
 final readonly class GherkinTableNodeBasedContentDimensionSource implements ContentDimensionSourceInterface
 {

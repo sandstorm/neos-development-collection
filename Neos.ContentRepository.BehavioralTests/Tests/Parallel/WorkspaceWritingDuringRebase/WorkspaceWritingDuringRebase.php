@@ -12,18 +12,17 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Feature\WorkspacePublication;
+namespace Neos\ContentRepository\BehavioralTests\Tests\Parallel\WorkspaceWritingDuringRebase;
 
-use Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\CRBehavioralTestsSubjectProvider;
+use Neos\ContentRepository\BehavioralTests\Tests\Parallel\AbstractParallelTestCase;
 use Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinPyStringNodeBasedNodeTypeManagerFactory;
 use Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinTableNodeBasedContentDimensionSourceFactory;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Dimension\ContentDimension;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionId;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
+use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
-use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryInterface;
-use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNode;
 use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetNodeProperties;
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
@@ -31,38 +30,34 @@ use Neos\ContentRepository\Core\Feature\RootNodeCreation\Command\CreateRootNodeA
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Command\CreateRootWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Command\CreateWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Command\RebaseWorkspace;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Dto\RebaseErrorHandlingStrategy;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
+use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamIsClosed;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
-use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\CRTestSuiteTrait;
-use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\EventStore\Exception\ConcurrencyException;
-use Neos\Flow\Tests\FunctionalTestCase;
+use Neos\Flow\ObjectManagement\ObjectManagerInterface;
 use PHPUnit\Framework\Assert;
 
-/**
- * Parallel test cases for workspace publication
- */
-class WorkspaceWritingDuringPublication extends FunctionalTestCase
+class WorkspaceWritingDuringRebase extends AbstractParallelTestCase
+
 {
-    use CRTestSuiteTrait;
-    use CRBehavioralTestsSubjectProvider;
-
+    private const SETUP_LOCK_PATH = __DIR__ . '/setup-lock';
     private const REBASE_IS_RUNNING_FLAG_PATH = __DIR__ . '/rebase-is-running-flag';
-    private const SETUP_IS_RUNNING_FLAG_PATH = __DIR__ . '/setup-is-running-flag';
-    private const SETUP_IS_DONE_FLAG_PATH = __DIR__ . '/setup-is-done-flag';
 
-    private ?ContentRepository $contentRepository = null;
+    private ContentRepository $contentRepository;
 
-    private ?ContentRepositoryRegistry $contentRepositoryRegistry = null;
+    protected ObjectManagerInterface $objectManager;
 
     public function setUp(): void
     {
         parent::setUp();
+        $this->log('------ process started ------');
+        // todo refrain from Gherkin naming here and make fakes easier to use: https://github.com/neos/neos-development-collection/pull/5346
         GherkinTableNodeBasedContentDimensionSourceFactory::$contentDimensionsToUse = new class implements ContentDimensionSourceInterface
         {
             public function getDimension(ContentDimensionId $dimensionId): ?ContentDimension
@@ -74,7 +69,7 @@ class WorkspaceWritingDuringPublication extends FunctionalTestCase
                 return [];
             }
         };
-
+        // todo refrain from Gherkin naming here and make fakes easier to use: https://github.com/neos/neos-development-collection/pull/5346
         GherkinPyStringNodeBasedNodeTypeManagerFactory::$nodeTypesToUse = new NodeTypeManager(
             fn (): array => [
                 'Neos.ContentRepository:Root' => [],
@@ -87,19 +82,21 @@ class WorkspaceWritingDuringPublication extends FunctionalTestCase
                 ]
             ]
         );
-        $this->contentRepositoryRegistry = $this->objectManager->get(ContentRepositoryRegistry::class);
 
-        if (is_file(self::SETUP_IS_RUNNING_FLAG_PATH)) {
-            $this->awaitFileRemoval(self::SETUP_IS_RUNNING_FLAG_PATH, 60000); // 60s for CR setup
-        }
-        if (is_file(self::SETUP_IS_DONE_FLAG_PATH)) {
+        $setupLockResource = fopen(self::SETUP_LOCK_PATH, 'w+');
+
+        $exclusiveNonBlockingLockResult = flock($setupLockResource, LOCK_EX | LOCK_NB);
+        if ($exclusiveNonBlockingLockResult === false) {
+            $this->log('waiting for setup');
+            $this->awaitSharedLock($setupLockResource);
             $this->contentRepository = $this->contentRepositoryRegistry
-                ->get(ContentRepositoryId::fromString('default'));
+                ->get(ContentRepositoryId::fromString('test_parallel'));
+            $this->log('wait for setup finished');
             return;
         }
-        touch(self::SETUP_IS_RUNNING_FLAG_PATH);
 
-        $contentRepository = $this->setUpContentRepository(ContentRepositoryId::fromString('default'));
+        $this->log('setup started');
+        $contentRepository = $this->setUpContentRepository(ContentRepositoryId::fromString('test_parallel'));
 
         $origin = OriginDimensionSpacePoint::createWithoutDimensions();
         $contentRepository->handle(CreateRootWorkspace::create(
@@ -118,7 +115,7 @@ class WorkspaceWritingDuringPublication extends FunctionalTestCase
             $origin,
             NodeAggregateId::fromString('lady-eleonode-rootford'),
             initialPropertyValues: PropertyValuesToWrite::fromArray([
-                'title' => 'title'
+                'title' => 'title-original'
             ])
         ));
         $contentRepository->handle(CreateWorkspace::create(
@@ -126,7 +123,7 @@ class WorkspaceWritingDuringPublication extends FunctionalTestCase
             WorkspaceName::forLive(),
             ContentStreamId::fromString('user-cs-id')
         ));
-        for ($i = 0; $i <= 1000; $i++) {
+        for ($i = 0; $i <= 5000; $i++) {
             $contentRepository->handle(CreateNodeAggregateWithNode::create(
                 WorkspaceName::forLive(),
                 NodeAggregateId::fromString('nody-mc-nodeface-' . $i),
@@ -137,13 +134,14 @@ class WorkspaceWritingDuringPublication extends FunctionalTestCase
                     'title' => 'title'
                 ])
             ));
-            // give the database lock some time to recover
-            usleep(5000);
         }
         $this->contentRepository = $contentRepository;
 
-        touch(self::SETUP_IS_DONE_FLAG_PATH);
-        unlink(self::SETUP_IS_RUNNING_FLAG_PATH);
+        if (!flock($setupLockResource, LOCK_UN)) {
+            throw new \RuntimeException('failed to release setup lock');
+        }
+
+        $this->log('setup finished');
     }
 
     /**
@@ -152,18 +150,22 @@ class WorkspaceWritingDuringPublication extends FunctionalTestCase
      */
     public function whileAWorkspaceIsBeingRebased(): void
     {
-        touch(self::REBASE_IS_RUNNING_FLAG_PATH);
         $workspaceName = WorkspaceName::fromString('user-test');
-        $exception = null;
+        $this->log('rebase started');
+
+        touch(self::REBASE_IS_RUNNING_FLAG_PATH);
+
         try {
-            $this->contentRepository->handle(RebaseWorkspace::create(
-                $workspaceName,
-            )->withRebasedContentStreamId(ContentStreamId::fromString('user-test-rebased')));
-        } catch (\RuntimeException $runtimeException) {
-            $exception = $runtimeException;
+            $this->contentRepository->handle(
+                RebaseWorkspace::create($workspaceName)
+                    ->withRebasedContentStreamId(ContentStreamId::create())
+                    ->withErrorHandlingStrategy(RebaseErrorHandlingStrategy::STRATEGY_FORCE));
+        } finally {
+            unlink(self::REBASE_IS_RUNNING_FLAG_PATH);
         }
-        unlink(self::REBASE_IS_RUNNING_FLAG_PATH);
-        Assert::assertNull($exception);
+
+        $this->log('rebase finished');
+        Assert::assertTrue(true, 'No exception was thrown ;)');
     }
 
     /**
@@ -172,12 +174,22 @@ class WorkspaceWritingDuringPublication extends FunctionalTestCase
      */
     public function thenConcurrentCommandsLeadToAnException(): void
     {
-        $this->awaitFile(self::REBASE_IS_RUNNING_FLAG_PATH);
-        // give the CR some time to close the content stream
-        usleep(10000);
+        if (!is_file(self::REBASE_IS_RUNNING_FLAG_PATH)) {
+            $this->log('write waiting');
+
+            $this->awaitFile(self::REBASE_IS_RUNNING_FLAG_PATH);
+            // If write is the process that does the (slowish) setup, and then waits for the rebase to start,
+            // We give the CR some time to close the content stream
+            // TODO find another way than to randomly wait!!!
+            // The problem is, if we dont sleep it happens often that the modification works only then the rebase is startet _really_
+            // Doing the modification several times in hope that the second one fails will likely just stop the rebase thread as it cannot close
+            usleep(10000);
+        }
+
+        $this->log('write started');
+
         $origin = OriginDimensionSpacePoint::createWithoutDimensions();
-        $exceptionIsThrownAsExpected = false;
-        $actualException = 'none';
+        $actualException = null;
         try {
             $this->contentRepository->handle(SetNodeProperties::create(
                 WorkspaceName::fromString('user-test'),
@@ -188,65 +200,24 @@ class WorkspaceWritingDuringPublication extends FunctionalTestCase
                 ])
             ));
         } catch (\Exception $thrownException) {
-            $exceptionIsThrownAsExpected
-                = $thrownException instanceof ContentStreamIsClosed || $thrownException instanceof ConcurrencyException;
-            $actualException = get_class($thrownException);
+            $actualException = $thrownException;
         }
 
-        unlink(self::SETUP_IS_DONE_FLAG_PATH);
-        Assert::assertTrue($exceptionIsThrownAsExpected, 'Expected exception of type ' . ContentStreamIsClosed::class
-            . ' or ' . ConcurrencyException::class . ', ' . $actualException . ' thrown'
-        );
-    }
+        $this->log('write finished');
 
-    private function awaitFile(string $filename): void
-    {
-        $waiting = 0;
-        while (!is_file($filename)) {
-            usleep(1000);
-            $waiting++;
-            clearstatcache(true, $filename);
-            if ($waiting > 60000) {
-                throw new \Exception('timeout while waiting on file ' . $filename);
-            }
+        $node = $this->contentRepository->getContentGraph(WorkspaceName::fromString('user-test'))
+            ->getSubgraph(DimensionSpacePoint::createWithoutDimensions(), VisibilityConstraints::withoutRestrictions())
+            ->findNodeById(NodeAggregateId::fromString('nody-mc-nodeface'));
+
+        if ($actualException === null) {
+            Assert::fail(sprintf('No exception was thrown. Mutated Node: %s', json_encode($node?->properties->serialized())));
         }
-    }
 
-    private function awaitFileRemoval(string $filename, int $maximumCycles = 2000): void
-    {
-        $waiting = 0;
-        while (is_file($filename)) {
-            usleep(10000);
-            $waiting++;
-            clearstatcache(true, $filename);
-            if ($waiting > $maximumCycles) {
-                throw new \Exception('timeout while waiting on removal of file ' . $filename);
-            }
-        }
-    }
+        Assert::assertThat($actualException, self::logicalOr(
+            self::isInstanceOf(ContentStreamIsClosed::class),
+            self::isInstanceOf(ConcurrencyException::class),
+        ));
 
-    protected function getObject(string $className): object
-    {
-        return $this->objectManager->get($className);
-    }
-
-    protected function getContentRepositoryService(
-        ContentRepositoryServiceFactoryInterface $factory
-    ): ContentRepositoryServiceInterface {
-        return $this->contentRepositoryRegistry->buildService(
-            $this->currentContentRepository->id,
-            $factory
-        );
-    }
-
-    protected function createContentRepository(
-        ContentRepositoryId $contentRepositoryId
-    ): ContentRepository {
-        $this->contentRepositoryRegistry->resetFactoryInstance($contentRepositoryId);
-        $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
-        GherkinTableNodeBasedContentDimensionSourceFactory::reset();
-        GherkinPyStringNodeBasedNodeTypeManagerFactory::reset();
-
-        return $contentRepository;
+        Assert::assertSame('title-original', $node?->getProperty('title'));
     }
 }
