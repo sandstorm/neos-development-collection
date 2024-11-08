@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\CommandHandler;
 
 /**
- * Common (marker) interface for all commands of the Content Repository
+ * Common (marker) interface for all commands of the content repository
  *
- * @internal because extra commands are no extension point
+ * @internal sealed interface. Custom commands cannot be handled and are no extension point!
  */
 interface CommandInterface
 {

@@ -19,8 +19,7 @@ use Neos\ContentRepository\Core\CommandHandler\SerializedCommandInterface;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 
 /**
- * This interface is implemented by **commands** which can be rebased to other Content Streams. This is basically all
- * node-based commands.
+ * This interface is implemented by **commands** which can be rebased to other workspaces.
  *
  * Reminder: a rebase can fail, because the target content stream might contain conflicting changes.
  *
