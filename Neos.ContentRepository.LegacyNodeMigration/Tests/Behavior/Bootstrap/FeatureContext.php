@@ -91,14 +91,13 @@ class FeatureContext implements Context
     public function iRunTheEventMigrationWithRootnodeMapping(string $rootNodeMapping): void
     {
         $rootNodeTypeMapping = RootNodeTypeMapping::fromArray(json_decode($rootNodeMapping, true));
-        $this->iRunTheEventMigration(null, $rootNodeTypeMapping);
+        $this->iRunTheEventMigration($rootNodeTypeMapping);
     }
 
     /**
      * @When I run the event migration
-     * @When I run the event migration for workspace :workspace
      */
-    public function iRunTheEventMigration(string $workspace = null, RootNodeTypeMapping $rootNodeTypeMapping = null): void
+    public function iRunTheEventMigration(RootNodeTypeMapping $rootNodeTypeMapping = null): void
     {
         $nodeTypeManager = $this->currentContentRepository->getNodeTypeManager();
         $propertyMapper = $this->getObject(PropertyMapper::class);
