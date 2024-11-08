@@ -19,11 +19,11 @@ use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionId;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Exception\WorkspaceAlreadyExists;
-use Neos\ContentRepository\Core\Feature\WorkspaceModification\Command\DeleteWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\DiscardIndividualNodesFromWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishIndividualNodesFromWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Dto\NodeIdsToPublishOrDiscard;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Dto\NodeIdToPublishOrDiscard;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\WorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindAncestorNodesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Nodes;
@@ -39,10 +39,12 @@ use Neos\Diff\Diff;
 use Neos\Diff\Renderer\Html\HtmlArrayRenderer;
 use Neos\Error\Messages\Message;
 use Neos\Flow\Annotations as Flow;
+use Neos\Flow\Http\Exception;
 use Neos\Flow\I18n\Exception\IndexOutOfBoundsException;
 use Neos\Flow\I18n\Exception\InvalidFormatPlaceholderException;
 use Neos\Flow\I18n\Translator;
 use Neos\Flow\Mvc\Exception\StopActionException;
+use Neos\Flow\Mvc\Routing\Exception\MissingActionNameException;
 use Neos\Flow\Package\PackageManager;
 use Neos\Flow\Property\PropertyMapper;
 use Neos\Flow\Security\Context;
@@ -50,7 +52,6 @@ use Neos\Fusion\View\FusionView;
 use Neos\Media\Domain\Model\AssetInterface;
 use Neos\Media\Domain\Model\ImageInterface;
 use Neos\Neos\Controller\Module\AbstractModuleController;
-use Neos\Neos\Domain\Model\SiteNodeName;
 use Neos\Neos\Domain\Model\User;
 use Neos\Neos\Domain\Model\UserId;
 use Neos\Neos\Domain\Model\WorkspaceClassification;
@@ -182,7 +183,22 @@ class WorkspaceController extends AbstractModuleController
 
         $workspaceObj = $contentRepository->findWorkspaceByName($workspace);
         if (is_null($workspaceObj)) {
-            /** @todo add flash message */
+            $title = WorkspaceTitle::fromString($workspace->value);
+            $this->addFlashMessage(
+                $this->getModuleLabel('workspaces.workspaceDoesNotExist', [$title->value]),
+                '',
+                Message::SEVERITY_ERROR
+            );
+            $this->redirect('index');
+        }
+
+        $workspacePermissions = $this->workspaceService->getWorkspacePermissionsForUser($contentRepositoryId, $workspace, $currentUser);
+        if(!$workspacePermissions->read){
+            $this->addFlashMessage(
+                $this->getModuleLabel('workspaces.changes.noPermissionToReadWorkspace'),
+                '',
+                Message::SEVERITY_ERROR
+            );
             $this->redirect('index');
         }
         $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspace);
@@ -200,6 +216,7 @@ class WorkspaceController extends AbstractModuleController
             'baseWorkspaceName' => $workspaceObj->baseWorkspaceName,
             'baseWorkspaceLabel' => $baseWorkspaceMetadata?->title->value,
             'canPublishToBaseWorkspace' => $baseWorkspacePermissions?->write ?? false,
+            'canPublishToWorkspace' => $workspacePermissions?->write ?? false,
             'siteChanges' => $this->computeSiteChanges($workspaceObj, $contentRepository),
             'contentDimensions' => $contentRepository->getContentDimensionSource()->getContentDimensionsOrderedByPriority()
         ]);
@@ -281,10 +298,10 @@ class WorkspaceController extends AbstractModuleController
         $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
 
         $workspace = $contentRepository->findWorkspaceByName($workspaceName);
+        $title = WorkspaceTitle::fromString($workspaceName->value);
         if (is_null($workspace)) {
             $this->addFlashMessage(
-                // todo add $workspaceName to label
-                $this->getModuleLabel('workspaces.workspaceDoesNotExist'),
+                $this->getModuleLabel('workspaces.workspaceDoesNotExist', [$title->value]),
                 '',
                 Message::SEVERITY_ERROR
             );
@@ -655,10 +672,14 @@ class WorkspaceController extends AbstractModuleController
     }
 
     /**
-     * Publish a single node
+     * Publish a single document node
      *
      * @param string $nodeAddress
      * @param WorkspaceName $selectedWorkspace
+     * @throws Exception
+     * @throws MissingActionNameException
+     * @throws StopActionException
+     * @throws WorkspaceRebaseFailed
      */
     public function publishDocumentAction(string $nodeAddress, WorkspaceName $selectedWorkspace): void
     {
@@ -675,10 +696,14 @@ class WorkspaceController extends AbstractModuleController
     }
 
     /**
-     * Discard a single node
+     * Discard a single document node
      *
      * @param string $nodeAddress
      * @param WorkspaceName $selectedWorkspace
+     * @throws StopActionException
+     * @throws WorkspaceRebaseFailed
+     * @throws Exception
+     * @throws MissingActionNameException
      */
     public function discardDocumentAction(string $nodeAddress, WorkspaceName $selectedWorkspace): void
     {
@@ -906,7 +931,6 @@ class WorkspaceController extends AbstractModuleController
                         );
                     }
 
-                    // We need to set `isNew` and `isMoved` on document level to make our JS behave as before.
                     if ($documentNode->equals($node)) {
                         $siteChanges[$siteNodeName]['documents'][$documentPath]['documentChanges'] = new DocumentChangeItem(
                             isRemoved: $change->deleted,
@@ -1340,6 +1364,7 @@ class WorkspaceController extends AbstractModuleController
             }
 
             // TODO use owner/WorkspaceRoleAssignment?
+            // TODO: If user is allowed to edit child workspace, we need to at least show the parent workspaces in the list
             if ($workspacesPermissions->read === false) {
                 continue;
             }

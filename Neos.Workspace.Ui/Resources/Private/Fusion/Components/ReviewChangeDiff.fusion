@@ -6,7 +6,6 @@ prototype(Neos.Workspace.Ui:Component.ReviewChangeDiff) < prototype(Neos.Fusion:
   relativePath = ''
   change = ''
   document = ''
-  canPublishToBaseWorkspace = ${canPublishToBaseWorkspace}
   selectedWorkspaceName = ${selectedWorkspaceName}
 
   @private {

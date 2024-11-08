@@ -253,6 +253,10 @@ button .icon:not(:last-child) {
   padding-left: var(--spacing-Half) !important;
 }
 
+#workspaceReview .diff-node-details .neos-label {
+  margin-top: 11px;
+}
+
 #workspaceReview .diff-property-label {
   height: auto !important;
   padding-bottom: 0 !important;
@@ -340,23 +344,24 @@ tr.neos-change + tr.neos-change td.neos-content-change {
   padding-right: 0;
 }
 
-.neos-content-change {
+.neos-content-change,
+.neos-document{
   border-left: 4px solid var(--orange);
 }
 
-.neos-content-change.legend-deleted {
+#workspaceReview .legend-deleted {
   border-left: 4px solid var(--warning);
 }
 
-.neos-content-change.legend-created {
+#workspaceReview .legend-created {
   border-left: 4px solid var(--green);
 }
 
-.neos-content-change.legend-moved {
+#workspaceReview .legend-moved {
   border-left: 4px solid var(--blue);
 }
 
-.neos-content-change.legend-hidden {
+#workspaceReview .legend-hidden {
   border-left: 4px solid var(--grayLighter)
 }
 
@@ -381,7 +386,11 @@ tr.neos-change + tr.neos-change td.neos-content-change {
   width: 30px
 }
 
-#workspaceReview .fa-level-up-alt {
+#workspaceReview tr.diff-property-content > td {
+  line-height: 20px !important;
+}
+
+  #workspaceReview .fa-level-up-alt {
   transform: rotate(90deg);
 }
 

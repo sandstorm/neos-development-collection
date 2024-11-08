@@ -4,6 +4,7 @@
 prototype(Neos.Workspace.Ui:Component.ReviewActions) < prototype(Neos.Fusion:Component) {
 
   canPublishToBaseWorkspace = ${canPublishToBaseWorkspace}
+  canPublishToWorkspace =  ${canPublishToWorkspace}
   selectedWorkspaceName = ${selectedWorkspaceName}
   baseWorkspaceLabel = ${baseWorkspaceLabel}
 
@@ -61,14 +62,15 @@ prototype(Neos.Workspace.Ui:Component.ReviewActions) < prototype(Neos.Fusion:Com
               isDanger={true}
               attributes.hx-get={private.discardWorkspaceUri}
               attributes.hx-target="body"
+              attributes.disabled={!props.canPublishToWorkspace}
             />
             <Neos.Workspace.Ui:Component.Button
-              @if.canPublishToBaseWorkspace={props.canPublishToBaseWorkspace}
               label={private.i18n.id('workspaces.publishAllChangesTo').arguments([props.baseWorkspaceLabel])}
               icon="fas fa-check-double icon-white"
               isPrimary={true}
               attributes.hx-get={private.publishWorkspaceUri}
               attributes.hx-target="body"
+              attributes.disabled={!props.canPublishToBaseWorkspace}
             />
           </div>
           <div id="batch-actions" class="neos-hidden">
@@ -78,14 +80,15 @@ prototype(Neos.Workspace.Ui:Component.ReviewActions) < prototype(Neos.Fusion:Com
               isDanger={true}
               attributes.hx-get={private.discardSelectedChanges}
               attributes.hx-target="body"
+              attributes.disabled={!props.canPublishToWorkspace}
             />
             <Neos.Workspace.Ui:Component.Button
-              @if.canPublishToBaseWorkspace={props.canPublishToBaseWorkspace}
               label={private.i18n.id('workspaces.publishSelectedChangesTo').arguments([props.baseWorkspaceLabel])}
               icon="fas fa-check icon-white"
               isPrimary={true}
               attributes.hx-get={private.publishSelectedChangesTo}
               attributes.hx-target="body"
+              attributes.disabled={!props.canPublishToBaseWorkspace}
             />
           </div>
 

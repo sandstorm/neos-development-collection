@@ -96,6 +96,9 @@
       <trans-unit id="workspaces.workspace.permissions" xml:space="preserve">
 				<source>Permissions</source>
 			</trans-unit>
+      <trans-unit id="workspaces.workspaceDoesNotExist" xml:space="preserve">
+				<source>Workspace "{0}" does not exist</source>
+			</trans-unit>
       <trans-unit id="workspaces.workspace.workspaceRoleAssignment.subjectType" xml:space="preserve">
 				<source>Typ</source>
 			</trans-unit>
@@ -301,6 +304,15 @@
       </trans-unit>
       <trans-unit id="workspaces.changedTags" xml:space="preserve">
 				<source>New element status</source>
+			</trans-unit>
+      <trans-unit id="workspaces.changes.noPermissionToPublishToBaseWorkspace" xml:space="preserve">
+				<source>You do not have permission to publish to the base workspace</source>
+			</trans-unit>
+      <trans-unit id="workspaces.changes.noPermissionToPublishToWorkspace" xml:space="preserve">
+				<source>You do not have permission to publish to the this workspace</source>
+			</trans-unit>
+      <trans-unit id="workspaces.changes.noPermissionToReadWorkspace" xml:space="preserve">
+				<source>You do not have permission to see this workspace</source>
 			</trans-unit>
     </body>
   </file>

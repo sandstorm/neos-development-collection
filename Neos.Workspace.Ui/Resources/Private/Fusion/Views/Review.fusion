@@ -1,17 +1,19 @@
 Neos.Workspace.Ui.WorkspaceController.review = Neos.Fusion:Component {
   ///todo  Neos\ContentRepository\Core\Projection\Workspace\Workspace
   selectedWorkspaceName = ${selectedWorkspaceName}
-
+  /// string
   selectedWorkspaceLabel = ${selectedWorkspaceLabel}
 
   baseWorkspaceName = ${baseWorkspaceName}
 
   baseWorkspaceLabel = ${baseWorkspaceLabel}
-
+  /// bool
   canPublishToBaseWorkspace = ${canPublishToBaseWorkspace}
-
+  /// bool
+  canPublishToWorkspace = ${canPublishToWorkspace}
+  /// array
   siteChanges = ${siteChanges}
-
+  /// array
   contentDimensions = ${contentDimensions}
   /// array
   flashMessages = ${flashMessages}
@@ -36,11 +38,18 @@ Neos.Workspace.Ui.WorkspaceController.review = Neos.Fusion:Component {
             </legend>
             <Neos.Workspace.Ui:Component.ReviewTable
               @if.hasSiteChanges={props.siteChanges}
-              siteChanges={props.siteChanges} selectedWorkspaceName={selectedWorkspaceName} selectedWorkspaceLabel={selectedWorkspaceLabel} />
+              siteChanges={props.siteChanges}
+              selectedWorkspaceName={props.selectedWorkspaceName}
+              selectedWorkspaceLabel={props.selectedWorkspaceLabel}
+              canPublishToBaseWorkspace={props.canPublishToBaseWorkspace}
+              canPublishToWorkspace={props.canPublishToWorkspace}/>
             <div @if.hasNoSiteChange={!props.siteChanges} class="no-unpublished-changes">
               {props.i18n.id('workspaces.reviewWorkspace.disabled').arguments([selectedWorkspaceLabel]).translate()}
             </div>
-            <Neos.Workspace.Ui:Component.ReviewActions  @if.hasSiteChanges={props.siteChanges} />
+            <Neos.Workspace.Ui:Component.ReviewActions
+              @if.hasSiteChanges={props.siteChanges}
+              canPublishToBaseWorkspace={props.canPublishToBaseWorkspace}
+              canPublishToWorkspace={props.canPublishToWorkspace} />
           </div>
         </main>
       </section>
