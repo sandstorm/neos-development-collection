@@ -9,8 +9,8 @@ use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Feature\RebaseableCommand;
-use Neos\ContentRepository\Core\Feature\WorkspaceRebase\CommandsThatFailedDuringRebase;
-use Neos\ContentRepository\Core\Feature\WorkspaceRebase\CommandThatFailedDuringRebase;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\EventsThatFailedDuringRebase;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\EventThatFailedDuringRebase;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionInterface;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\EventStore\Helper\InMemoryEventStore;
@@ -45,7 +45,7 @@ use Neos\EventStore\Model\EventStream\VirtualStreamName;
  */
 final class CommandSimulator
 {
-    private CommandsThatFailedDuringRebase $commandsThatFailedDuringRebase;
+    private EventsThatFailedDuringRebase $eventsThatFailedDuringRebase;
 
     private readonly InMemoryEventStore $inMemoryEventStore;
 
@@ -56,7 +56,7 @@ final class CommandSimulator
         private readonly WorkspaceName $workspaceNameToSimulateIn,
     ) {
         $this->inMemoryEventStore = new InMemoryEventStore();
-        $this->commandsThatFailedDuringRebase = new CommandsThatFailedDuringRebase();
+        $this->eventsThatFailedDuringRebase = new EventsThatFailedDuringRebase();
     }
 
     /**
@@ -86,9 +86,11 @@ final class CommandSimulator
         try {
             $eventsToPublish = $this->commandBus->handle($commandInWorkspace);
         } catch (\Exception $exception) {
-            $this->commandsThatFailedDuringRebase = $this->commandsThatFailedDuringRebase->withAppended(
-                new CommandThatFailedDuringRebase(
-                    $rebaseableCommand->originalCommand,
+            $originalEvent = $this->eventNormalizer->denormalize($rebaseableCommand->originalEvent);
+
+            $this->eventsThatFailedDuringRebase = $this->eventsThatFailedDuringRebase->withAppended(
+                new EventThatFailedDuringRebase(
+                    $originalEvent,
                     $exception,
                     $rebaseableCommand->originalSequenceNumber
                 )
@@ -159,13 +161,13 @@ final class CommandSimulator
         return $this->inMemoryEventStore->load(VirtualStreamName::all());
     }
 
-    public function hasCommandsThatFailed(): bool
+    public function hasEventsThatFailed(): bool
     {
-        return !$this->commandsThatFailedDuringRebase->isEmpty();
+        return !$this->eventsThatFailedDuringRebase->isEmpty();
     }
 
-    public function getCommandsThatFailed(): CommandsThatFailedDuringRebase
+    public function getEventsThatFailed(): EventsThatFailedDuringRebase
     {
-        return $this->commandsThatFailedDuringRebase;
+        return $this->eventsThatFailedDuringRebase;
     }
 }
