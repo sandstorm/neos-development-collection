@@ -45,7 +45,7 @@ trait ContentStreamHandling
      * @param ContentStreamId $contentStreamId The id of the content stream to reopen
      * @phpstan-pure this method is pure, to persist the events they must be handled outside
      */
-    private function reopenContentStreamWithoutConstraints(
+    private function reopenContentStreamWithoutConstraintChecks(
         ContentStreamId $contentStreamId,
     ): EventsToPublish {
         return new EventsToPublish(
@@ -91,7 +91,7 @@ trait ContentStreamHandling
      * @param ContentStreamId $contentStreamId The id of the content stream to remove
      * @phpstan-pure this method is pure, to persist the events they must be handled outside
      */
-    private function removeContentStreamWithoutConstraints(
+    private function removeContentStreamWithoutConstraintChecks(
         ContentStreamId $contentStreamId,
     ): EventsToPublish {
         return new EventsToPublish(

@@ -240,7 +240,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         );
 
         if ($commandSimulator->hasCommandsThatFailed()) {
-            yield $this->reopenContentStreamWithoutConstraints(
+            yield $this->reopenContentStreamWithoutConstraintChecks(
                 $workspace->currentContentStreamId
             );
             throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getCommandsThatFailed());
@@ -260,7 +260,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                 ExpectedVersion::fromVersion($baseWorkspaceContentStreamVersion)
             );
         } catch (ConcurrencyException $concurrencyException) {
-            yield $this->reopenContentStreamWithoutConstraints(
+            yield $this->reopenContentStreamWithoutConstraintChecks(
                 $workspace->currentContentStreamId
             );
             throw $concurrencyException;
@@ -285,7 +285,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             ExpectedVersion::ANY()
         );
 
-        yield $this->removeContentStreamWithoutConstraints($workspace->currentContentStreamId);
+        yield $this->removeContentStreamWithoutConstraintChecks($workspace->currentContentStreamId);
     }
 
     private function rebaseWorkspaceWithoutChanges(
@@ -312,7 +312,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             ExpectedVersion::ANY()
         );
 
-        yield $this->removeContentStreamWithoutConstraints($workspace->currentContentStreamId);
+        yield $this->removeContentStreamWithoutConstraintChecks($workspace->currentContentStreamId);
     }
 
     /**
@@ -403,7 +403,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             $command->rebaseErrorHandlingStrategy === RebaseErrorHandlingStrategy::STRATEGY_FAIL
             && $commandSimulator->hasCommandsThatFailed()
         ) {
-            yield $this->reopenContentStreamWithoutConstraints(
+            yield $this->reopenContentStreamWithoutConstraintChecks(
                 $workspace->currentContentStreamId
             );
 
@@ -434,7 +434,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             )
         );
 
-        yield $this->removeContentStreamWithoutConstraints($workspace->currentContentStreamId);
+        yield $this->removeContentStreamWithoutConstraintChecks($workspace->currentContentStreamId);
     }
 
     /**
@@ -503,7 +503,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         );
 
         if ($commandSimulator->hasCommandsThatFailed()) {
-            yield $this->reopenContentStreamWithoutConstraints(
+            yield $this->reopenContentStreamWithoutConstraintChecks(
                 $workspace->currentContentStreamId
             );
 
@@ -525,7 +525,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                 ExpectedVersion::fromVersion($baseWorkspaceContentStreamVersion)
             );
         } catch (ConcurrencyException $concurrencyException) {
-            yield $this->reopenContentStreamWithoutConstraints(
+            yield $this->reopenContentStreamWithoutConstraintChecks(
                 $workspace->currentContentStreamId
             );
             throw $concurrencyException;
@@ -555,7 +555,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             )
         );
 
-        yield $this->removeContentStreamWithoutConstraints($workspace->currentContentStreamId);
+        yield $this->removeContentStreamWithoutConstraintChecks($workspace->currentContentStreamId);
     }
 
     /**
@@ -626,7 +626,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         );
 
         if ($commandSimulator->hasCommandsThatFailed()) {
-            yield $this->reopenContentStreamWithoutConstraints(
+            yield $this->reopenContentStreamWithoutConstraintChecks(
                 $workspace->currentContentStreamId
             );
             throw WorkspaceRebaseFailed::duringDiscard($commandSimulator->getCommandsThatFailed());
@@ -655,7 +655,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             )
         );
 
-        yield $this->removeContentStreamWithoutConstraints($workspace->currentContentStreamId);
+        yield $this->removeContentStreamWithoutConstraintChecks($workspace->currentContentStreamId);
     }
 
     /**
@@ -714,7 +714,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             ExpectedVersion::ANY()
         );
 
-        yield $this->removeContentStreamWithoutConstraints($workspace->currentContentStreamId);
+        yield $this->removeContentStreamWithoutConstraintChecks($workspace->currentContentStreamId);
     }
 
     /**
