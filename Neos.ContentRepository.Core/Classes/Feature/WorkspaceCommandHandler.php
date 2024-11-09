@@ -197,23 +197,17 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         $workspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($workspace, $commandHandlingDependencies);
         $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($baseWorkspace, $commandHandlingDependencies);
 
+        $rebaseableCommands = RebaseableCommands::extractFromEventStream(
+            $this->eventStore->load(
+                ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)
+                    ->getEventStreamName()
+            )
+        );
+
         yield $this->closeContentStream(
             $workspace->currentContentStreamId,
             $workspaceContentStreamVersion
         );
-
-        try {
-            $rebaseableCommands = RebaseableCommands::extractFromEventStream(
-                $this->eventStore->load(
-                    ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)
-                        ->getEventStreamName()
-                )
-            );
-        } finally {
-            yield $this->reopenContentStreamWithoutConstraints(
-                $workspace->currentContentStreamId
-            );
-        }
 
         yield from $this->publishWorkspace(
             $workspace,
@@ -367,13 +361,13 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             return;
         }
 
-        yield $this->closeContentStream(
-            $workspace->currentContentStreamId,
-            $workspaceContentStreamVersion
-        );
-
         if (!$workspace->hasPublishableChanges()) {
             // if we have no changes in the workspace we can fork from the base directly
+            yield $this->closeContentStream(
+                $workspace->currentContentStreamId,
+                $workspaceContentStreamVersion
+            );
+
             yield from $this->rebaseWorkspaceWithoutChanges(
                 $workspace,
                 $baseWorkspace,
@@ -383,18 +377,17 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             return;
         }
 
-        try {
-            $rebaseableCommands = RebaseableCommands::extractFromEventStream(
-                $this->eventStore->load(
-                    ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)
-                        ->getEventStreamName()
-                )
-            );
-        } finally {
-            yield $this->reopenContentStreamWithoutConstraints(
-                $workspace->currentContentStreamId
-            );
-        }
+        $rebaseableCommands = RebaseableCommands::extractFromEventStream(
+            $this->eventStore->load(
+                ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)
+                    ->getEventStreamName()
+            )
+        );
+
+        yield $this->closeContentStream(
+            $workspace->currentContentStreamId,
+            $workspaceContentStreamVersion
+        );
 
         $commandSimulator = $this->commandSimulatorFactory->createSimulatorForWorkspace($baseWorkspace->workspaceName);
 
@@ -463,33 +456,24 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         $workspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($workspace, $commandHandlingDependencies);
         $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($baseWorkspace, $commandHandlingDependencies);
 
-        yield $this->closeContentStream(
-            $workspace->currentContentStreamId,
-            $workspaceContentStreamVersion
+        $rebaseableCommands = RebaseableCommands::extractFromEventStream(
+            $this->eventStore->load(
+                ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)
+                    ->getEventStreamName()
+            )
         );
-
-        try {
-            $rebaseableCommands = RebaseableCommands::extractFromEventStream(
-                $this->eventStore->load(
-                    ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)
-                        ->getEventStreamName()
-                )
-            );
-        } finally {
-            yield $this->reopenContentStreamWithoutConstraints(
-                $workspace->currentContentStreamId
-            );
-        }
 
         [$matchingCommands, $remainingCommands] = $rebaseableCommands->separateMatchingAndRemainingCommands($command->nodesToPublish);
 
         if ($matchingCommands->isEmpty()) {
             // almost a noop (e.g. random node ids were specified) ;)
-            yield $this->reopenContentStreamWithoutConstraints(
-                $workspace->currentContentStreamId
-            );
             return;
         }
+
+        yield $this->closeContentStream(
+            $workspace->currentContentStreamId,
+            $workspaceContentStreamVersion
+        );
 
         if ($remainingCommands->isEmpty()) {
             // do a full publish, this is simpler for the projections to handle
@@ -599,34 +583,25 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         $workspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($workspace, $commandHandlingDependencies);
         $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($baseWorkspace, $commandHandlingDependencies);
 
+        $rebaseableCommands = RebaseableCommands::extractFromEventStream(
+            $this->eventStore->load(
+                ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)
+                    ->getEventStreamName()
+            )
+        );
+
+        // filter commands, only keeping the ones NOT MATCHING the nodes from the command (i.e. the modifications we want to keep)
+        [$commandsToDiscard, $commandsToKeep] = $rebaseableCommands->separateMatchingAndRemainingCommands($command->nodesToDiscard);
+
+        if ($commandsToDiscard->isEmpty()) {
+            // if we have nothing to discard, we can just keep all. (e.g. random node ids were specified) It's almost a noop ;)
+            return;
+        }
+
         yield $this->closeContentStream(
             $workspace->currentContentStreamId,
             $workspaceContentStreamVersion
         );
-
-        try {
-            $rebaseableCommands = RebaseableCommands::extractFromEventStream(
-                $this->eventStore->load(
-                    ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)
-                        ->getEventStreamName()
-                )
-            );
-
-            // filter commands, only keeping the ones NOT MATCHING the nodes from the command (i.e. the modifications we want to keep)
-            [$commandsToDiscard, $commandsToKeep] = $rebaseableCommands->separateMatchingAndRemainingCommands($command->nodesToDiscard);
-        } finally {
-            yield $this->reopenContentStreamWithoutConstraints(
-                $workspace->currentContentStreamId
-            );
-        }
-
-        if ($commandsToDiscard->isEmpty()) {
-            // if we have nothing to discard, we can just keep all. (e.g. random node ids were specified) It's almost a noop ;)
-            yield $this->reopenContentStreamWithoutConstraints(
-                $workspace->currentContentStreamId
-            );
-            return;
-        }
 
         if ($commandsToKeep->isEmpty()) {
             // quick path everything was discarded
