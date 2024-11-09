@@ -36,7 +36,7 @@ final class WorkspaceRebaseFailed extends \Exception
             $commandsThatFailedDuringRebase,
             sprintf('Rebase failed: %s', self::renderMessage($commandsThatFailedDuringRebase)),
             1729974936,
-            $commandsThatFailedDuringRebase->first()?->exception
+            $commandsThatFailedDuringRebase->first()?->getException()
         );
     }
 
@@ -46,7 +46,7 @@ final class WorkspaceRebaseFailed extends \Exception
             $commandsThatFailedDuringRebase,
             sprintf('Publication failed: %s', self::renderMessage($commandsThatFailedDuringRebase)),
             1729974980,
-            $commandsThatFailedDuringRebase->first()?->exception
+            $commandsThatFailedDuringRebase->first()?->getException()
         );
     }
 
@@ -56,13 +56,13 @@ final class WorkspaceRebaseFailed extends \Exception
             $commandsThatFailedDuringRebase,
             sprintf('Discard failed: %s', self::renderMessage($commandsThatFailedDuringRebase)),
             1729974982,
-            $commandsThatFailedDuringRebase->first()?->exception
+            $commandsThatFailedDuringRebase->first()?->getException()
         );
     }
 
     private static function renderMessage(CommandsThatFailedDuringRebase $commandsThatFailedDuringRebase): string
     {
         $firstFailure = $commandsThatFailedDuringRebase->first();
-        return sprintf('"%s" and %d further failures', $firstFailure?->exception->getMessage(), count($commandsThatFailedDuringRebase) - 1);
+        return sprintf('"%s" and %d further failures', $firstFailure?->getException()->getMessage(), count($commandsThatFailedDuringRebase) - 1);
     }
 }

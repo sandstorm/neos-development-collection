@@ -176,8 +176,8 @@ trait GenericCommandExecutionAndEventPublication
         foreach ($exception->commandsThatFailedDuringRebase as $commandsThatFailed) {
             $actualComparableHash[] = [
                 'SequenceNumber' => (string)$commandsThatFailed->getSequenceNumber()->value,
-                'Command' =>  (new \ReflectionClass($commandsThatFailed->command))->getShortName(),
-                'Exception' =>  (new \ReflectionClass($commandsThatFailed->exception))->getShortName(),
+                'Command' =>  (new \ReflectionClass($commandsThatFailed->getCommand()))->getShortName(),
+                'Exception' =>  (new \ReflectionClass($commandsThatFailed->getException()))->getShortName(),
             ];
         }
 
