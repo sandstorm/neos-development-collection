@@ -195,8 +195,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             // no-op
             return;
         }
-        $workspaceContentStreamVersion = $this->requireOpenContentStreamVersion($workspace, $commandHandlingDependencies);
-        $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamVersion($baseWorkspace, $commandHandlingDependencies);
+        $workspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($workspace, $commandHandlingDependencies);
+        $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($baseWorkspace, $commandHandlingDependencies);
 
         yield $this->closeContentStream(
             $workspace->currentContentStreamId,
@@ -348,11 +348,9 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
     ): \Generator {
         $workspace = $this->requireWorkspace($command->workspaceName, $commandHandlingDependencies);
         $baseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
-        if (!$commandHandlingDependencies->contentStreamExists($workspace->currentContentStreamId)) {
-            throw new \RuntimeException('Cannot rebase a workspace with a stateless content stream', 1711718314);
-        }
-        $workspaceContentStreamVersion = $this->requireOpenContentStreamVersion($workspace, $commandHandlingDependencies);
-        $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamVersion($baseWorkspace, $commandHandlingDependencies);
+
+        $workspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($workspace, $commandHandlingDependencies);
+        $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($baseWorkspace, $commandHandlingDependencies);
 
         if (
             $workspace->status === WorkspaceStatus::UP_TO_DATE
@@ -449,12 +447,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             return;
         }
 
-        // todo check that fetching workspace throws if there is no content stream id for it
-        if (!$commandHandlingDependencies->contentStreamExists($workspace->currentContentStreamId)) {
-            throw new \RuntimeException('Cannot publish nodes on a workspace with a stateless content stream', 1710410114);
-        }
-        $workspaceContentStreamVersion = $this->requireOpenContentStreamVersion($workspace, $commandHandlingDependencies);
-        $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamVersion($baseWorkspace, $commandHandlingDependencies);
+        $workspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($workspace, $commandHandlingDependencies);
+        $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($baseWorkspace, $commandHandlingDependencies);
 
         yield $this->closeContentStream(
             $workspace->currentContentStreamId,
@@ -582,8 +576,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             return;
         }
 
-        $workspaceContentStreamVersion = $this->requireOpenContentStreamVersion($workspace, $commandHandlingDependencies);
-        $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamVersion($baseWorkspace, $commandHandlingDependencies);
+        $workspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($workspace, $commandHandlingDependencies);
+        $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($baseWorkspace, $commandHandlingDependencies);
 
         yield $this->closeContentStream(
             $workspace->currentContentStreamId,
@@ -678,8 +672,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             return;
         }
 
-        $workspaceContentStreamVersion = $this->requireOpenContentStreamVersion($workspace, $commandHandlingDependencies);
-        $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamVersion($baseWorkspace, $commandHandlingDependencies);
+        $workspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($workspace, $commandHandlingDependencies);
+        $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($baseWorkspace, $commandHandlingDependencies);
 
         yield from $this->discardWorkspace(
             $workspace,
@@ -747,7 +741,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         $newBaseWorkspace = $this->requireWorkspace($command->baseWorkspaceName, $commandHandlingDependencies);
         $this->requireNonCircularRelationBetweenWorkspaces($workspace, $newBaseWorkspace, $commandHandlingDependencies);
 
-        $newBaseWorkspaceContentStreamVersion = $this->requireOpenContentStreamVersion($newBaseWorkspace, $commandHandlingDependencies);
+        $newBaseWorkspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($newBaseWorkspace, $commandHandlingDependencies);
 
         yield $this->forkContentStream(
             $command->newContentStreamId,
@@ -844,7 +838,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         ), 1715341085);
     }
 
-    private function requireOpenContentStreamVersion(Workspace $workspace, CommandHandlingDependencies $commandHandlingDependencies): Version
+    private function requireOpenContentStreamAndVersion(Workspace $workspace, CommandHandlingDependencies $commandHandlingDependencies): Version
     {
         if ($commandHandlingDependencies->isContentStreamClosed($workspace->currentContentStreamId)) {
             throw new ContentStreamIsClosed(
