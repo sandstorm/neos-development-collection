@@ -15,7 +15,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandBus;
-use Neos\ContentRepository\Core\CommandHandler\CommandHooks;
+use Neos\ContentRepository\Core\CommandHandler\CommandHookInterface;
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
 use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
@@ -85,7 +85,7 @@ final class ContentRepository
         private readonly UserIdProviderInterface $userIdProvider,
         private readonly ClockInterface $clock,
         private readonly ContentGraphReadModelInterface $contentGraphReadModel,
-        private readonly CommandHooks $commandHooks,
+        private readonly CommandHookInterface $commandHook,
     ) {
     }
 
@@ -96,7 +96,7 @@ final class ContentRepository
      */
     public function handle(CommandInterface $command): void
     {
-        $command = $this->commandHooks->onBeforeHandle($command);
+        $command = $this->commandHook->onBeforeHandle($command);
         // the commands only calculate which events they want to have published, but do not do the
         // publishing themselves
         $eventsToPublishOrGenerator = $this->commandBus->handle($command);
