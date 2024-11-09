@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Factory;
 
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 
 /**
@@ -23,6 +24,7 @@ final readonly class CommandHooksFactoryDependencies
 {
     private function __construct(
         public ContentRepositoryId $contentRepositoryId,
+        public ContentGraphReadModelInterface $contentGraphReadModel,
     ) {
     }
 
@@ -31,9 +33,11 @@ final readonly class CommandHooksFactoryDependencies
      */
     public static function create(
         ContentRepositoryId $contentRepositoryId,
+        ContentGraphReadModelInterface $contentGraphReadModel,
     ): self {
         return new self(
             $contentRepositoryId,
+            $contentGraphReadModel,
         );
     }
 }

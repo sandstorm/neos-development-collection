@@ -23,7 +23,6 @@ final readonly class CommandBus
     public function __construct(
         // todo pass $commandHandlingDependencies in each command handler instead of into the commandBus
         private CommandHandlingDependencies $commandHandlingDependencies,
-        private CommandHooks $commandHooks,
         CommandHandlerInterface ...$handlers
     ) {
         $this->handlers = $handlers;
@@ -36,13 +35,9 @@ final readonly class CommandBus
     {
         // multiple handlers must not handle the same command
         foreach ($this->handlers as $handler) {
-            if (!$handler->canHandle($command)) {
-                continue;
+            if ($handler->canHandle($command)) {
+                return $handler->handle($command, $this->commandHandlingDependencies);
             }
-            foreach ($this->commandHooks as $commandHook) {
-                $command = $commandHook->onBeforeHandle($command);
-            }
-            return $handler->handle($command, $this->commandHandlingDependencies);
         }
         throw new \RuntimeException(sprintf('No handler found for Command "%s"', get_debug_type($command)), 1649582778);
     }
@@ -51,18 +46,8 @@ final readonly class CommandBus
     {
         return new self(
             $this->commandHandlingDependencies,
-            $this->commandHooks,
             ...$this->handlers,
             ...$handlers,
-        );
-    }
-
-    public function withCommandHooks(CommandHooks $commandHooks): self
-    {
-        return new self(
-            $this->commandHandlingDependencies,
-            $commandHooks,
-            ...$this->handlers,
         );
     }
 }

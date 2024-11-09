@@ -10,7 +10,7 @@ namespace Neos\ContentRepository\Core\CommandHandler;
  * @implements \IteratorAggregate<CommandHookInterface>
  * @internal
  */
-final readonly class CommandHooks implements \IteratorAggregate, \Countable
+final readonly class CommandHooks implements CommandHookInterface, \IteratorAggregate, \Countable
 {
     /**
      * @var array<CommandHookInterface>
@@ -44,5 +44,13 @@ final readonly class CommandHooks implements \IteratorAggregate, \Countable
     public function count(): int
     {
         return count($this->commandHooks);
+    }
+
+    public function onBeforeHandle(CommandInterface $command): CommandInterface
+    {
+        foreach ($this->commandHooks as $commandHook) {
+            $command = $commandHook->onBeforeHandle($command);
+        }
+        return $command;
     }
 }
