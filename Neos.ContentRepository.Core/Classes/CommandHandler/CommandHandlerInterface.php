@@ -5,14 +5,13 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\CommandHandler;
 
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
-use Neos\EventStore\Model\EventStore\CommitResult;
 
 /**
  * Common interface for all Content Repository command handlers
  *
  * The {@see CommandHandlingDependencies} are available during handling to do soft-constraint checks
  *
- * @phpstan-type YieldedEventsToPublish \Generator<int, EventsToPublish, CommitResult|null, void>
+ * @phpstan-type YieldedEventsToPublish \Generator<int, EventsToPublish>
  * @internal no public API, because commands are no extension points of the CR
  */
 interface CommandHandlerInterface

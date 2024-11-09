@@ -110,23 +110,28 @@ final class ContentRepository
 
         // control-flow aware command handling via generator
         try {
-            $yieldedEventsToPublish = $toPublish->current();
-            while ($yieldedEventsToPublish !== null) {
+            foreach ($toPublish as $yieldedEventsToPublish) {
                 if ($yieldedEventsToPublish->events->isEmpty()) {
-                    $yieldedEventsToPublish = $toPublish->send(null);
                     continue;
                 }
                 $eventsToPublish = $this->enrichEventsToPublishWithMetadata($yieldedEventsToPublish);
                 try {
-                    $commitResult = $this->eventPersister->publishWithoutCatchup($eventsToPublish);
+                    $this->eventPersister->publishWithoutCatchup($eventsToPublish);
                 } catch (ConcurrencyException $concurrencyException) {
+                    // we pass the exception into the generator (->throw), so it could be try-caught and reacted upon:
+                    //
+                    //   try {
+                    //      yield EventsToPublish(...);
+                    //   } catch (ConcurrencyException $e) {
+                    //      yield $this->reopenContentStream();
+                    //      throw $e;
+                    //   }
                     $yieldedErrorStrategy = $toPublish->throw($concurrencyException);
                     if ($yieldedErrorStrategy instanceof EventsToPublish) {
                         $this->eventPersister->publishWithoutCatchup($yieldedErrorStrategy);
                     }
                     throw $concurrencyException;
                 }
-                $yieldedEventsToPublish = $toPublish->send($commitResult);
             }
         } finally {
             // We always NEED to catchup even if there was an unexpected ConcurrencyException to make sure previous commits are handled.

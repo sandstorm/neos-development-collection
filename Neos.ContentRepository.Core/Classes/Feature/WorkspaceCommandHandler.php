@@ -247,15 +247,17 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getCommandsThatFailed());
         }
 
+        $eventsOfWorkspaceToPublish = $this->getCopiedEventsOfEventStream(
+            $baseWorkspace->workspaceName,
+            $baseWorkspace->currentContentStreamId,
+            $commandSimulator->eventStream(),
+        );
+
         try {
-            $commitResult = yield new EventsToPublish(
+            yield new EventsToPublish(
                 ContentStreamEventStreamName::fromContentStreamId($baseWorkspace->currentContentStreamId)
                     ->getEventStreamName(),
-                $this->getCopiedEventsOfEventStream(
-                    $baseWorkspace->workspaceName,
-                    $baseWorkspace->currentContentStreamId,
-                    $commandSimulator->eventStream(),
-                ),
+                $eventsOfWorkspaceToPublish,
                 ExpectedVersion::fromVersion($baseWorkspaceContentStreamVersion)
             );
         } catch (ConcurrencyException $concurrencyException) {
@@ -268,7 +270,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         yield $this->forkContentStream(
             $newContentStreamId,
             $baseWorkspace->currentContentStreamId,
-            $commitResult->highestCommittedVersion
+            Version::fromInteger($baseWorkspaceContentStreamVersion->value + $eventsOfWorkspaceToPublish->count())
         );
 
         yield new EventsToPublish(
@@ -507,16 +509,18 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getCommandsThatFailed());
         }
 
+        // this could empty and a no-op for the rare case when a command returns empty events e.g. the node was already tagged with this subtree tag
+        $selectedEventsOfWorkspaceToPublish = $this->getCopiedEventsOfEventStream(
+            $baseWorkspace->workspaceName,
+            $baseWorkspace->currentContentStreamId,
+            $commandSimulator->eventStream()->withMaximumSequenceNumber($highestSequenceNumberForMatching),
+        );
+
         try {
-            // this could be a no-op for the rare case when a command returns empty events e.g. the node was already tagged with this subtree tag, meaning we actually just rebase
-            $commitResult = yield new EventsToPublish(
+            yield new EventsToPublish(
                 ContentStreamEventStreamName::fromContentStreamId($baseWorkspace->currentContentStreamId)
                     ->getEventStreamName(),
-                $this->getCopiedEventsOfEventStream(
-                    $baseWorkspace->workspaceName,
-                    $baseWorkspace->currentContentStreamId,
-                    $commandSimulator->eventStream()->withMaximumSequenceNumber($highestSequenceNumberForMatching),
-                ),
+                $selectedEventsOfWorkspaceToPublish,
                 ExpectedVersion::fromVersion($baseWorkspaceContentStreamVersion)
             );
         } catch (ConcurrencyException $concurrencyException) {
@@ -529,8 +533,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         yield from $this->forkNewContentStreamAndApplyEvents(
             $command->contentStreamIdForRemainingPart,
             $baseWorkspace->currentContentStreamId,
-            // todo otherwise Features/W8-IndividualNodePublication/03-MoreBasicFeatures.feature:185 fails, see comment about emptiness above ... or should we manually count?
-            $commitResult?->highestCommittedVersion ?: $baseWorkspaceContentStreamVersion,
+            Version::fromInteger($baseWorkspaceContentStreamVersion->value + $selectedEventsOfWorkspaceToPublish->count()),
             new EventsToPublish(
                 WorkspaceEventStreamName::fromWorkspaceName($command->workspaceName)->getEventStreamName(),
                 Events::fromArray([
