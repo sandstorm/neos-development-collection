@@ -210,23 +210,19 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             )
         );
 
-        try {
-            yield from $this->publishWorkspace(
-                $workspace,
-                $baseWorkspace,
-                $baseWorkspaceContentStreamVersion,
-                $command->newContentStreamId,
-                $rebaseableCommands
-            );
-        } catch (WorkspaceRebaseFailed|ConcurrencyException $publishFailed) {
-            // todo catch all? Dont catch ANY ConcurrencyException because say if forking failed we dont need to reopen?
-            yield $this->reopenContentStreamWithoutConstraints(
-                $workspace->currentContentStreamId
-            );
-            throw $publishFailed;
-        }
+        yield from $this->publishWorkspace(
+            $workspace,
+            $baseWorkspace,
+            $baseWorkspaceContentStreamVersion,
+            $command->newContentStreamId,
+            $rebaseableCommands
+        );
     }
 
+    /**
+     * Note that the workspaces content stream must be closed beforehand.
+     * It will be reopened here in case of error.
+     */
     private function publishWorkspace(
         Workspace $workspace,
         Workspace $baseWorkspace,
@@ -245,20 +241,29 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         );
 
         if ($commandSimulator->hasCommandsThatFailed()) {
+            yield $this->reopenContentStreamWithoutConstraints(
+                $workspace->currentContentStreamId
+            );
             throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getCommandsThatFailed());
         }
 
-        // todo throw base workspace was modified in the meantime to distinguish exception above to reopen?
-        $commitResult = yield new EventsToPublish(
-            ContentStreamEventStreamName::fromContentStreamId($baseWorkspace->currentContentStreamId)
-                ->getEventStreamName(),
-            $this->getCopiedEventsOfEventStream(
-                $baseWorkspace->workspaceName,
-                $baseWorkspace->currentContentStreamId,
-                $commandSimulator->eventStream(),
-            ),
-            ExpectedVersion::fromVersion($baseWorkspaceContentStreamVersion)
-        );
+        try {
+            $commitResult = yield new EventsToPublish(
+                ContentStreamEventStreamName::fromContentStreamId($baseWorkspace->currentContentStreamId)
+                    ->getEventStreamName(),
+                $this->getCopiedEventsOfEventStream(
+                    $baseWorkspace->workspaceName,
+                    $baseWorkspace->currentContentStreamId,
+                    $commandSimulator->eventStream(),
+                ),
+                ExpectedVersion::fromVersion($baseWorkspaceContentStreamVersion)
+            );
+        } catch (ConcurrencyException $concurrencyException) {
+            yield $this->reopenContentStreamWithoutConstraints(
+                $workspace->currentContentStreamId
+            );
+            throw $concurrencyException;
+        }
 
         yield $this->forkContentStream(
             $newContentStreamId,
@@ -474,22 +479,15 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         }
 
         if ($remainingCommands->isEmpty()) {
-            try {
-                // do a full publish, this is simpler for the projections to handle
-                yield from $this->publishWorkspace(
-                    $workspace,
-                    $baseWorkspace,
-                    $baseWorkspaceContentStreamVersion,
-                    $command->contentStreamIdForRemainingPart,
-                    $matchingCommands
-                );
-                return;
-            } catch (WorkspaceRebaseFailed $workspaceRebaseFailed) {
-                yield $this->reopenContentStreamWithoutConstraints(
-                    $workspace->currentContentStreamId
-                );
-                throw $workspaceRebaseFailed;
-            }
+            // do a full publish, this is simpler for the projections to handle
+            yield from $this->publishWorkspace(
+                $workspace,
+                $baseWorkspace,
+                $baseWorkspaceContentStreamVersion,
+                $command->contentStreamIdForRemainingPart,
+                $matchingCommands
+            );
+            return;
         }
 
         $commandSimulator = $this->commandSimulatorFactory->createSimulatorForWorkspace($baseWorkspace->workspaceName);

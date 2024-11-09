@@ -195,6 +195,27 @@ class WorkspacePublicationDuringWritingTest extends AbstractParallelTestCase
 
         $this->log('publish started');
 
+
+        /*
+        // NOTE, can also be tested with PartialPublish, or PartialPublish leading to a full publish, but this test only allows one at time :)
+
+        $nodesForAFullPublish = 5000;
+        $nodesForAPartialPublish = $nodesForAFullPublish - 1;
+
+        $nodeIdToPublish = [];
+        for ($i = 0; $i <= $nodesForAPartialPublish; $i++) {
+            $nodeIdToPublish[] = new NodeIdToPublishOrDiscard(
+                NodeAggregateId::fromString('nody-mc-nodeface-' . $i), // see nodes created above
+                DimensionSpacePoint::createWithoutDimensions()
+            );
+        }
+
+        $this->contentRepository->handle(PublishIndividualNodesFromWorkspace::create(
+            WorkspaceName::fromString('user-test'),
+            NodeIdsToPublishOrDiscard::create(...$nodeIdToPublish)
+        ));
+        */
+
         $actualException = null;
         try {
             $this->contentRepository->handle(PublishWorkspace::create(
