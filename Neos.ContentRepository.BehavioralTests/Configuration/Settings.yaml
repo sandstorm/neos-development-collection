@@ -20,7 +20,7 @@ Neos:
 
   ContentRepositoryRegistry:
     contentRepositories:
-      test_parallel_a:
+      test_parallel:
         eventStore:
           factoryObjectName: Neos\ContentRepositoryRegistry\Factory\EventStore\DoctrineEventStoreFactory
         nodeTypeManager:
@@ -34,22 +34,6 @@ Neos:
         propertyConverters: {}
         contentGraphProjection:
           factoryObjectName: Neos\ContentGraph\DoctrineDbalAdapter\DoctrineDbalContentGraphProjectionFactory
-
-      test_parallel_b:
-        eventStore:
-          factoryObjectName: Neos\ContentRepositoryRegistry\Factory\EventStore\DoctrineEventStoreFactory
-        nodeTypeManager:
-          factoryObjectName: Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinPyStringNodeBasedNodeTypeManagerFactory
-        contentDimensionSource:
-          factoryObjectName: Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinTableNodeBasedContentDimensionSourceFactory
-        userIdProvider:
-          factoryObjectName: Neos\ContentRepositoryRegistry\Factory\UserIdProvider\StaticUserIdProviderFactory
-        clock:
-          factoryObjectName: Neos\ContentRepositoryRegistry\Factory\Clock\SystemClockFactory
-        propertyConverters: {}
-        contentGraphProjection:
-          factoryObjectName: Neos\ContentGraph\DoctrineDbalAdapter\DoctrineDbalContentGraphProjectionFactory
-
 
   Flow:
     object:

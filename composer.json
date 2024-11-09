@@ -109,7 +109,7 @@
             "../../bin/phpunit --colors --stop-on-failure -c ../../Build/BuildEssentials/PhpUnit/UnitTests.xml Neos.ContentRepositoryRegistry/Tests/Unit"
         ],
         "test:parallel": [
-            "FLOW_CONTEXT=Testing/Behat ../../bin/paratest --debug -v --functional --processes 2 --colors --stop-on-failure -c ../../Build/BuildEssentials/PhpUnit/FunctionalTests.xml Neos.ContentRepository.BehavioralTests/Tests/Parallel"
+            "for f in Neos.ContentRepository.BehavioralTests/Tests/Parallel/**/*Test.php; do ../../bin/paratest --debug -v --functional --processes 2 --colors --stop-on-failure -c ../../Build/BuildEssentials/PhpUnit/FunctionalTests.xml $f; done"
         ],
         "test:behat-cli": "../../bin/behat -f progress --strict --no-interaction",
         "test:behavioral": [
@@ -296,5 +296,14 @@
         "phpunit/phpunit": "^9.0",
         "neos/behat": "*",
         "league/flysystem-memory": "^3"
+    },
+
+    "config": {
+        "_comment": "We need to insert a vendor dir (even though composer install MUST NOT be run here) but so autoloading works for composer scripts",
+        "vendor-dir": "../Libraries",
+        "allow-plugins": {
+            "neos/composer-plugin": false,
+            "cweagans/composer-patches": false
+        }
     }
 }

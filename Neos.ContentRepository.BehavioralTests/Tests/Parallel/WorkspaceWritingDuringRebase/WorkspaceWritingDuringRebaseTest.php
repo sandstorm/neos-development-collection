@@ -92,13 +92,13 @@ class WorkspaceWritingDuringRebaseTest extends AbstractParallelTestCase
                 throw new \RuntimeException('failed to acquire blocking shared lock');
             }
             $this->contentRepository = $this->contentRepositoryRegistry
-                ->get(ContentRepositoryId::fromString('test_parallel_b'));
+                ->get(ContentRepositoryId::fromString('test_parallel'));
             $this->log('wait for setup finished');
             return;
         }
 
         $this->log('setup started');
-        $contentRepository = $this->setUpContentRepository(ContentRepositoryId::fromString('test_parallel_b'));
+        $contentRepository = $this->setUpContentRepository(ContentRepositoryId::fromString('test_parallel'));
 
         $origin = OriginDimensionSpacePoint::createWithoutDimensions();
         $contentRepository->handle(CreateRootWorkspace::create(
