@@ -173,11 +173,11 @@ trait GenericCommandExecutionAndEventPublication
         Assert::assertInstanceOf(WorkspaceRebaseFailed::class, $exception, sprintf('Actual exception: %s (%s): %s', get_class($exception), $exception->getCode(), $exception->getMessage()));
 
         $actualComparableHash = [];
-        foreach ($exception->eventsThatFailedDuringRebase as $commandsThatFailed) {
+        foreach ($exception->conflictingEvents as $conflictingEvent) {
             $actualComparableHash[] = [
-                'SequenceNumber' => (string)$commandsThatFailed->getSequenceNumber()->value,
-                'Event' =>  (new \ReflectionClass($commandsThatFailed->getEvent()))->getShortName(),
-                'Exception' =>  (new \ReflectionClass($commandsThatFailed->getException()))->getShortName(),
+                'SequenceNumber' => (string)$conflictingEvent->getSequenceNumber()->value,
+                'Event' =>  (new \ReflectionClass($conflictingEvent->getEvent()))->getShortName(),
+                'Exception' =>  (new \ReflectionClass($conflictingEvent->getException()))->getShortName(),
             ];
         }
 

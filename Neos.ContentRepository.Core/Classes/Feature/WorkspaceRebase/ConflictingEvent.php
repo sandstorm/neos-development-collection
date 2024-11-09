@@ -22,7 +22,7 @@ use Neos\EventStore\Model\Event\SequenceNumber;
 /**
  * @api part of the exception exposed when rebasing failed
  */
-final readonly class EventThatFailedDuringRebase
+final readonly class ConflictingEvent
 {
     /**
      * @internal
@@ -35,7 +35,7 @@ final readonly class EventThatFailedDuringRebase
     }
 
     /**
-     * The node aggregate id of the failed command
+     * The node aggregate id of the conflicting event
      */
     public function getAffectedNodeAggregateId(): ?NodeAggregateId
     {
@@ -45,7 +45,7 @@ final readonly class EventThatFailedDuringRebase
     }
 
     /**
-     * How the command failed that was attempted to be rebased
+     * The exception for the conflict
      */
     public function getException(): \Throwable
     {
@@ -63,7 +63,7 @@ final readonly class EventThatFailedDuringRebase
     }
 
     /**
-     * The command that failed
+     * The event that conflicts
      *
      * @internal exposed for testing and experimental use cases
      */
