@@ -52,14 +52,15 @@ abstract class AbstractParallelTestCase extends TestCase // we don't use Flows f
         }
     }
 
-    final protected function awaitSharedLock($resource, int $maximumCycles = 2000): void
+    final protected function awaitFileRemoval(string $filename): void
     {
         $waiting = 0;
-        while (!flock($resource, LOCK_SH)) {
-            usleep(10000);
+        while (!is_file($filename)) {
+            usleep(1000);
             $waiting++;
-            if ($waiting > $maximumCycles) {
-                throw new \Exception('timeout while waiting on shared lock');
+            clearstatcache(true, $filename);
+            if ($waiting > 60000) {
+                throw new \Exception('timeout while waiting on file ' . $filename);
             }
         }
     }

@@ -63,6 +63,7 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceStatus;
 use Neos\EventStore\EventStoreInterface;
+use Neos\EventStore\Exception\ConcurrencyException;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Neos\EventStore\Model\Event\Version;
 use Neos\EventStore\Model\EventStream\EventStreamInterface;
@@ -217,12 +218,12 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                 $command->newContentStreamId,
                 $rebaseableCommands
             );
-        } catch (WorkspaceRebaseFailed $workspaceRebaseFailed) { // and rethrow in yield
-            // todo catch all
+        } catch (WorkspaceRebaseFailed|ConcurrencyException $publishFailed) {
+            // todo catch all? Dont catch ANY ConcurrencyException because say if forking failed we dont need to reopen?
             yield $this->reopenContentStreamWithoutConstraints(
                 $workspace->currentContentStreamId
             );
-            throw $workspaceRebaseFailed;
+            throw $publishFailed;
         }
     }
 
@@ -247,6 +248,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getCommandsThatFailed());
         }
 
+        // todo throw base workspace was modified in the meantime to distinguish exception above to reopen?
         $commitResult = yield new EventsToPublish(
             ContentStreamEventStreamName::fromContentStreamId($baseWorkspace->currentContentStreamId)
                 ->getEventStreamName(),
@@ -255,7 +257,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                 $baseWorkspace->currentContentStreamId,
                 $commandSimulator->eventStream(),
             ),
-            // todo can fail; must reopen!!!!!
             ExpectedVersion::fromVersion($baseWorkspaceContentStreamVersion)
         );
 
@@ -514,17 +515,24 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getCommandsThatFailed());
         }
 
-        // this could be a no-op for the rare case when a command returns empty events e.g. the node was already tagged with this subtree tag, meaning we actually just rebase
-        $commitResult = yield new EventsToPublish(
-            ContentStreamEventStreamName::fromContentStreamId($baseWorkspace->currentContentStreamId)
-                ->getEventStreamName(),
-            $this->getCopiedEventsOfEventStream(
-                $baseWorkspace->workspaceName,
-                $baseWorkspace->currentContentStreamId,
-                $commandSimulator->eventStream()->withMaximumSequenceNumber($highestSequenceNumberForMatching),
-            ),
-            ExpectedVersion::fromVersion($baseWorkspaceContentStreamVersion)
-        );
+        try {
+            // this could be a no-op for the rare case when a command returns empty events e.g. the node was already tagged with this subtree tag, meaning we actually just rebase
+            $commitResult = yield new EventsToPublish(
+                ContentStreamEventStreamName::fromContentStreamId($baseWorkspace->currentContentStreamId)
+                    ->getEventStreamName(),
+                $this->getCopiedEventsOfEventStream(
+                    $baseWorkspace->workspaceName,
+                    $baseWorkspace->currentContentStreamId,
+                    $commandSimulator->eventStream()->withMaximumSequenceNumber($highestSequenceNumberForMatching),
+                ),
+                ExpectedVersion::fromVersion($baseWorkspaceContentStreamVersion)
+            );
+        } catch (ConcurrencyException $concurrencyException) {
+            yield $this->reopenContentStreamWithoutConstraints(
+                $workspace->currentContentStreamId
+            );
+            throw $concurrencyException;
+        }
 
         yield from $this->forkNewContentStreamAndApplyEvents(
             $command->contentStreamIdForRemainingPart,

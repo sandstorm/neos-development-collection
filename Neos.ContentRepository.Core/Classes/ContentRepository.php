@@ -46,6 +46,7 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
 use Neos\EventStore\EventStoreInterface;
+use Neos\EventStore\Exception\ConcurrencyException;
 use Neos\EventStore\Model\EventEnvelope;
 use Neos\EventStore\Model\EventStream\VirtualStreamName;
 use Psr\Clock\ClockInterface;
@@ -116,7 +117,15 @@ final class ContentRepository
                     continue;
                 }
                 $eventsToPublish = $this->enrichEventsToPublishWithMetadata($yieldedEventsToPublish);
-                $commitResult = $this->eventPersister->publishWithoutCatchup($eventsToPublish);
+                try {
+                    $commitResult = $this->eventPersister->publishWithoutCatchup($eventsToPublish);
+                } catch (ConcurrencyException $concurrencyException) {
+                    $yieldedErrorStrategy = $toPublish->throw($concurrencyException);
+                    if ($yieldedErrorStrategy instanceof EventsToPublish) {
+                        $this->eventPersister->publishWithoutCatchup($yieldedErrorStrategy);
+                    }
+                    throw $concurrencyException;
+                }
                 $yieldedEventsToPublish = $toPublish->send($commitResult);
             }
         } finally {

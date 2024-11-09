@@ -12,7 +12,7 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\BehavioralTests\Tests\Parallel\WorkspaceWritingDuringRebase;
+namespace Neos\ContentRepository\BehavioralTests\Tests\Parallel\WorkspacePublicationDuringWriting;
 
 use Neos\ContentRepository\BehavioralTests\Tests\Parallel\AbstractParallelTestCase;
 use Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinPyStringNodeBasedNodeTypeManagerFactory;
@@ -29,8 +29,7 @@ use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWri
 use Neos\ContentRepository\Core\Feature\RootNodeCreation\Command\CreateRootNodeAggregateWithNode;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Command\CreateRootWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Command\CreateWorkspace;
-use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Command\RebaseWorkspace;
-use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Dto\RebaseErrorHandlingStrategy;
+use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishWorkspace;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
@@ -43,11 +42,10 @@ use Neos\EventStore\Exception\ConcurrencyException;
 use Neos\Flow\ObjectManagement\ObjectManagerInterface;
 use PHPUnit\Framework\Assert;
 
-class WorkspaceWritingDuringRebase extends AbstractParallelTestCase
-
+class WorkspacePublicationDuringWritingTest extends AbstractParallelTestCase
 {
     private const SETUP_LOCK_PATH = __DIR__ . '/setup-lock';
-    private const REBASE_IS_RUNNING_FLAG_PATH = __DIR__ . '/rebase-is-running-flag';
+    private const WRITING_IS_RUNNING_FLAG_PATH = __DIR__ . '/write-is-running-flag';
 
     private ContentRepository $contentRepository;
 
@@ -88,15 +86,17 @@ class WorkspaceWritingDuringRebase extends AbstractParallelTestCase
         $exclusiveNonBlockingLockResult = flock($setupLockResource, LOCK_EX | LOCK_NB);
         if ($exclusiveNonBlockingLockResult === false) {
             $this->log('waiting for setup');
-            $this->awaitSharedLock($setupLockResource);
+            if (!flock($setupLockResource, LOCK_SH)) {
+                throw new \RuntimeException('failed to acquire blocking shared lock');
+            }
             $this->contentRepository = $this->contentRepositoryRegistry
-                ->get(ContentRepositoryId::fromString('test_parallel'));
+                ->get(ContentRepositoryId::fromString('test_parallel_a'));
             $this->log('wait for setup finished');
             return;
         }
 
         $this->log('setup started');
-        $contentRepository = $this->setUpContentRepository(ContentRepositoryId::fromString('test_parallel'));
+        $contentRepository = $this->setUpContentRepository(ContentRepositoryId::fromString('test_parallel_a'));
 
         $origin = OriginDimensionSpacePoint::createWithoutDimensions();
         $contentRepository->handle(CreateRootWorkspace::create(
@@ -125,7 +125,7 @@ class WorkspaceWritingDuringRebase extends AbstractParallelTestCase
         ));
         for ($i = 0; $i <= 5000; $i++) {
             $contentRepository->handle(CreateNodeAggregateWithNode::create(
-                WorkspaceName::forLive(),
+                WorkspaceName::fromString('user-test'),
                 NodeAggregateId::fromString('nody-mc-nodeface-' . $i),
                 NodeTypeName::fromString('Neos.ContentRepository.Testing:Document'),
                 $origin,
@@ -148,23 +148,30 @@ class WorkspaceWritingDuringRebase extends AbstractParallelTestCase
      * @test
      * @group parallel
      */
-    public function whileAWorkspaceIsBeingRebased(): void
+    public function whileANodesArWrittenOnLive(): void
     {
-        $workspaceName = WorkspaceName::fromString('user-test');
-        $this->log('rebase started');
+        $this->log('writing started');
 
-        touch(self::REBASE_IS_RUNNING_FLAG_PATH);
+        touch(self::WRITING_IS_RUNNING_FLAG_PATH);
 
         try {
-            $this->contentRepository->handle(
-                RebaseWorkspace::create($workspaceName)
-                    ->withRebasedContentStreamId(ContentStreamId::create())
-                    ->withErrorHandlingStrategy(RebaseErrorHandlingStrategy::STRATEGY_FORCE));
+            for ($i = 0; $i <= 50; $i++) {
+                $this->contentRepository->handle(
+                    SetNodeProperties::create(
+                        WorkspaceName::forLive(),
+                        NodeAggregateId::fromString('nody-mc-nodeface'),
+                        OriginDimensionSpacePoint::createWithoutDimensions(),
+                        PropertyValuesToWrite::fromArray([
+                            'title' => 'changed-title-' . $i
+                        ])
+                    )
+                );
+            }
         } finally {
-            unlink(self::REBASE_IS_RUNNING_FLAG_PATH);
+            unlink(self::WRITING_IS_RUNNING_FLAG_PATH);
         }
 
-        $this->log('rebase finished');
+        $this->log('writing finished');
         Assert::assertTrue(true, 'No exception was thrown ;)');
     }
 
@@ -172,12 +179,12 @@ class WorkspaceWritingDuringRebase extends AbstractParallelTestCase
      * @test
      * @group parallel
      */
-    public function thenConcurrentCommandsLeadToAnException(): void
+    public function thenConcurrentPublishLeadsToException(): void
     {
-        if (!is_file(self::REBASE_IS_RUNNING_FLAG_PATH)) {
-            $this->log('write waiting');
+        if (!is_file(self::WRITING_IS_RUNNING_FLAG_PATH)) {
+            $this->log('waiting to publish');
 
-            $this->awaitFile(self::REBASE_IS_RUNNING_FLAG_PATH);
+            $this->awaitFile(self::WRITING_IS_RUNNING_FLAG_PATH);
             // If write is the process that does the (slowish) setup, and then waits for the rebase to start,
             // We give the CR some time to close the content stream
             // TODO find another way than to randomly wait!!!
@@ -186,38 +193,57 @@ class WorkspaceWritingDuringRebase extends AbstractParallelTestCase
             usleep(10000);
         }
 
-        $this->log('write started');
+        $this->log('publish started');
 
-        $origin = OriginDimensionSpacePoint::createWithoutDimensions();
         $actualException = null;
         try {
-            $this->contentRepository->handle(SetNodeProperties::create(
-                WorkspaceName::fromString('user-test'),
-                NodeAggregateId::fromString('nody-mc-nodeface'),
-                $origin,
-                PropertyValuesToWrite::fromArray([
-                    'title' => 'title47b'
-                ])
+            $this->contentRepository->handle(PublishWorkspace::create(
+                WorkspaceName::fromString('user-test')
             ));
         } catch (\Exception $thrownException) {
             $actualException = $thrownException;
         }
 
-        $this->log('write finished');
+        $this->log('publish finished');
+
+        if ($actualException === null) {
+            Assert::fail(sprintf('No exception was thrown'));
+        }
+
+        if ($actualException instanceof \RuntimeException && $actualException->getCode() === 1652279016) {
+            // todo can be removed soon
+            $this->log(sprintf('got expected RuntimeException exception: %s', $actualException->getMessage()));
+        } elseif ($actualException instanceof ConcurrencyException) {
+            $this->log(sprintf('got expected ConcurrencyException exception: %s', $actualException->getMessage()));
+        } else {
+            Assert::assertInstanceOf(ConcurrencyException::class, $actualException);
+        }
+
+        $this->awaitFileRemoval(self::WRITING_IS_RUNNING_FLAG_PATH);
+
+        // just to make sure were up-to-date now!
+        $this->contentRepository->catchupProjections();
+
+        // writing to user works!!!
+        try {
+            $this->contentRepository->handle(
+                SetNodeProperties::create(
+                    WorkspaceName::fromString('user-test'),
+                    NodeAggregateId::fromString('nody-mc-nodeface'),
+                    OriginDimensionSpacePoint::createWithoutDimensions(),
+                    PropertyValuesToWrite::fromArray([
+                        'title' => 'written-after-failed-publish'
+                    ])
+                )
+            );
+        } catch (ContentStreamIsClosed $exception) {
+            Assert::fail(sprintf('Workspace that failed to be publish cannot be written: %s', $exception->getMessage()));
+        }
 
         $node = $this->contentRepository->getContentGraph(WorkspaceName::fromString('user-test'))
             ->getSubgraph(DimensionSpacePoint::createWithoutDimensions(), VisibilityConstraints::withoutRestrictions())
             ->findNodeById(NodeAggregateId::fromString('nody-mc-nodeface'));
 
-        if ($actualException === null) {
-            Assert::fail(sprintf('No exception was thrown. Mutated Node: %s', json_encode($node?->properties->serialized())));
-        }
-
-        Assert::assertThat($actualException, self::logicalOr(
-            self::isInstanceOf(ContentStreamIsClosed::class),
-            self::isInstanceOf(ConcurrencyException::class),
-        ));
-
-        Assert::assertSame('title-original', $node?->getProperty('title'));
+        Assert::assertSame('written-after-failed-publish', $node?->getProperty('title'));
     }
 }
