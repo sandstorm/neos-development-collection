@@ -74,7 +74,7 @@ class InternalMethodsNotAllowedOutsideContentRepositoryRule implements Rule
                                 $targetClassName,
                                 $node->name->toString()
                             )
-                        )->build(),
+                        )->identifier('neos.cr.internal')->build(),
                     ];
                 }
             }

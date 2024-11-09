@@ -55,7 +55,7 @@ final readonly class ExportedEvent implements \JsonSerializable
 
     /**
      * @param \Closure(array<mixed>): array<mixed> $processor
-     * @return $this
+     * @return self
      */
     public function processPayload(\Closure $processor): self
     {
@@ -64,7 +64,7 @@ final readonly class ExportedEvent implements \JsonSerializable
 
     /**
      * @param \Closure(array<mixed>): array<mixed> $processor
-     * @return $this
+     * @return self
      */
     public function processMetadata(\Closure $processor): self
     {
