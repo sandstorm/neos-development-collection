@@ -11,7 +11,6 @@ use Neos\ContentRepository\Core\EventStore\EventsToPublish;
  * Implementation Detail of {@see ContentRepository::handle}, which does the command dispatching to the different
  * {@see CommandHandlerInterface} implementation.
  *
- * @phpstan-import-type YieldedEventsToPublish from CommandHandlerInterface
  * @internal
  */
 final readonly class CommandBus
@@ -33,7 +32,7 @@ final readonly class CommandBus
      * The handler only calculate which events they want to have published,
      * but do not do the publishing themselves
      *
-     * @return EventsToPublish|YieldedEventsToPublish
+     * @return EventsToPublish|\Generator<int, EventsToPublish>
      */
     public function handle(CommandInterface $command): EventsToPublish|\Generator
     {

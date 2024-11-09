@@ -70,7 +70,6 @@ use Neos\EventStore\Model\EventStream\EventStreamInterface;
 use Neos\EventStore\Model\EventStream\ExpectedVersion;
 
 /**
- * @phpstan-import-type YieldedEventsToPublish from CommandHandlerInterface
  * @internal from userland, you'll use ContentRepository::handle to dispatch commands
  */
 final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
@@ -90,7 +89,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
     }
 
     /**
-     * @return YieldedEventsToPublish
+     * @return \Generator<int, EventsToPublish>
      */
     public function handle(CommandInterface $command, CommandHandlingDependencies $commandHandlingDependencies): \Generator
     {
@@ -436,7 +435,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
     /**
      * This method is like a combined Rebase and Publish!
      *
-     * @return YieldedEventsToPublish
+     * @return \Generator<int, EventsToPublish>
      */
     private function handlePublishIndividualNodesFromWorkspace(
         PublishIndividualNodesFromWorkspace $command,

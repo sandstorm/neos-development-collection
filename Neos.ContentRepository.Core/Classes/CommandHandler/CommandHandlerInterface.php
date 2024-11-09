@@ -11,7 +11,6 @@ use Neos\ContentRepository\Core\EventStore\EventsToPublish;
  *
  * The {@see CommandHandlingDependencies} are available during handling to do soft-constraint checks
  *
- * @phpstan-type YieldedEventsToPublish \Generator<int, EventsToPublish>
  * @internal no public API, because commands are no extension points of the CR
  */
 interface CommandHandlerInterface
@@ -24,7 +23,7 @@ interface CommandHandlerInterface
      * For the case of the workspace command handler that need to publish to many streams and "close" the content-stream directly,
      * it's allowed to yield the events to interact with the control flow of event publishing.
      *
-     * @return EventsToPublish|YieldedEventsToPublish
+     * @return EventsToPublish|\Generator<int, EventsToPublish>
      */
     public function handle(CommandInterface $command, CommandHandlingDependencies $commandHandlingDependencies): EventsToPublish|\Generator;
 }
