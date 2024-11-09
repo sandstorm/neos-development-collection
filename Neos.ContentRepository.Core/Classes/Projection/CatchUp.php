@@ -107,7 +107,7 @@ final class CatchUp
                 try {
                     ($this->eventHandler)($eventEnvelope);
                 } catch (\Exception $e) {
-                    throw new \RuntimeException(sprintf('Exception while catching up to sequence number %d', $eventEnvelope->sequenceNumber->value), 1710707311, $e);
+                    throw new \RuntimeException(sprintf('Exception while catching up to sequence number %d: %s', $eventEnvelope->sequenceNumber->value, $e->getMessage()), 1710707311, $e);
                 }
                 $iteration++;
                 if ($this->batchSize === 1 || $iteration % $this->batchSize === 0) {

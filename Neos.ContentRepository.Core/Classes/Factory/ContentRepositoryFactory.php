@@ -75,6 +75,9 @@ final class ContentRepositoryFactory
         $this->projectionsAndCatchUpHooks = $projectionsAndCatchUpHooksFactory->build($this->projectionFactoryDependencies);
     }
 
+    // guards against recursion and memory overflow
+    private bool $isBuilding = false;
+
     // The following properties store "singleton" references of objects for this content repository
     private ?ContentRepository $contentRepository = null;
     private ?EventPersister $eventPersister = null;
@@ -90,6 +93,10 @@ final class ContentRepositoryFactory
         if ($this->contentRepository) {
             return $this->contentRepository;
         }
+        if ($this->isBuilding) {
+            throw new \RuntimeException(sprintf('Content repository "%s" was attempted to be build in recursion.', $this->contentRepositoryId->value), 1730552199);
+        }
+        $this->isBuilding = true;
 
         $contentGraphReadModel = $this->projectionsAndCatchUpHooks->contentGraphProjection->getState();
         $commandHandlingDependencies = new CommandHandlingDependencies($contentGraphReadModel);
@@ -129,7 +136,7 @@ final class ContentRepositoryFactory
         );
 
         $authProvider = $this->authProviderFactory->build($this->contentRepositoryId, $contentGraphReadModel);
-        return $this->contentRepository = new ContentRepository(
+        $this->contentRepository = new ContentRepository(
             $this->contentRepositoryId,
             $publicCommandBus,
             $this->projectionFactoryDependencies->eventStore,
@@ -143,6 +150,8 @@ final class ContentRepositoryFactory
             $this->clock,
             $contentGraphReadModel
         );
+        $this->isBuilding = false;
+        return $this->contentRepository;
     }
 
     /**
