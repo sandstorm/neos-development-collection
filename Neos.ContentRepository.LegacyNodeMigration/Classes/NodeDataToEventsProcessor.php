@@ -62,7 +62,6 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
      * @var array<\Closure>
      */
     private array $callbacks = [];
-    private NodeTypeName $sitesNodeTypeName;
     private WorkspaceName $workspaceName;
     private ContentStreamId $contentStreamId;
     private VisitedNodeAggregates $visitedNodes;
@@ -91,9 +90,9 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
         private readonly InterDimensionalVariationGraph $interDimensionalVariationGraph,
         private readonly EventNormalizer $eventNormalizer,
         private readonly Filesystem $files,
+        private readonly RootNodeTypeMapping $rootNodeTypeMapping,
         private readonly iterable $nodeDataRows,
     ) {
-        $this->sitesNodeTypeName = NodeTypeNameFactory::forSites();
         $this->contentStreamId = ContentStreamId::create();
         $this->workspaceName = WorkspaceName::forLive();
         $this->visitedNodes = new VisitedNodeAggregates();
@@ -102,18 +101,6 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
     public function setContentStreamId(ContentStreamId $contentStreamId): void
     {
         $this->contentStreamId = $contentStreamId;
-    }
-
-    public function setSitesNodeType(NodeTypeName $nodeTypeName): void
-    {
-        $nodeType = $this->nodeTypeManager->getNodeType($nodeTypeName);
-        if (!$nodeType?->isOfType(NodeTypeNameFactory::NAME_SITES)) {
-            throw new \InvalidArgumentException(
-                sprintf('Sites NodeType "%s" must be of type "%s"', $nodeTypeName->value, NodeTypeNameFactory::NAME_SITES),
-                1695802415
-            );
-        }
-        $this->sitesNodeTypeName = $nodeTypeName;
     }
 
     public function onMessage(\Closure $callback): void
@@ -126,11 +113,14 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
         $this->resetRuntimeState();
 
         foreach ($this->nodeDataRows as $nodeDataRow) {
-            if ($nodeDataRow['path'] === '/sites') {
-                $sitesNodeAggregateId = NodeAggregateId::fromString($nodeDataRow['identifier']);
-                $this->visitedNodes->addRootNode($sitesNodeAggregateId, $this->sitesNodeTypeName, NodePath::fromString('/sites'), $this->interDimensionalVariationGraph->getDimensionSpacePoints());
-                $this->exportEvent(new RootNodeAggregateWithNodeWasCreated($this->workspaceName, $this->contentStreamId, $sitesNodeAggregateId, $this->sitesNodeTypeName, $this->interDimensionalVariationGraph->getDimensionSpacePoints(), NodeAggregateClassification::CLASSIFICATION_ROOT));
-                continue;
+            if ($this->isRootNodePath($nodeDataRow['path'])) {
+                $rootNodeTypeName = $this->rootNodeTypeMapping->getByPath($nodeDataRow['path']);
+                if ($rootNodeTypeName) {
+                    $rootNodeAggregateId = NodeAggregateId::fromString($nodeDataRow['identifier']);
+                    $this->visitedNodes->addRootNode($rootNodeAggregateId, $rootNodeTypeName, NodePath::fromString($nodeDataRow['path']), $this->interDimensionalVariationGraph->getDimensionSpacePoints());
+                    $this->exportEvent(new RootNodeAggregateWithNodeWasCreated($this->workspaceName, $this->contentStreamId, $rootNodeAggregateId, $rootNodeTypeName, $this->interDimensionalVariationGraph->getDimensionSpacePoints(), NodeAggregateClassification::CLASSIFICATION_ROOT));
+                    continue;
+                }
             }
             if ($this->metaDataExported === false && $nodeDataRow['parentpath'] === '/sites') {
                 $this->exportMetaData($nodeDataRow);
@@ -545,7 +535,7 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
             && (
                 $hiddenBeforeDateTime == null
                 || $hiddenBeforeDateTime > $now
-                || $hiddenBeforeDateTime<= $hiddenAfterDateTime
+                || $hiddenBeforeDateTime <= $hiddenAfterDateTime
             )
         ) {
             return true;
@@ -564,5 +554,10 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
 
         return false;
 
+    }
+
+    private function isRootNodePath(string $path): bool
+    {
+        return strpos($path, '/') === 0 && strpos($path, '/', 1) === false;
     }
 }
