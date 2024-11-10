@@ -14,11 +14,12 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Factory;
 
+use Neos\ContentRepository\Core\CommandHandler\CommandHookInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 
 /**
- * @internal
+ * @api for implementers of custom {@see CommandHookInterface}s
  */
 final readonly class CommandHooksFactoryDependencies
 {

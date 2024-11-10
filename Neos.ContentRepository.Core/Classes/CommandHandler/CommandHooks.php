@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\CommandHandler;
 
 /**
- * Collection of {@see CommandHookInterface} instances
+ * Collection of {@see CommandHookInterface} instances, functioning as a delegating command hook implementation
  *
  * @implements \IteratorAggregate<CommandHookInterface>
- * @internal
+ * @api
  */
 final readonly class CommandHooks implements CommandHookInterface, \IteratorAggregate, \Countable
 {

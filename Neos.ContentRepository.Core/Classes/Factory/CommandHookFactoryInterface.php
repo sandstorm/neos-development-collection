@@ -7,7 +7,7 @@ namespace Neos\ContentRepository\Core\Factory;
 use Neos\ContentRepository\Core\CommandHandler\CommandHookInterface;
 
 /**
- * @internal
+ * @api for implementers of custom {@see CommandHookInterface}s
  */
 interface CommandHookFactoryInterface
 {
