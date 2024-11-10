@@ -101,6 +101,7 @@ final class AssetRepositoryImportProcessor implements ProcessorInterface
         ObjectAccess::setProperty($asset, 'Persistence_Object_Identifier', $serializedAsset->identifier, true);
         $asset->setTitle($serializedAsset->title);
         $asset->setCaption($serializedAsset->caption);
+        $asset->setCopyrightNotice($serializedAsset->copyrightNotice);
         $this->assetRepository->add($asset);
         $this->persistenceManager->persistAll();
     }
