@@ -168,7 +168,7 @@ class SiteCommandController extends CommandController
             }
             $this->outputLine(match ($severity) {
                 Severity::NOTICE => $message,
-                Severity::WARNING => sprintf('<error>Warning: %s</error>', $message),
+                Severity::WARNING => sprintf('<comment>Warning: %s</comment>', $message),
                 Severity::ERROR => sprintf('<error>Error: %s</error>', $message),
             });
         };
