@@ -5,6 +5,7 @@ Feature: Exceptional cases during migrations
     Given using no content dimensions
     And using the following node types:
     """yaml
+    'unstructured': {}
     'Neos.Neos:Site': {}
     'Some.Package:Homepage':
       superTypes:
@@ -146,5 +147,5 @@ Feature: Exceptional cases during migrations
     And I run the event migration
     Then I expect a migration exception with the message
     """
-    The site node "site-node-id" (type: "unstructured") must be of type "Neos.Neos:Site"
+    The site node "site-node-id" (type: "unstructured") must be of type "Neos.Neos:Site". Currently declared super types: ""
     """
