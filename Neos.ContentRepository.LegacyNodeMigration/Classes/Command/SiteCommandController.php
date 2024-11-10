@@ -44,7 +44,7 @@ class SiteCommandController extends CommandController
      * This command creates a Neos 9 export format based on the data from the specified legacy content repository database connection
      * The export will be placed in the specified directory path, and can be imported via "site:importAll":
      *
-     *     ./flow site:exportLegacyDataCommand --path ./migratedContent
+     *     ./flow site:exportLegacyData --path ./migratedContent
      *     ./flow site:importAll --path ./migratedContent
      *
      * Note that the dimension configuration and the node type schema must be migrated of the reference content repository
