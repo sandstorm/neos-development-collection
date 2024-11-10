@@ -81,9 +81,9 @@ trait ConstraintChecks
         CommandHandlingDependencies $commandHandlingDependencies
     ): ContentStreamId {
         $contentStreamId = $commandHandlingDependencies->getContentGraph($workspaceName)->getContentStreamId();
-        $closedState = $commandHandlingDependencies->isContentStreamClosed($contentStreamId);
+        $isContentStreamClosed = $commandHandlingDependencies->isContentStreamClosed($contentStreamId);
 
-        if ($closedState) {
+        if ($isContentStreamClosed) {
             throw new ContentStreamIsClosed(
                 'Content stream "' . $contentStreamId->value . '" is closed.',
                 1710260081
