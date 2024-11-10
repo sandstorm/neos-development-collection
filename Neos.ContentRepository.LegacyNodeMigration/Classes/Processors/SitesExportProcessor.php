@@ -52,7 +52,7 @@ final class SitesExportProcessor implements ProcessorInterface
                                     'hostname' => $domainRow['hostname'],
                                     'scheme' => $domainRow['scheme'],
                                     'port' => $domainRow['port'],
-                                    'active' => $domainRow['active'],
+                                    'active' => (bool)$domainRow['active'],
                                     'primary' => $domainRow['persistence_object_identifier'] === $siteRow['primarydomain'],
                                 ];
                             },
