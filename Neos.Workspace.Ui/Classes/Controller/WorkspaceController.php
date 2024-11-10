@@ -43,7 +43,6 @@ use Neos\Flow\I18n\Exception\InvalidFormatPlaceholderException;
 use Neos\Flow\Mvc\Exception\StopActionException;
 use Neos\Flow\Package\PackageManager;
 use Neos\Flow\Property\PropertyMapper;
-use Neos\Flow\Security\Context;
 use Neos\Flow\Security\Exception\AccessDeniedException;
 use Neos\Media\Domain\Model\AssetInterface;
 use Neos\Media\Domain\Model\ImageInterface;
@@ -92,9 +91,6 @@ class WorkspaceController extends AbstractModuleController
     protected PropertyMapper $propertyMapper;
 
     #[Flow\Inject]
-    protected Context $securityContext;
-
-    #[Flow\Inject]
     protected UserService $userService;
 
     #[Flow\Inject]
@@ -114,7 +110,7 @@ class WorkspaceController extends AbstractModuleController
      */
     public function indexAction(): void
     {
-        $authenticatedAccount = $this->securityContext->getAccount();
+        $authenticatedAccount = $this->userService->getCurrentUser()?->getFirstActiveAccount();
         if ($authenticatedAccount === null) {
             throw new AccessDeniedException('No user authenticated', 1718308216);
         }
@@ -164,7 +160,7 @@ class WorkspaceController extends AbstractModuleController
 
     public function showAction(WorkspaceName $workspace): void
     {
-        $authenticatedAccount = $this->securityContext->getAccount();
+        $authenticatedAccount = $this->userService->getCurrentUser()?->getFirstActiveAccount();
         if ($authenticatedAccount === null) {
             throw new AccessDeniedException('No user authenticated', 1720371024);
         }
@@ -293,7 +289,7 @@ class WorkspaceController extends AbstractModuleController
         $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
         $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
 
-        $authenticatedAccount = $this->securityContext->getAccount();
+        $authenticatedAccount = $this->userService->getCurrentUser()?->getFirstActiveAccount();
         if ($authenticatedAccount === null) {
             throw new AccessDeniedException('No user is authenticated', 1729620262);
         }
@@ -1012,7 +1008,7 @@ class WorkspaceController extends AbstractModuleController
         ContentRepository $contentRepository,
         WorkspaceName $excludedWorkspace = null,
     ): array {
-        $authenticatedAccount = $this->securityContext->getAccount();
+        $authenticatedAccount = $this->userService->getCurrentUser()?->getFirstActiveAccount();
         $baseWorkspaceOptions = [];
         $workspaces = $contentRepository->findWorkspaces();
         foreach ($workspaces as $workspace) {
