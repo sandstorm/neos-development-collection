@@ -25,19 +25,15 @@ use Neos\ContentRepository\LegacyNodeMigration\RootNodeTypeMapping;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Cli\CommandController;
 use Neos\Flow\Property\PropertyMapper;
-use Neos\Flow\Utility\Environment;
-use Neos\Neos\Domain\Service\SiteImportService;
-use Neos\Utility\Files;
 use Neos\Neos\Domain\Service\NodeTypeNameFactory;
+use Neos\Utility\Files;
 
 class SiteCommandController extends CommandController
 {
     public function __construct(
         private readonly Connection $connection,
-        private readonly Environment $environment,
         private readonly PropertyMapper $propertyMapper,
         private readonly ContentRepositoryRegistry $contentRepositoryRegistry,
-        private readonly SiteImportService $siteImportService,
     ) {
         parent::__construct();
     }
@@ -45,81 +41,17 @@ class SiteCommandController extends CommandController
     /**
      * Migrate from the Legacy CR
      *
-     * Note that the dimension configuration and the node type schema must be migrated of the content repository to import to and it must be setup.
+     * This command creates a Neos 9 export format based on the data from the specified legacy content repository database connection
+     * The export will be placed in the specified directory path, and can be imported via "site:importAll":
      *
-     * @param string $contentRepository The target content repository that will be used for importing into
-     * @param string|null $config JSON encoded configuration, for example '{"dbal": {"dbname": "some-other-db"}, "resourcesPath": "/some/absolute/path", "rootNodes": {"/sites": "Neos.Neos:Sites", "/other": "My.Package:SomeOtherRoot"}}'
-     * @throws \Exception
-     */
-    public function migrateLegacyDataCommand(string $contentRepository = 'default', string $config = null, bool $verbose = false, ): void
-    {
-        if ($config !== null) {
-            try {
-                $parsedConfig = json_decode($config, true, 512, JSON_THROW_ON_ERROR);
-            } catch (\JsonException $e) {
-                throw new \InvalidArgumentException(sprintf('Failed to parse --config parameter: %s', $e->getMessage()), 1659526855, $e);
-            }
-            $resourcesPath = $parsedConfig['resourcesPath'] ?? self::defaultResourcesPath();
-            $rootNodes = isset($parsedConfig['rootNodes']) ? RootNodeTypeMapping::fromArray($parsedConfig['rootNodes']) : $this->getDefaultRootNodes();
-            try {
-                $connection = isset($parsedConfig['dbal']) ? DriverManager::getConnection(array_merge($this->connection->getParams(), $parsedConfig['dbal']), new Configuration()) : $this->connection;
-            } catch (DBALException $e) {
-                throw new \InvalidArgumentException(sprintf('Failed to get database connection, check the --config parameter: %s', $e->getMessage()), 1659527201, $e);
-            }
-        } else {
-            $resourcesPath = $this->determineResourcesPath();
-            $rootNodes = $this->getDefaultRootNodes();
-            if (!$this->output->askConfirmation(sprintf('Do you want to migrate nodes from the current database "%s@%s" (y/n)? ', $this->connection->getParams()['dbname'] ?? '?', $this->connection->getParams()['host'] ?? '?'))) {
-                $connection = $this->adjustDatabaseConnection($this->connection);
-            } else {
-                $connection = $this->connection;
-            }
-        }
-        $this->verifyDatabaseConnection($connection);
-
-        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
-        $temporaryFilePath = $this->environment->getPathToTemporaryDirectory() . uniqid('Export', true);
-        Files::createDirectoryRecursively($temporaryFilePath);
-
-        $legacyExportService = $this->contentRepositoryRegistry->buildService(
-            $contentRepositoryId,
-            new LegacyExportServiceFactory(
-                $connection,
-                $resourcesPath,
-                $this->propertyMapper,
-                $rootNodes
-            )
-        );
-
-        $legacyExportService->exportToPath(
-            $temporaryFilePath,
-            $this->createOnProcessorClosure(),
-            $this->createOnMessageClosure($verbose)
-        );
-
-        $this->outputLine('Migrated data. Importing into new content repository ...');
-
-        // todo check if cr is setup before!!! do not fail here!!!
-        $this->siteImportService->importFromPath(
-            $contentRepositoryId,
-            $temporaryFilePath,
-            $this->createOnProcessorClosure(),
-            $this->createOnMessageClosure($verbose)
-        );
-
-        Files::unlink($temporaryFilePath);
-
-        $this->outputLine('<success>Done</success>');
-    }
-
-    /**
-     * Export from the Legacy CR into a specified directory path
+     *     ./flow site:exportLegacyDataCommand --path ./migratedContent
+     *     ./flow site:importAll --path ./migratedContent
      *
      * Note that the dimension configuration and the node type schema must be migrated of the reference content repository
      *
      * @param string $contentRepository The reference content repository that can later be used for importing into
-     * @param string $path The path to the directory, will be created if missing
-     * @param string|null $config JSON encoded configuration, for example '{"dbal": {"dbname": "some-other-db"}, "resourcesPath": "/some/absolute/path", "rootNodes": {"/sites": "Neos.Neos:Sites", "/other": "My.Package:SomeOtherRoot"}}'
+     * @param string $path The path to the directory to export to, will be created if missing
+     * @param string|null $config JSON encoded configuration, for example --config '{"dbal": {"dbname": "some-other-db"}, "resourcesPath": "/absolute-path/Data/Persistent/Resources", "rootNodes": {"/sites": "Neos.Neos:Sites", "/other": "My.Package:SomeOtherRoot"}}'
      * @throws \Exception
      */
     public function exportLegacyDataCommand(string $path, string $contentRepository = 'default', string $config = null, bool $verbose = false): void
