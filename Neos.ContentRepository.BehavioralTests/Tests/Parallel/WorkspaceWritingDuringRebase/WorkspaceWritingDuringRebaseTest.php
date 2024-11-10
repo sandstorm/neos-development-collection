@@ -160,7 +160,7 @@ class WorkspaceWritingDuringRebaseTest extends AbstractParallelTestCase
         try {
             $this->contentRepository->handle(
                 RebaseWorkspace::create($workspaceName)
-                    ->withRebasedContentStreamId(ContentStreamId::create())
+                    ->withRebasedContentStreamId(ContentStreamId::fromString('user-cs-rebased'))
                     ->withErrorHandlingStrategy(RebaseErrorHandlingStrategy::STRATEGY_FORCE));
         } finally {
             unlink(self::REBASE_IS_RUNNING_FLAG_PATH);
@@ -190,6 +190,11 @@ class WorkspaceWritingDuringRebaseTest extends AbstractParallelTestCase
 
         $this->log('write started');
 
+        $workspaceDuringRebase = $this->contentRepository->getContentGraph(WorkspaceName::fromString('user-test'));
+        Assert::assertSame('user-cs-id', $workspaceDuringRebase->getContentStreamId()->value,
+            'The parallel tests expects the workspace to still point to the original cs.'
+        );
+
         $origin = OriginDimensionSpacePoint::createWithoutDimensions();
         $actualException = null;
         try {
@@ -218,7 +223,7 @@ class WorkspaceWritingDuringRebaseTest extends AbstractParallelTestCase
 
         Assert::assertThat($actualException, self::logicalOr(
             self::isInstanceOf(ContentStreamIsClosed::class),
-            self::isInstanceOf(ConcurrencyException::class),
+            self::isInstanceOf(ConcurrencyException::class), // todo is only thrown theoretical? but not during tests here ...
         ));
 
         Assert::assertSame('title-original', $node?->getProperty('title'));
