@@ -124,6 +124,7 @@ class SiteCommandController extends CommandController
      */
     public function exportLegacyDataCommand(string $path, string $contentRepository = 'default', string $config = null, bool $verbose = false): void
     {
+        Files::createDirectoryRecursively($path);
         if ($config !== null) {
             try {
                 $parsedConfig = json_decode($config, true, 512, JSON_THROW_ON_ERROR);
@@ -148,7 +149,6 @@ class SiteCommandController extends CommandController
         }
         $this->verifyDatabaseConnection($connection);
 
-        Files::createDirectoryRecursively($path);
         $legacyExportService = $this->contentRepositoryRegistry->buildService(
             ContentRepositoryId::fromString($contentRepository),
             new LegacyExportServiceFactory(
