@@ -203,6 +203,7 @@ class WorkspaceWritingDuringRebaseTest extends AbstractParallelTestCase
             ));
         } catch (\Exception $thrownException) {
             $actualException = $thrownException;
+            $this->log(sprintf('Got exception %s: %s', self::shortClassName($actualException::class), $actualException->getMessage()));
         }
 
         $this->log('write finished');

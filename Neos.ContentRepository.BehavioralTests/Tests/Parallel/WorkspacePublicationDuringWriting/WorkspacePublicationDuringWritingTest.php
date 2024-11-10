@@ -223,6 +223,7 @@ class WorkspacePublicationDuringWritingTest extends AbstractParallelTestCase
             ));
         } catch (\Exception $thrownException) {
             $actualException = $thrownException;
+            $this->log(sprintf('Got exception %s: %s', self::shortClassName($actualException::class), $actualException->getMessage()));
         }
 
         $this->log('publish finished');
@@ -231,19 +232,9 @@ class WorkspacePublicationDuringWritingTest extends AbstractParallelTestCase
             Assert::fail(sprintf('No exception was thrown'));
         }
 
-        if ($actualException instanceof \RuntimeException && $actualException->getCode() === 1652279016) {
-            // todo can be removed soon
-            $this->log(sprintf('got expected RuntimeException exception: %s', $actualException->getMessage()));
-        } elseif ($actualException instanceof ConcurrencyException) {
-            $this->log(sprintf('got expected ConcurrencyException exception: %s', $actualException->getMessage()));
-        } else {
-            Assert::assertInstanceOf(ConcurrencyException::class, $actualException);
-        }
+        Assert::assertInstanceOf(ConcurrencyException::class, $actualException);
 
         $this->awaitFileRemoval(self::WRITING_IS_RUNNING_FLAG_PATH);
-
-        // just to make sure were up-to-date now!
-        $this->contentRepository->catchupProjections();
 
         // writing to user works!!!
         try {
