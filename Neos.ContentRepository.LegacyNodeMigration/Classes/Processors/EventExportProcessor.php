@@ -215,13 +215,15 @@ final class EventExportProcessor implements ProcessorInterface
         $nodeType = $this->nodeTypeManager->getNodeType($nodeTypeName);
 
         $isSiteNode = $nodeDataRow['parentpath'] === '/sites';
-        if ($isSiteNode && !$nodeType?->isOfType(NodeTypeNameFactory::NAME_SITE)) {
-            throw new MigrationException(sprintf('The site node "%s" (type: "%s") must be of type "%s"', $nodeDataRow['identifier'], $nodeTypeName->value, NodeTypeNameFactory::NAME_SITE), 1695801620);
-        }
 
         if (!$nodeType) {
             $context->dispatch(Severity::ERROR, "The node type \"{$nodeTypeName->value}\" is not available. Node: \"{$nodeDataRow['identifier']}\"");
             return;
+        }
+
+        if ($isSiteNode && !$nodeType->isOfType(NodeTypeNameFactory::NAME_SITE)) {
+            $declaredSuperTypes = array_keys($nodeType->getDeclaredSuperTypes());
+            throw new MigrationException(sprintf('The site node "%s" (type: "%s") must be of type "%s". Currently declared super types: "%s"', $nodeDataRow['identifier'], $nodeTypeName->value, NodeTypeNameFactory::NAME_SITE, join(',', $declaredSuperTypes)), 1695801620);
         }
 
         $serializedPropertyValuesAndReferences = $this->extractPropertyValuesAndReferences($context, $nodeDataRow, $nodeType);
