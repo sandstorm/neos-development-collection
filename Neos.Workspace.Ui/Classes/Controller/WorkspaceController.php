@@ -43,6 +43,7 @@ use Neos\Flow\I18n\Exception\InvalidFormatPlaceholderException;
 use Neos\Flow\Mvc\Exception\StopActionException;
 use Neos\Flow\Package\PackageManager;
 use Neos\Flow\Property\PropertyMapper;
+use Neos\Flow\Security\Context;
 use Neos\Flow\Security\Exception\AccessDeniedException;
 use Neos\Media\Domain\Model\AssetInterface;
 use Neos\Media\Domain\Model\ImageInterface;
@@ -91,6 +92,9 @@ class WorkspaceController extends AbstractModuleController
     protected PropertyMapper $propertyMapper;
 
     #[Flow\Inject]
+    protected Context $securityContext;
+
+    #[Flow\Inject]
     protected UserService $userService;
 
     #[Flow\Inject]
@@ -110,8 +114,8 @@ class WorkspaceController extends AbstractModuleController
      */
     public function indexAction(): void
     {
-        $authenticatedAccount = $this->userService->getCurrentUser()?->getFirstActiveAccount();
-        if ($authenticatedAccount === null) {
+        $currentUser = $this->userService->getCurrentUser();
+        if ($currentUser === null) {
             throw new AccessDeniedException('No user authenticated', 1718308216);
         }
 
@@ -140,7 +144,7 @@ class WorkspaceController extends AbstractModuleController
                 continue;
             }
             $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspace->workspaceName);
-            $permissions = $this->contentRepositoryAuthorizationService->getWorkspacePermissionsForAccount($contentRepositoryId, $workspace->workspaceName, $authenticatedAccount);
+            $permissions = $this->contentRepositoryAuthorizationService->getWorkspacePermissions($contentRepositoryId, $workspace->workspaceName, $this->securityContext->getRoles(), $currentUser->getId());
             if (!$permissions->read) {
                 continue;
             }
@@ -160,8 +164,8 @@ class WorkspaceController extends AbstractModuleController
 
     public function showAction(WorkspaceName $workspace): void
     {
-        $authenticatedAccount = $this->userService->getCurrentUser()?->getFirstActiveAccount();
-        if ($authenticatedAccount === null) {
+        $currentUser = $this->userService->getCurrentUser();
+        if ($currentUser === null) {
             throw new AccessDeniedException('No user authenticated', 1720371024);
         }
         $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
@@ -179,7 +183,7 @@ class WorkspaceController extends AbstractModuleController
             $baseWorkspace = $contentRepository->findWorkspaceByName($workspaceObj->baseWorkspaceName);
             assert($baseWorkspace !== null);
             $baseWorkspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $baseWorkspace->workspaceName);
-            $baseWorkspacePermissions = $this->contentRepositoryAuthorizationService->getWorkspacePermissionsForAccount($contentRepositoryId, $baseWorkspace->workspaceName, $authenticatedAccount);
+            $baseWorkspacePermissions = $this->contentRepositoryAuthorizationService->getWorkspacePermissions($contentRepositoryId, $baseWorkspace->workspaceName, $this->securityContext->getRoles(), $currentUser->getId());
         }
         $this->view->assignMultiple([
             'selectedWorkspace' => $workspaceObj,
@@ -289,11 +293,11 @@ class WorkspaceController extends AbstractModuleController
         $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
         $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
 
-        $authenticatedAccount = $this->userService->getCurrentUser()?->getFirstActiveAccount();
-        if ($authenticatedAccount === null) {
+        $currentUser = $this->userService->getCurrentUser();
+        if ($currentUser === null) {
             throw new AccessDeniedException('No user is authenticated', 1729620262);
         }
-        $workspacePermissions = $this->contentRepositoryAuthorizationService->getWorkspacePermissionsForAccount($contentRepository->id, $workspaceName, $authenticatedAccount);
+        $workspacePermissions = $this->contentRepositoryAuthorizationService->getWorkspacePermissions($contentRepository->id, $workspaceName, $this->securityContext->getRoles(), $currentUser->getId());
         if (!$workspacePermissions->manage) {
             throw new AccessDeniedException(sprintf('The authenticated user does not have manage permissions for workspace "%s"', $workspaceName->value), 1729620297);
         }
@@ -1008,7 +1012,7 @@ class WorkspaceController extends AbstractModuleController
         ContentRepository $contentRepository,
         WorkspaceName $excludedWorkspace = null,
     ): array {
-        $authenticatedAccount = $this->userService->getCurrentUser()?->getFirstActiveAccount();
+        $currentUser = $this->userService->getCurrentUser();
         $baseWorkspaceOptions = [];
         $workspaces = $contentRepository->findWorkspaces();
         foreach ($workspaces as $workspace) {
@@ -1024,11 +1028,7 @@ class WorkspaceController extends AbstractModuleController
             if (!in_array($workspaceMetadata->classification, [WorkspaceClassification::SHARED, WorkspaceClassification::ROOT], true)) {
                 continue;
             }
-            if ($authenticatedAccount !== null) {
-                $permissions = $this->contentRepositoryAuthorizationService->getWorkspacePermissionsForAccount($contentRepository->id, $workspace->workspaceName, $authenticatedAccount);
-            } else {
-                $permissions = $this->contentRepositoryAuthorizationService->getWorkspacePermissionsForAnonymousUser($contentRepository->id, $workspace->workspaceName);
-            }
+            $permissions = $this->contentRepositoryAuthorizationService->getWorkspacePermissions($contentRepository->id, $workspace->workspaceName, $this->securityContext->getRoles(), $currentUser?->getId());
             if (!$permissions->manage) {
                 continue;
             }
