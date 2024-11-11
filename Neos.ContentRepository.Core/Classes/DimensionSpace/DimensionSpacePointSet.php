@@ -148,14 +148,6 @@ final readonly class DimensionSpacePointSet implements
         return $thisPointHashes === $otherPointHashes;
     }
 
-    public function getFirst(): ?DimensionSpacePoint
-    {
-        foreach ($this->points as $point) {
-            return $point;
-        }
-        return null;
-    }
-
     public function getIterator(): \Traversable
     {
         yield from $this->points;
