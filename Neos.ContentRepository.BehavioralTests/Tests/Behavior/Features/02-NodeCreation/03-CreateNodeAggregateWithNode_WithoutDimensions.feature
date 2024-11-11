@@ -202,14 +202,14 @@ Feature: Create node aggregate with node
       | nodeAggregateId | "lady-eleonode-rootford"      |
       | nodeTypeName    | "Neos.ContentRepository:Root" |
 
-    Given the command CreateNodeAggregateWithNodeAndSerializedProperties is executed with payload:
+    Given the command CreateNodeAggregateWithNode is executed with payload:
       | Key                       | Value                                                          |
       | nodeAggregateId           | "sir-david-nodenborough"                                       |
       | nodeTypeName              | "Neos.ContentRepository.Testing:NodeWithoutTetheredChildNodes" |
       | originDimensionSpacePoint | {}                                                             |
       | parentNodeAggregateId     | "lady-eleonode-rootford"                                       |
       | nodeName                  | "node"                                                         |
-    And the command CreateNodeAggregateWithNodeAndSerializedProperties is executed with payload:
+    And the command CreateNodeAggregateWithNode is executed with payload:
       | Key                              | Value                                                          |
       | nodeAggregateId                  | "sir-nodeward-nodington-iii"                                   |
       | nodeTypeName                     | "Neos.ContentRepository.Testing:NodeWithoutTetheredChildNodes" |

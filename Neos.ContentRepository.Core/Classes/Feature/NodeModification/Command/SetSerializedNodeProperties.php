@@ -77,9 +77,6 @@ final readonly class SetSerializedNodeProperties implements
         );
     }
 
-    /**
-     * @param array<string,mixed> $array
-     */
     public static function fromArray(array $array): self
     {
         return new self(

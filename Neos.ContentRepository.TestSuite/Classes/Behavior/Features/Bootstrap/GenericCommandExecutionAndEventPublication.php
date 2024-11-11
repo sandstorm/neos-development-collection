@@ -15,26 +15,54 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap;
 
 use Behat\Gherkin\Node\TableNode;
+use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
+use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
+use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\EventStore\EventPersister;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
+use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
+use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\AddDimensionShineThrough;
+use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\MoveDimensionSpacePoint;
+use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNode;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNodeAndSerializedProperties;
+use Neos\ContentRepository\Core\Feature\NodeCreation\Dto\NodeAggregateIdsByNodePaths;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\DisableNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\EnableNodeAggregate;
+use Neos\ContentRepository\Core\Feature\NodeDuplication\Command\CopyNodesRecursively;
+use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetNodeProperties;
 use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetSerializedNodeProperties;
+use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
 use Neos\ContentRepository\Core\Feature\NodeMove\Command\MoveNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Command\SetNodeReferences;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Command\SetSerializedNodeReferences;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\NodeReferencesForName;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\NodeReferencesToWrite;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\NodeReferenceToWrite;
+use Neos\ContentRepository\Core\Feature\NodeRemoval\Command\RemoveNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeRenaming\Command\ChangeNodeAggregateName;
+use Neos\ContentRepository\Core\Feature\NodeTypeChange\Command\ChangeNodeAggregateType;
+use Neos\ContentRepository\Core\Feature\NodeVariation\Command\CreateNodeVariant;
+use Neos\ContentRepository\Core\Feature\RootNodeCreation\Command\CreateRootNodeAggregateWithNode;
+use Neos\ContentRepository\Core\Feature\RootNodeCreation\Command\UpdateRootNodeAggregateDimensions;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Command\TagSubtree;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Command\UntagSubtree;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Command\CreateRootWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Command\CreateWorkspace;
+use Neos\ContentRepository\Core\Feature\WorkspaceModification\Command\ChangeBaseWorkspace;
+use Neos\ContentRepository\Core\Feature\WorkspaceModification\Command\DeleteWorkspace;
+use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\DiscardIndividualNodesFromWorkspace;
+use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\DiscardWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishIndividualNodesFromWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Command\RebaseWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\WorkspaceRebaseFailed;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
+use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
+use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Model\Event;
 use Neos\EventStore\Model\Event\StreamName;
@@ -57,66 +85,182 @@ trait GenericCommandExecutionAndEventPublication
 
     abstract protected function getEventStore(): EventStoreInterface;
 
+    abstract protected function deserializeProperties(array $properties): PropertyValuesToWrite;
+
     /**
-     * @When /^the command "([^"]*)" is executed with payload:$/
-     * @Given /^the command "([^"]*)" was executed with payload:$/
-     * @param array<string,mixed>|null $commandArguments
+     * @When the command :shortCommandName is executed with payload:
      * @throws \Exception
      */
-    public function theCommandIsExecutedWithPayload(string $shortCommandName, TableNode $payloadTable = null, array $commandArguments = null): void
+    public function theCommandIsExecutedWithPayload(string $shortCommandName, TableNode $payloadTable): void
     {
-        $commandClassName = self::resolveShortCommandName($shortCommandName);
-        if ($commandArguments === null && $payloadTable !== null) {
-            $commandArguments = $this->readPayloadTable($payloadTable);
-        }
-
-        if (isset($commandArguments['propertyValues.dateProperty'])) {
-            // special case to test Date type conversion
-            $commandArguments['propertyValues']['dateProperty'] = \DateTime::createFromFormat('Y-m-d\TH:i:sP', $commandArguments['propertyValues.dateProperty']);
-        }
-
-        if (!method_exists($commandClassName, 'fromArray')) {
-            throw new \InvalidArgumentException(sprintf('Command "%s" does not implement a static "fromArray" constructor', $commandClassName), 1545564621);
-        }
-
-        $command = $commandClassName::fromArray($commandArguments);
-
-        $this->currentContentRepository->handle($command);
+        $commandArguments = $this->readPayloadTable($payloadTable);
+        $this->handleCommand($shortCommandName, $commandArguments);
     }
 
     /**
-     * @When /^the command "([^"]*)" is executed with payload and exceptions are caught:$/
+     * @When the command :shortCommandName is executed with payload and exceptions are caught:
      */
-    public function theCommandIsExecutedWithPayloadAndExceptionsAreCaught($shortCommandName, TableNode $payloadTable): void
+    public function theCommandIsExecutedWithPayloadAndExceptionsAreCaught(string $shortCommandName, TableNode $payloadTable): void
     {
+        $commandArguments = $this->readPayloadTable($payloadTable);
         try {
-            $this->theCommandIsExecutedWithPayload($shortCommandName, $payloadTable);
+            $this->handleCommand($shortCommandName, $commandArguments);
         } catch (\Exception $exception) {
             $this->lastCommandException = $exception;
         }
     }
 
+    /**
+     * @When the command :shortCommandName is executed with payload :payload
+     */
+    public function theCommandIsExecutedWithJsonPayload(string $shortCommandName, string $payload): void
+    {
+        $commandArguments = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
+        $this->handleCommand($shortCommandName, $commandArguments);
+    }
+
+    /**
+     * @When the command :shortCommandName is executed with payload :payload and exceptions are caught
+     */
+    public function theCommandIsExecutedWithJsonPayloadAndExceptionsAreCaught(string $shortCommandName, string $payload): void
+    {
+        $commandArguments = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
+        try {
+            $this->handleCommand($shortCommandName, $commandArguments);
+        } catch (\Exception $exception) {
+            $this->lastCommandException = $exception;
+        }
+    }
+
+    /**
+     * @When the following :shortCommandName commands are executed:
+     */
+    public function theFollowingCreateNodeAggregateWithNodeCommandsAreExecuted(string $shortCommandName, TableNode $table): void
+    {
+        foreach ($table->getHash() as $row) {
+            $this->handleCommand($shortCommandName, $row);
+        }
+    }
+
+    private function handleCommand(string $shortCommandName, array $commandArguments): void
+    {
+        $commandClassName = self::resolveShortCommandName($shortCommandName);
+        $commandArguments['workspaceName'] = $commandArguments['workspaceName'] ?? $this->currentWorkspaceName?->value;
+        $commandArguments['coveredDimensionSpacePoint'] = $commandArguments['coveredDimensionSpacePoint'] ?? $this->currentDimensionSpacePoint?->coordinates;
+        $commandArguments['dimensionSpacePoint'] = $commandArguments['dimensionSpacePoint'] ?? $this->currentDimensionSpacePoint?->coordinates;
+        if (is_string($commandArguments['initialPropertyValues'] ?? null)) {
+            $commandArguments['initialPropertyValues'] = $this->deserializeProperties(json_decode($commandArguments['initialPropertyValues'], true, 512, JSON_THROW_ON_ERROR))->values;
+        } elseif (is_array($commandArguments['initialPropertyValues'] ?? null)) {
+            $commandArguments['initialPropertyValues'] = $this->deserializeProperties($commandArguments['initialPropertyValues'])->values;
+        }
+        if (is_string($commandArguments['propertyValues'] ?? null)) {
+            $commandArguments['propertyValues'] = $this->deserializeProperties(json_decode($commandArguments['propertyValues'], true, 512, JSON_THROW_ON_ERROR))->values;
+        } elseif (is_array($commandArguments['propertyValues'] ?? null)) {
+            $commandArguments['propertyValues'] = $this->deserializeProperties($commandArguments['propertyValues'])->values;
+        }
+        if (is_string($commandArguments['originDimensionSpacePoint'] ?? null) && !empty($commandArguments['originDimensionSpacePoint'])) {
+            $commandArguments['originDimensionSpacePoint'] = OriginDimensionSpacePoint::fromJsonString($commandArguments['originDimensionSpacePoint'])->coordinates;
+        } elseif (!isset($commandArguments['originDimensionSpacePoint'])) {
+            $commandArguments['originDimensionSpacePoint'] = $this->currentDimensionSpacePoint?->coordinates;
+        }
+        if (is_string($commandArguments['sourceOriginDimensionSpacePoint'] ?? null) && !empty($commandArguments['sourceOriginDimensionSpacePoint'])) {
+            $commandArguments['sourceOriginDimensionSpacePoint'] = OriginDimensionSpacePoint::fromJsonString($commandArguments['sourceOriginDimensionSpacePoint'])->coordinates;
+        } elseif (!isset($commandArguments['sourceOriginDimensionSpacePoint'])) {
+            $commandArguments['sourceOriginDimensionSpacePoint'] = $this->currentDimensionSpacePoint?->coordinates;
+        }
+        if (isset($commandArguments['succeedingSiblingNodeAggregateId']) && $commandArguments['succeedingSiblingNodeAggregateId'] === '') {
+            unset($commandArguments['succeedingSiblingNodeAggregateId']);
+        }
+        if (is_string($commandArguments['nodeAggregateId'] ?? null) && str_starts_with($commandArguments['nodeAggregateId'], '$')) {
+            $commandArguments['nodeAggregateId'] = $this->rememberedNodeAggregateIds[substr($commandArguments['nodeAggregateId'], 1)]?->value;
+        } elseif (!isset($commandArguments['nodeAggregateId'])) {
+            $commandArguments['nodeAggregateId'] = $this->currentNodeAggregate?->nodeAggregateId->value;
+        }
+        if (is_string($commandArguments['sourceNodeAggregateId'] ?? null) && str_starts_with($commandArguments['sourceNodeAggregateId'], '$')) {
+            $commandArguments['sourceNodeAggregateId'] = $this->rememberedNodeAggregateIds[substr($commandArguments['sourceNodeAggregateId'], 1)]?->value;
+        } elseif (!isset($commandArguments['sourceNodeAggregateId'])) {
+            $commandArguments['sourceNodeAggregateId'] = $this->currentNodeAggregate?->nodeAggregateId->value;
+        }
+        if (is_string($commandArguments['parentNodeAggregateId'] ?? null) && str_starts_with($commandArguments['parentNodeAggregateId'], '$')) {
+            $commandArguments['parentNodeAggregateId'] = $this->rememberedNodeAggregateIds[substr($commandArguments['parentNodeAggregateId'], 1)]?->value;
+        } elseif (!isset($commandArguments['parentNodeAggregateId'])) {
+            $commandArguments['parentNodeAggregateId'] = $this->currentNodeAggregate?->nodeAggregateId->value;
+        }
+        if (is_string($commandArguments['tetheredDescendantNodeAggregateIds'] ?? null)) {
+            if ($commandArguments['tetheredDescendantNodeAggregateIds'] === '') {
+                unset($commandArguments['tetheredDescendantNodeAggregateIds']);
+            } else {
+                $commandArguments['tetheredDescendantNodeAggregateIds'] = json_decode($commandArguments['tetheredDescendantNodeAggregateIds'], true, 512, JSON_THROW_ON_ERROR);
+            }
+        }
+        if (is_array($commandArguments['references'] ?? null)) {
+            $commandArguments['references'] = iterator_to_array($this->mapRawNodeReferencesToNodeReferencesToWrite($commandArguments['references']));
+        }
+
+        $command = $commandClassName::fromArray($commandArguments);
+        if ($command instanceof CreateRootNodeAggregateWithNode) {
+            $this->currentRootNodeAggregateId = $command->nodeAggregateId;
+        }
+        $this->currentContentRepository->handle($command);
+    }
+
+    protected function mapRawNodeReferencesToNodeReferencesToWrite(array $deserializedTableContent): NodeReferencesToWrite
+    {
+        $referencesForProperty = [];
+        foreach ($deserializedTableContent as $nodeReferencesForProperty) {
+            $references = [];
+            foreach ($nodeReferencesForProperty['references'] as $referenceData) {
+                $properties = isset($referenceData['properties']) ? $this->deserializeProperties($referenceData['properties']) : PropertyValuesToWrite::createEmpty();
+                $references[] = NodeReferenceToWrite::fromTargetAndProperties(NodeAggregateId::fromString($referenceData['target']), $properties);
+            }
+            $referencesForProperty[] = NodeReferencesForName::fromReferences(ReferenceName::fromString($nodeReferencesForProperty['referenceName']), $references);
+        }
+        return NodeReferencesToWrite::fromArray($referencesForProperty);
+    }
+
+    /**
+     * @return class-string<CommandInterface>
+     */
     protected static function resolveShortCommandName(string $shortCommandName): string
     {
-        return match ($shortCommandName) {
-            'CreateRootWorkspace' => CreateRootWorkspace::class,
-            'CreateWorkspace' => CreateWorkspace::class,
-            'PublishWorkspace' => PublishWorkspace::class,
-            'PublishIndividualNodesFromWorkspace' => PublishIndividualNodesFromWorkspace::class,
-            'RebaseWorkspace' => RebaseWorkspace::class,
-            'CreateNodeAggregateWithNodeAndSerializedProperties' => CreateNodeAggregateWithNodeAndSerializedProperties::class,
-            'ChangeNodeAggregateName' => ChangeNodeAggregateName::class,
-            'SetSerializedNodeProperties' => SetSerializedNodeProperties::class,
-            'DisableNodeAggregate' => DisableNodeAggregate::class,
-            'EnableNodeAggregate' => EnableNodeAggregate::class,
-            'TagSubtree' => TagSubtree::class,
-            'UntagSubtree' => UntagSubtree::class,
-            'MoveNodeAggregate' => MoveNodeAggregate::class,
-            'SetNodeReferences' => SetNodeReferences::class,
-            default => throw new \Exception(
-                'The short command name "' . $shortCommandName . '" is currently not supported by the tests.'
-            ),
-        };
+        $commandClassNames = [
+            AddDimensionShineThrough::class,
+            ChangeBaseWorkspace::class,
+            ChangeNodeAggregateName::class,
+            ChangeNodeAggregateType::class,
+            CopyNodesRecursively::class,
+            CreateNodeAggregateWithNode::class,
+            CreateNodeAggregateWithNodeAndSerializedProperties::class,
+            CreateNodeVariant::class,
+            CreateRootNodeAggregateWithNode::class,
+            CreateRootWorkspace::class,
+            CreateWorkspace::class,
+            DeleteWorkspace::class,
+            DisableNodeAggregate::class,
+            DiscardIndividualNodesFromWorkspace::class,
+            DiscardWorkspace::class,
+            EnableNodeAggregate::class,
+            MoveDimensionSpacePoint::class,
+            MoveNodeAggregate::class,
+            PublishIndividualNodesFromWorkspace::class,
+            PublishWorkspace::class,
+            RebasableToOtherWorkspaceInterface::class,
+            RebaseWorkspace::class,
+            RemoveNodeAggregate::class,
+            SetNodeProperties::class,
+            SetNodeReferences::class,
+            SetSerializedNodeProperties::class,
+            SetSerializedNodeReferences::class,
+            TagSubtree::class,
+            UntagSubtree::class,
+            UpdateRootNodeAggregateDimensions::class,
+        ];
+        foreach ($commandClassNames as $commandClassName) {
+            if (substr(strrchr($commandClassName, '\\'), 1) === $shortCommandName) {
+                return $commandClassName;
+            }
+        }
+        throw new \RuntimeException('The short command name "' . $shortCommandName . '" is currently not supported by the tests.');
     }
 
     /**
