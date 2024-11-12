@@ -16,11 +16,10 @@ namespace Neos\ContentRepository\NodeMigration\Transformation;
 
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
-use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetSerializedNodeProperties;
-use Neos\ContentRepository\Core\Feature\NodeModification\Dto\SerializedPropertyValue;
-use Neos\ContentRepository\Core\Feature\NodeModification\Dto\SerializedPropertyValues;
+use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetNodeProperties;
+use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
+use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
-use Neos\ContentRepository\Core\SharedModel\Node\PropertyNames;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 
@@ -34,7 +33,8 @@ class StripTagsOnPropertyTransformationFactory implements TransformationFactoryI
      */
     public function build(
         array $settings,
-        ContentRepository $contentRepository
+        ContentRepository $contentRepository,
+        PropertyConverter $propertyConverter,
     ): GlobalTransformationInterface|NodeAggregateBasedTransformationInterface|NodeBasedTransformationInterface {
         return new class (
             $settings['property'],
@@ -55,31 +55,27 @@ class StripTagsOnPropertyTransformationFactory implements TransformationFactoryI
                 WorkspaceName $workspaceNameForWriting,
                 ContentStreamId $contentStreamForWriting
             ): void {
-                $serializedPropertyValue = $node->properties->serialized()->getProperty($this->propertyName);
-                if ($serializedPropertyValue !== null) {
-                    $propertyValue = $serializedPropertyValue->value;
-                    if (!is_string($propertyValue)) {
-                        throw new \Exception(
-                            'StripTagsOnProperty can only be applied to properties of type string.',
-                            1645391885
-                        );
-                    }
-                    $newValue = strip_tags($propertyValue);
-                    $this->contentRepository->handle(
-                        SetSerializedNodeProperties::create(
-                            $workspaceNameForWriting,
-                            $node->aggregateId,
-                            $node->originDimensionSpacePoint,
-                            SerializedPropertyValues::fromArray([
-                                $this->propertyName => SerializedPropertyValue::create(
-                                    $newValue,
-                                    $serializedPropertyValue->type
-                                )
-                            ]),
-                            PropertyNames::createEmpty()
-                        )
+                $propertyValue = $node->properties[$this->propertyName];
+                if ($propertyValue === null) {
+                    return;
+                }
+                if (!is_string($propertyValue)) {
+                    throw new \Exception(
+                        sprintf('StripTagsOnProperty can only be applied to properties of type string. Property "%s" is of type %s', $this->propertyName, get_debug_type($propertyValue)),
+                        1645391885
                     );
                 }
+                $newValue = strip_tags($propertyValue);
+                $this->contentRepository->handle(
+                    SetNodeProperties::create(
+                        $workspaceNameForWriting,
+                        $node->aggregateId,
+                        $node->originDimensionSpacePoint,
+                        PropertyValuesToWrite::fromArray([
+                            $this->propertyName => $newValue,
+                        ]),
+                    )
+                );
             }
         };
     }

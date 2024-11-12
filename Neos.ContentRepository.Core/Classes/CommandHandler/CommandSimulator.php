@@ -9,8 +9,8 @@ use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Feature\RebaseableCommand;
-use Neos\ContentRepository\Core\Feature\WorkspaceRebase\CommandsThatFailedDuringRebase;
-use Neos\ContentRepository\Core\Feature\WorkspaceRebase\CommandThatFailedDuringRebase;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\ConflictingEvents;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\ConflictingEvent;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionInterface;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\EventStore\Helper\InMemoryEventStore;
@@ -45,7 +45,7 @@ use Neos\EventStore\Model\EventStream\VirtualStreamName;
  */
 final class CommandSimulator
 {
-    private CommandsThatFailedDuringRebase $commandsThatFailedDuringRebase;
+    private ConflictingEvents $conflictingEvents;
 
     private readonly InMemoryEventStore $inMemoryEventStore;
 
@@ -56,7 +56,7 @@ final class CommandSimulator
         private readonly WorkspaceName $workspaceNameToSimulateIn,
     ) {
         $this->inMemoryEventStore = new InMemoryEventStore();
-        $this->commandsThatFailedDuringRebase = new CommandsThatFailedDuringRebase();
+        $this->conflictingEvents = new ConflictingEvents();
     }
 
     /**
@@ -86,9 +86,11 @@ final class CommandSimulator
         try {
             $eventsToPublish = $this->commandBus->handle($commandInWorkspace);
         } catch (\Exception $exception) {
-            $this->commandsThatFailedDuringRebase = $this->commandsThatFailedDuringRebase->withAppended(
-                new CommandThatFailedDuringRebase(
-                    $rebaseableCommand->originalCommand,
+            $originalEvent = $this->eventNormalizer->denormalize($rebaseableCommand->originalEvent);
+
+            $this->conflictingEvents = $this->conflictingEvents->withAppended(
+                new ConflictingEvent(
+                    $originalEvent,
                     $exception,
                     $rebaseableCommand->originalSequenceNumber
                 )
@@ -155,13 +157,13 @@ final class CommandSimulator
         return $this->inMemoryEventStore->load(VirtualStreamName::all());
     }
 
-    public function hasCommandsThatFailed(): bool
+    public function hasConflicts(): bool
     {
-        return !$this->commandsThatFailedDuringRebase->isEmpty();
+        return !$this->conflictingEvents->isEmpty();
     }
 
-    public function getCommandsThatFailed(): CommandsThatFailedDuringRebase
+    public function getConflictingEvents(): ConflictingEvents
     {
-        return $this->commandsThatFailedDuringRebase;
+        return $this->conflictingEvents;
     }
 }

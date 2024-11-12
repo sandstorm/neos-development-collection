@@ -79,8 +79,8 @@ Feature: Rebasing auto-created nodes works
 
     # rebase of SetSerializedNodeProperties
     When the command RebaseWorkspace is executed with payload:
-      | Key                    | Value       |
-      | workspaceName          | "user-test" |
+      | Key                    | Value             |
+      | workspaceName          | "user-test"       |
       | rebasedContentStreamId | "user-cs-rebased" |
     # This should properly work; no error.
 

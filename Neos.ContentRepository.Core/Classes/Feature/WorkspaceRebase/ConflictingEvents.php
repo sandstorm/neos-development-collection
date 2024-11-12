@@ -15,28 +15,28 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Feature\WorkspaceRebase;
 
 /**
- * @implements \IteratorAggregate<int,CommandThatFailedDuringRebase>
+ * @implements \IteratorAggregate<int,ConflictingEvent>
  *
  * @api part of the exception exposed when rebasing failed
  */
-final readonly class CommandsThatFailedDuringRebase implements \IteratorAggregate, \Countable
+final readonly class ConflictingEvents implements \IteratorAggregate, \Countable
 {
     /**
-     * @var array<int,CommandThatFailedDuringRebase>
+     * @var array<int,ConflictingEvent>
      */
     private array $items;
 
-    public function __construct(CommandThatFailedDuringRebase ...$items)
+    public function __construct(ConflictingEvent ...$items)
     {
         $this->items = array_values($items);
     }
 
-    public function withAppended(CommandThatFailedDuringRebase $item): self
+    public function withAppended(ConflictingEvent $item): self
     {
         return new self(...[...$this->items, $item]);
     }
 
-    public function first(): ?CommandThatFailedDuringRebase
+    public function first(): ?ConflictingEvent
     {
         return $this->items[0] ?? null;
     }

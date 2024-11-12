@@ -9,9 +9,11 @@ use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\InitiatingEventMetadata;
 use Neos\ContentRepository\Core\Feature\Common\PublishableToWorkspaceInterface;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
+use Neos\EventStore\Model\Event;
 use Neos\EventStore\Model\Event\EventId;
 use Neos\EventStore\Model\Event\EventMetadata;
 use Neos\EventStore\Model\Event\SequenceNumber;
+use Neos\EventStore\Model\EventEnvelope;
 
 /**
  * @internal
@@ -20,17 +22,18 @@ final readonly class RebaseableCommand
 {
     public function __construct(
         public RebasableToOtherWorkspaceInterface $originalCommand,
+        public Event $originalEvent,
         public EventMetadata $initiatingMetaData,
         public SequenceNumber $originalSequenceNumber
     ) {
     }
 
-    public static function extractFromEventMetaData(EventMetadata $eventMetadata, SequenceNumber $sequenceNumber): self
+    public static function extractFromEventEnvelope(EventEnvelope $eventEnvelope): self
     {
-        $commandToRebaseClass = $eventMetadata->value['commandClass'] ?? null;
-        $commandToRebasePayload = $eventMetadata->value['commandPayload'] ?? null;
+        $commandToRebaseClass = $eventEnvelope->event->metadata?->value['commandClass'] ?? null;
+        $commandToRebasePayload = $eventEnvelope->event->metadata?->value['commandPayload'] ?? null;
 
-        if ($commandToRebaseClass === null || $commandToRebasePayload === null) {
+        if ($commandToRebaseClass === null || $commandToRebasePayload === null || $eventEnvelope->event->metadata === null) {
             throw new \RuntimeException('Command cannot be extracted from metadata, missing commandClass or commandPayload.', 1729847804);
         }
 
@@ -46,8 +49,9 @@ final readonly class RebaseableCommand
         $commandInstance = $commandToRebaseClass::fromArray($commandToRebasePayload);
         return new self(
             $commandInstance,
-            InitiatingEventMetadata::extractInitiatingMetadata($eventMetadata),
-            $sequenceNumber
+            $eventEnvelope->event,
+            InitiatingEventMetadata::extractInitiatingMetadata($eventEnvelope->event->metadata),
+            $eventEnvelope->sequenceNumber
         );
     }
 
