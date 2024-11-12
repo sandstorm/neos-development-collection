@@ -6,6 +6,8 @@ namespace Neos\ContentRepositoryRegistry;
 
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
+use Neos\ContentRepository\Core\Factory\CommandHookFactoryInterface;
+use Neos\ContentRepository\Core\Factory\CommandHooksFactory;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryFactory;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryInterface;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
@@ -176,7 +178,8 @@ final class ContentRepositoryRegistry
                 $this->buildPropertySerializer($contentRepositoryId, $contentRepositorySettings),
                 $this->buildProjectionsFactory($contentRepositoryId, $contentRepositorySettings),
                 $this->buildUserIdProvider($contentRepositoryId, $contentRepositorySettings),
-                $clock
+                $clock,
+                $this->buildCommandHooksFactory($contentRepositoryId, $contentRepositorySettings),
             );
         } catch (\Exception $exception) {
             throw InvalidConfigurationException::fromException($contentRepositoryId, $exception);
@@ -273,6 +276,28 @@ final class ContentRepositoryRegistry
             $this->registerCatchupHookForProjection($projectionOptions, $projectionsAndCatchUpHooksFactory, $projectionFactory, $projectionName, $contentRepositoryId);
         }
         return $projectionsAndCatchUpHooksFactory;
+    }
+
+    /** @param array<string, mixed> $contentRepositorySettings */
+    private function buildCommandHooksFactory(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): CommandHooksFactory
+    {
+        $commandHooksSettings = $contentRepositorySettings['commandHooks'] ?? [];
+        if (!is_array($commandHooksSettings)) {
+            throw InvalidConfigurationException::fromMessage('Content repository "%s" does not have the "commandHooks" configured properly. Expected array, got %s.', $contentRepositoryId->value, get_debug_type($commandHooksSettings));
+        }
+        $commandHookFactories = [];
+        foreach ((new PositionalArraySorter($commandHooksSettings))->toArray() as $name => $commandHookSettings) {
+            // Allow to unset/disable command hooks
+            if ($commandHookSettings === null) {
+                continue;
+            }
+            $commandHookFactory = $this->objectManager->get($commandHookSettings['factoryObjectName']);
+            if (!$commandHookFactory instanceof CommandHookFactoryInterface) {
+                throw InvalidConfigurationException::fromMessage('Factory object name for command hook "%s" (content repository "%s") is not an instance of %s but %s.', $name, $contentRepositoryId->value, CommandHookFactoryInterface::class, get_debug_type($commandHookFactory));
+            }
+            $commandHookFactories[] = $commandHookFactory;
+        }
+        return new CommandHooksFactory(...$commandHookFactories);
     }
 
     /**

@@ -12,27 +12,23 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\Core\Projection;
+namespace Neos\ContentRepository\Core\Factory;
 
+use Neos\ContentRepository\Core\CommandHandler\CommandHookInterface;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
 use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 
 /**
- * @template-covariant T of ProjectionStateInterface
- *
- * @api provides available dependencies for implementing a catch-up hook.
+ * @api for implementers of custom {@see CommandHookInterface}s
  */
-final readonly class CatchUpHookFactoryDependencies
+final readonly class CommandHooksFactoryDependencies
 {
-    /**
-     * @param ContentRepositoryId $contentRepositoryId the content repository the catchup was registered in
-     * @param ProjectionStateInterface&T $projectionState the state of the projection the catchup was registered to (Its only safe to access this projections state)
-     */
     private function __construct(
         public ContentRepositoryId $contentRepositoryId,
-        public ProjectionStateInterface $projectionState,
+        public ContentGraphReadModelInterface $contentGraphReadModel,
         public NodeTypeManager $nodeTypeManager,
         public ContentDimensionSourceInterface $contentDimensionSource,
         public InterDimensionalVariationGraph $variationGraph
@@ -40,21 +36,18 @@ final readonly class CatchUpHookFactoryDependencies
     }
 
     /**
-     * @template U of ProjectionStateInterface
-     * @param ProjectionStateInterface&U $projectionState
-     * @return CatchUpHookFactoryDependencies<U>
      * @internal
      */
     public static function create(
         ContentRepositoryId $contentRepositoryId,
-        ProjectionStateInterface $projectionState,
+        ContentGraphReadModelInterface $contentGraphReadModel,
         NodeTypeManager $nodeTypeManager,
         ContentDimensionSourceInterface $contentDimensionSource,
         InterDimensionalVariationGraph $variationGraph
     ): self {
         return new self(
             $contentRepositoryId,
-            $projectionState,
+            $contentGraphReadModel,
             $nodeTypeManager,
             $contentDimensionSource,
             $variationGraph
