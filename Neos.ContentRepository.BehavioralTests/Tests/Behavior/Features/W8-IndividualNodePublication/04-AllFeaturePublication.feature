@@ -346,7 +346,7 @@ Feature: Publishing hide/show scenario of nodes
       | newContentStreamId | "user-cs-identifier" |
 
     # SETUP: set two new nodes in USER workspace
-    When the command CreateNodeAggregateWithNodeAndSerializedProperties is executed with payload:
+    When the command CreateNodeAggregateWithNode is executed with payload:
       | Key                       | Value                                    |
       | workspaceName             | "user-test"                              |
       | nodeAggregateId           | "new1-agg"                               |
@@ -354,7 +354,7 @@ Feature: Publishing hide/show scenario of nodes
       | originDimensionSpacePoint | {}                                       |
       | parentNodeAggregateId     | "lady-eleonode-rootford"                 |
       | nodeName                  | "foo"                                    |
-    When the command CreateNodeAggregateWithNodeAndSerializedProperties is executed with payload:
+    When the command CreateNodeAggregateWithNode is executed with payload:
       | Key                       | Value                                    |
       | workspaceName             | "user-test"                              |
       | nodeAggregateId           | "new2-agg"                               |

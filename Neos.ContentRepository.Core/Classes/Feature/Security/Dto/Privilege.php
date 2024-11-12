@@ -36,6 +36,9 @@ final readonly class Privilege
         return new self(false, $reason);
     }
 
+    /**
+     * Human-readable explanation for why this privilege was evaluated
+     */
     public function getReason(): string
     {
         return $this->reason;

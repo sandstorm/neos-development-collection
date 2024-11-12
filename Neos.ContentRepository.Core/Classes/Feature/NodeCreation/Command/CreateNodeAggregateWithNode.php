@@ -18,7 +18,9 @@ use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Dto\NodeAggregateIdsByNodePaths;
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
+use Neos\ContentRepository\Core\Feature\NodeModification\Dto\SerializedPropertyValues;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\NodeReferencesToWrite;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\SerializedNodeReferences;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
@@ -74,6 +76,32 @@ final readonly class CreateNodeAggregateWithNode implements CommandInterface
     public static function create(WorkspaceName $workspaceName, NodeAggregateId $nodeAggregateId, NodeTypeName $nodeTypeName, OriginDimensionSpacePoint $originDimensionSpacePoint, NodeAggregateId $parentNodeAggregateId, ?NodeAggregateId $succeedingSiblingNodeAggregateId = null, ?PropertyValuesToWrite $initialPropertyValues = null, ?NodeReferencesToWrite $references = null): self
     {
         return new self($workspaceName, $nodeAggregateId, $nodeTypeName, $originDimensionSpacePoint, $parentNodeAggregateId, $initialPropertyValues ?: PropertyValuesToWrite::createEmpty(), $succeedingSiblingNodeAggregateId, null, NodeAggregateIdsByNodePaths::createEmpty(), $references ?: NodeReferencesToWrite::createEmpty());
+    }
+
+    public static function fromArray(array $array): self
+    {
+        return new self(
+            WorkspaceName::fromString($array['workspaceName']),
+            NodeAggregateId::fromString($array['nodeAggregateId']),
+            NodeTypeName::fromString($array['nodeTypeName']),
+            isset($array['originDimensionSpacePoint'])
+                ? OriginDimensionSpacePoint::fromArray($array['originDimensionSpacePoint'])
+                : OriginDimensionSpacePoint::createWithoutDimensions(),
+            NodeAggregateId::fromString($array['parentNodeAggregateId']),
+            isset($array['initialPropertyValues'])
+                ? PropertyValuesToWrite::fromArray($array['initialPropertyValues'])
+                : PropertyValuesToWrite::createEmpty(),
+            isset($array['succeedingSiblingNodeAggregateId'])
+                ? NodeAggregateId::fromString($array['succeedingSiblingNodeAggregateId'])
+                : null,
+            isset($array['nodeName'])
+                ? NodeName::fromString($array['nodeName'])
+                : null,
+            isset($array['tetheredDescendantNodeAggregateIds'])
+                ? NodeAggregateIdsByNodePaths::fromArray($array['tetheredDescendantNodeAggregateIds'])
+                : NodeAggregateIdsByNodePaths::createEmpty(),
+            isset($array['references']) ? NodeReferencesToWrite::fromArray($array['references']) : NodeReferencesToWrite::createEmpty(),
+        );
     }
 
     public function withInitialPropertyValues(PropertyValuesToWrite $newInitialPropertyValues): self

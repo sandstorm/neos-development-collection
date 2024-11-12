@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\NodeMigration\Transformation;
 
 use Neos\ContentRepository\Core\ContentRepository;
+use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\NodeMigration\MigrationException;
 use Neos\ContentRepository\NodeMigration\NodeMigrationService;
 
@@ -19,7 +20,8 @@ class TransformationsFactory
     private array $transformationFactories = [];
 
     public function __construct(
-        private readonly ContentRepository $contentRepository
+        private readonly ContentRepository $contentRepository,
+        private readonly PropertyConverter $propertyConverter,
     ) {
     }
 
@@ -58,7 +60,7 @@ class TransformationsFactory
     ): GlobalTransformationInterface|NodeAggregateBasedTransformationInterface|NodeBasedTransformationInterface
     {
         $transformationFactory = $this->resolveTransformationFactory($transformationConfiguration['type']);
-        return $transformationFactory->build($transformationConfiguration['settings'] ?? [], $this->contentRepository);
+        return $transformationFactory->build($transformationConfiguration['settings'] ?? [], $this->contentRepository, $this->propertyConverter);
     }
 
     /**

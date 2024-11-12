@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandBus;
+use Neos\ContentRepository\Core\CommandHandler\CommandHookInterface;
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
@@ -23,7 +24,6 @@ use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\EventStore\EventPersister;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\EventStore\InitiatingEventMetadata;
-use Neos\ContentRepository\Core\Factory\ContentRepositoryFactory;
 use Neos\ContentRepository\Core\Feature\Security\AuthProviderInterface;
 use Neos\ContentRepository\Core\Feature\Security\Dto\UserId;
 use Neos\ContentRepository\Core\Feature\Security\Exception\AccessDenied;
@@ -87,7 +87,8 @@ final class ContentRepository
         private readonly ContentDimensionSourceInterface $contentDimensionSource,
         private readonly AuthProviderInterface $authProvider,
         private readonly ClockInterface $clock,
-        private readonly ContentGraphReadModelInterface $contentGraphReadModel
+        private readonly ContentGraphReadModelInterface $contentGraphReadModel,
+        private readonly CommandHookInterface $commandHook,
     ) {
     }
 
@@ -99,6 +100,7 @@ final class ContentRepository
      */
     public function handle(CommandInterface $command): void
     {
+        $command = $this->commandHook->onBeforeHandle($command);
         $privilege = $this->authProvider->canExecuteCommand($command);
         if (!$privilege->granted) {
             throw AccessDenied::becauseCommandIsNotGranted($command, $privilege->getReason());
@@ -156,7 +158,7 @@ final class ContentRepository
         $projection = $this->projectionsAndCatchUpHooks->projections->get($projectionClassName);
 
         $catchUpHookFactory = $this->projectionsAndCatchUpHooks->getCatchUpHookFactoryForProjection($projection);
-        $catchUpHook = $catchUpHookFactory?->build(new CatchUpHookFactoryDependencies(
+        $catchUpHook = $catchUpHookFactory?->build(CatchUpHookFactoryDependencies::create(
             $this->id,
             $projection->getState(),
             $this->nodeTypeManager,

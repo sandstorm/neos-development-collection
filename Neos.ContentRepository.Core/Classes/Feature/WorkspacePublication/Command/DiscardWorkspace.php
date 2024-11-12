@@ -43,6 +43,14 @@ final readonly class DiscardWorkspace implements CommandInterface
         return new self($workspaceName, ContentStreamId::create());
     }
 
+    public static function fromArray(array $array): self
+    {
+        return new self(
+            WorkspaceName::fromString($array['workspaceName']),
+            isset($array['newContentStreamId']) ? ContentStreamId::fromString($array['newContentStreamId']) : ContentStreamId::create(),
+        );
+    }
+
     /**
      * Call this method if you want to run this command fully deterministically, f.e. during test cases
      */
