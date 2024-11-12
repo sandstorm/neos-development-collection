@@ -63,9 +63,6 @@ final readonly class TagSubtree implements
         return new self($workspaceName, $nodeAggregateId, $coveredDimensionSpacePoint, $nodeVariantSelectionStrategy, $tag);
     }
 
-    /**
-     * @param array<string,mixed> $array
-     */
     public static function fromArray(array $array): self
     {
         return new self(

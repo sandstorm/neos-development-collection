@@ -61,9 +61,6 @@ final readonly class ChangeNodeAggregateType implements
         return new self($workspaceName, $nodeAggregateId, $newNodeTypeName, $strategy, NodeAggregateIdsByNodePaths::createEmpty());
     }
 
-    /**
-     * @param array<string,mixed> $array
-     */
     public static function fromArray(array $array): self
     {
         return new self(
