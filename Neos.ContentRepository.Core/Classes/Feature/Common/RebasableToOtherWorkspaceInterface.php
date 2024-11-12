@@ -38,7 +38,6 @@ interface RebasableToOtherWorkspaceInterface extends \JsonSerializable
     ): self;
 
     /**
-     * called during deserialization from metadata
      * @param array<string,mixed> $array
      */
     public static function fromArray(array $array): self;

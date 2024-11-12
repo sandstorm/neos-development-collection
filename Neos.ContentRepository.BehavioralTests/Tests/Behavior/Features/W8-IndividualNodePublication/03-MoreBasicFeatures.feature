@@ -182,7 +182,7 @@ Feature: Publishing individual nodes (basics)
       | originDimensionSpacePoint | {}                           |
       | propertyValues            | {"image": "Bla bli blub"}    |
 
-  Scenario: Tag the same node in live and in the user workspace so that a rebase will omit the user change
+  Scenario: Tag the same node in live and in the user workspace so that a rebase will lead to a conflict
     When the command TagSubtree is executed with payload:
       | Key                          | Value                     |
       | workspaceName                | "live"                    |
@@ -195,20 +195,14 @@ Feature: Publishing individual nodes (basics)
       | nodeAggregateId              | "sir-unchanged"           |
       | nodeVariantSelectionStrategy | "allVariants"             |
       | tag                          | "tag1"                    |
-    When the command PublishIndividualNodesFromWorkspace is executed with payload:
+    When the command PublishIndividualNodesFromWorkspace is executed with payload and exceptions are caught:
       | Key                             | Value                                                             |
       | workspaceName                   | "user-test"                                                       |
       | nodesToPublish                  | [{"dimensionSpacePoint": {}, "nodeAggregateId": "sir-unchanged"}] |
       | contentStreamIdForRemainingPart | "user-cs-identifier-remaining"                                    |
-
-    When I am in workspace "live" and dimension space point {}
-    Then I expect node aggregate identifier "sir-unchanged" to lead to node cs-identifier;sir-unchanged;{}
-    And I expect this node to be exactly explicitly tagged "tag1"
-
-    When I am in workspace "user-test" and dimension space point {}
-    Then I expect node aggregate identifier "sir-unchanged" to lead to node user-cs-identifier-remaining;sir-unchanged;{}
-    And I expect this node to be exactly explicitly tagged "tag1"
-    Then workspace user-test has status UP_TO_DATE
+    Then the last command should have thrown the WorkspaceRebaseFailed exception with:
+      | SequenceNumber | Command    | Exception              |
+      | 14             | TagSubtree | SubtreeIsAlreadyTagged |
 
   Scenario: It is possible to publish all nodes
     When the command PublishIndividualNodesFromWorkspace is executed with payload:

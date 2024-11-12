@@ -61,9 +61,6 @@ final readonly class SetNodeProperties implements CommandInterface
         return new self($workspaceName, $nodeAggregateId, $originDimensionSpacePoint, $propertyValues);
     }
 
-    /**
-     * @param array<string,mixed> $array
-     */
     public static function fromArray(array $array): self
     {
         return new self(

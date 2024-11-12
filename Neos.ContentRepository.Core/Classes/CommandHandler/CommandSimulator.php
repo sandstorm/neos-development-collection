@@ -103,10 +103,6 @@ final class CommandSimulator
             throw new \RuntimeException(sprintf('%s expects an instance of %s to be returned. Got %s when handling %s', self::class, EventsToPublish::class, get_debug_type($eventsToPublish), $rebaseableCommand->originalCommand::class));
         }
 
-        if ($eventsToPublish->events->isEmpty()) {
-            return;
-        }
-
         $normalizedEvents = Events::fromArray(
             $eventsToPublish->events->map(function (EventInterface|DecoratedEvent $event) use (
                 $rebaseableCommand

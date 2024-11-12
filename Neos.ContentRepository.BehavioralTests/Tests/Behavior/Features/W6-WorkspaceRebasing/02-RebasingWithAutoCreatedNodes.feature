@@ -61,10 +61,9 @@ Feature: Rebasing auto-created nodes works
     And I expect this node to be a child of node user-cs-identifier;nody-mc-nodeface;{}
 
     # - then, for the auto-created child node, set a property.
-    When the command "SetNodeProperties" is executed with payload:
+    When the command SetNodeProperties is executed with payload:
       | Key                       | Value                         |
       | workspaceName             | "user-test"                   |
-      | nodeAggregateId           | $this->currentNodeAggregateId |
       | originDimensionSpacePoint | {}                            |
       | propertyValues            | {"text": "Modified"}          |
       | propertiesToUnset         | {}                            |
