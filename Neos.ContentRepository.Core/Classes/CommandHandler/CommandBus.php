@@ -30,6 +30,9 @@ final readonly class CommandBus
     }
 
     /**
+     * The handler only calculate which events they want to have published,
+     * but do not do the publishing themselves
+     *
      * @return EventsToPublish|\Generator<int, EventsToPublish>
      */
     public function handle(CommandInterface|RebasableToOtherWorkspaceInterface $command): EventsToPublish|\Generator
