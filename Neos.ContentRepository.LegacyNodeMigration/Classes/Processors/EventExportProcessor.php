@@ -1,12 +1,11 @@
 <?php
-/** @noinspection DuplicatedCode */
+
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\LegacyNodeMigration;
+namespace Neos\ContentRepository\LegacyNodeMigration\Processors;
 
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\DBAL\Types\ConversionException;
-use League\Flysystem\Filesystem;
 use League\Flysystem\FilesystemException;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
 use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
@@ -44,24 +43,21 @@ use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Export\Event\ValueObject\ExportedEvent;
+use Neos\ContentRepository\Export\ProcessingContext;
 use Neos\ContentRepository\Export\ProcessorInterface;
-use Neos\ContentRepository\Export\ProcessorResult;
 use Neos\ContentRepository\Export\Severity;
 use Neos\ContentRepository\LegacyNodeMigration\Exception\MigrationException;
 use Neos\ContentRepository\LegacyNodeMigration\Helpers\SerializedPropertyValuesAndReferences;
 use Neos\ContentRepository\LegacyNodeMigration\Helpers\VisitedNodeAggregate;
 use Neos\ContentRepository\LegacyNodeMigration\Helpers\VisitedNodeAggregates;
+use Neos\ContentRepository\LegacyNodeMigration\RootNodeTypeMapping;
 use Neos\Flow\Persistence\Doctrine\DataTypes\JsonArrayType;
 use Neos\Flow\Property\PropertyMapper;
 use Neos\Neos\Domain\Service\NodeTypeNameFactory;
 use Webmozart\Assert\Assert;
 
-final class NodeDataToEventsProcessor implements ProcessorInterface
+final class EventExportProcessor implements ProcessorInterface
 {
-    /**
-     * @var array<\Closure>
-     */
-    private array $callbacks = [];
     private WorkspaceName $workspaceName;
     private ContentStreamId $contentStreamId;
     private VisitedNodeAggregates $visitedNodes;
@@ -72,8 +68,6 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
     private array $nodeReferencesWereSetEvents = [];
 
     private int $numberOfExportedEvents = 0;
-
-    private bool $metaDataExported = false;
 
     /**
      * @var resource|null
@@ -89,7 +83,6 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
         private readonly PropertyConverter $propertyConverter,
         private readonly InterDimensionalVariationGraph $interDimensionalVariationGraph,
         private readonly EventNormalizer $eventNormalizer,
-        private readonly Filesystem $files,
         private readonly RootNodeTypeMapping $rootNodeTypeMapping,
         private readonly iterable $nodeDataRows,
     ) {
@@ -98,17 +91,7 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
         $this->visitedNodes = new VisitedNodeAggregates();
     }
 
-    public function setContentStreamId(ContentStreamId $contentStreamId): void
-    {
-        $this->contentStreamId = $contentStreamId;
-    }
-
-    public function onMessage(\Closure $callback): void
-    {
-        $this->callbacks[] = $callback;
-    }
-
-    public function run(): ProcessorResult
+    public function run(ProcessingContext $context): void
     {
         $this->resetRuntimeState();
 
@@ -122,15 +105,7 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
                     continue;
                 }
             }
-            if ($this->metaDataExported === false && $nodeDataRow['parentpath'] === '/sites') {
-                $this->exportMetaData($nodeDataRow);
-                $this->metaDataExported = true;
-            }
-            try {
-                $this->processNodeData($nodeDataRow);
-            } catch (MigrationException $exception) {
-                return ProcessorResult::error($exception->getMessage());
-            }
+            $this->processNodeData($context, $nodeDataRow);
         }
         // Set References, now when the full import is done.
         foreach ($this->nodeReferencesWereSetEvents as $nodeReferencesWereSetEvent) {
@@ -138,11 +113,10 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
         }
 
         try {
-            $this->files->writeStream('events.jsonl', $this->eventFileResource);
-        } catch (FilesystemException $exception) {
-            return ProcessorResult::error(sprintf('Failed to write events.jsonl: %s', $exception->getMessage()));
+            $context->files->writeStream('events.jsonl', $this->eventFileResource);
+        } catch (FilesystemException $e) {
+            throw new \RuntimeException(sprintf('Failed to write events.jsonl: %s', $e->getMessage()), 1729506930, $e);
         }
-        return ProcessorResult::success(sprintf('Exported %d event%s', $this->numberOfExportedEvents, $this->numberOfExportedEvents === 1 ? '' : 's'));
     }
 
     /** ----------------------------- */
@@ -152,7 +126,6 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
         $this->visitedNodes = new VisitedNodeAggregates();
         $this->nodeReferencesWereSetEvents = [];
         $this->numberOfExportedEvents = 0;
-        $this->metaDataExported = false;
         $this->eventFileResource = fopen('php://temp/maxmemory:5242880', 'rb+') ?: null;
         Assert::resource($this->eventFileResource, null, 'Failed to create temporary event file resource');
     }
@@ -165,6 +138,8 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
         } catch (\JsonException $e) {
             throw new \RuntimeException(sprintf('Failed to JSON-decode "%s": %s', $normalizedEvent->data->value, $e->getMessage()), 1723032243, $e);
         }
+        // do not export crid and workspace as they are always imported into a single workspace
+        unset($exportedEventPayload['contentStreamId'], $exportedEventPayload['workspaceName']);
         $exportedEvent = new ExportedEvent(
             $normalizedEvent->id->value,
             $normalizedEvent->type->value,
@@ -179,24 +154,7 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
     /**
      * @param array<string, mixed> $nodeDataRow
      */
-    private function exportMetaData(array $nodeDataRow): void
-    {
-        if ($this->files->fileExists('meta.json')) {
-            $data = json_decode($this->files->read('meta.json'), true, 512, JSON_THROW_ON_ERROR);
-        } else {
-            $data = [];
-        }
-        $data['version'] = 1;
-        $data['sitePackageKey'] = strtok($nodeDataRow['nodetype'], ':');
-        $data['siteNodeName'] = substr($nodeDataRow['path'], 7);
-        $data['siteNodeType'] = $nodeDataRow['nodetype'];
-        $this->files->write('meta.json', json_encode($data, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
-    }
-
-    /**
-     * @param array<string, mixed> $nodeDataRow
-     */
-    private function processNodeData(array $nodeDataRow): void
+    private function processNodeData(ProcessingContext $context, array $nodeDataRow): void
     {
         $nodeAggregateId = NodeAggregateId::fromString($nodeDataRow['identifier']);
 
@@ -226,11 +184,11 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
             foreach ($this->interDimensionalVariationGraph->getDimensionSpacePoints() as $dimensionSpacePoint) {
                 $originDimensionSpacePoint = OriginDimensionSpacePoint::fromDimensionSpacePoint($dimensionSpacePoint);
                 if (!$this->visitedNodes->alreadyVisitedOriginDimensionSpacePoints($nodeAggregateId)->contains($originDimensionSpacePoint)) {
-                    $this->processNodeDataWithoutFallbackToEmptyDimension($nodeAggregateId, $originDimensionSpacePoint, $nodeDataRow);
+                    $this->processNodeDataWithoutFallbackToEmptyDimension($context, $nodeAggregateId, $originDimensionSpacePoint, $nodeDataRow);
                 }
             }
         } else {
-            $this->processNodeDataWithoutFallbackToEmptyDimension($nodeAggregateId, $originDimensionSpacePoint, $nodeDataRow);
+            $this->processNodeDataWithoutFallbackToEmptyDimension($context, $nodeAggregateId, $originDimensionSpacePoint, $nodeDataRow);
         }
     }
 
@@ -241,12 +199,12 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
      * @param array<string, mixed> $nodeDataRow
      * @return NodeName[]|void
      */
-    public function processNodeDataWithoutFallbackToEmptyDimension(NodeAggregateId $nodeAggregateId, OriginDimensionSpacePoint $originDimensionSpacePoint, array $nodeDataRow)
+    public function processNodeDataWithoutFallbackToEmptyDimension(ProcessingContext $context, NodeAggregateId $nodeAggregateId, OriginDimensionSpacePoint $originDimensionSpacePoint, array $nodeDataRow)
     {
         $nodePath = NodePath::fromString(strtolower($nodeDataRow['path']));
         $parentNodeAggregate = $this->visitedNodes->findMostSpecificParentNodeInDimensionGraph($nodePath, $originDimensionSpacePoint, $this->interDimensionalVariationGraph);
         if ($parentNodeAggregate === null) {
-            $this->dispatch(Severity::ERROR, 'Failed to find parent node for node with id "%s" and dimensions: %s. Please ensure that the new content repository has a valid content dimension configuration. Also note that the old CR can sometimes have orphaned nodes.', $nodeAggregateId->value, $originDimensionSpacePoint->toJson());
+            $context->dispatch(Severity::ERROR, "Failed to find parent node for node with id \"{$nodeAggregateId->value}\" and dimensions: {$originDimensionSpacePoint->toJson()}. Please ensure that the new content repository has a valid content dimension configuration. Also note that the old CR can sometimes have orphaned nodes.");
             return;
         }
         $pathParts = $nodePath->getParts();
@@ -257,18 +215,18 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
         $nodeType = $this->nodeTypeManager->getNodeType($nodeTypeName);
 
         $isSiteNode = $nodeDataRow['parentpath'] === '/sites';
-        if ($isSiteNode && !$nodeType?->isOfType(NodeTypeNameFactory::NAME_SITE)) {
-            throw new MigrationException(sprintf(
-                'The site node "%s" (type: "%s") must be of type "%s"', $nodeDataRow['identifier'], $nodeTypeName->value, NodeTypeNameFactory::NAME_SITE
-            ), 1695801620);
-        }
 
         if (!$nodeType) {
-            $this->dispatch(Severity::ERROR, 'The node type "%s" is not available. Node: "%s"', $nodeTypeName->value, $nodeDataRow['identifier']);
+            $context->dispatch(Severity::ERROR, "The node type \"{$nodeTypeName->value}\" is not available. Node: \"{$nodeDataRow['identifier']}\"");
             return;
         }
 
-        $serializedPropertyValuesAndReferences = $this->extractPropertyValuesAndReferences($nodeDataRow, $nodeType);
+        if ($isSiteNode && !$nodeType->isOfType(NodeTypeNameFactory::NAME_SITE)) {
+            $declaredSuperTypes = array_keys($nodeType->getDeclaredSuperTypes());
+            throw new MigrationException(sprintf('The site node "%s" (type: "%s") must be of type "%s". Currently declared super types: "%s"', $nodeDataRow['identifier'], $nodeTypeName->value, NodeTypeNameFactory::NAME_SITE, join(',', $declaredSuperTypes)), 1695801620);
+        }
+
+        $serializedPropertyValuesAndReferences = $this->extractPropertyValuesAndReferences($context, $nodeDataRow, $nodeType);
 
         if ($this->isAutoCreatedChildNode($parentNodeAggregate->nodeTypeName, $nodeName) && !$this->visitedNodes->containsNodeAggregate($nodeAggregateId)) {
             // Create tethered node if the node was not found before.
@@ -329,7 +287,7 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
     /**
      * @param array<string, mixed> $nodeDataRow
      */
-    public function extractPropertyValuesAndReferences(array $nodeDataRow, NodeType $nodeType): SerializedPropertyValuesAndReferences
+    public function extractPropertyValuesAndReferences(ProcessingContext $context, array $nodeDataRow, NodeType $nodeType): SerializedPropertyValuesAndReferences
     {
         $properties = [];
         $references = [];
@@ -359,7 +317,7 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
             }
 
             if (!$nodeType->hasProperty($propertyName)) {
-                $this->dispatch(Severity::WARNING, 'Skipped node data processing for the property "%s". The property name is not part of the NodeType schema for the NodeType "%s". (Node: %s)', $propertyName, $nodeType->name->value, $nodeDataRow['identifier']);
+                $context->dispatch(Severity::WARNING, "Skipped node data processing for the property \"{$propertyName}\". The property name is not part of the NodeType schema for the NodeType \"{$nodeType->name->value}\". (Node: {$nodeDataRow['identifier']})");
                 continue;
             }
             $type = $nodeType->getPropertyType($propertyName);
@@ -372,7 +330,6 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
                 } else {
                     $properties[$propertyName] = $this->propertyMapper->convert($propertyValue, $type);
                 }
-
             } catch (\Exception $e) {
                 throw new MigrationException(sprintf('Failed to convert property "%s" of type "%s" (Node: %s): %s', $propertyName, $type, $nodeDataRow['identifier'], $e->getMessage()), 1655912878, $e);
             }
@@ -394,7 +351,7 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
             }
         } else {
             if ($nodeDataRow['hiddenbeforedatetime'] || $nodeDataRow['hiddenafterdatetime']) {
-                $this->dispatch(Severity::WARNING, 'Skipped the migration of your "hiddenBeforeDateTime" and "hiddenAfterDateTime" properties as your target NodeTypes do not inherit "Neos.TimeableNodeVisibility:Timeable". Please install neos/timeable-node-visibility, if you want to migrate them.');
+                $context->dispatch(Severity::WARNING, 'Skipped the migration of your "hiddenBeforeDateTime" and "hiddenAfterDateTime" properties as your target NodeTypes do not inherit "Neos.TimeableNodeVisibility:Timeable". Please install neos/timeable-node-visibility, if you want to migrate them.');
             }
         }
 
@@ -505,14 +462,6 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
         return $nodeTypeOfParent->tetheredNodeTypeDefinitions->contain($nodeName);
     }
 
-    private function dispatch(Severity $severity, string $message, mixed ...$args): void
-    {
-        $renderedMessage = sprintf($message, ...$args);
-        foreach ($this->callbacks as $callback) {
-            $callback($severity, $renderedMessage);
-        }
-    }
-
     /**
      * Determines actual hidden state based on "hidden", "hiddenafterdatetime" and "hiddenbeforedatetime"
      *
@@ -530,7 +479,8 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
         $hiddenBeforeDateTime = $nodeDataRow['hiddenbeforedatetime'] ? new \DateTimeImmutable($nodeDataRow['hiddenbeforedatetime']) : null;
 
         // Hidden after a date time, without getting already re-enabled by hidden before date time - afterward
-        if ($hiddenAfterDateTime != null
+        if (
+            $hiddenAfterDateTime != null
             && $hiddenAfterDateTime < $now
             && (
                 $hiddenBeforeDateTime == null
@@ -542,7 +492,8 @@ final class NodeDataToEventsProcessor implements ProcessorInterface
         }
 
         // Hidden before a date time, without getting enabled by hidden after date time - before
-        if ($hiddenBeforeDateTime != null
+        if (
+            $hiddenBeforeDateTime != null
             && $hiddenBeforeDateTime > $now
             && (
                 $hiddenAfterDateTime == null
