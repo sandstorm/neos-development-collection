@@ -30,10 +30,4 @@ interface RebasableToOtherWorkspaceInterface extends CommandInterface
     public function createCopyForWorkspace(
         WorkspaceName $targetWorkspaceName,
     ): self;
-
-    /**
-     * called during deserialization from metadata
-     * @param array<string,mixed> $array
-     */
-    public static function fromArray(array $array): self;
 }

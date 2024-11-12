@@ -80,9 +80,6 @@ final readonly class CreateNodeAggregateWithNodeAndSerializedProperties implemen
         return new self($workspaceName, $nodeAggregateId, $nodeTypeName, $originDimensionSpacePoint, $parentNodeAggregateId, $initialPropertyValues ?? SerializedPropertyValues::createEmpty(), $succeedingSiblingNodeAggregateId, null, NodeAggregateIdsByNodePaths::createEmpty(), $references ?: SerializedNodeReferences::createEmpty());
     }
 
-    /**
-     * @param array<string,mixed> $array
-     */
     public static function fromArray(array $array): self
     {
         return new self(

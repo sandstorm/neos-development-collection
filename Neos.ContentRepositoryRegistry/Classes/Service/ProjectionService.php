@@ -14,13 +14,12 @@ use Neos\EventStore\Model\Event\SequenceNumber;
 use Neos\EventStore\Model\EventStream\VirtualStreamName;
 
 /**
- * Content Repository service to perform Projection replays
+ * Content Repository service to perform Projection operations
  *
- * @internal this is currently only used by the {@see CrCommandController}
+ * @internal
  */
-final class ProjectionReplayService implements ContentRepositoryServiceInterface
+final class ProjectionService implements ContentRepositoryServiceInterface
 {
-
     public function __construct(
         private readonly Projections $projections,
         private readonly ContentRepository $contentRepository,
@@ -50,6 +49,22 @@ final class ProjectionReplayService implements ContentRepositoryServiceInterface
     {
         foreach ($this->projectionClassNamesAndAliases() as $classNamesAndAlias) {
             $this->contentRepository->resetProjectionState($classNamesAndAlias['className']);
+        }
+    }
+
+    public function catchupProjection(string $projectionAliasOrClassName, CatchUpOptions $options): void
+    {
+        $projectionClassName = $this->resolveProjectionClassName($projectionAliasOrClassName);
+        $this->contentRepository->catchUpProjection($projectionClassName, $options);
+    }
+
+    public function catchupAllProjections(CatchUpOptions $options, ?\Closure $progressCallback = null): void
+    {
+        foreach ($this->projectionClassNamesAndAliases() as $classNamesAndAlias) {
+            if ($progressCallback) {
+                $progressCallback($classNamesAndAlias['alias']);
+            }
+            $this->contentRepository->catchUpProjection($classNamesAndAlias['className'], $options);
         }
     }
 

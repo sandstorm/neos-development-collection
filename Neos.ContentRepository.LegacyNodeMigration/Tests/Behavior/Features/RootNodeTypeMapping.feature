@@ -24,7 +24,7 @@ Feature: Simple migrations without content dimensions but other root nodetype na
       | site-node-id      | /sites/test-site | Some.Package:Homepage | {"text": "foo"} |
       | test-root-node-id | /test            | unstructured          |                 |
       | test-node-id      | /test/test-site  | Some.Package:Homepage | {"text": "foo"} |
-    And I run the event migration for content stream "cs-id"
+    And I run the event migration
     Then I expect the following errors to be logged
       | Failed to find parent node for node with id "test-root-node-id" and dimensions: []. Please ensure that the new content repository has a valid content dimension configuration. Also note that the old CR can sometimes have orphaned nodes. |
       | Failed to find parent node for node with id "test-node-id" and dimensions: []. Please ensure that the new content repository has a valid content dimension configuration. Also note that the old CR can sometimes have orphaned nodes.      |
@@ -37,10 +37,10 @@ Feature: Simple migrations without content dimensions but other root nodetype na
       | site-node-id      | /sites/test-site | Some.Package:Homepage | {"text": "foo"} |
       | test-root-node-id | /test            | unstructured          |                 |
       | test-node-id      | /test/test-site  | Some.Package:Homepage | {"text": "foo"} |
-    And I run the event migration for content stream "cs-id" with rootNode mapping {"/sites": "Neos.Neos:Sites", "/test": "Neos.ContentRepository.LegacyNodeMigration:TestRoot"}
+    And I run the event migration with rootNode mapping {"/sites": "Neos.Neos:Sites", "/test": "Neos.ContentRepository.LegacyNodeMigration:TestRoot"}
     Then I expect the following events to be exported
       | Type                                | Payload                                                                                                                                                                                                                                                                                          |
-      | RootNodeAggregateWithNodeWasCreated | {"contentStreamId": "cs-id", "nodeAggregateId": "sites-node-id", "nodeTypeName": "Neos.Neos:Sites", "nodeAggregateClassification": "root"}                                                                                                                                                       |
-      | NodeAggregateWithNodeWasCreated     | {"contentStreamId": "cs-id", "nodeAggregateId": "site-node-id", "nodeTypeName": "Some.Package:Homepage", "nodeName": "test-site", "parentNodeAggregateId": "sites-node-id", "nodeAggregateClassification": "regular", "initialPropertyValues": {"text": {"type": "string", "value": "foo"}}}     |
-      | RootNodeAggregateWithNodeWasCreated | {"contentStreamId": "cs-id", "nodeAggregateId": "test-root-node-id", "nodeTypeName": "Neos.ContentRepository.LegacyNodeMigration:TestRoot", "nodeAggregateClassification": "root"}                                                                                                               |
-      | NodeAggregateWithNodeWasCreated     | {"contentStreamId": "cs-id", "nodeAggregateId": "test-node-id", "nodeTypeName": "Some.Package:Homepage", "nodeName": "test-site", "parentNodeAggregateId": "test-root-node-id", "nodeAggregateClassification": "regular", "initialPropertyValues": {"text": {"type": "string", "value": "foo"}}} |
+      | RootNodeAggregateWithNodeWasCreated | {"nodeAggregateId": "sites-node-id", "nodeTypeName": "Neos.Neos:Sites", "nodeAggregateClassification": "root"}                                                                                                                                                       |
+      | NodeAggregateWithNodeWasCreated     | {"nodeAggregateId": "site-node-id", "nodeTypeName": "Some.Package:Homepage", "nodeName": "test-site", "parentNodeAggregateId": "sites-node-id", "nodeAggregateClassification": "regular", "initialPropertyValues": {"text": {"type": "string", "value": "foo"}}}     |
+      | RootNodeAggregateWithNodeWasCreated | {"nodeAggregateId": "test-root-node-id", "nodeTypeName": "Neos.ContentRepository.LegacyNodeMigration:TestRoot", "nodeAggregateClassification": "root"}                                                                                                               |
+      | NodeAggregateWithNodeWasCreated     | {"nodeAggregateId": "test-node-id", "nodeTypeName": "Some.Package:Homepage", "nodeName": "test-site", "parentNodeAggregateId": "test-root-node-id", "nodeAggregateClassification": "regular", "initialPropertyValues": {"text": {"type": "string", "value": "foo"}}} |

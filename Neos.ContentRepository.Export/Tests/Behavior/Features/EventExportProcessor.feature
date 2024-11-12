@@ -1,5 +1,5 @@
 @contentrepository
-Feature: As a user of the CR I want to export the event stream
+Feature: As a user of the CR I want to export the event stream using the EventExportProcessor
 
   Background:
     Given using the following content dimensions:
@@ -12,9 +12,9 @@ Feature: As a user of the CR I want to export the event stream
     And using identifier "default", I define a content repository
     And I am in content repository "default"
     And the command CreateRootWorkspace is executed with payload:
-      | Key                  | Value                |
-      | workspaceName        | "live"               |
-      | newContentStreamId   | "cs-identifier"      |
+      | Key                | Value           |
+      | workspaceName      | "live"          |
+      | newContentStreamId | "cs-identifier" |
     And I am in workspace "live"
     And the command CreateRootNodeAggregateWithNode is executed with payload:
       | Key             | Value                         |
@@ -37,7 +37,7 @@ Feature: As a user of the CR I want to export the event stream
     When the events are exported
     Then I expect the following jsonl:
       """
-      {"identifier":"random-event-uuid","type":"RootNodeAggregateWithNodeWasCreated","payload":{"workspaceName":"live","contentStreamId":"cs-identifier","nodeAggregateId":"lady-eleonode-rootford","nodeTypeName":"Neos.ContentRepository:Root","coveredDimensionSpacePoints":[{"language":"de"},{"language":"gsw"},{"language":"fr"}],"nodeAggregateClassification":"root"},"metadata":{"commandClass":"Neos\\ContentRepository\\Core\\Feature\\RootNodeCreation\\Command\\CreateRootNodeAggregateWithNode","commandPayload":{"workspaceName":"live","nodeAggregateId":"lady-eleonode-rootford","nodeTypeName":"Neos.ContentRepository:Root","tetheredDescendantNodeAggregateIds":[]},"initiatingUserId":"system","initiatingTimestamp":"random-time"}}
-      {"identifier":"random-event-uuid","type":"NodeAggregateWithNodeWasCreated","payload":{"workspaceName":"live","contentStreamId":"cs-identifier","nodeAggregateId":"nody-mc-nodeface","nodeTypeName":"Neos.ContentRepository.Testing:Document","originDimensionSpacePoint":{"language":"de"},"succeedingSiblingsForCoverage":[{"dimensionSpacePoint":{"language":"de"},"nodeAggregateId":null},{"dimensionSpacePoint":{"language":"gsw"},"nodeAggregateId":null},{"dimensionSpacePoint":{"language":"fr"},"nodeAggregateId":null}],"parentNodeAggregateId":"lady-eleonode-rootford","nodeName":"child-document","initialPropertyValues":[],"nodeAggregateClassification":"regular","nodeReferences":[]},"metadata":{"initiatingTimestamp":"random-time"}}
+      {"identifier":"random-event-uuid","type":"RootNodeAggregateWithNodeWasCreated","payload":{"nodeAggregateId":"lady-eleonode-rootford","nodeTypeName":"Neos.ContentRepository:Root","coveredDimensionSpacePoints":[{"language":"de"},{"language":"gsw"},{"language":"fr"}],"nodeAggregateClassification":"root"},"metadata":{"commandClass":"Neos\\ContentRepository\\Core\\Feature\\RootNodeCreation\\Command\\CreateRootNodeAggregateWithNode","commandPayload":{"workspaceName":"live","nodeAggregateId":"lady-eleonode-rootford","nodeTypeName":"Neos.ContentRepository:Root","tetheredDescendantNodeAggregateIds":[]},"initiatingUserId":"system","initiatingTimestamp":"random-time"}}
+      {"identifier":"random-event-uuid","type":"NodeAggregateWithNodeWasCreated","payload":{"nodeAggregateId":"nody-mc-nodeface","nodeTypeName":"Neos.ContentRepository.Testing:Document","originDimensionSpacePoint":{"language":"de"},"succeedingSiblingsForCoverage":[{"dimensionSpacePoint":{"language":"de"},"nodeAggregateId":null},{"dimensionSpacePoint":{"language":"gsw"},"nodeAggregateId":null},{"dimensionSpacePoint":{"language":"fr"},"nodeAggregateId":null}],"parentNodeAggregateId":"lady-eleonode-rootford","nodeName":"child-document","initialPropertyValues":[],"nodeAggregateClassification":"regular","nodeReferences":[]},"metadata":{"initiatingTimestamp":"random-time"}}
 
       """
