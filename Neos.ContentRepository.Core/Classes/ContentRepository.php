@@ -104,7 +104,7 @@ final class ContentRepository
         // simple case
         if ($toPublish instanceof EventsToPublish) {
             $eventsToPublish = $this->enrichEventsToPublishWithMetadata($toPublish);
-            $this->eventPersister->publishWithoutKetchup($eventsToPublish);
+            $this->eventPersister->publishWithoutCatchup($eventsToPublish);
             $this->catchupProjections();
             return;
         }
@@ -114,7 +114,7 @@ final class ContentRepository
             foreach ($toPublish as $yieldedEventsToPublish) {
                 $eventsToPublish = $this->enrichEventsToPublishWithMetadata($yieldedEventsToPublish);
                 try {
-                    $this->eventPersister->publishWithoutKetchup($eventsToPublish);
+                    $this->eventPersister->publishWithoutCatchup($eventsToPublish);
                 } catch (ConcurrencyException $concurrencyException) {
                     // we pass the exception into the generator (->throw), so it could be try-caught and reacted upon:
                     //
@@ -126,7 +126,7 @@ final class ContentRepository
                     //   }
                     $yieldedErrorStrategy = $toPublish->throw($concurrencyException);
                     if ($yieldedErrorStrategy instanceof EventsToPublish) {
-                        $this->eventPersister->publishWithoutKetchup($yieldedErrorStrategy);
+                        $this->eventPersister->publishWithoutCatchup($yieldedErrorStrategy);
                     }
                     throw $concurrencyException;
                 }
