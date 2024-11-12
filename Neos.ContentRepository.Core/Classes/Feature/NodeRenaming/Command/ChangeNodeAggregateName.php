@@ -59,9 +59,6 @@ final readonly class ChangeNodeAggregateName implements
         return new self($workspaceName, $nodeAggregateId, $newNodeName);
     }
 
-    /**
-     * @param array<string,string> $array
-     */
     public static function fromArray(array $array): self
     {
         return new self(
