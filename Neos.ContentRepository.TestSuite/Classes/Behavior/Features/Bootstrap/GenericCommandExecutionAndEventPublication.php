@@ -151,6 +151,10 @@ trait GenericCommandExecutionAndEventPublication
      */
     public function theLastCommandShouldHaveThrown(string $shortExceptionName, ?int $expectedCode = null): void
     {
+        if ($shortExceptionName === 'WorkspaceRebaseFailed') {
+            throw new \RuntimeException('Please use the assertion "the last command should have thrown the WorkspaceRebaseFailed exception with" instead.');
+        }
+
         Assert::assertNotNull($this->lastCommandException, 'Command did not throw exception');
         $lastCommandExceptionShortName = (new \ReflectionClass($this->lastCommandException))->getShortName();
         Assert::assertSame($shortExceptionName, $lastCommandExceptionShortName, sprintf('Actual exception: %s (%s): %s', get_class($this->lastCommandException), $this->lastCommandException->getCode(), $this->lastCommandException->getMessage()));
