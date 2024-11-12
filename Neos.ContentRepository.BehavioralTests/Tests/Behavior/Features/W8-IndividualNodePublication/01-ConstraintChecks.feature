@@ -83,9 +83,9 @@ Feature: Workspace publication - complex chained functionality
       | nodesToPublish     | [{"dimensionSpacePoint": {"language": "de"}, "nodeAggregateId": "sir-nodebelig"}] |
       | newContentStreamId | "user-cs-id-rebased"                                                              |
     Then the last command should have thrown the WorkspaceRebaseFailed exception with:
-      | SequenceNumber | Command                     | Exception                          |
-      | 13             | SetSerializedNodeProperties | NodeAggregateCurrentlyDoesNotExist |
-      | 14             | SetSerializedNodeProperties | NodeAggregateCurrentlyDoesNotExist |
+      | SequenceNumber | Event                 | Exception                          |
+      | 13             | NodePropertiesWereSet | NodeAggregateCurrentlyDoesNotExist |
+      | 14             | NodePropertiesWereSet | NodeAggregateCurrentlyDoesNotExist |
 
   Scenario: Vary to generalization, then publish only the child node so that an exception is thrown. Ensure that the workspace recovers from this
     When the command CreateNodeVariant is executed with payload:
@@ -107,8 +107,8 @@ Feature: Workspace publication - complex chained functionality
       | nodesToPublish     | [{"workspaceName": "user-ws", "dimensionSpacePoint": {"language": "en"}, "nodeAggregateId": "nody-mc-nodeface"}] |
       | newContentStreamId | "user-cs-id-rebased"                                                                                             |
     Then the last command should have thrown the WorkspaceRebaseFailed exception with:
-      | SequenceNumber | Command           | Exception                                             |
-      | 13             | CreateNodeVariant | NodeAggregateDoesCurrentlyNotCoverDimensionSpacePoint |
+      | SequenceNumber | Event                               | Exception                                             |
+      | 13             | NodeGeneralizationVariantWasCreated | NodeAggregateDoesCurrentlyNotCoverDimensionSpacePoint |
 
     When the command PublishWorkspace is executed with payload:
       | Key                | Value                          |

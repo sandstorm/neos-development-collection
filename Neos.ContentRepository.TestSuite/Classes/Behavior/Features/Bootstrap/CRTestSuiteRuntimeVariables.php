@@ -141,9 +141,8 @@ trait CRTestSuiteRuntimeVariables
         )->aggregateId;
     }
 
-    protected function getCurrentNodeAggregateId(): NodeAggregateId
+    protected function getCurrentNodeAggregateId(): ?NodeAggregateId
     {
-        assert($this->currentNode instanceof Node);
-        return $this->currentNode->aggregateId;
+        return $this->currentNode?->aggregateId;
     }
 }

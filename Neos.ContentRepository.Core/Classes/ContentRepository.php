@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandBus;
+use Neos\ContentRepository\Core\CommandHandler\CommandHookInterface;
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
 use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
@@ -84,7 +85,8 @@ final class ContentRepository
         private readonly ContentDimensionSourceInterface $contentDimensionSource,
         private readonly UserIdProviderInterface $userIdProvider,
         private readonly ClockInterface $clock,
-        private readonly ContentGraphReadModelInterface $contentGraphReadModel
+        private readonly ContentGraphReadModelInterface $contentGraphReadModel,
+        private readonly CommandHookInterface $commandHook,
     ) {
     }
 
@@ -95,15 +97,14 @@ final class ContentRepository
      */
     public function handle(CommandInterface $command): void
     {
+        $command = $this->commandHook->onBeforeHandle($command);
+
         $toPublish = $this->commandBus->handle($command);
 
         // simple case
         if ($toPublish instanceof EventsToPublish) {
-            if ($toPublish->events->isEmpty()) {
-                return;
-            }
             $eventsToPublish = $this->enrichEventsToPublishWithMetadata($toPublish);
-            $this->eventPersister->publishWithoutCatchup($eventsToPublish);
+            $this->eventPersister->publishWithoutKetchup($eventsToPublish);
             $this->catchupProjections();
             return;
         }
@@ -111,12 +112,9 @@ final class ContentRepository
         // control-flow aware command handling via generator
         try {
             foreach ($toPublish as $yieldedEventsToPublish) {
-                if ($yieldedEventsToPublish->events->isEmpty()) {
-                    continue;
-                }
                 $eventsToPublish = $this->enrichEventsToPublishWithMetadata($yieldedEventsToPublish);
                 try {
-                    $this->eventPersister->publishWithoutCatchup($eventsToPublish);
+                    $this->eventPersister->publishWithoutKetchup($eventsToPublish);
                 } catch (ConcurrencyException $concurrencyException) {
                     // we pass the exception into the generator (->throw), so it could be try-caught and reacted upon:
                     //
@@ -128,7 +126,7 @@ final class ContentRepository
                     //   }
                     $yieldedErrorStrategy = $toPublish->throw($concurrencyException);
                     if ($yieldedErrorStrategy instanceof EventsToPublish) {
-                        $this->eventPersister->publishWithoutCatchup($yieldedErrorStrategy);
+                        $this->eventPersister->publishWithoutKetchup($yieldedErrorStrategy);
                     }
                     throw $concurrencyException;
                 }
@@ -177,7 +175,7 @@ final class ContentRepository
         $projection = $this->projectionsAndCatchUpHooks->projections->get($projectionClassName);
 
         $catchUpHookFactory = $this->projectionsAndCatchUpHooks->getCatchUpHookFactoryForProjection($projection);
-        $catchUpHook = $catchUpHookFactory?->build(new CatchUpHookFactoryDependencies(
+        $catchUpHook = $catchUpHookFactory?->build(CatchUpHookFactoryDependencies::create(
             $this->id,
             $projection->getState(),
             $this->nodeTypeManager,

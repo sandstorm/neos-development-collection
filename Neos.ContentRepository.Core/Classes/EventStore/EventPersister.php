@@ -30,10 +30,7 @@ final readonly class EventPersister
      */
     public function publishEvents(ContentRepository $contentRepository, EventsToPublish $eventsToPublish): void
     {
-        if ($eventsToPublish->events->isEmpty()) {
-            return;
-        }
-        $this->publishWithoutCatchup($eventsToPublish);
+        $this->publishWithoutKetchup($eventsToPublish);
         $contentRepository->catchUpProjections();
     }
 
@@ -41,7 +38,7 @@ final readonly class EventPersister
      * TODO Will be refactored via https://github.com/neos/neos-development-collection/pull/5321
      * @throws ConcurrencyException in case the expectedVersion does not match
      */
-    public function publishWithoutCatchup(EventsToPublish $eventsToPublish): CommitResult
+    public function publishWithoutKetchup(EventsToPublish $eventsToPublish): CommitResult
     {
         $normalizedEvents = Events::fromArray(
             $eventsToPublish->events->map($this->eventNormalizer->normalize(...))

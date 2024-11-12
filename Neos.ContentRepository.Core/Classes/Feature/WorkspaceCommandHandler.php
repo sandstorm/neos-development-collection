@@ -24,6 +24,7 @@ use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Feature\Common\PublishableToWorkspaceInterface;
+use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
 use Neos\ContentRepository\Core\Feature\ContentStreamClosing\Event\ContentStreamWasClosed;
 use Neos\ContentRepository\Core\Feature\ContentStreamClosing\Event\ContentStreamWasReopened;
 use Neos\ContentRepository\Core\Feature\ContentStreamCreation\Event\ContentStreamWasCreated;
@@ -83,7 +84,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
     ) {
     }
 
-    public function canHandle(CommandInterface $command): bool
+    public function canHandle(CommandInterface|RebasableToOtherWorkspaceInterface $command): bool
     {
         return method_exists($this, 'handle' . (new \ReflectionClass($command))->getShortName());
     }
@@ -91,7 +92,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
     /**
      * @return \Generator<int, EventsToPublish>
      */
-    public function handle(CommandInterface $command, CommandHandlingDependencies $commandHandlingDependencies): \Generator
+    public function handle(CommandInterface|RebasableToOtherWorkspaceInterface $command, CommandHandlingDependencies $commandHandlingDependencies): \Generator
     {
         /** @phpstan-ignore-next-line */
         return match ($command::class) {
@@ -239,11 +240,11 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             }
         );
 
-        if ($commandSimulator->hasCommandsThatFailed()) {
+        if ($commandSimulator->hasConflicts()) {
             yield $this->reopenContentStreamWithoutConstraintChecks(
                 $workspace->currentContentStreamId
             );
-            throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getCommandsThatFailed());
+            throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getConflictingEvents());
         }
 
         $eventsOfWorkspaceToPublish = $this->getCopiedEventsOfEventStream(
@@ -401,14 +402,14 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         if (
             $command->rebaseErrorHandlingStrategy === RebaseErrorHandlingStrategy::STRATEGY_FAIL
-            && $commandSimulator->hasCommandsThatFailed()
+            && $commandSimulator->hasConflicts()
         ) {
             yield $this->reopenContentStreamWithoutConstraintChecks(
                 $workspace->currentContentStreamId
             );
 
             // throw an exception that contains all the information about what exactly failed
-            throw WorkspaceRebaseFailed::duringRebase($commandSimulator->getCommandsThatFailed());
+            throw WorkspaceRebaseFailed::duringRebase($commandSimulator->getConflictingEvents());
         }
 
         // if we got so far without an exception (or if we don't care), we can switch the workspace's active content stream.
@@ -502,12 +503,12 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             }
         );
 
-        if ($commandSimulator->hasCommandsThatFailed()) {
+        if ($commandSimulator->hasConflicts()) {
             yield $this->reopenContentStreamWithoutConstraintChecks(
                 $workspace->currentContentStreamId
             );
 
-            throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getCommandsThatFailed());
+            throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getConflictingEvents());
         }
 
         // this could empty and a no-op for the rare case when a command returns empty events e.g. the node was already tagged with this subtree tag
@@ -625,11 +626,11 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             }
         );
 
-        if ($commandSimulator->hasCommandsThatFailed()) {
+        if ($commandSimulator->hasConflicts()) {
             yield $this->reopenContentStreamWithoutConstraintChecks(
                 $workspace->currentContentStreamId
             );
-            throw WorkspaceRebaseFailed::duringDiscard($commandSimulator->getCommandsThatFailed());
+            throw WorkspaceRebaseFailed::duringDiscard($commandSimulator->getConflictingEvents());
         }
 
         yield from $this->forkNewContentStreamAndApplyEvents(
