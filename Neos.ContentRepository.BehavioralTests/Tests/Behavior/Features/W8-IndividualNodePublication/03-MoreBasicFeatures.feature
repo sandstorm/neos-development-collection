@@ -201,8 +201,8 @@ Feature: Publishing individual nodes (basics)
       | nodesToPublish                  | [{"dimensionSpacePoint": {}, "nodeAggregateId": "sir-unchanged"}] |
       | contentStreamIdForRemainingPart | "user-cs-identifier-remaining"                                    |
     Then the last command should have thrown the WorkspaceRebaseFailed exception with:
-      | SequenceNumber | Command    | Exception              |
-      | 14             | TagSubtree | SubtreeIsAlreadyTagged |
+      | SequenceNumber | Event            | Exception              |
+      | 14             | SubtreeWasTagged | SubtreeIsAlreadyTagged |
 
   Scenario: It is possible to publish all nodes
     When the command PublishIndividualNodesFromWorkspace is executed with payload:
