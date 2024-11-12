@@ -50,6 +50,7 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
 use Neos\EventStore\EventStoreInterface;
+use Neos\EventStore\Exception\ConcurrencyException;
 use Neos\EventStore\Model\EventEnvelope;
 use Neos\EventStore\Model\EventStream\VirtualStreamName;
 use Psr\Clock\ClockInterface;
@@ -105,19 +106,43 @@ final class ContentRepository
         if (!$privilege->granted) {
             throw AccessDenied::becauseCommandIsNotGranted($command, $privilege->getReason());
         }
-        // the commands only calculate which events they want to have published, but do not do the
-        // publishing themselves
-        $eventsToPublishOrGenerator = $this->commandBus->handle($command);
 
-        if ($eventsToPublishOrGenerator instanceof EventsToPublish) {
-            $eventsToPublish = $this->enrichEventsToPublishWithMetadata($eventsToPublishOrGenerator);
-            $this->eventPersister->publishEvents($this, $eventsToPublish);
-        } else {
-            foreach ($eventsToPublishOrGenerator as $eventsToPublish) {
-                assert($eventsToPublish instanceof EventsToPublish); // just for the ide
-                $eventsToPublish = $this->enrichEventsToPublishWithMetadata($eventsToPublish);
-                $this->eventPersister->publishEvents($this, $eventsToPublish);
+        $toPublish = $this->commandBus->handle($command);
+
+        // simple case
+        if ($toPublish instanceof EventsToPublish) {
+            $eventsToPublish = $this->enrichEventsToPublishWithMetadata($toPublish);
+            $this->eventPersister->publishWithoutCatchup($eventsToPublish);
+            $this->catchupProjections();
+            return;
+        }
+
+        // control-flow aware command handling via generator
+        try {
+            foreach ($toPublish as $yieldedEventsToPublish) {
+                $eventsToPublish = $this->enrichEventsToPublishWithMetadata($yieldedEventsToPublish);
+                try {
+                    $this->eventPersister->publishWithoutCatchup($eventsToPublish);
+                } catch (ConcurrencyException $concurrencyException) {
+                    // we pass the exception into the generator (->throw), so it could be try-caught and reacted upon:
+                    //
+                    //   try {
+                    //      yield EventsToPublish(...);
+                    //   } catch (ConcurrencyException $e) {
+                    //      yield $this->reopenContentStream();
+                    //      throw $e;
+                    //   }
+                    $yieldedErrorStrategy = $toPublish->throw($concurrencyException);
+                    if ($yieldedErrorStrategy instanceof EventsToPublish) {
+                        $this->eventPersister->publishWithoutCatchup($yieldedErrorStrategy);
+                    }
+                    throw $concurrencyException;
+                }
             }
+        } finally {
+            // We always NEED to catchup even if there was an unexpected ConcurrencyException to make sure previous commits are handled.
+            // Technically it would be acceptable for the catchup to fail here (due to hook errors) because all the events are already persisted.
+            $this->catchupProjections();
         }
     }
 

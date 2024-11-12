@@ -52,14 +52,15 @@ abstract class AbstractParallelTestCase extends TestCase // we don't use Flows f
         }
     }
 
-    final protected function awaitSharedLock($resource, int $maximumCycles = 2000): void
+    final protected function awaitFileRemoval(string $filename): void
     {
         $waiting = 0;
-        while (!flock($resource, LOCK_SH)) {
-            usleep(10000);
+        while (!is_file($filename)) {
+            usleep(1000);
             $waiting++;
-            if ($waiting > $maximumCycles) {
-                throw new \Exception('timeout while waiting on shared lock');
+            clearstatcache(true, $filename);
+            if ($waiting > 60000) {
+                throw new \Exception('timeout while waiting on file ' . $filename);
             }
         }
     }
@@ -82,6 +83,11 @@ abstract class AbstractParallelTestCase extends TestCase // we don't use Flows f
 
     final protected function log(string $message): void
     {
-        file_put_contents(self::LOGGING_PATH, substr($this::class, strrpos($this::class, '\\') + 1) . ': ' . getmypid() . ': ' .  $message . PHP_EOL, FILE_APPEND);
+        file_put_contents(self::LOGGING_PATH, self::shortClassName($this::class) . ': ' . getmypid() . ': ' .  $message . PHP_EOL, FILE_APPEND);
+    }
+
+    final protected static function shortClassName(string $className): string
+    {
+        return substr($className, strrpos($className, '\\') + 1);
     }
 }
