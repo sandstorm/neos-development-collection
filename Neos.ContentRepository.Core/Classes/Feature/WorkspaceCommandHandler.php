@@ -20,14 +20,13 @@ use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\CommandHandler\CommandSimulatorFactory;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\EventStore\DecoratedEvent;
-use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Feature\Common\PublishableToWorkspaceInterface;
+use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
 use Neos\ContentRepository\Core\Feature\ContentStreamClosing\Event\ContentStreamWasClosed;
 use Neos\ContentRepository\Core\Feature\ContentStreamClosing\Event\ContentStreamWasReopened;
-use Neos\ContentRepository\Core\Feature\ContentStreamForking\Event\ContentStreamWasForked;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Command\CreateRootWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Command\CreateWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Event\RootWorkspaceWasCreated;
@@ -62,7 +61,6 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceStatus;
 use Neos\EventStore\EventStoreInterface;
-use Neos\EventStore\Model\Event\EventType;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Neos\EventStore\Model\Event\Version;
 use Neos\EventStore\Model\EventStream\EventStreamInterface;
@@ -82,12 +80,12 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
     ) {
     }
 
-    public function canHandle(CommandInterface $command): bool
+    public function canHandle(CommandInterface|RebasableToOtherWorkspaceInterface $command): bool
     {
         return method_exists($this, 'handle' . (new \ReflectionClass($command))->getShortName());
     }
 
-    public function handle(CommandInterface $command, CommandHandlingDependencies $commandHandlingDependencies): \Generator
+    public function handle(CommandInterface|RebasableToOtherWorkspaceInterface $command, CommandHandlingDependencies $commandHandlingDependencies): \Generator
     {
         /** @phpstan-ignore-next-line */
         return match ($command::class) {
@@ -238,8 +236,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             }
         );
 
-        if ($commandSimulator->hasCommandsThatFailed()) {
-            throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getCommandsThatFailed());
+        if ($commandSimulator->hasConflicts()) {
+            throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getConflictingEvents());
         }
 
         yield new EventsToPublish(
@@ -383,7 +381,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         if (
             $command->rebaseErrorHandlingStrategy === RebaseErrorHandlingStrategy::STRATEGY_FAIL
-            && $commandSimulator->hasCommandsThatFailed()
+            && $commandSimulator->hasConflicts()
         ) {
             yield $this->reopenContentStream(
                 $workspace->currentContentStreamId,
@@ -391,7 +389,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             );
 
             // throw an exception that contains all the information about what exactly failed
-            throw WorkspaceRebaseFailed::duringRebase($commandSimulator->getCommandsThatFailed());
+            throw WorkspaceRebaseFailed::duringRebase($commandSimulator->getConflictingEvents());
         }
 
         // if we got so far without an exception (or if we don't care), we can switch the workspace's active content stream.
@@ -506,13 +504,13 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             }
         );
 
-        if ($commandSimulator->hasCommandsThatFailed()) {
+        if ($commandSimulator->hasConflicts()) {
             yield $this->reopenContentStream(
                 $workspace->currentContentStreamId,
                 $commandHandlingDependencies
             );
 
-            throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getCommandsThatFailed());
+            throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getConflictingEvents());
         }
 
         // this could be a no-op for the rare case when a command returns empty events e.g. the node was already tagged with this subtree tag, meaning we actually just rebase
@@ -624,12 +622,12 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             }
         );
 
-        if ($commandSimulator->hasCommandsThatFailed()) {
+        if ($commandSimulator->hasConflicts()) {
             yield $this->reopenContentStream(
                 $workspace->currentContentStreamId,
                 $commandHandlingDependencies
             );
-            throw WorkspaceRebaseFailed::duringDiscard($commandSimulator->getCommandsThatFailed());
+            throw WorkspaceRebaseFailed::duringDiscard($commandSimulator->getConflictingEvents());
         }
 
         yield from $this->forkNewContentStreamAndApplyEvents(
