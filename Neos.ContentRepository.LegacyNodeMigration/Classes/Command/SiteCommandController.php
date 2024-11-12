@@ -18,38 +18,22 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Exception as DBALException;
 use Doctrine\DBAL\Exception\ConnectionException;
-use Neos\ContentRepository\Core\Projection\CatchUpOptions;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
-use Neos\ContentRepository\LegacyNodeMigration\LegacyMigrationService;
-use Neos\ContentRepository\LegacyNodeMigration\LegacyMigrationServiceFactory;
+use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
+use Neos\ContentRepository\Export\Severity;
+use Neos\ContentRepository\LegacyNodeMigration\LegacyExportServiceFactory;
 use Neos\ContentRepository\LegacyNodeMigration\RootNodeTypeMapping;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
-use Neos\ContentRepositoryRegistry\Factory\EventStore\DoctrineEventStoreFactory;
-use Neos\ContentRepositoryRegistry\Service\ProjectionReplayServiceFactory;
 use Neos\Flow\Cli\CommandController;
-use Neos\Flow\Persistence\PersistenceManagerInterface;
 use Neos\Flow\Property\PropertyMapper;
-use Neos\Flow\ResourceManagement\ResourceManager;
-use Neos\Flow\ResourceManagement\ResourceRepository;
-use Neos\Flow\Utility\Environment;
-use Neos\Media\Domain\Repository\AssetRepository;
-use Neos\Neos\Domain\Model\Site;
-use Neos\Neos\Domain\Repository\SiteRepository;
 use Neos\Neos\Domain\Service\NodeTypeNameFactory;
+use Neos\Utility\Files;
 
-class CrCommandController extends CommandController
+class SiteCommandController extends CommandController
 {
     public function __construct(
         private readonly Connection $connection,
-        private readonly Environment $environment,
-        private readonly PersistenceManagerInterface $persistenceManager,
-        private readonly AssetRepository $assetRepository,
-        private readonly ResourceRepository $resourceRepository,
-        private readonly ResourceManager $resourceManager,
         private readonly PropertyMapper $propertyMapper,
         private readonly ContentRepositoryRegistry $contentRepositoryRegistry,
-        private readonly SiteRepository $siteRepository,
-        private readonly ProjectionReplayServiceFactory $projectionReplayServiceFactory,
     ) {
         parent::__construct();
     }
@@ -57,12 +41,22 @@ class CrCommandController extends CommandController
     /**
      * Migrate from the Legacy CR
      *
-     * @param bool $verbose If set, all notices will be rendered
-     * @param string|null $config JSON encoded configuration, for example '{"dbal": {"dbname": "some-other-db"}, "resourcesPath": "/some/absolute/path", "rootNodes": {"/sites": "Neos.Neos:Sites", "/other": "My.Package:SomeOtherRoot"}}'
+     * This command creates a Neos 9 export format based on the data from the specified legacy content repository database connection
+     * The export will be placed in the specified directory path, and can be imported via "site:importAll":
+     *
+     *     ./flow site:exportLegacyData --path ./migratedContent
+     *     ./flow site:importAll --path ./migratedContent
+     *
+     * Note that the dimension configuration and the node type schema must be migrated of the reference content repository
+     *
+     * @param string $contentRepository The reference content repository that can later be used for importing into
+     * @param string $path The path to the directory to export to, will be created if missing
+     * @param string|null $config JSON encoded configuration, for example --config '{"dbal": {"dbname": "some-other-db"}, "resourcesPath": "/absolute-path/Data/Persistent/Resources", "rootNodes": {"/sites": "Neos.Neos:Sites", "/other": "My.Package:SomeOtherRoot"}}'
      * @throws \Exception
      */
-    public function migrateLegacyDataCommand(bool $verbose = false, string $config = null): void
+    public function exportLegacyDataCommand(string $path, string $contentRepository = 'default', string $config = null, bool $verbose = false): void
     {
+        Files::createDirectoryRecursively($path);
         if ($config !== null) {
             try {
                 $parsedConfig = json_decode($config, true, 512, JSON_THROW_ON_ERROR);
@@ -80,86 +74,36 @@ class CrCommandController extends CommandController
             $resourcesPath = $this->determineResourcesPath();
             $rootNodes = $this->getDefaultRootNodes();
             if (!$this->output->askConfirmation(sprintf('Do you want to migrate nodes from the current database "%s@%s" (y/n)? ', $this->connection->getParams()['dbname'] ?? '?', $this->connection->getParams()['host'] ?? '?'))) {
-                $connection = $this->adjustDataBaseConnection($this->connection);
+                $connection = $this->adjustDatabaseConnection($this->connection);
             } else {
                 $connection = $this->connection;
             }
         }
         $this->verifyDatabaseConnection($connection);
 
-
-        $siteRows = $connection->fetchAllAssociativeIndexed('SELECT nodename, name, siteresourcespackagekey FROM neos_neos_domain_model_site');
-        $siteNodeName = $this->output->select('Which site to migrate?', array_map(static fn (array $siteRow) => $siteRow['name'] . ' (' . $siteRow['siteresourcespackagekey'] . ')', $siteRows));
-        assert(is_string($siteNodeName));
-        $siteRow = $siteRows[$siteNodeName];
-
-        $site = $this->siteRepository->findOneByNodeName($siteNodeName);
-        if ($site !== null) {
-            if (!$this->output->askConfirmation(sprintf('Site "%s" already exists, update it? [n] ', $siteNodeName), false)) {
-                $this->outputLine('Cancelled...');
-                $this->quit();
-            }
-
-            $site->setSiteResourcesPackageKey($siteRow['siteresourcespackagekey']);
-            $site->setState(Site::STATE_ONLINE);
-            $site->setName($siteRow['name']);
-            $this->siteRepository->update($site);
-            $this->persistenceManager->persistAll();
-        } else {
-            $site = new Site($siteNodeName);
-            $site->setSiteResourcesPackageKey($siteRow['siteresourcespackagekey']);
-            $site->setState(Site::STATE_ONLINE);
-            $site->setName($siteRow['name']);
-            $this->siteRepository->add($site);
-            $this->persistenceManager->persistAll();
-        }
-
-        $contentRepositoryId = $site->getConfiguration()->contentRepositoryId;
-
-        $eventTableName = DoctrineEventStoreFactory::databaseTableName($contentRepositoryId);
-        $confirmed = $this->output->askConfirmation(sprintf('We will clear the events from "%s". ARE YOU SURE [n]? ', $eventTableName), false);
-        if (!$confirmed) {
-            $this->outputLine('Cancelled...');
-            $this->quit();
-        }
-        $this->connection->executeStatement('TRUNCATE ' . $connection->quoteIdentifier($eventTableName));
-        // we also need to reset the projections; in order to ensure the system runs deterministically
-        $projectionService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, $this->projectionReplayServiceFactory);
-        $projectionService->resetAllProjections();
-        $this->outputLine('Truncated events');
-
-        $liveContentStreamId = ContentStreamId::create();
-
-        $legacyMigrationService = $this->contentRepositoryRegistry->buildService(
-            $contentRepositoryId,
-            new LegacyMigrationServiceFactory(
+        $legacyExportService = $this->contentRepositoryRegistry->buildService(
+            ContentRepositoryId::fromString($contentRepository),
+            new LegacyExportServiceFactory(
                 $connection,
                 $resourcesPath,
-                $this->environment,
-                $this->persistenceManager,
-                $this->assetRepository,
-                $this->resourceRepository,
-                $this->resourceManager,
                 $this->propertyMapper,
-                $liveContentStreamId,
                 $rootNodes,
             )
         );
-        assert($legacyMigrationService instanceof LegacyMigrationService);
-        $legacyMigrationService->runAllProcessors($this->outputLine(...), $verbose);
 
+        $legacyExportService->exportToPath(
+            $path,
+            $this->createOnProcessorClosure(),
+            $this->createOnMessageClosure($verbose)
+        );
 
-        $this->outputLine();
-
-        $this->outputLine('Replaying projections');
-        $projectionService->replayAllProjections(CatchUpOptions::create());
         $this->outputLine('<success>Done</success>');
     }
 
     /**
      * @throws DBALException
      */
-    private function adjustDataBaseConnection(Connection $connection): Connection
+    private function adjustDatabaseConnection(Connection $connection): Connection
     {
         $connectionParams = $connection->getParams();
         $connectionParams['driver'] = $this->output->select(sprintf('Driver? [%s] ', $connectionParams['driver'] ?? ''), ['pdo_mysql', 'pdo_sqlite', 'pdo_pgsql'], $connectionParams['driver'] ?? null);
@@ -184,7 +128,7 @@ class CrCommandController extends CommandController
             } catch (ConnectionException $exception) {
                 $this->outputLine('<error>Failed to connect to database "%s": %s</error>', [$connection->getDatabase(), $exception->getMessage()]);
                 $this->outputLine('Please verify connection parameters...');
-                $this->adjustDataBaseConnection($connection);
+                $this->adjustDatabaseConnection($connection);
             }
         } while (true);
     }
@@ -206,6 +150,28 @@ class CrCommandController extends CommandController
     private static function defaultResourcesPath(): string
     {
         return FLOW_PATH_DATA . 'Persistent/Resources';
+    }
+
+    protected function createOnProcessorClosure(): \Closure
+    {
+        $onProcessor = function (string $processorLabel) {
+            $this->outputLine('<info>%s...</info>', [$processorLabel]);
+        };
+        return $onProcessor;
+    }
+
+    protected function createOnMessageClosure(bool $verbose): \Closure
+    {
+        return function (Severity $severity, string $message) use ($verbose) {
+            if (!$verbose && $severity === Severity::NOTICE) {
+                return;
+            }
+            $this->outputLine(match ($severity) {
+                Severity::NOTICE => $message,
+                Severity::WARNING => sprintf('<comment>Warning: %s</comment>', $message),
+                Severity::ERROR => sprintf('<error>Error: %s</error>', $message),
+            });
+        };
     }
 
     private function getDefaultRootNodes(): RootNodeTypeMapping

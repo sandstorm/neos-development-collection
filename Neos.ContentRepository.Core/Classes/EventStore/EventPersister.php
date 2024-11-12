@@ -28,9 +28,6 @@ final readonly class EventPersister
      */
     public function publishEvents(ContentRepository $contentRepository, EventsToPublish $eventsToPublish): void
     {
-        if ($eventsToPublish->events->isEmpty()) {
-            return;
-        }
         $normalizedEvents = Events::fromArray(
             $eventsToPublish->events->map($this->eventNormalizer->normalize(...))
         );

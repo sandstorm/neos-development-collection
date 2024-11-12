@@ -6,22 +6,20 @@ namespace Neos\ContentRepositoryRegistry\Service;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryDependencies;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryInterface;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
-use Neos\ContentRepositoryRegistry\Command\CrCommandController;
 use Neos\Flow\Annotations as Flow;
 
 /**
- * Factory for the {@see ProjectionReplayService}
+ * Factory for the {@see ProjectionService}
  *
- * @implements ContentRepositoryServiceFactoryInterface<ProjectionReplayService>
- * @internal this is currently only used by the {@see CrCommandController}
+ * @implements ContentRepositoryServiceFactoryInterface<ProjectionService>
+ * @internal
  */
 #[Flow\Scope("singleton")]
-final class ProjectionReplayServiceFactory implements ContentRepositoryServiceFactoryInterface
+final class ProjectionServiceFactory implements ContentRepositoryServiceFactoryInterface
 {
-
     public function build(ContentRepositoryServiceFactoryDependencies $serviceFactoryDependencies): ContentRepositoryServiceInterface
     {
-        return new ProjectionReplayService(
+        return new ProjectionService(
             $serviceFactoryDependencies->projectionsAndCatchUpHooks->projections,
             $serviceFactoryDependencies->contentRepository,
             $serviceFactoryDependencies->eventStore,
