@@ -150,7 +150,7 @@ final class ContentRepository
         $projection = $this->projectionsAndCatchUpHooks->projections->get($projectionClassName);
 
         $catchUpHookFactory = $this->projectionsAndCatchUpHooks->getCatchUpHookFactoryForProjection($projection);
-        $catchUpHook = $catchUpHookFactory?->build(new CatchUpHookFactoryDependencies(
+        $catchUpHook = $catchUpHookFactory?->build(CatchUpHookFactoryDependencies::create(
             $this->id,
             $projection->getState(),
             $this->nodeTypeManager,

@@ -138,6 +138,9 @@ final class ContentRepositoryFactory
         $commandHooks = $this->commandHooksFactory->build(CommandHooksFactoryDependencies::create(
             $this->contentRepositoryId,
             $this->projectionsAndCatchUpHooks->contentGraphProjection->getState(),
+            $this->projectionFactoryDependencies->nodeTypeManager,
+            $this->projectionFactoryDependencies->contentDimensionSource,
+            $this->projectionFactoryDependencies->interDimensionalVariationGraph,
         ));
         $this->contentRepository = new ContentRepository(
             $this->contentRepositoryId,
