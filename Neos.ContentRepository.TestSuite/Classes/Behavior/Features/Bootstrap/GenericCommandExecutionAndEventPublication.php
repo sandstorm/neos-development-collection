@@ -171,6 +171,9 @@ trait GenericCommandExecutionAndEventPublication
             if (is_string($commandArguments['parentNodeAggregateId'] ?? null) && str_starts_with($commandArguments['parentNodeAggregateId'], '$')) {
                 $commandArguments['parentNodeAggregateId'] = $this->rememberedNodeAggregateIds[substr($commandArguments['parentNodeAggregateId'], 1)]?->value;
             }
+            if (empty($commandArguments['nodeName'])) {
+                unset($commandArguments['nodeName']);
+            }
         }
         if ($commandClassName === SetNodeProperties::class) {
             if (is_string($commandArguments['propertyValues'] ?? null)) {

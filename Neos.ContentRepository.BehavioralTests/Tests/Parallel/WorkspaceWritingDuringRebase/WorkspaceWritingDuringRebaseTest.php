@@ -43,7 +43,7 @@ use Neos\EventStore\Exception\ConcurrencyException;
 use Neos\Flow\ObjectManagement\ObjectManagerInterface;
 use PHPUnit\Framework\Assert;
 
-class WorkspaceWritingDuringRebase extends AbstractParallelTestCase
+class WorkspaceWritingDuringRebaseTest extends AbstractParallelTestCase
 
 {
     private const SETUP_LOCK_PATH = __DIR__ . '/setup-lock';
@@ -88,7 +88,9 @@ class WorkspaceWritingDuringRebase extends AbstractParallelTestCase
         $exclusiveNonBlockingLockResult = flock($setupLockResource, LOCK_EX | LOCK_NB);
         if ($exclusiveNonBlockingLockResult === false) {
             $this->log('waiting for setup');
-            $this->awaitSharedLock($setupLockResource);
+            if (!flock($setupLockResource, LOCK_SH)) {
+                throw new \RuntimeException('failed to acquire blocking shared lock');
+            }
             $this->contentRepository = $this->contentRepositoryRegistry
                 ->get(ContentRepositoryId::fromString('test_parallel'));
             $this->log('wait for setup finished');
@@ -158,7 +160,7 @@ class WorkspaceWritingDuringRebase extends AbstractParallelTestCase
         try {
             $this->contentRepository->handle(
                 RebaseWorkspace::create($workspaceName)
-                    ->withRebasedContentStreamId(ContentStreamId::create())
+                    ->withRebasedContentStreamId(ContentStreamId::fromString('user-cs-rebased'))
                     ->withErrorHandlingStrategy(RebaseErrorHandlingStrategy::STRATEGY_FORCE));
         } finally {
             unlink(self::REBASE_IS_RUNNING_FLAG_PATH);
@@ -188,6 +190,11 @@ class WorkspaceWritingDuringRebase extends AbstractParallelTestCase
 
         $this->log('write started');
 
+        $workspaceDuringRebase = $this->contentRepository->getContentGraph(WorkspaceName::fromString('user-test'));
+        Assert::assertSame('user-cs-id', $workspaceDuringRebase->getContentStreamId()->value,
+            'The parallel tests expects the workspace to still point to the original cs.'
+        );
+
         $origin = OriginDimensionSpacePoint::createWithoutDimensions();
         $actualException = null;
         try {
@@ -201,6 +208,7 @@ class WorkspaceWritingDuringRebase extends AbstractParallelTestCase
             ));
         } catch (\Exception $thrownException) {
             $actualException = $thrownException;
+            $this->log(sprintf('Got exception %s: %s', self::shortClassName($actualException::class), $actualException->getMessage()));
         }
 
         $this->log('write finished');
@@ -215,7 +223,7 @@ class WorkspaceWritingDuringRebase extends AbstractParallelTestCase
 
         Assert::assertThat($actualException, self::logicalOr(
             self::isInstanceOf(ContentStreamIsClosed::class),
-            self::isInstanceOf(ConcurrencyException::class),
+            self::isInstanceOf(ConcurrencyException::class), // todo is only thrown theoretical? but not during tests here ...
         ));
 
         Assert::assertSame('title-original', $node?->getProperty('title'));
