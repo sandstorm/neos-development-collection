@@ -26,7 +26,6 @@ use Neos\ContentRepository\Core\EventStore\EventPersister;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\DimensionSpaceCommandHandler;
 use Neos\ContentRepository\Core\Feature\NodeAggregateCommandHandler;
 use Neos\ContentRepository\Core\Feature\NodeDuplication\NodeDuplicationCommandHandler;
-use Neos\ContentRepository\Core\Feature\Security\AuthProviderInterface;
 use Neos\ContentRepository\Core\Feature\WorkspaceCommandHandler;
 use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
@@ -56,6 +55,7 @@ final class ContentRepositoryFactory
         ProjectionsAndCatchUpHooksFactory $projectionsAndCatchUpHooksFactory,
         private readonly AuthProviderFactoryInterface $authProviderFactory,
         private readonly ClockInterface $clock,
+        private readonly CommandHooksFactory $commandHooksFactory,
     ) {
         $contentDimensionZookeeper = new ContentDimensionZookeeper($contentDimensionSource);
         $interDimensionalVariationGraph = new InterDimensionalVariationGraph(
@@ -134,8 +134,14 @@ final class ContentRepositoryFactory
                 $this->projectionFactoryDependencies->eventNormalizer,
             )
         );
-
         $authProvider = $this->authProviderFactory->build($this->contentRepositoryId, $contentGraphReadModel);
+        $commandHooks = $this->commandHooksFactory->build(CommandHooksFactoryDependencies::create(
+            $this->contentRepositoryId,
+            $this->projectionsAndCatchUpHooks->contentGraphProjection->getState(),
+            $this->projectionFactoryDependencies->nodeTypeManager,
+            $this->projectionFactoryDependencies->contentDimensionSource,
+            $this->projectionFactoryDependencies->interDimensionalVariationGraph,
+        ));
         $this->contentRepository = new ContentRepository(
             $this->contentRepositoryId,
             $publicCommandBus,
@@ -148,7 +154,8 @@ final class ContentRepositoryFactory
             $this->projectionFactoryDependencies->contentDimensionSource,
             $authProvider,
             $this->clock,
-            $contentGraphReadModel
+            $contentGraphReadModel,
+            $commandHooks,
         );
         $this->isBuilding = false;
         return $this->contentRepository;
