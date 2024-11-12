@@ -167,7 +167,7 @@ trait GenericCommandExecutionAndEventPublication
         if (is_string($commandArguments['nodeAggregateId'] ?? null) && str_starts_with($commandArguments['nodeAggregateId'], '$')) {
             $commandArguments['nodeAggregateId'] = $this->rememberedNodeAggregateIds[substr($commandArguments['nodeAggregateId'], 1)]?->value;
         } elseif (!isset($commandArguments['nodeAggregateId'])) {
-            $commandArguments['nodeAggregateId'] = $this->currentNodeAggregate?->nodeAggregateId->value;
+            $commandArguments['nodeAggregateId'] = $this->getCurrentNodeAggregateId()?->value;
         }
         if (is_string($commandArguments['sourceNodeAggregateId'] ?? null) && str_starts_with($commandArguments['sourceNodeAggregateId'], '$')) {
             $commandArguments['sourceNodeAggregateId'] = $this->rememberedNodeAggregateIds[substr($commandArguments['sourceNodeAggregateId'], 1)]?->value;

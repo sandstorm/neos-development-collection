@@ -64,7 +64,6 @@ Feature: Rebasing auto-created nodes works
     When the command SetNodeProperties is executed with payload:
       | Key                       | Value                         |
       | workspaceName             | "user-test"                   |
-      | nodeAggregateId           | $this->currentNodeAggregateId |
       | originDimensionSpacePoint | {}                            |
       | propertyValues            | {"text": "Modified"}          |
       | propertiesToUnset         | {}                            |
