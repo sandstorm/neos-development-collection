@@ -133,12 +133,11 @@ trait NodeMove
             if ($nodeAggregate->nodeName) {
                 $this->requireNodeTypeNotToDeclareTetheredChildNodeName($newParentNodeAggregate->nodeTypeName, $nodeAggregate->nodeName);
             }
-            if ($command->relationDistributionStrategy !== RelationDistributionStrategy::STRATEGY_SCATTER) {
-                $this->requireNodeAggregateToCoverDimensionSpacePoints(
-                    $newParentNodeAggregate,
-                    $affectedDimensionSpacePoints
-                );
-            }
+
+            $this->requireNodeAggregateToCoverDimensionSpacePoints(
+                $newParentNodeAggregate,
+                $affectedDimensionSpacePoints
+            );
 
             $this->requireNodeAggregateToNotBeDescendant(
                 $contentGraph,
