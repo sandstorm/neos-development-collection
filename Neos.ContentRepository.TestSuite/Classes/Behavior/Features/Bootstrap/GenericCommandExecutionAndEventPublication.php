@@ -344,6 +344,21 @@ trait GenericCommandExecutionAndEventPublication
         }
 
         Assert::assertSame($payloadTable->getHash(), $actualComparableHash);
+        $this->lastCommandException = null;
+    }
+
+    /**
+     * @AfterScenario
+     */
+    public function ensureNoUnhandledCommandExceptions(): void
+    {
+        if ($this->lastCommandException !== null) {
+            Assert::fail(sprintf(
+                'Last command did throw with exception which was not asserted: %s: %s',
+                $this->lastCommandException::class,
+                $this->lastCommandException->getMessage()
+            ));
+        }
     }
 
     /**
