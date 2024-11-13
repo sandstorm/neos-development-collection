@@ -4,13 +4,25 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepositoryRegistry\Command;
 
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Neos\ContentGraph\DoctrineDbalAdapter\DoctrineDbalContentGraphProjection;
+use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryDependencies;
+use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryInterface;
+use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
+use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Projection\CatchUpOptions;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
+use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\ContentRepositoryRegistry\Factory\EventStore\DoctrineEventStoreFactory;
+use Neos\EventStore\Model\Event\EventType;
+use Neos\EventStore\Model\Event\EventTypes;
 use Neos\EventStore\Model\Event\SequenceNumber;
+use Neos\EventStore\Model\EventEnvelope;
+use Neos\EventStore\Model\Events;
+use Neos\EventStore\Model\EventStream\EventStreamFilter;
+use Neos\EventStore\Model\EventStream\ExpectedVersion;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Cli\CommandController;
 use Symfony\Component\Console\Helper\ProgressBar;
@@ -22,6 +34,44 @@ class NeosBetaMigrationCommandController extends CommandController
 
     #[Flow\Inject()]
     protected Connection $connection;
+
+    public function reorderNodeAggregateWasRemovedCommand(string $contentRepository = 'default', string $workspaceName = 'live'): void
+    {
+        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
+        $this->backup($contentRepositoryId);
+
+        $workspace = $this->contentRepositoryRegistry->get($contentRepositoryId)->findWorkspaceByName(WorkspaceName::fromString($workspaceName));
+        if (!$workspace) {
+            $this->outputLine('Workspace not found');
+            $this->quit(1);
+        }
+
+        $streamName = ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)->getEventStreamName();
+
+        $internals = $this->getInternals($contentRepositoryId);
+
+        // get all NodeAggregateWasRemoved from the content stream
+        $eventsToReorder = iterator_to_array($internals->eventStore->load($streamName, EventStreamFilter::create(EventTypes::create(EventType::fromString('NodeAggregateWasRemoved')))), false);
+
+        // remove all the NodeAggregateWasRemoved events at their sequenceNumbers
+        $eventTableName = DoctrineEventStoreFactory::databaseTableName($contentRepositoryId);
+        $this->connection->beginTransaction();
+        $this->connection->executeStatement(
+            'DELETE FROM ' . $eventTableName . ' WHERE sequencenumber IN (:sequenceNumbers)',
+            [
+                'sequenceNumbers' => array_map(fn (EventEnvelope $eventEnvelope) => $eventEnvelope->sequenceNumber->value, $eventsToReorder)
+            ],
+            [
+                'sequenceNumbers' => ArrayParameterType::STRING
+            ]
+        );
+        $this->connection->commit();
+
+        // reapply the NodeAggregateWasRemoved events at the end
+        $internals->eventStore->commit($streamName, Events::fromArray(array_map(fn (EventEnvelope $eventEnvelope) => $eventEnvelope->event, $eventsToReorder)), ExpectedVersion::ANY());
+
+        $this->outputLine('Reordered %d removals. Please replay and rebase your other workspaces.', [count($eventsToReorder)]);
+    }
 
     public function fixReplayCommand(string $contentRepository = 'default', bool $resetProjection = true): void
     {
@@ -148,5 +198,22 @@ class NeosBetaMigrationCommandController extends CommandController
             SELECT *
             FROM ' . $eventTableName
         );
+    }
+
+    private function getInternals(ContentRepositoryId $contentRepositoryId): ContentRepositoryServiceFactoryDependencies
+    {
+        // NOT API!!!
+        $accessor = new class implements ContentRepositoryServiceFactoryInterface {
+            public ContentRepositoryServiceFactoryDependencies|null $dependencies;
+            public function build(ContentRepositoryServiceFactoryDependencies $serviceFactoryDependencies): ContentRepositoryServiceInterface
+            {
+                $this->dependencies = $serviceFactoryDependencies;
+                return new class implements ContentRepositoryServiceInterface
+                {
+                };
+            }
+        };
+        $this->contentRepositoryRegistry->buildService($contentRepositoryId, $accessor);
+        return $accessor->dependencies;
     }
 }
