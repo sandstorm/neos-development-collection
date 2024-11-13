@@ -3,7 +3,7 @@ Neos:
     presets:
       default:
         authProvider:
-          factoryObjectName: 'Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\FakeAuthProviderFactory'
+          factoryObjectName: 'Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\TestingAuthProviderFactory'
         clock:
           factoryObjectName: 'Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\FakeClockFactory'
         nodeTypeManager:

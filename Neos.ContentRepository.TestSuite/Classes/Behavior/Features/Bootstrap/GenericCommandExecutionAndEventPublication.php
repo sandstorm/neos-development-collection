@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap;
 
+use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
@@ -302,9 +303,12 @@ trait GenericCommandExecutionAndEventPublication
     }
 
     /**
-     * @Then /^the last command should have thrown an exception of type "([^"]*)"(?: with code (\d*))?$/
+     * @Then the last command should have thrown an exception of type :shortExceptionName with code :expectedCode and message:
+     * @Then the last command should have thrown an exception of type :shortExceptionName with code :expectedCode
+     * @Then the last command should have thrown an exception of type :shortExceptionName with message:
+     * @Then the last command should have thrown an exception of type :shortExceptionName
      */
-    public function theLastCommandShouldHaveThrown(string $shortExceptionName, ?int $expectedCode = null): void
+    public function theLastCommandShouldHaveThrown(string $shortExceptionName, ?int $expectedCode = null, PyStringNode $expectedMessage = null): void
     {
         if ($shortExceptionName === 'WorkspaceRebaseFailed') {
             throw new \RuntimeException('Please use the assertion "the last command should have thrown the WorkspaceRebaseFailed exception with" instead.');
@@ -312,8 +316,8 @@ trait GenericCommandExecutionAndEventPublication
 
         Assert::assertNotNull($this->lastCommandException, 'Command did not throw exception');
         $lastCommandExceptionShortName = (new \ReflectionClass($this->lastCommandException))->getShortName();
-        Assert::assertSame($shortExceptionName, $lastCommandExceptionShortName, sprintf('Actual exception: %s (%s): %s', get_class($this->lastCommandException), $this->lastCommandException->getCode(), $this->lastCommandException->getMessage()));
-        if (!is_null($expectedCode)) {
+        Assert::assertSame($shortExceptionName, $lastCommandExceptionShortName, sprintf('Actual exception: %s (%s): %s', get_debug_type($this->lastCommandException), $this->lastCommandException->getCode(), $this->lastCommandException->getMessage()));
+        if ($expectedCode !== null) {
             Assert::assertSame($expectedCode, $this->lastCommandException->getCode(), sprintf(
                 'Expected exception code %s, got exception code %s instead; Message: %s',
                 $expectedCode,
@@ -321,6 +325,10 @@ trait GenericCommandExecutionAndEventPublication
                 $this->lastCommandException->getMessage()
             ));
         }
+        if ($expectedMessage !== null) {
+            Assert::assertSame($expectedMessage->getRaw(), $this->lastCommandException->getMessage());
+        }
+        $this->lastCommandException = null;
     }
 
     /**
@@ -343,6 +351,23 @@ trait GenericCommandExecutionAndEventPublication
         }
 
         Assert::assertSame($payloadTable->getHash(), $actualComparableHash);
+        $this->lastCommandException = null;
+    }
+
+    /**
+     * @AfterScenario
+     */
+    public function ensureNoUnhandledCommandExceptions(\Behat\Behat\Hook\Scope\AfterScenarioScope $event): void
+    {
+        if ($this->lastCommandException !== null) {
+            Assert::fail(sprintf(
+                'Last command did throw with exception which was not asserted: %s: "%s" in %s:%s',
+                $this->lastCommandException::class,
+                $this->lastCommandException->getMessage(),
+                $event->getFeature()->getFile(),
+                $event->getScenario()->getLine(),
+            ));
+        }
     }
 
     /**
