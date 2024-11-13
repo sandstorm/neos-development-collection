@@ -321,6 +321,7 @@ trait GenericCommandExecutionAndEventPublication
                 $this->lastCommandException->getMessage()
             ));
         }
+        $this->lastCommandException = null;
     }
 
     /**
