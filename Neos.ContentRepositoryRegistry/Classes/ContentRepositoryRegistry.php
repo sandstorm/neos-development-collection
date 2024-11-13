@@ -6,17 +6,14 @@ namespace Neos\ContentRepositoryRegistry;
 
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
-use Neos\ContentRepository\Core\Factory\AdditionalSubscribersFactory;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryFactory;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryInterface;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
 use Neos\ContentRepository\Core\Factory\ContentRepositorySubscriberFactories;
-use Neos\ContentRepository\Core\Factory\ContentRepositorySubscribersFactoryInterface;
 use Neos\ContentRepository\Core\Factory\ProjectionSubscriberFactory;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookFactories;
 use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookFactoryInterface;
-use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHooks;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionFactoryInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
@@ -262,6 +259,7 @@ final class ContentRepositoryRegistry
         return $contentGraphProjectionFactory;
     }
 
+    /** @param array<string, mixed> $contentRepositorySettings */
     private function buildContentGraphCatchUpHookFactory(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): CatchUpHookFactoryInterface
     {
         if (!isset($contentRepositorySettings['contentGraphProjection']['catchUpHooks'])) {

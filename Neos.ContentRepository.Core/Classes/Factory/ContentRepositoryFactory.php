@@ -34,6 +34,7 @@ use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookFactoryInterfa
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionFactoryInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionInterface;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionEventHandler;
 use Neos\ContentRepository\Core\Projection\ProjectionStates;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
@@ -43,7 +44,6 @@ use Neos\ContentRepository\Core\Subscription\EventStore\RunSubscriptionEventStor
 use Neos\ContentRepository\Core\Subscription\RetryStrategy\NoRetryStrategy;
 use Neos\ContentRepository\Core\Subscription\RunMode;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
-use Neos\ContentRepository\Core\Subscription\Subscriber\ProjectionEventHandlerInterface;
 use Neos\ContentRepository\Core\Subscription\Subscriber\Subscriber;
 use Neos\ContentRepository\Core\Subscription\Subscriber\Subscribers;
 use Neos\ContentRepository\Core\Subscription\SubscriptionGroup;
@@ -62,13 +62,15 @@ final class ContentRepositoryFactory
     private SubscriberFactoryDependencies $subscriberFactoryDependencies;
     private EventStoreInterface $eventStore;
     private SubscriptionEngine $subscriptionEngine;
-
-    private ProjectionStates $projectionStates;
-
     private ContentGraphProjectionInterface $contentGraphProjection;
+    private ProjectionStates $additionalProjectionStates;
+
+    // The following properties store "singleton" references of objects for this content repository
+    private ?ContentRepository $contentRepositoryRuntimeCache = null;
+    private ?EventPersister $eventPersisterRuntimeCache = null;
 
     /**
-     * @param CatchUpHookFactoryInterface<ContentGraphInterface> $contentGraphCatchUpHookFactory
+     * @param CatchUpHookFactoryInterface<ContentGraphReadModelInterface> $contentGraphCatchUpHookFactory
      */
     public function __construct(
         private readonly ContentRepositoryId $contentRepositoryId,
@@ -80,8 +82,8 @@ final class ContentRepositoryFactory
         private readonly ClockInterface $clock,
         SubscriptionStoreInterface $subscriptionStore,
         ContentGraphProjectionFactoryInterface $contentGraphProjectionFactory,
-        CatchUpHookFactoryInterface $contentGraphCatchUpHookFactory,
-        ContentRepositorySubscriberFactories $additionalSubscriberFactories,
+        private readonly CatchUpHookFactoryInterface $contentGraphCatchUpHookFactory,
+        private readonly ContentRepositorySubscriberFactories $additionalSubscriberFactories,
     ) {
         $contentDimensionZookeeper = new ContentDimensionZookeeper($contentDimensionSource);
         $interDimensionalVariationGraph = new InterDimensionalVariationGraph(
@@ -98,33 +100,39 @@ final class ContentRepositoryFactory
             $interDimensionalVariationGraph,
             new PropertyConverter($propertySerializer)
         );
+        $subscribers = [$this->buildContentGraphSubscriber()];
+        $additionalProjectionStates = [];
+        foreach ($this->additionalSubscriberFactories as $additionalSubscriberFactory) {
+            $subscriber = $additionalSubscriberFactory->build($this->subscriberFactoryDependencies);
+            if ($subscriber->handler instanceof ProjectionEventHandler) {
+                $additionalProjectionStates[] = $subscriber->handler->projection->getState();
+            }
+            $subscribers[] = $subscriber;
+        }
+        $this->additionalProjectionStates = ProjectionStates::fromArray($additionalProjectionStates);
         $this->contentGraphProjection = $contentGraphProjectionFactory->build($this->subscriberFactoryDependencies);
-        $contentGraphSubscriber = new Subscriber(
+        $this->subscriptionEngine = new SubscriptionEngine($eventStore, $subscriptionStore, Subscribers::fromArray($subscribers), $eventNormalizer, new NoRetryStrategy());
+        $this->eventStore = new RunSubscriptionEventStore($eventStore, $this->subscriptionEngine);
+    }
+
+    private function buildContentGraphSubscriber(): Subscriber
+    {
+        return new Subscriber(
             SubscriptionId::fromString('contentGraph'),
             SubscriptionGroup::fromString('default'),
             RunMode::FROM_BEGINNING,
             ProjectionEventHandler::createWithCatchUpHook(
                 $this->contentGraphProjection,
-                $contentGraphCatchUpHookFactory->build(new CatchUpHookFactoryDependencies($this->contentRepositoryId, $this->contentGraphProjection->getState(), $nodeTypeManager, $contentDimensionSource, $interDimensionalVariationGraph)),
+                $this->contentGraphCatchUpHookFactory->build(new CatchUpHookFactoryDependencies(
+                    $this->contentRepositoryId,
+                    $this->contentGraphProjection->getState(),
+                    $this->subscriberFactoryDependencies->nodeTypeManager,
+                    $this->subscriberFactoryDependencies->contentDimensionSource,
+                    $this->subscriberFactoryDependencies->interDimensionalVariationGraph,
+                )),
             ),
         );
-        $subscribers = [$contentGraphSubscriber];
-        $projectionStates = [];
-        foreach ($additionalSubscriberFactories as $subscriberFactory) {
-            $subscriber = $subscriberFactory->build($this->subscriberFactoryDependencies);
-            $subscribers[] = $subscriber;
-            if ($subscriber->handler instanceof ProjectionEventHandler) {
-                $projectionStates[] = $subscriber->handler->projection->getState();
-            }
-        }
-        $this->projectionStates = ProjectionStates::fromArray($projectionStates);
-        $this->subscriptionEngine = new SubscriptionEngine($eventStore, $subscriptionStore, Subscribers::fromArray($subscribers), $eventNormalizer, new NoRetryStrategy());
-        $this->eventStore = new RunSubscriptionEventStore($eventStore, $this->subscriptionEngine);
     }
-
-    // The following properties store "singleton" references of objects for this content repository
-    private ?ContentRepository $contentRepository = null;
-    private ?EventPersister $eventPersister = null;
 
     /**
      * Builds and returns the content repository. If it is already built, returns the same instance.
@@ -134,8 +142,8 @@ final class ContentRepositoryFactory
      */
     public function getOrBuild(): ContentRepository
     {
-        if ($this->contentRepository) {
-            return $this->contentRepository;
+        if ($this->contentRepositoryRuntimeCache) {
+            return $this->contentRepositoryRuntimeCache;
         }
 
         $contentGraphReadModel = $this->contentGraphProjection->getState();
@@ -175,7 +183,7 @@ final class ContentRepositoryFactory
             )
         );
 
-        return $this->contentRepository = new ContentRepository(
+        return $this->contentRepositoryRuntimeCache = new ContentRepository(
             $this->contentRepositoryId,
             $publicCommandBus,
             $this->buildEventPersister(),
@@ -185,7 +193,7 @@ final class ContentRepositoryFactory
             $this->userIdProvider,
             $this->clock,
             $contentGraphReadModel,
-            $this->projectionStates,
+            $this->additionalProjectionStates,
         );
     }
 
@@ -216,12 +224,12 @@ final class ContentRepositoryFactory
 
     private function buildEventPersister(): EventPersister
     {
-        if (!$this->eventPersister) {
-            $this->eventPersister = new EventPersister(
+        if (!$this->eventPersisterRuntimeCache) {
+            $this->eventPersisterRuntimeCache = new EventPersister(
                 $this->eventStore,
                 $this->subscriberFactoryDependencies->eventNormalizer,
             );
         }
-        return $this->eventPersister;
+        return $this->eventPersisterRuntimeCache;
     }
 }

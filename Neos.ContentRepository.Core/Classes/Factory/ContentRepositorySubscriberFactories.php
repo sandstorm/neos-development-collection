@@ -6,9 +6,13 @@ namespace Neos\ContentRepository\Core\Factory;
 
 /**
  * @implements \IteratorAggregate<ContentRepositorySubscriberFactoryInterface>
+ * @internal
  */
 final class ContentRepositorySubscriberFactories implements \IteratorAggregate
 {
+    /**
+     * @var array<ContentRepositorySubscriberFactoryInterface>
+     */
     private array $subscriberFactories;
 
     private function __construct(ContentRepositorySubscriberFactoryInterface ...$subscriberFactories)
@@ -16,6 +20,10 @@ final class ContentRepositorySubscriberFactories implements \IteratorAggregate
         $this->subscriberFactories = $subscriberFactories;
     }
 
+    /**
+     * @param array<ContentRepositorySubscriberFactoryInterface> $subscriberFactories
+     * @return self
+     */
     public static function fromArray(array $subscriberFactories): self
     {
         return new self(...$subscriberFactories);

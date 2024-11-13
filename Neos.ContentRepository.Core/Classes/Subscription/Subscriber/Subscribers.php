@@ -43,6 +43,11 @@ final class Subscribers implements \IteratorAggregate, \Countable, \JsonSerializ
         return self::fromArray([]);
     }
 
+    public function with(Subscriber $subscriber): self
+    {
+        return new self([...$this->subscribersById, $subscriber->id->value => $subscriber]);
+    }
+
     public function get(SubscriptionId $id): Subscriber
     {
         if (!$this->contain($id)) {

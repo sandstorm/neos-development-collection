@@ -28,7 +28,7 @@ use Neos\EventStore\Model\Event\SequenceNumber;
 use Psr\Clock\ClockInterface;
 
 /**
- * @internal
+ * @api
  */
 final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
 {

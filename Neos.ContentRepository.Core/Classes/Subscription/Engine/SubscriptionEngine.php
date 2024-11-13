@@ -21,7 +21,7 @@ use Neos\ContentRepository\Core\Subscription\Subscription;
 use Neos\ContentRepository\Core\Subscription\Subscriptions;
 
 /**
- * @internal
+ * @api
  */
 final class SubscriptionEngine
 {

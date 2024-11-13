@@ -44,7 +44,7 @@ final class CrCommandController extends CommandController
     {
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
 
-        $this->contentRepositoryRegistry->get($contentRepositoryId)->setUp();
+        // TODO $this->contentRepositoryRegistry->get($contentRepositoryId);
         $this->outputLine('<success>Content Repository "%s" was set up</success>', [$contentRepositoryId->value]);
     }
 
@@ -63,7 +63,7 @@ final class CrCommandController extends CommandController
             $this->output->getOutput()->setVerbosity(Output::VERBOSITY_QUIET);
         }
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
-        $status = $this->contentRepositoryRegistry->get($contentRepositoryId)->status();
+        $status = null;//TODO $this->contentRepositoryRegistry->get($contentRepositoryId)->status();
 
         $this->output('Event Store: ');
         $this->outputLine(match ($status->eventStoreStatus->type) {

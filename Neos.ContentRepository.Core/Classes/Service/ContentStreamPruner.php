@@ -162,7 +162,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
 
         if ($danglingContentStreamsPresent) {
             try {
-                $this->contentRepository->catchUpProjections();
+                //TODO $this->contentRepository->catchUpProjections();
             } catch (\Throwable $e) {
                 $outputFn(sprintf('Could not catchup after removing unused content streams: %s. You might need to use ./flow contentstream:pruneremovedfromeventstream and replay.', $e->getMessage()));
             }

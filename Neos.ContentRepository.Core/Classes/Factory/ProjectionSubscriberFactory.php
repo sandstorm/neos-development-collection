@@ -6,13 +6,21 @@ namespace Neos\ContentRepository\Core\Factory;
 
 use Neos\ContentRepository\Core\Projection\ProjectionEventHandler;
 use Neos\ContentRepository\Core\Projection\ProjectionFactoryInterface;
+use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 use Neos\ContentRepository\Core\Subscription\RunMode;
 use Neos\ContentRepository\Core\Subscription\Subscriber\Subscriber;
 use Neos\ContentRepository\Core\Subscription\SubscriptionGroup;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 
+/**
+ * @internal
+ */
 final readonly class ProjectionSubscriberFactory implements ContentRepositorySubscriberFactoryInterface
 {
+    /**
+     * @param ProjectionFactoryInterface<ProjectionStateInterface> $projectionFactory
+     * @param array<string, mixed> $projectionFactoryOptions
+     */
     public function __construct(
         private SubscriptionId $subscriptionId,
         private ProjectionFactoryInterface $projectionFactory,
