@@ -15,13 +15,13 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandBus;
+use Neos\ContentRepository\Core\CommandHandler\CommandHookInterface;
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
 use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
 use Neos\ContentRepository\Core\EventStore\EventPersister;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\EventStore\InitiatingEventMetadata;
-use Neos\ContentRepository\Core\Factory\ContentRepositoryFactory;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
@@ -36,6 +36,7 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreams;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
+use Neos\EventStore\Exception\ConcurrencyException;
 use Psr\Clock\ClockInterface;
 
 /**
@@ -63,6 +64,7 @@ final readonly class ContentRepository
         private readonly UserIdProviderInterface $userIdProvider,
         private readonly ClockInterface $clock,
         private readonly ContentGraphReadModelInterface $contentGraphReadModel,
+        private readonly CommandHookInterface $commandHook,
         private readonly ProjectionStates $projectionStates,
     ) {
     }
@@ -74,19 +76,44 @@ final readonly class ContentRepository
      */
     public function handle(CommandInterface $command): void
     {
-        // the commands only calculate which events they want to have published, but do not do the
-        // publishing themselves
-        $eventsToPublishOrGenerator = $this->commandBus->handle($command);
+        $command = $this->commandHook->onBeforeHandle($command);
 
-        if ($eventsToPublishOrGenerator instanceof EventsToPublish) {
-            $eventsToPublish = $this->enrichEventsToPublishWithMetadata($eventsToPublishOrGenerator);
-            $this->eventPersister->publishEvents($this, $eventsToPublish);
-        } else {
-            foreach ($eventsToPublishOrGenerator as $eventsToPublish) {
-                assert($eventsToPublish instanceof EventsToPublish); // just for the ide
-                $eventsToPublish = $this->enrichEventsToPublishWithMetadata($eventsToPublish);
-                $this->eventPersister->publishEvents($this, $eventsToPublish);
+        $toPublish = $this->commandBus->handle($command);
+
+        // simple case
+        if ($toPublish instanceof EventsToPublish) {
+            $eventsToPublish = $this->enrichEventsToPublishWithMetadata($toPublish);
+            $this->eventPersister->publishWithoutCatchup($eventsToPublish);
+            // TODO how to solve this with a decoupled subscription engine? $this->catchupProjections();
+            return;
+        }
+
+        // control-flow aware command handling via generator
+        try {
+            foreach ($toPublish as $yieldedEventsToPublish) {
+                $eventsToPublish = $this->enrichEventsToPublishWithMetadata($yieldedEventsToPublish);
+                try {
+                    $this->eventPersister->publishWithoutCatchup($eventsToPublish);
+                } catch (ConcurrencyException $concurrencyException) {
+                    // we pass the exception into the generator (->throw), so it could be try-caught and reacted upon:
+                    //
+                    //   try {
+                    //      yield EventsToPublish(...);
+                    //   } catch (ConcurrencyException $e) {
+                    //      yield $this->reopenContentStream();
+                    //      throw $e;
+                    //   }
+                    $yieldedErrorStrategy = $toPublish->throw($concurrencyException);
+                    if ($yieldedErrorStrategy instanceof EventsToPublish) {
+                        $this->eventPersister->publishWithoutCatchup($yieldedErrorStrategy);
+                    }
+                    throw $concurrencyException;
+                }
             }
+        } finally {
+            // We always NEED to catchup even if there was an unexpected ConcurrencyException to make sure previous commits are handled.
+            // Technically it would be acceptable for the catchup to fail here (due to hook errors) because all the events are already persisted.
+            // TODO how to solve with the decoupled subscription engine? $this->catchupProjections();
         }
     }
 

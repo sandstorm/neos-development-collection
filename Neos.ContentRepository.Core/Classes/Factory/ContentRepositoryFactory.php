@@ -31,7 +31,6 @@ use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookFactoryDependencies;
 use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookFactoryInterface;
-use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionFactoryInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
@@ -65,6 +64,9 @@ final class ContentRepositoryFactory
     private ContentGraphProjectionInterface $contentGraphProjection;
     private ProjectionStates $additionalProjectionStates;
 
+    // guards against recursion and memory overflow
+    private bool $isBuilding = false;
+
     // The following properties store "singleton" references of objects for this content repository
     private ?ContentRepository $contentRepositoryRuntimeCache = null;
     private ?EventPersister $eventPersisterRuntimeCache = null;
@@ -83,6 +85,7 @@ final class ContentRepositoryFactory
         SubscriptionStoreInterface $subscriptionStore,
         ContentGraphProjectionFactoryInterface $contentGraphProjectionFactory,
         private readonly CatchUpHookFactoryInterface $contentGraphCatchUpHookFactory,
+        private readonly CommandHooksFactory $commandHooksFactory,
         private readonly ContentRepositorySubscriberFactories $additionalSubscriberFactories,
     ) {
         $contentDimensionZookeeper = new ContentDimensionZookeeper($contentDimensionSource);
@@ -123,7 +126,7 @@ final class ContentRepositoryFactory
             RunMode::FROM_BEGINNING,
             ProjectionEventHandler::createWithCatchUpHook(
                 $this->contentGraphProjection,
-                $this->contentGraphCatchUpHookFactory->build(new CatchUpHookFactoryDependencies(
+                $this->contentGraphCatchUpHookFactory->build(CatchUpHookFactoryDependencies::create(
                     $this->contentRepositoryId,
                     $this->contentGraphProjection->getState(),
                     $this->subscriberFactoryDependencies->nodeTypeManager,
@@ -145,6 +148,10 @@ final class ContentRepositoryFactory
         if ($this->contentRepositoryRuntimeCache) {
             return $this->contentRepositoryRuntimeCache;
         }
+        if ($this->isBuilding) {
+            throw new \RuntimeException(sprintf('Content repository "%s" was attempted to be build in recursion.', $this->contentRepositoryId->value), 1730552199);
+        }
+        $this->isBuilding = true;
 
         $contentGraphReadModel = $this->contentGraphProjection->getState();
         $commandHandlingDependencies = new CommandHandlingDependencies($contentGraphReadModel);
@@ -182,8 +189,14 @@ final class ContentRepositoryFactory
                 $this->subscriberFactoryDependencies->eventNormalizer,
             )
         );
-
-        return $this->contentRepositoryRuntimeCache = new ContentRepository(
+        $commandHooks = $this->commandHooksFactory->build(CommandHooksFactoryDependencies::create(
+            $this->contentRepositoryId,
+            $this->contentGraphProjection->getState(),
+            $this->subscriberFactoryDependencies->nodeTypeManager,
+            $this->subscriberFactoryDependencies->contentDimensionSource,
+            $this->subscriberFactoryDependencies->interDimensionalVariationGraph,
+        ));
+        $this->contentRepositoryRuntimeCache = new ContentRepository(
             $this->contentRepositoryId,
             $publicCommandBus,
             $this->buildEventPersister(),
@@ -193,8 +206,11 @@ final class ContentRepositoryFactory
             $this->userIdProvider,
             $this->clock,
             $contentGraphReadModel,
+            $commandHooks,
             $this->additionalProjectionStates,
         );
+        $this->isBuilding = false;
+        return $this->contentRepositoryRuntimeCache;
     }
 
     /**

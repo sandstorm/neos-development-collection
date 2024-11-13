@@ -51,9 +51,6 @@ final readonly class UpdateRootNodeAggregateDimensions implements
         return new self($workspaceName, $nodeAggregateId);
     }
 
-    /**
-     * @param array<string,string> $array
-     */
     public static function fromArray(array $array): self
     {
         return new self(

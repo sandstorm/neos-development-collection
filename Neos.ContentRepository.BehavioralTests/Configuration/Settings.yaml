@@ -18,6 +18,23 @@ Neos:
           host: 127.0.0.1
           port: 6379
 
+  ContentRepositoryRegistry:
+    contentRepositories:
+      test_parallel:
+        eventStore:
+          factoryObjectName: Neos\ContentRepositoryRegistry\Factory\EventStore\DoctrineEventStoreFactory
+        nodeTypeManager:
+          factoryObjectName: Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinPyStringNodeBasedNodeTypeManagerFactory
+        contentDimensionSource:
+          factoryObjectName: Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinTableNodeBasedContentDimensionSourceFactory
+        userIdProvider:
+          factoryObjectName: Neos\ContentRepositoryRegistry\Factory\UserIdProvider\StaticUserIdProviderFactory
+        clock:
+          factoryObjectName: Neos\ContentRepositoryRegistry\Factory\Clock\SystemClockFactory
+        propertyConverters: {}
+        contentGraphProjection:
+          factoryObjectName: Neos\ContentGraph\DoctrineDbalAdapter\DoctrineDbalContentGraphProjectionFactory
+
   Flow:
     object:
       includeClasses:

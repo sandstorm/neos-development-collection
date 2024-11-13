@@ -229,6 +229,14 @@ jobs:
           FLOW_CONTEXT=Testing ./flow doctrine:migrate --quiet
           bin/phpunit --colors --stop-on-failure -c Build/BuildEssentials/PhpUnit/FunctionalTests.xml --testsuite "Neos tests" --verbose
 
+      - name: Run Parallel Tests for the ES CR
+        if: matrix.parallel-parts == 'escr-behavioral'
+        run: |
+          cd Packages/Neos
+          hasFailure=0
+          composer test:parallel || hasFailure=1
+          cat Neos.ContentRepository.BehavioralTests/Tests/Parallel/log.txt
+          exit $hasFailure
       - name: Run Behavioral Tests (ES CR && Neos.Neos)
         id: escrtests
         if: matrix.parallel-parts == 'escr-behavioral'

@@ -9,11 +9,12 @@ use Neos\ContentRepository\Core\Service\ContentStreamPrunerFactory;
 use Neos\ContentRepository\Core\Service\WorkspaceMaintenanceServiceFactory;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
-use Neos\ContentRepositoryRegistry\Service\ProjectionReplayServiceFactory;
+use Neos\ContentRepositoryRegistry\Service\ProjectionServiceFactory;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Neos\EventStore\Model\EventStore\StatusType;
 use Neos\Flow\Cli\CommandController;
 use Neos\Neos\Domain\Service\WorkspaceService;
+use stdClass;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Output\ConsoleOutput;
 use Symfony\Component\Console\Output\Output;
@@ -23,7 +24,7 @@ final class CrCommandController extends CommandController
 
     public function __construct(
         private readonly ContentRepositoryRegistry $contentRepositoryRegistry,
-        private readonly ProjectionReplayServiceFactory $projectionServiceFactory,
+        private readonly ProjectionServiceFactory  $projectionServiceFactory,
     ) {
         parent::__construct();
     }
@@ -63,7 +64,7 @@ final class CrCommandController extends CommandController
             $this->output->getOutput()->setVerbosity(Output::VERBOSITY_QUIET);
         }
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
-        $status = null;//TODO $this->contentRepositoryRegistry->get($contentRepositoryId)->status();
+        $status = new stdClass();//TODO $this->contentRepositoryRegistry->get($contentRepositoryId)->status();
 
         $this->output('Event Store: ');
         $this->outputLine(match ($status->eventStoreStatus->type) {

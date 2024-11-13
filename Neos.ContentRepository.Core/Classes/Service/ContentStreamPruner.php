@@ -39,7 +39,6 @@ use Neos\EventStore\Model\EventStream\VirtualStreamName;
 class ContentStreamPruner implements ContentRepositoryServiceInterface
 {
     public function __construct(
-        private readonly ContentRepository $contentRepository,
         private readonly EventStoreInterface $eventStore,
         private readonly EventNormalizer $eventNormalizer
     ) {

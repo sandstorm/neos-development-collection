@@ -31,12 +31,34 @@ final readonly class CatchUpHookFactoryDependencies
      * @param ContentRepositoryId $contentRepositoryId the content repository the catchup was registered in
      * @param ProjectionStateInterface&T $projectionState the state of the projection the catchup was registered to (Its only safe to access this projections state)
      */
-    public function __construct(
+    private function __construct(
         public ContentRepositoryId $contentRepositoryId,
         public ProjectionStateInterface $projectionState,
         public NodeTypeManager $nodeTypeManager,
         public ContentDimensionSourceInterface $contentDimensionSource,
         public InterDimensionalVariationGraph $variationGraph
     ) {
+    }
+
+    /**
+     * @template U of ProjectionStateInterface
+     * @param ProjectionStateInterface&U $projectionState
+     * @return CatchUpHookFactoryDependencies<U>
+     * @internal
+     */
+    public static function create(
+        ContentRepositoryId $contentRepositoryId,
+        ProjectionStateInterface $projectionState,
+        NodeTypeManager $nodeTypeManager,
+        ContentDimensionSourceInterface $contentDimensionSource,
+        InterDimensionalVariationGraph $variationGraph
+    ): self {
+        return new self(
+            $contentRepositoryId,
+            $projectionState,
+            $nodeTypeManager,
+            $contentDimensionSource,
+            $variationGraph
+        );
     }
 }

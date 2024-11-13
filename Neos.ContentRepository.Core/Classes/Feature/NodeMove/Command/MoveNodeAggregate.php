@@ -82,16 +82,15 @@ final readonly class MoveNodeAggregate implements
         return new self($workspaceName, $dimensionSpacePoint, $nodeAggregateId, $relationDistributionStrategy, $newParentNodeAggregateId, $newPrecedingSiblingNodeAggregateId, $newSucceedingSiblingNodeAggregateId);
     }
 
-    /**
-     * @param array<string,mixed> $array
-     */
     public static function fromArray(array $array): self
     {
         return new self(
             WorkspaceName::fromString($array['workspaceName']),
             DimensionSpacePoint::fromArray($array['dimensionSpacePoint']),
             NodeAggregateId::fromString($array['nodeAggregateId']),
-            RelationDistributionStrategy::fromString($array['relationDistributionStrategy']),
+            isset($array['relationDistributionStrategy'])
+                ? RelationDistributionStrategy::from($array['relationDistributionStrategy'])
+                : RelationDistributionStrategy::default(),
             isset($array['newParentNodeAggregateId'])
                 ? NodeAggregateId::fromString($array['newParentNodeAggregateId'])
                 : null,

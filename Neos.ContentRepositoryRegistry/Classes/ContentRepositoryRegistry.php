@@ -6,6 +6,8 @@ namespace Neos\ContentRepositoryRegistry;
 
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
+use Neos\ContentRepository\Core\Factory\CommandHookFactoryInterface;
+use Neos\ContentRepository\Core\Factory\CommandHooksFactory;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryFactory;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryInterface;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
@@ -18,6 +20,7 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionFa
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\Projection\ProjectionFactoryInterface;
+use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryIds;
 use Neos\ContentRepository\Core\SharedModel\User\UserIdProviderInterface;
@@ -182,6 +185,7 @@ final class ContentRepositoryRegistry
                 $this->buildSubscriptionStore($contentRepositoryId, $clock, $contentRepositorySettings),
                 $this->buildContentGraphProjectionFactory($contentRepositoryId, $contentRepositorySettings),
                 $this->buildContentGraphCatchUpHookFactory($contentRepositoryId, $contentRepositorySettings),
+                $this->buildCommandHooksFactory($contentRepositoryId, $contentRepositorySettings),
                 $this->buildAdditionalSubscribersFactories($contentRepositoryId, $contentRepositorySettings),
             );
         } catch (\Exception $exception) {
@@ -259,7 +263,10 @@ final class ContentRepositoryRegistry
         return $contentGraphProjectionFactory;
     }
 
-    /** @param array<string, mixed> $contentRepositorySettings */
+    /**
+     * @param array<string, mixed> $contentRepositorySettings
+     * @return CatchUpHookFactoryInterface<ProjectionStateInterface>
+     */
     private function buildContentGraphCatchUpHookFactory(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): CatchUpHookFactoryInterface
     {
         if (!isset($contentRepositorySettings['contentGraphProjection']['catchUpHooks'])) {
@@ -278,6 +285,27 @@ final class ContentRepositoryRegistry
             $catchUpHookFactories = $catchUpHookFactories->with($catchUpHookFactory);
         }
         return $catchUpHookFactories;
+    }
+
+    private function buildCommandHooksFactory(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): CommandHooksFactory
+    {
+        $commandHooksSettings = $contentRepositorySettings['commandHooks'] ?? [];
+        if (!is_array($commandHooksSettings)) {
+            throw InvalidConfigurationException::fromMessage('Content repository "%s" does not have the "commandHooks" configured properly. Expected array, got %s.', $contentRepositoryId->value, get_debug_type($commandHooksSettings));
+        }
+        $commandHookFactories = [];
+        foreach ((new PositionalArraySorter($commandHooksSettings))->toArray() as $name => $commandHookSettings) {
+            // Allow to unset/disable command hooks
+            if ($commandHookSettings === null) {
+                continue;
+            }
+            $commandHookFactory = $this->objectManager->get($commandHookSettings['factoryObjectName']);
+            if (!$commandHookFactory instanceof CommandHookFactoryInterface) {
+                throw InvalidConfigurationException::fromMessage('Factory object name for command hook "%s" (content repository "%s") is not an instance of %s but %s.', $name, $contentRepositoryId->value, CommandHookFactoryInterface::class, get_debug_type($commandHookFactory));
+            }
+            $commandHookFactories[] = $commandHookFactory;
+        }
+        return new CommandHooksFactory(...$commandHookFactories);
     }
 
     private function buildAdditionalSubscribersFactories(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): ContentRepositorySubscriberFactories

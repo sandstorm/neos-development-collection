@@ -45,4 +45,12 @@ final readonly class CreateRootWorkspace implements CommandInterface
     {
         return new self($workspaceName, $newContentStreamId);
     }
+
+    public static function fromArray(array $array): self
+    {
+        return new self(
+            WorkspaceName::fromString($array['workspaceName']),
+            ContentStreamId::fromString($array['newContentStreamId']),
+        );
+    }
 }
