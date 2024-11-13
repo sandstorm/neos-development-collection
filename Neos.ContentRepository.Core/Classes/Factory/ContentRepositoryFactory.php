@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Factory;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandBus;
+use Neos\ContentRepository\Core\CommandHandler\CommandHooks;
 use Neos\ContentRepository\Core\CommandHandler\CommandSimulatorFactory;
 use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\ContentRepository;
@@ -55,6 +56,7 @@ final class ContentRepositoryFactory
         ProjectionsAndCatchUpHooksFactory $projectionsAndCatchUpHooksFactory,
         private readonly UserIdProviderInterface $userIdProvider,
         private readonly ClockInterface $clock,
+        private readonly CommandHooksFactory $commandHooksFactory,
     ) {
         $contentDimensionZookeeper = new ContentDimensionZookeeper($contentDimensionSource);
         $interDimensionalVariationGraph = new InterDimensionalVariationGraph(
@@ -74,6 +76,9 @@ final class ContentRepositoryFactory
         $this->projectionsAndCatchUpHooks = $projectionsAndCatchUpHooksFactory->build($this->projectionFactoryDependencies);
     }
 
+    // guards against recursion and memory overflow
+    private bool $isBuilding = false;
+
     // The following properties store "singleton" references of objects for this content repository
     private ?ContentRepository $contentRepository = null;
     private ?EventPersister $eventPersister = null;
@@ -89,6 +94,10 @@ final class ContentRepositoryFactory
         if ($this->contentRepository) {
             return $this->contentRepository;
         }
+        if ($this->isBuilding) {
+            throw new \RuntimeException(sprintf('Content repository "%s" was attempted to be build in recursion.', $this->contentRepositoryId->value), 1730552199);
+        }
+        $this->isBuilding = true;
 
         $contentGraphReadModel = $this->projectionsAndCatchUpHooks->contentGraphProjection->getState();
         $commandHandlingDependencies = new CommandHandlingDependencies($contentGraphReadModel);
@@ -126,8 +135,14 @@ final class ContentRepositoryFactory
                 $this->projectionFactoryDependencies->eventNormalizer,
             )
         );
-
-        return $this->contentRepository = new ContentRepository(
+        $commandHooks = $this->commandHooksFactory->build(CommandHooksFactoryDependencies::create(
+            $this->contentRepositoryId,
+            $this->projectionsAndCatchUpHooks->contentGraphProjection->getState(),
+            $this->projectionFactoryDependencies->nodeTypeManager,
+            $this->projectionFactoryDependencies->contentDimensionSource,
+            $this->projectionFactoryDependencies->interDimensionalVariationGraph,
+        ));
+        $this->contentRepository = new ContentRepository(
             $this->contentRepositoryId,
             $publicCommandBus,
             $this->projectionFactoryDependencies->eventStore,
@@ -139,8 +154,11 @@ final class ContentRepositoryFactory
             $this->projectionFactoryDependencies->contentDimensionSource,
             $this->userIdProvider,
             $this->clock,
-            $contentGraphReadModel
+            $contentGraphReadModel,
+            $commandHooks,
         );
+        $this->isBuilding = false;
+        return $this->contentRepository;
     }
 
     /**

@@ -23,7 +23,11 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
 
 /**
- * @api for creating a custom content repository graph projection implementation, **not for users of the CR**
+ * This low level interface gives access to the content graph and workspaces
+ *
+ * Generally this is not accessible for users of the CR, except for registering a catchup-hook on the content graph
+ *
+ * @api as dependency in catchup hooks and for creating a custom content repository graph projection implementation
  */
 interface ContentGraphReadModelInterface extends ProjectionStateInterface
 {

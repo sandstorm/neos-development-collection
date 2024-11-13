@@ -30,7 +30,7 @@ class RebaseableCommands implements \IteratorAggregate
         $commands = [];
         foreach ($eventStream as $eventEnvelope) {
             if ($eventEnvelope->event->metadata && isset($eventEnvelope->event->metadata?->value['commandClass'])) {
-                $commands[] = RebaseableCommand::extractFromEventMetaData($eventEnvelope->event->metadata, $eventEnvelope->sequenceNumber);
+                $commands[] = RebaseableCommand::extractFromEventEnvelope($eventEnvelope);
             }
         }
 

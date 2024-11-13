@@ -35,18 +35,13 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\ContentStreamClosing;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\NodeCopying;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\NodeCreation;
-use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\NodeDisabling;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\NodeModification;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\NodeMove;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\NodeReferencing;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\NodeRemoval;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\NodeRenaming;
-use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\NodeTypeChange;
-use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\NodeVariation;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\SubtreeTagging;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\WorkspaceCreation;
-use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\WorkspaceDiscarding;
-use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\WorkspacePublishing;
 use Neos\EventStore\EventStoreInterface;
 use PHPUnit\Framework\Assert;
 
@@ -67,19 +62,14 @@ trait CRTestSuiteTrait
 
     use NodeCreation;
     use NodeCopying;
-    use NodeDisabling;
     use SubtreeTagging;
     use NodeModification;
     use NodeMove;
     use NodeReferencing;
     use NodeRemoval;
     use NodeRenaming;
-    use NodeTypeChange;
-    use NodeVariation;
 
     use WorkspaceCreation;
-    use WorkspaceDiscarding;
-    use WorkspacePublishing;
 
     /**
      * @BeforeScenario
@@ -107,21 +97,7 @@ trait CRTestSuiteTrait
     {
         $eventPayload = [];
         foreach ($payloadTable->getHash() as $line) {
-            if (\str_starts_with($line['Value'], '$this->')) {
-                // Special case: Referencing stuff from the context here
-                $propertyOrMethodName = \mb_substr($line['Value'], \mb_strlen('$this->'));
-                $value = match ($propertyOrMethodName) {
-                    'currentNodeAggregateId' => $this->getCurrentNodeAggregateId()->value,
-                    default => method_exists($this, $propertyOrMethodName) ? (string)$this->$propertyOrMethodName() : (string)$this->$propertyOrMethodName,
-                };
-            } else {
-                // default case
-                $value = json_decode($line['Value'], true);
-                if ($value === null && json_last_error() !== JSON_ERROR_NONE) {
-                    throw new \Exception(sprintf('The value "%s" is no valid JSON string', $line['Value']), 1546522626);
-                }
-            }
-            $eventPayload[$line['Key']] = $value;
+            $eventPayload[$line['Key']] = json_decode($line['Value'], true, 512, JSON_THROW_ON_ERROR);
         }
 
         return $eventPayload;

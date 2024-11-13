@@ -6,12 +6,12 @@ namespace Neos\ContentRepository\Core\Factory;
 
 use Neos\ContentRepository\Core\Projection\CatchUpHookFactories;
 use Neos\ContentRepository\Core\Projection\CatchUpHookFactoryInterface;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionFactoryInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 use Neos\ContentRepository\Core\Projection\Projections;
 use Neos\ContentRepository\Core\Projection\ProjectionsAndCatchUpHooks;
 use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
-use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionInterface;
 
 /**
  * @api for custom framework integrations, not for users of the CR
@@ -19,7 +19,7 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionIn
 final class ProjectionsAndCatchUpHooksFactory
 {
     /**
-     * @var array<string, array{factory: ProjectionFactoryInterface<ProjectionInterface<ProjectionStateInterface>>, options: array<string, mixed>, catchUpHooksFactories: array<CatchUpHookFactoryInterface>}>
+     * @var array<string, array{factory: ProjectionFactoryInterface<ProjectionInterface<ProjectionStateInterface>>, options: array<string, mixed>, catchUpHooksFactories: array<CatchUpHookFactoryInterface<ProjectionStateInterface>>}>
      */
     private array $factories = [];
 
@@ -40,7 +40,7 @@ final class ProjectionsAndCatchUpHooksFactory
 
     /**
      * @param ProjectionFactoryInterface<ProjectionInterface<ProjectionStateInterface>> $factory
-     * @param CatchUpHookFactoryInterface $catchUpHookFactory
+     * @param CatchUpHookFactoryInterface<ProjectionStateInterface> $catchUpHookFactory
      * @return void
      * @api
      */
