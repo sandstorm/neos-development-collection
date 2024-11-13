@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\CommandHandler;
 
-use Neos\ContentRepository\Core\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 
@@ -14,26 +13,41 @@ use Neos\ContentRepository\Core\EventStore\EventsToPublish;
  *
  * @internal
  */
-final class CommandBus
+final readonly class CommandBus
 {
     /**
      * @var CommandHandlerInterface[]
      */
     private array $handlers;
 
-    public function __construct(CommandHandlerInterface ...$handlers)
-    {
+    public function __construct(
+        // todo pass $commandHandlingDependencies in each command handler instead of into the commandBus
+        private CommandHandlingDependencies $commandHandlingDependencies,
+        CommandHandlerInterface ...$handlers
+    ) {
         $this->handlers = $handlers;
     }
 
-    public function handle(CommandInterface $command, CommandHandlingDependencies $commandHandlingDependencies): EventsToPublish
+    /**
+     * @return EventsToPublish|\Generator<int, EventsToPublish>
+     */
+    public function handle(CommandInterface $command): EventsToPublish|\Generator
     {
-        // TODO fail if multiple handlers can handle the same command
+        // multiple handlers must not handle the same command
         foreach ($this->handlers as $handler) {
             if ($handler->canHandle($command)) {
-                return $handler->handle($command, $commandHandlingDependencies);
+                return $handler->handle($command, $this->commandHandlingDependencies);
             }
         }
         throw new \RuntimeException(sprintf('No handler found for Command "%s"', get_debug_type($command)), 1649582778);
+    }
+
+    public function withAdditionalHandlers(CommandHandlerInterface ...$handlers): self
+    {
+        return new self(
+            $this->commandHandlingDependencies,
+            ...$this->handlers,
+            ...$handlers,
+        );
     }
 }
