@@ -350,13 +350,15 @@ trait GenericCommandExecutionAndEventPublication
     /**
      * @AfterScenario
      */
-    public function ensureNoUnhandledCommandExceptions(): void
+    public function ensureNoUnhandledCommandExceptions(\Behat\Behat\Hook\Scope\AfterScenarioScope $event): void
     {
         if ($this->lastCommandException !== null) {
             Assert::fail(sprintf(
-                'Last command did throw with exception which was not asserted: %s: %s',
+                'Last command did throw with exception which was not asserted: %s: "%s" in %s:%s',
                 $this->lastCommandException::class,
-                $this->lastCommandException->getMessage()
+                $this->lastCommandException->getMessage(),
+                $event->getFeature()->getFile(),
+                $event->getScenario()->getLine(),
             ));
         }
     }
