@@ -53,6 +53,7 @@ Feature: Constraint checks on node aggregate disabling
       | nodeAggregateId              | "i-do-not-exist" |
       | nodeVariantSelectionStrategy | "allVariants"    |
       | tag                          | "disabled"       |
+    Then the last command should have thrown an exception of type "NodeAggregateCurrentlyDoesNotExist"
 
   Scenario: Try to disable an already disabled node aggregate
     Given the command DisableNodeAggregate is executed with payload:
