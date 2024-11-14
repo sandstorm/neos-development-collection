@@ -89,7 +89,10 @@ final readonly class ContentRepository
         if ($toPublish instanceof EventsToPublish) {
             $eventsToPublish = $this->enrichEventsToPublishWithMetadata($toPublish);
             $this->eventStore->commit($eventsToPublish->streamName, $this->eventNormalizer->normalizeEvents($eventsToPublish), $eventsToPublish->expectedVersion);
-            $this->subscriptionEngine->catchUpActive();
+            $catchUpResult = $this->subscriptionEngine->catchUpActive();
+            if ($catchUpResult->hasErrors()) {
+                throw new \RuntimeException('Catchup led to errors.. todo', 1731612294);
+            }
             return;
         }
 
@@ -118,7 +121,10 @@ final readonly class ContentRepository
         } finally {
             // We always NEED to catchup even if there was an unexpected ConcurrencyException to make sure previous commits are handled.
             // Technically it would be acceptable for the catchup to fail here (due to hook errors) because all the events are already persisted.
-            $this->subscriptionEngine->catchUpActive();
+            $catchUpResult = $this->subscriptionEngine->catchUpActive();
+            if ($catchUpResult->hasErrors()) {
+                throw new \RuntimeException('Catchup led to errors.. todo', 1731612294);
+            }
         }
     }
 

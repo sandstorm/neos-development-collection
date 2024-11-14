@@ -21,6 +21,9 @@ final readonly class Errors implements \IteratorAggregate, \Countable
         Error ...$errors
     ) {
         $this->errors = $errors;
+        if ($this->errors === []) {
+            throw new \InvalidArgumentException('Errors must not be empty.', 1731612542);
+        }
     }
 
     /**
@@ -34,11 +37,6 @@ final readonly class Errors implements \IteratorAggregate, \Countable
     public function getIterator(): \Traversable
     {
         yield from $this->errors;
-    }
-
-    public function isEmpty(): bool
-    {
-        return $this->errors === [];
     }
 
     public function count(): int

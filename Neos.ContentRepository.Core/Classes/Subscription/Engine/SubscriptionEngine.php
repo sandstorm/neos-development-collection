@@ -312,10 +312,8 @@ final class SubscriptionEngine
                         $this->logger?->info(sprintf('Subscription Engine: Subscription "%s" has been set to active after booting.', $subscription->id->value));
                     }
                 }
-
                 $this->logger?->info('Subscription Engine: Finish catch up.');
-
-                return ProcessedResult::failed($numberOfProcessedEvents, Errors::fromArray($errors));
+                return $errors === [] ? ProcessedResult::success($numberOfProcessedEvents) : ProcessedResult::failed($numberOfProcessedEvents, Errors::fromArray($errors));
             }
         );
     }
