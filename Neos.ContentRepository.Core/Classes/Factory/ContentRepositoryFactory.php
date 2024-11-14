@@ -38,7 +38,6 @@ use Neos\ContentRepository\Core\Projection\ProjectionStates;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\User\UserIdProviderInterface;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
-use Neos\ContentRepository\Core\Subscription\EventStore\RunSubscriptionEventStore;
 use Neos\ContentRepository\Core\Subscription\RetryStrategy\NoRetryStrategy;
 use Neos\ContentRepository\Core\Subscription\RunMode;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
@@ -59,7 +58,6 @@ use Symfony\Component\Serializer\Serializer;
 final class ContentRepositoryFactory
 {
     private SubscriberFactoryDependencies $subscriberFactoryDependencies;
-    private EventStoreInterface $eventStore;
     private SubscriptionEngine $subscriptionEngine;
     private ContentGraphProjectionInterface $contentGraphProjection;
     private ProjectionStates $additionalProjectionStates;
@@ -75,7 +73,7 @@ final class ContentRepositoryFactory
      */
     public function __construct(
         private readonly ContentRepositoryId $contentRepositoryId,
-        EventStoreInterface $eventStore,
+        private readonly EventStoreInterface $eventStore,
         NodeTypeManager $nodeTypeManager,
         ContentDimensionSourceInterface $contentDimensionSource,
         Serializer $propertySerializer,
@@ -86,7 +84,7 @@ final class ContentRepositoryFactory
         private readonly CatchUpHookFactoryInterface $contentGraphCatchUpHookFactory,
         private readonly CommandHooksFactory $commandHooksFactory,
         private readonly ContentRepositorySubscriberFactories $additionalSubscriberFactories,
-        private LoggerInterface|null $logger = null,
+        LoggerInterface|null $logger = null,
     ) {
         $contentDimensionZookeeper = new ContentDimensionZookeeper($contentDimensionSource);
         $interDimensionalVariationGraph = new InterDimensionalVariationGraph(
@@ -115,8 +113,7 @@ final class ContentRepositoryFactory
         $this->additionalProjectionStates = ProjectionStates::fromArray($additionalProjectionStates);
         $this->contentGraphProjection = $contentGraphProjectionFactory->build($this->subscriberFactoryDependencies);
         $subscribers[] = $this->buildContentGraphSubscriber();
-        $this->subscriptionEngine = new SubscriptionEngine($eventStore, $subscriptionStore, Subscribers::fromArray($subscribers), $eventNormalizer, new NoRetryStrategy(), $this->logger);
-        $this->eventStore = new RunSubscriptionEventStore($eventStore, $this->subscriptionEngine);
+        $this->subscriptionEngine = new SubscriptionEngine($this->eventStore, $subscriptionStore, Subscribers::fromArray($subscribers), $eventNormalizer, new NoRetryStrategy(), $logger);
     }
 
     private function buildContentGraphSubscriber(): Subscriber
