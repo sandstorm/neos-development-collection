@@ -6,8 +6,10 @@ namespace Neos\ContentRepositoryRegistry\Command;
 use Neos\ContentRepository\Core\Projection\CatchUpOptions;
 use Neos\ContentRepository\Core\Projection\ProjectionStatusType;
 use Neos\ContentRepository\Core\Service\ContentStreamPrunerFactory;
+use Neos\ContentRepository\Core\Service\SubscriptionServiceFactory;
 use Neos\ContentRepository\Core\Service\WorkspaceMaintenanceServiceFactory;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatusFilter;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\ContentRepositoryRegistry\Service\ProjectionServiceFactory;
 use Neos\EventStore\Model\Event\SequenceNumber;
@@ -24,7 +26,7 @@ final class CrCommandController extends CommandController
 
     public function __construct(
         private readonly ContentRepositoryRegistry $contentRepositoryRegistry,
-        private readonly ProjectionServiceFactory  $projectionServiceFactory,
+        private readonly ProjectionServiceFactory $projectionServiceFactory,
     ) {
         parent::__construct();
     }
@@ -44,9 +46,36 @@ final class CrCommandController extends CommandController
     public function setupCommand(string $contentRepository = 'default'): void
     {
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
+        $subscriptionService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new SubscriptionServiceFactory());
+        $subscriptionService->setupEventStore();
+        $subscriptionService->subscriptionEngine->setup();
 
-        // TODO $this->contentRepositoryRegistry->get($contentRepositoryId);
         $this->outputLine('<success>Content Repository "%s" was set up</success>', [$contentRepositoryId->value]);
+    }
+
+    public function subscriptionsBootCommand(string $contentRepository = 'default'): void
+    {
+        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
+        $subscriptionService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new SubscriptionServiceFactory());
+        $subscriptionService->subscriptionEngine->boot();
+    }
+
+    public function subscriptionsCatchUpCommand(string $contentRepository = 'default'): void
+    {
+        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
+        $subscriptionService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new SubscriptionServiceFactory());
+        $subscriptionService->subscriptionEngine->run();
+    }
+
+    public function subscriptionsResetCommand(string $contentRepository = 'default', bool $force = false): void
+    {
+        if (!$force && !$this->output->askConfirmation('<error>Are you sure? (y/n)</error> ', false)) {
+            $this->outputLine('Cancelled');
+            $this->quit();
+        }
+        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
+        $subscriptionService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new SubscriptionServiceFactory());
+        //$subscriptionService->subscriptionEngine->reset();
     }
 
     /**

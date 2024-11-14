@@ -11,19 +11,32 @@ namespace Neos\ContentRepository\Core\Subscription;
 final class SubscriptionIds implements \IteratorAggregate, \Countable, \JsonSerializable
 {
     /**
-     * @param array<SubscriptionId> $items
+     * @param array<string, SubscriptionId> $subscriptionIdsById
      */
     private function __construct(
-        private readonly array $items
+        private readonly array $subscriptionIdsById
     ) {
     }
 
     /**
-     * @param array<string|SubscriptionId> $items
+     * @param array<string|SubscriptionId> $ids
      */
-    public static function fromArray(array $items): self
+    public static function fromArray(array $ids): self
     {
-        return new self(array_map(static fn ($item) => $item instanceof SubscriptionId ? $item : SubscriptionId::fromString($item), $items));
+        $subscriptionIdsById = [];
+        foreach ($ids as $id) {
+            if (is_string($id)) {
+                $id = SubscriptionId::fromString($id);
+            }
+            if (!$id instanceof SubscriptionId) {
+                throw new \InvalidArgumentException(sprintf('Expected instance of %s, got: %s', SubscriptionId::class, get_debug_type($id)), 1731580820);
+            }
+            if (array_key_exists($id->value, $subscriptionIdsById)) {
+                throw new \InvalidArgumentException(sprintf('Subscription id "%s" is already part of this set', $id->value), 1731580838);
+            }
+            $subscriptionIdsById[$id->value] = $id;
+        }
+        return new self($subscriptionIdsById);
     }
 
     public static function none(): self
@@ -33,30 +46,25 @@ final class SubscriptionIds implements \IteratorAggregate, \Countable, \JsonSeri
 
     public function getIterator(): \Traversable
     {
-        return yield from $this->items;
+        yield from array_values($this->subscriptionIdsById);
     }
 
     public function count(): int
     {
-        return count($this->items);
+        return count($this->subscriptionIdsById);
     }
 
     public function contain(SubscriptionId $id): bool
     {
-        foreach ($this->items as $item) {
-            if ($item->equals($id)) {
-                return true;
-            }
-        }
-        return false;
+        return array_key_exists($id->value, $this->subscriptionIdsById);
     }
 
     /**
-     * @return array<string>
+     * @return list<string>
      */
     public function toStringArray(): array
     {
-        return array_map(static fn (SubscriptionId $id) => $id->value, $this->items);
+        return array_values(array_map(static fn (SubscriptionId $id) => $id->value, $this->subscriptionIdsById));
     }
 
     /**
@@ -64,6 +72,6 @@ final class SubscriptionIds implements \IteratorAggregate, \Countable, \JsonSeri
      */
     public function jsonSerialize(): iterable
     {
-        return array_values($this->items);
+        return array_values($this->subscriptionIdsById);
     }
 }

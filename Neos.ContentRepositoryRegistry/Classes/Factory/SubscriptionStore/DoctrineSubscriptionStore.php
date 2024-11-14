@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepositoryRegistry\Factory\SubscriptionStore;
 
-use Closure;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\SqlitePlatform;
@@ -17,7 +16,7 @@ use Doctrine\DBAL\Types\Types;
 use Neos\ContentRepository\Core\Infrastructure\DbalSchemaDiff;
 use Neos\ContentRepository\Core\Subscription\RunMode;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionCriteria;
-use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
+use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreWithTransactionSupportInterface;
 use Neos\ContentRepository\Core\Subscription\Subscription;
 use Neos\ContentRepository\Core\Subscription\SubscriptionError;
 use Neos\ContentRepository\Core\Subscription\SubscriptionGroup;
@@ -27,10 +26,7 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Psr\Clock\ClockInterface;
 
-/**
- * @api
- */
-final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
+final class DoctrineSubscriptionStore implements SubscriptionStoreWithTransactionSupportInterface
 {
     public function __construct(
         private string $tableName,
@@ -52,7 +48,6 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
             (new Column('group_name', Type::getType(Types::STRING)))->setNotnull(true)->setLength(100)->setPlatformOption('charset', 'ascii')->setPlatformOption('collation', $isSqlite ? null : 'ascii_general_ci'),
             (new Column('run_mode', Type::getType(Types::STRING)))->setNotnull(true)->setLength(16)->setPlatformOption('charset', 'ascii')->setPlatformOption('collation', $isSqlite ? null : 'ascii_general_ci'),
             (new Column('position', Type::getType(Types::INTEGER)))->setNotnull(true),
-            (new Column('locked', Type::getType(Types::BOOLEAN)))->setNotnull(true),
             (new Column('status', Type::getType(Types::STRING)))->setNotnull(true)->setLength(32)->setPlatformOption('charset', 'ascii')->setPlatformOption('collation', $isSqlite ? null : 'ascii_general_ci'),
             (new Column('error_message', Type::getType(Types::TEXT)))->setNotnull(false),
             (new Column('error_previous_status', Type::getType(Types::STRING)))->setNotnull(false)->setLength(32)->setPlatformOption('charset', 'ascii')->setPlatformOption('collation', $isSqlite ? null : 'ascii_general_ci'),
@@ -104,11 +99,11 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
                     Connection::PARAM_STR_ARRAY,
                 );
         }
-        if ($criteria->status !== null) {
+        if (!$criteria->status->isEmpty()) {
             $queryBuilder->andWhere('status IN (:status)')
                 ->setParameter(
                     'status',
-                    array_map(static fn (SubscriptionStatus $status) => $status->name, $criteria->status),
+                    $criteria->status->toStringArray(),
                     Connection::PARAM_STR_ARRAY,
                 );
         }
@@ -121,33 +116,10 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
         return Subscriptions::fromArray(array_map(self::fromDatabase(...), $rows));
     }
 
-    public function acquireLock(SubscriptionId $subscriptionId): bool
-    {
-        $data = [
-            'locked' => 1,
-            'last_saved_at' => $this->clock->now()->format('Y-m-d H:i:s'),
-        ];
-        $acquired = $this->dbal->update($this->tableName, $data, [
-            'id' => $subscriptionId->value,
-            'locked' => 0,
-        ]);
-        return $acquired >= 1;
-    }
-
-    public function releaseLock(SubscriptionId $subscriptionId): void
-    {
-        $data = [
-            'locked' => 0,
-            'last_saved_at' => $this->clock->now()->format('Y-m-d H:i:s'),
-        ];
-        $this->dbal->update($this->tableName, $data, ['id' => $subscriptionId->value]);
-    }
-
     public function add(Subscription $subscription): void
     {
         $row = self::toDatabase($subscription);
         $row['id'] = $subscription->id->value;
-        $row['locked'] = 0;
         $row['last_saved_at'] = $this->clock->now()->format('Y-m-d H:i:s');
         $this->dbal->insert(
             $this->tableName,
@@ -155,21 +127,15 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
         );
     }
 
-    public function update(SubscriptionId $subscriptionId, Closure $updater): void
+    public function update(Subscription $subscription): void
     {
-        $subscription = $this->findOneById($subscriptionId);
-        if ($subscription === null) {
-            throw new \InvalidArgumentException(sprintf('Failed to update subscription with id "%s" because it does not exist', $subscriptionId->value), 1721672347);
-        }
-        /** @var Subscription $subscription */
-        $subscription = $updater($subscription);
         $row = self::toDatabase($subscription);
         $row['last_saved_at'] = $this->clock->now()->format('Y-m-d H:i:s');
         $this->dbal->update(
             $this->tableName,
             $row,
             [
-                'id' => $subscriptionId->value,
+                'id' => $subscription->id->value,
             ]
         );
     }
@@ -209,7 +175,6 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
         assert(is_string($row['run_mode']));
         assert(is_string($row['status']));
         assert(is_int($row['position']));
-        assert(is_int($row['locked']));
         assert(is_int($row['retry_attempt']));
         assert(is_string($row['last_saved_at']));
         $lastSavedAt = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $row['last_saved_at']);
@@ -221,10 +186,14 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
             RunMode::from($row['run_mode']),
             SubscriptionStatus::from($row['status']),
             SequenceNumber::fromInteger($row['position']),
-            (bool)$row['locked'],
             $subscriptionError,
             $row['retry_attempt'],
             $lastSavedAt,
         );
+    }
+
+    public function transactional(\Closure $closure): mixed
+    {
+        return $this->dbal->transactional($closure);
     }
 }

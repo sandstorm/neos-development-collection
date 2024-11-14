@@ -42,6 +42,7 @@ use Neos\Flow\ObjectManagement\ObjectManagerInterface;
 use Neos\Utility\Arrays;
 use Neos\Utility\PositionalArraySorter;
 use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 use Symfony\Component\Serializer\Serializer;
@@ -64,6 +65,7 @@ final class ContentRepositoryRegistry
         private readonly array $settings,
         private readonly ObjectManagerInterface $objectManager,
         private readonly SubgraphCachePool $subgraphCachePool,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -187,6 +189,7 @@ final class ContentRepositoryRegistry
                 $this->buildContentGraphCatchUpHookFactory($contentRepositoryId, $contentRepositorySettings),
                 $this->buildCommandHooksFactory($contentRepositoryId, $contentRepositorySettings),
                 $this->buildAdditionalSubscribersFactories($contentRepositoryId, $contentRepositorySettings),
+                $this->logger,
             );
         } catch (\Exception $exception) {
             throw InvalidConfigurationException::fromException($contentRepositoryId, $exception);

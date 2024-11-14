@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Subscription;
 
+use Neos\EventStore\Model\Event\SequenceNumber;
+
 /**
  * @implements \IteratorAggregate<Subscription>
  * @internal
@@ -11,24 +13,29 @@ namespace Neos\ContentRepository\Core\Subscription;
 final class Subscriptions implements \IteratorAggregate, \Countable, \JsonSerializable
 {
     /**
-     * @param array<Subscription> $items
+     * @param array<string, Subscription> $subscriptionsById
      */
     private function __construct(
-        private readonly array $items
+        private readonly array $subscriptionsById
     ) {
     }
 
     /**
-     * @param array<Subscription> $items
+     * @param array<Subscription> $subscriptions
      */
-    public static function fromArray(array $items): self
+    public static function fromArray(array $subscriptions): self
     {
-        foreach ($items as $item) {
-            if ($item instanceof Subscription) {
-                throw new \InvalidArgumentException(sprintf('Expected instance of %s, got: %s', Subscription::class, get_debug_type($item)), 1729679774);
+        $subscriptionsById = [];
+        foreach ($subscriptions as $subscription) {
+            if (!$subscription instanceof Subscription) {
+                throw new \InvalidArgumentException(sprintf('Expected instance of %s, got: %s', Subscription::class, get_debug_type($subscription)), 1729679774);
             }
+            if (array_key_exists($subscription->id->value, $subscriptionsById)) {
+                throw new \InvalidArgumentException(sprintf('Subscription with id "%s" is contained multiple times in this set', $subscription->id->value), 1731580354);
+            }
+            $subscriptionsById[$subscription->id->value] = $subscription;
         }
-        return new self($items);
+        return new self($subscriptionsById);
     }
 
     public static function none(): self
@@ -38,42 +45,37 @@ final class Subscriptions implements \IteratorAggregate, \Countable, \JsonSerial
 
     public function getIterator(): \Traversable
     {
-        return yield from $this->items;
+        yield from $this->subscriptionsById;
     }
 
     public function isEmpty(): bool
     {
-        return $this->items === [];
+        return $this->subscriptionsById === [];
     }
 
     public function count(): int
     {
-        return count($this->items);
+        return count($this->subscriptionsById);
     }
 
     public function contain(SubscriptionId $subscriptionId): bool
     {
-        foreach ($this->items as $item) {
-            if ($item->id->equals($subscriptionId)) {
-                return true;
-            }
-        }
-        return false;
+        return array_key_exists($subscriptionId->value, $this->subscriptionsById);
     }
 
     public function get(SubscriptionId $subscriptionId): Subscription
     {
-        foreach ($this->items as $item) {
-            if ($item->id->equals($subscriptionId)) {
-                return $item;
-            }
+        if (!$this->contain($subscriptionId)) {
+            throw new \InvalidArgumentException(sprintf('Subscription with id "%s" not part of this set', $subscriptionId->value), 1723567808);
         }
-        throw new \InvalidArgumentException(sprintf('Subscription with id "%s" not part of this set', $subscriptionId->value), 1723567808);
+        return $this->subscriptionsById[$subscriptionId->value];
     }
 
     public function without(SubscriptionId $subscriptionId): self
     {
-        return $this->filter(static fn (Subscription $subscription) => !$subscription->id->equals($subscriptionId));
+        $subscriptionsById = $this->subscriptionsById;
+        unset($subscriptionsById[$subscriptionId->value]);
+        return new self($subscriptionsById);
     }
 
     /**
@@ -81,7 +83,7 @@ final class Subscriptions implements \IteratorAggregate, \Countable, \JsonSerial
      */
     public function filter(\Closure $callback): self
     {
-        return self::fromArray(array_filter($this->items, $callback));
+        return self::fromArray(array_filter($this->subscriptionsById, $callback));
     }
 
     /**
@@ -91,31 +93,12 @@ final class Subscriptions implements \IteratorAggregate, \Countable, \JsonSerial
      */
     public function map(\Closure $callback): array
     {
-        return array_map($callback, $this->items);
+        return array_map($callback, $this->subscriptionsById);
     }
 
-    public function withAdded(Subscription $subscription): self
+    public function with(Subscription $subscription): self
     {
-        if ($this->contain($subscription->id)) {
-            throw new \InvalidArgumentException(sprintf('Subscription with id "%s" is already part of this set', $subscription->id->value), 1723568258);
-        }
-        return new self([...$this->items, $subscription]);
-    }
-
-    public function withReplaced(SubscriptionId $subscriptionId, Subscription $subscription): self
-    {
-        if (!$this->contain($subscription->id)) {
-            throw new \InvalidArgumentException(sprintf('Subscription with id "%s" is not part of this set', $subscription->id->value), 1723568412);
-        }
-        $newItems = [];
-        foreach ($this->items as $item) {
-            if ($item->id->equals($subscriptionId)) {
-                $newItems[] = $subscription;
-            } else {
-                $newItems[] = $item;
-            }
-        }
-        return new self($newItems);
+        return new self([...$this->subscriptionsById, $subscription->id->value => $subscription]);
     }
 
     /**
@@ -123,6 +106,18 @@ final class Subscriptions implements \IteratorAggregate, \Countable, \JsonSerial
      */
     public function jsonSerialize(): iterable
     {
-        return array_values($this->items);
+        return array_values($this->subscriptionsById);
+    }
+
+    public function lowestPosition(): SequenceNumber
+    {
+        $min = null;
+        foreach ($this->subscriptionsById as $subscription) {
+            if ($min !== null && $subscription->position->value >= $min->value) {
+                continue;
+            }
+            $min = $subscription->position;
+        }
+        return $min ?? SequenceNumber::fromInteger(0);
     }
 }

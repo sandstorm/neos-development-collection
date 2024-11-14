@@ -31,7 +31,7 @@ final class Subscribers implements \IteratorAggregate, \Countable, \JsonSerializ
                 throw new \InvalidArgumentException(sprintf('Expected instance of %s, got: %s', Subscriber::class, get_debug_type($subscriber)), 1721731490);
             }
             if (array_key_exists($subscriber->id->value, $subscribersById)) {
-                throw new \InvalidArgumentException(sprintf('Subscriber with id "%s" already part of this set', $subscriber->id->value), 1721731494);
+                throw new \InvalidArgumentException(sprintf('Subscriber with id "%s" is already part of this set', $subscriber->id->value), 1721731494);
             }
             $subscribersById[$subscriber->id->value] = $subscriber;
         }
@@ -63,7 +63,7 @@ final class Subscribers implements \IteratorAggregate, \Countable, \JsonSerializ
 
     public function getIterator(): \Traversable
     {
-        return yield from $this->subscribersById;
+        yield from array_values($this->subscribersById);
     }
 
     public function count(): int

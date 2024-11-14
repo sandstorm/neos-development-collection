@@ -16,8 +16,8 @@ final class SubscriptionError
     ) {
     }
 
-    public static function fromThrowable(SubscriptionStatus $status, \Throwable $error): self
+    public static function fromPreviousStatusAndException(SubscriptionStatus $previousStatus, \Throwable $error): self
     {
-        return new self($error->getMessage(), $status, $error->getTraceAsString());
+        return new self($error->getMessage(), $previousStatus, $error->getTraceAsString());
     }
 }

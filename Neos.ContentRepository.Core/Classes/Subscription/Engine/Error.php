@@ -11,10 +11,19 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionId;
  */
 final class Error
 {
-    public function __construct(
+    private function __construct(
         public readonly SubscriptionId $subscriptionId,
         public readonly string $message,
         public readonly \Throwable $throwable,
     ) {
+    }
+
+    public static function fromSubscriptionIdAndException(SubscriptionId $subscriptionId, \Throwable $exception): self
+    {
+        return new self(
+            $subscriptionId,
+            $exception->getMessage(),
+            $exception,
+        );
     }
 }

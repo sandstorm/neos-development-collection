@@ -13,7 +13,7 @@ use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
  *
  * @internal
  */
-final class ProjectionReplayService implements ContentRepositoryServiceInterface
+final class ProjectionService implements ContentRepositoryServiceInterface
 {
     public function __construct(
         private readonly SubscriptionEngine $subscriptionEngine,

@@ -49,6 +49,7 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionGroup;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\EventStore\EventStoreInterface;
 use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Serializer\Serializer;
 
 /**
@@ -87,6 +88,7 @@ final class ContentRepositoryFactory
         private readonly CatchUpHookFactoryInterface $contentGraphCatchUpHookFactory,
         private readonly CommandHooksFactory $commandHooksFactory,
         private readonly ContentRepositorySubscriberFactories $additionalSubscriberFactories,
+        private LoggerInterface|null $logger = null,
     ) {
         $contentDimensionZookeeper = new ContentDimensionZookeeper($contentDimensionSource);
         $interDimensionalVariationGraph = new InterDimensionalVariationGraph(
@@ -103,7 +105,7 @@ final class ContentRepositoryFactory
             $interDimensionalVariationGraph,
             new PropertyConverter($propertySerializer)
         );
-        $subscribers = [$this->buildContentGraphSubscriber()];
+        $subscribers = [];
         $additionalProjectionStates = [];
         foreach ($this->additionalSubscriberFactories as $additionalSubscriberFactory) {
             $subscriber = $additionalSubscriberFactory->build($this->subscriberFactoryDependencies);
@@ -114,7 +116,8 @@ final class ContentRepositoryFactory
         }
         $this->additionalProjectionStates = ProjectionStates::fromArray($additionalProjectionStates);
         $this->contentGraphProjection = $contentGraphProjectionFactory->build($this->subscriberFactoryDependencies);
-        $this->subscriptionEngine = new SubscriptionEngine($eventStore, $subscriptionStore, Subscribers::fromArray($subscribers), $eventNormalizer, new NoRetryStrategy());
+        $subscribers[] = $this->buildContentGraphSubscriber();
+        $this->subscriptionEngine = new SubscriptionEngine($eventStore, $subscriptionStore, Subscribers::fromArray($subscribers), $eventNormalizer, new NoRetryStrategy(), $this->logger);
         $this->eventStore = new RunSubscriptionEventStore($eventStore, $this->subscriptionEngine);
     }
 

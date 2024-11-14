@@ -42,26 +42,13 @@ final class InMemorySubscriptionStore implements SubscriptionStoreInterface
         });
     }
 
-    public function acquireLock(SubscriptionId $subscriptionId): bool
-    {
-        // no locking for this implementation
-        return true;
-    }
-
-    public function releaseLock(SubscriptionId $subscriptionId): void
-    {
-        // no locking for this implementation
-    }
-
     public function add(Subscription $subscription): void
     {
-        $this->subscriptions = $this->subscriptions->withAdded($subscription);
+        $this->subscriptions = $this->subscriptions->with($subscription);
     }
 
-    public function update(SubscriptionId $subscriptionId, \Closure $updater): void
+    public function update(Subscription $subscription): void
     {
-        $subscription = $this->subscriptions->get($subscriptionId);
-        $subscription = $updater($subscription);
-        $this->subscriptions = $this->subscriptions->withReplaced($subscriptionId, $subscription);
+        $this->subscriptions = $this->subscriptions->with($subscription);
     }
 }

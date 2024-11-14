@@ -11,56 +11,67 @@ namespace Neos\ContentRepository\Core\Subscription;
 final class SubscriptionGroups implements \IteratorAggregate, \Countable, \JsonSerializable
 {
     /**
-     * @param array<SubscriptionGroup> $items
+     * @param array<string, SubscriptionGroup> $groupsByValue
      */
     private function __construct(
-        private readonly array $items
+        private readonly array $groupsByValue
     ) {
     }
 
     /**
-     * @param list<SubscriptionGroup|string> $items
+     * @param list<SubscriptionGroup|string> $groups
      */
-    public static function fromArray(array $items): self
+    public static function fromArray(array $groups): self
     {
-        return new self(array_map(static fn ($item) => $item instanceof SubscriptionGroup ? $item : SubscriptionGroup::fromString($item), $items));
+        $groupsByValue = [];
+        foreach ($groups as $group) {
+            if (is_string($group)) {
+                $group = SubscriptionGroup::fromString($group);
+            }
+            if (!$group instanceof SubscriptionGroup) {
+                throw new \InvalidArgumentException(sprintf('Expected instance of %s, got: %s', SubscriptionGroup::class, get_debug_type($group)), 1731580587);
+            }
+            if (array_key_exists($group->value, $groupsByValue)) {
+                throw new \InvalidArgumentException(sprintf('Group "%s" is already part of this set', $group->value), 1731580633);
+            }
+            $groupsByValue[$group->value] = $group;
+        }
+        return new self($groupsByValue);
     }
 
     public static function none(): self
     {
-        return self::fromArray([]);
+        return new self([]);
     }
 
     public function getIterator(): \Traversable
     {
-        return yield from $this->items;
+        yield from array_values($this->groupsByValue);
     }
 
     public function count(): int
     {
-        return count($this->items);
+        return count($this->groupsByValue);
     }
 
     public function contain(SubscriptionGroup $group): bool
     {
-        foreach ($this->items as $item) {
-            if ($item->equals($group)) {
-                return true;
-            }
-        }
-        return false;
+        return array_key_exists($group->value, $this->groupsByValue);
     }
 
     /**
-     * @return array<string>
+     * @return list<string>
      */
     public function toStringArray(): array
     {
-        return array_map(static fn (SubscriptionGroup $group) => $group->value, $this->items);
+        return array_values(array_map(static fn (SubscriptionGroup $group) => $group->value, $this->groupsByValue));
     }
 
-    public function jsonSerialize(): mixed
+    /**
+     * @return iterable<mixed>
+     */
+    public function jsonSerialize(): iterable
     {
-        return array_values($this->items);
+        return array_values($this->groupsByValue);
     }
 }

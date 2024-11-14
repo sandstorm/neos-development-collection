@@ -41,6 +41,11 @@ final readonly class ProjectionEventHandler implements EventHandlerInterface
         return new self($projection, $catchUpHook);
     }
 
+    public function setup(): void
+    {
+        $this->projection->setUp();
+    }
+
     public function onBeforeCatchUp(SubscriptionStatus $subscriptionStatus): void
     {
         $this->catchUpHook?->onBeforeCatchUp($subscriptionStatus);

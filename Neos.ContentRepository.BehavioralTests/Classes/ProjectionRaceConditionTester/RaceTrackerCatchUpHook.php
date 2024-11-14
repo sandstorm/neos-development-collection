@@ -23,7 +23,7 @@ use Neos\EventStore\Model\EventEnvelope;
 use Neos\Flow\Annotations as Flow;
 
 /**
- * We had some race conditions in projections, where {@see \Neos\ContentRepository\Core\Infrastructure\DbalCheckpointStorage} was not working properly.
+ * We had some race conditions in projections
  * We saw some non-deterministic, random errors when running the tests - unluckily only on Linux, not on OSX:
  * On OSX, forking a new subprocess in {@see SubprocessProjectionCatchUpTrigger} is *WAY* slower than in Linux;
  * and thus the race conditions which appears if two projector instances of the same class run concurrently

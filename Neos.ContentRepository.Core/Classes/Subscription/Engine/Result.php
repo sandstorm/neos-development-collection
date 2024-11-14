@@ -7,12 +7,10 @@ namespace Neos\ContentRepository\Core\Subscription\Engine;
 /**
  * @internal
  */
-final class ProcessedResult
+final class Result
 {
     /** @param list<Error> $errors */
     public function __construct(
-        public readonly int $numberOfProcessedEvents,
-        public readonly bool $finished = false,
         public readonly array $errors = [],
     ) {
     }
