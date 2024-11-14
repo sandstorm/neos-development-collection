@@ -103,14 +103,14 @@ final class SubscriptionEngine
     private function handleEvent(EventEnvelope $eventEnvelope, EventInterface $domainEvent, Subscription $subscription): Error|null
     {
         $subscriber = $this->subscribers->get($subscription->id);
-//        try {
+        try {
             $subscriber->handler->handle($domainEvent, $eventEnvelope);
-//        } catch (\Throwable $e) {
-//            $this->logger?->error(sprintf('Subscription Engine: Subscriber "%s" for "%s" could not process the event "%s" (sequence number: %d): %s', $subscriber::class, $subscription->id->value, $eventEnvelope->event->type->value, $eventEnvelope->sequenceNumber->value, $e->getMessage()));
-//            $subscription->fail($e);
-//            $this->subscriptionManager->update($subscription);
-//            return Error::fromSubscriptionIdAndException($subscription->id, $e);
-//        }
+        } catch (\Throwable $e) {
+            $this->logger?->error(sprintf('Subscription Engine: Subscriber "%s" for "%s" could not process the event "%s" (sequence number: %d): %s', $subscriber::class, $subscription->id->value, $eventEnvelope->event->type->value, $eventEnvelope->sequenceNumber->value, $e->getMessage()));
+            $subscription->fail($e);
+            $this->subscriptionManager->update($subscription);
+            return Error::fromSubscriptionIdAndException($subscription->id, $e);
+        }
         $this->logger?->debug(sprintf('Subscription Engine: Subscriber "%s" for "%s" processed the event "%s" (sequence number: %d).', $subscriber->handler::class, $subscription->id->value, $eventEnvelope->event->type->value, $eventEnvelope->sequenceNumber->value));
         $subscription->set(
             position: $eventEnvelope->sequenceNumber,
@@ -244,6 +244,9 @@ final class SubscriptionEngine
 
                     return new ProcessedResult(0, true);
                 }
+                foreach ($subscriptions as $subscription) {
+                    $this->subscribers->get($subscription->id)->handler->onBeforeCatchUp($subscription->status);
+                }
                 $startSequenceNumber = $subscriptions->lowestPosition();
                 $this->logger?->debug(sprintf('Subscription Engine: Event stream is processed from position %s.', $startSequenceNumber->value));
 
@@ -278,6 +281,7 @@ final class SubscriptionEngine
                     }
                 }
                 foreach ($subscriptions as $subscription) {
+                    $this->subscribers->get($subscription->id)->handler->onAfterCatchUp();
                     if ($subscription->status !== $subscriptionStatus) {
                         continue;
                     }
