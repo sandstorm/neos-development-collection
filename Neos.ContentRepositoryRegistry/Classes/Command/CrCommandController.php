@@ -3,19 +3,13 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepositoryRegistry\Command;
 
-use Neos\ContentRepository\Core\Projection\CatchUpOptions;
 use Neos\ContentRepository\Core\Projection\ProjectionStatusType;
-use Neos\ContentRepository\Core\Service\ContentStreamPrunerFactory;
 use Neos\ContentRepository\Core\Service\SubscriptionServiceFactory;
-use Neos\ContentRepository\Core\Service\WorkspaceMaintenanceServiceFactory;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
-use Neos\ContentRepository\Core\Subscription\SubscriptionStatusFilter;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
-use Neos\ContentRepositoryRegistry\Service\ProjectionServiceFactory;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Neos\EventStore\Model\EventStore\StatusType;
 use Neos\Flow\Cli\CommandController;
-use Neos\Neos\Domain\Service\WorkspaceService;
 use stdClass;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Output\ConsoleOutput;
@@ -26,7 +20,6 @@ final class CrCommandController extends CommandController
 
     public function __construct(
         private readonly ContentRepositoryRegistry $contentRepositoryRegistry,
-        private readonly ProjectionServiceFactory $projectionServiceFactory,
     ) {
         parent::__construct();
     }
@@ -123,115 +116,6 @@ final class CrCommandController extends CommandController
         }
         if (!$status->isOk()) {
             $this->quit(1);
-        }
-    }
-
-    /**
-     * Replays the specified projection of a Content Repository by resetting its state and performing a full catchup.
-     *
-     * @param string $projection Full Qualified Class Name or alias of the projection to replay (e.g. "contentStream")
-     * @param string $contentRepository Identifier of the Content Repository instance to operate on
-     * @param bool $force Replay the projection without confirmation. This may take some time!
-     * @param bool $quiet If set only fatal errors are rendered to the output (must be used with --force flag to avoid user input)
-     * @param int $until Until which sequence number should projections be replayed? useful for debugging
-     */
-    public function projectionReplayCommand(string $projection, string $contentRepository = 'default', bool $force = false, bool $quiet = false, int $until = 0): void
-    {
-        if ($quiet) {
-            $this->output->getOutput()->setVerbosity(Output::VERBOSITY_QUIET);
-        }
-        $progressBar = new ProgressBar($this->output->getOutput());
-        $progressBar->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:16s%/%estimated:-16s% %memory:6s%');
-        if (!$force && $quiet) {
-            $this->outputLine('Cannot run in quiet mode without --force. Please acknowledge that this command will reset and replay this projection. This may take some time.');
-            $this->quit(1);
-        }
-
-        if (!$force && !$this->output->askConfirmation(sprintf('> This will replay the projection "%s" in "%s", which may take some time. Are you sure to proceed? (y/n) ', $projection, $contentRepository), false)) {
-            $this->outputLine('<comment>Abort.</comment>');
-            return;
-        }
-
-        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
-        $projectionService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, $this->projectionServiceFactory);
-
-        $options = CatchUpOptions::create();
-        if (!$quiet) {
-            $this->outputLine('Replaying events for projection "%s" of Content Repository "%s" ...', [$projection, $contentRepositoryId->value]);
-            $progressBar->start($until > 0 ? $until : null);
-            $options = $options->with(progressCallback: fn () => $progressBar->advance());
-        }
-        if ($until > 0) {
-            $options = $options->with(maximumSequenceNumber: SequenceNumber::fromInteger($until));
-        }
-        $projectionService->replayProjection($projection, $options);
-        if (!$quiet) {
-            $progressBar->finish();
-            $this->outputLine();
-            $this->outputLine('<success>Done.</success>');
-        }
-    }
-
-    /**
-     * Replays all projections of the specified Content Repository by resetting their states and performing a full catchup
-     *
-     * @param string $contentRepository Identifier of the Content Repository instance to operate on
-     * @param bool $force Replay the projection without confirmation. This may take some time!
-     * @param bool $quiet If set only fatal errors are rendered to the output (must be used with --force flag to avoid user input)
-     * @param int $until Until which sequence number should projections be replayed? useful for debugging
-     */
-    public function projectionReplayAllCommand(string $contentRepository = 'default', bool $force = false, bool $quiet = false, int $until = 0): void
-    {
-        if ($quiet) {
-            $this->output->getOutput()->setVerbosity(Output::VERBOSITY_QUIET);
-        }
-        $mainSection = ($this->output->getOutput() instanceof ConsoleOutput) ? $this->output->getOutput()->section() : $this->output->getOutput();
-        $mainProgressBar = new ProgressBar($mainSection);
-        $mainProgressBar->setBarCharacter('<success>█</success>');
-        $mainProgressBar->setEmptyBarCharacter('░');
-        $mainProgressBar->setProgressCharacter('<success>█</success>');
-        $mainProgressBar->setFormat('debug');
-
-        $subSection = ($this->output->getOutput() instanceof ConsoleOutput) ? $this->output->getOutput()->section() : $this->output->getOutput();
-        $progressBar = new ProgressBar($subSection);
-        $progressBar->setFormat(' %message% - %current%/%max% [%bar%] %percent:3s%% %elapsed:16s%/%estimated:-16s% %memory:6s%');
-        if (!$force && $quiet) {
-            $this->outputLine('Cannot run in quiet mode without --force. Please acknowledge that this command will reset and replay this projection. This may take some time.');
-            $this->quit(1);
-        }
-
-        if (!$force && !$this->output->askConfirmation(sprintf('> This will replay all projections in "%s", which may take some time. Are you sure to proceed? (y/n) ', $contentRepository), false)) {
-            $this->outputLine('<comment>Abort.</comment>');
-            return;
-        }
-
-        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
-        $projectionService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, $this->projectionServiceFactory);
-        if (!$quiet) {
-            $this->outputLine('Replaying events for all projections of Content Repository "%s" ...', [$contentRepositoryId->value]);
-        }
-        $options = CatchUpOptions::create();
-        if (!$quiet) {
-            $options = $options->with(progressCallback: fn () => $progressBar->advance());
-        }
-        if ($until > 0) {
-            $options = $options->with(maximumSequenceNumber: SequenceNumber::fromInteger($until));
-        }
-        $mainProgressBar->start();
-        $mainProgressCallback = null;
-        if (!$quiet) {
-            $mainProgressCallback = static function (string $projectionAlias) use ($mainProgressBar, $progressBar, $until) {
-                $mainProgressBar->advance();
-                $progressBar->setMessage($projectionAlias);
-                $progressBar->start($until > 0 ? $until : null);
-                $progressBar->setProgress(0);
-            };
-        }
-        $projectionService->replayAllProjections($options, $mainProgressCallback);
-        if (!$quiet) {
-            $mainProgressBar->finish();
-            $progressBar->finish();
-            $this->outputLine('<success>Done.</success>');
         }
     }
 }
