@@ -9,7 +9,7 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionGroup;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 
 /**
- * @internal
+ * @api
  */
 final class Subscriber
 {

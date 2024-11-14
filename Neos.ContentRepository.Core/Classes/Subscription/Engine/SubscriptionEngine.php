@@ -55,7 +55,7 @@ final class SubscriptionEngine
             function (Subscriptions $subscriptions) use ($skipBooting) {
                 if ($subscriptions->isEmpty()) {
                     $this->logger?->info('Subscription Engine: No subscriptions to setup, finish setup.');
-                    return new Result();
+                    return Result::success();
                 }
                 $lastSequenceNumber = $this->lastSequenceNumber();
                 $errors = [];
@@ -65,7 +65,7 @@ final class SubscriptionEngine
                         $errors[] = $error;
                     }
                 }
-                return new Result($errors);
+                return $errors === [] ? Result::success() : Result::failed(Errors::fromArray($errors));
             }
         );
     }
@@ -75,29 +75,38 @@ final class SubscriptionEngine
         return $this->processExclusively(fn () => $this->catchUpSubscriptions($criteria ?? SubscriptionEngineCriteria::noConstraints(), SubscriptionStatus::BOOTING));
     }
 
-    public function run(SubscriptionEngineCriteria|null $criteria = null): ProcessedResult
+    public function catchUpActive(SubscriptionEngineCriteria|null $criteria = null): ProcessedResult
     {
         return $this->processExclusively(fn () => $this->catchUpSubscriptions($criteria ?? SubscriptionEngineCriteria::noConstraints(), SubscriptionStatus::ACTIVE));
     }
 
     public function teardown(SubscriptionEngineCriteria|null $criteria = null): Result
     {
-        // TODO implement
+        // TODO implement (see https://github.com/patchlevel/event-sourcing/blob/6826d533fd4762220f0397bc7afc589abb8c901b/src/Subscription/Engine/DefaultSubscriptionEngine.php#L470)
+        return Result::success();
     }
 
     public function remove(SubscriptionEngineCriteria|null $criteria = null): Result
     {
-        // TODO implement
+        // TODO implement (see https://github.com/patchlevel/event-sourcing/blob/6826d533fd4762220f0397bc7afc589abb8c901b/src/Subscription/Engine/DefaultSubscriptionEngine.php#L562)
+        return Result::success();
     }
 
     public function reactivate(SubscriptionEngineCriteria|null $criteria = null): Result
     {
-        // TODO implement
+        // TODO implement (see https://github.com/patchlevel/event-sourcing/blob/6826d533fd4762220f0397bc7afc589abb8c901b/src/Subscription/Engine/DefaultSubscriptionEngine.php#L648)
+        return Result::success();
     }
 
     public function pause(SubscriptionEngineCriteria|null $criteria = null): Result
     {
-        // TODO implement
+        // TODO implement (see https://github.com/patchlevel/event-sourcing/blob/6826d533fd4762220f0397bc7afc589abb8c901b/src/Subscription/Engine/DefaultSubscriptionEngine.php#L712)
+        return Result::success();
+    }
+
+    public function subscriptions(SubscriptionCriteria|null $criteria = null): Subscriptions
+    {
+        return $this->subscriptionStore->findByCriteria($criteria ?? SubscriptionCriteria::noConstraints());
     }
 
     private function handleEvent(EventEnvelope $eventEnvelope, EventInterface $domainEvent, Subscription $subscription): Error|null
@@ -242,7 +251,7 @@ final class SubscriptionEngine
                 if ($subscriptions->isEmpty()) {
                     $this->logger?->info(sprintf('Subscription Engine: No subscriptions in state "%s". Finishing catch up', $subscriptionStatus->value));
 
-                    return new ProcessedResult(0, true);
+                    return ProcessedResult::success(0);
                 }
                 foreach ($subscriptions as $subscription) {
                     $this->subscribers->get($subscription->id)->handler->onBeforeCatchUp($subscription->status);
@@ -306,11 +315,7 @@ final class SubscriptionEngine
 
                 $this->logger?->info('Subscription Engine: Finish catch up.');
 
-                return new ProcessedResult(
-                    $numberOfProcessedEvents,
-                    true,
-                    $errors,
-                );
+                return ProcessedResult::failed($numberOfProcessedEvents, Errors::fromArray($errors));
             }
         );
     }

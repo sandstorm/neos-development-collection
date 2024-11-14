@@ -12,7 +12,7 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionIds;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatusFilter;
 
 /**
- * @internal
+ * @api
  */
 final readonly class SubscriptionCriteria
 {

@@ -15,11 +15,18 @@ interface SubscriptionStoreInterface
 {
     public function setup(): void;
 
-    public function findOneById(SubscriptionId $subscriptionId): ?Subscription;
-
     public function findByCriteria(SubscriptionCriteria $criteria): Subscriptions;
 
     public function add(Subscription $subscription): void;
 
     public function update(Subscription $subscription): void;
+
+    public function remove(Subscription $subscription): void;
+
+    /**
+     * @template T
+     * @param \Closure():T $closure
+     * @return T
+     */
+    public function transactional(\Closure $closure): mixed;
 }

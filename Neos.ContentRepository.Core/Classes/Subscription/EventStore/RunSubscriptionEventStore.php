@@ -46,7 +46,10 @@ final class RunSubscriptionEventStore implements EventStoreInterface
     public function commit(StreamName $streamName, \Neos\EventStore\Model\Events|Event $events, ExpectedVersion $expectedVersion): CommitResult
     {
         $commitResult = $this->eventStore->commit($streamName, $events, $expectedVersion);
-        $this->subscriptionEngine->run($this->criteria ?? SubscriptionEngineCriteria::noConstraints());
+        $result = $this->subscriptionEngine->catchUpActive($this->criteria ?? SubscriptionEngineCriteria::noConstraints());
+        if ($result->errors !== []) {
+            throw new \RuntimeException('ASDA');
+        }
         return $commitResult;
     }
 

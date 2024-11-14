@@ -16,7 +16,7 @@ use Doctrine\DBAL\Types\Types;
 use Neos\ContentRepository\Core\Infrastructure\DbalSchemaDiff;
 use Neos\ContentRepository\Core\Subscription\RunMode;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionCriteria;
-use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreWithTransactionSupportInterface;
+use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
 use Neos\ContentRepository\Core\Subscription\Subscription;
 use Neos\ContentRepository\Core\Subscription\SubscriptionError;
 use Neos\ContentRepository\Core\Subscription\SubscriptionGroup;
@@ -26,7 +26,7 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Psr\Clock\ClockInterface;
 
-final class DoctrineSubscriptionStore implements SubscriptionStoreWithTransactionSupportInterface
+final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
 {
     public function __construct(
         private string $tableName,
@@ -68,21 +68,15 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreWithTransactio
         }
     }
 
-    public function findOneById(SubscriptionId $subscriptionId): ?Subscription
-    {
-        $row = $this->dbal->fetchAssociative('SELECT * FROM ' . $this->tableName . ' WHERE id = :subscriptionId', ['subscriptionId' => $subscriptionId->value]);
-        if ($row === false) {
-            return null;
-        }
-        return self::fromDatabase($row);
-    }
-
     public function findByCriteria(SubscriptionCriteria $criteria): Subscriptions
     {
         $queryBuilder = $this->dbal->createQueryBuilder()
             ->select('*')
             ->from($this->tableName)
             ->orderBy('id');
+        if (!$this->dbal->getDatabasePlatform() instanceof SQLitePlatform) {
+            $queryBuilder->forUpdate();
+        }
         if ($criteria->ids !== null) {
             $queryBuilder->andWhere('id IN (:ids)')
                 ->setParameter(
@@ -134,6 +128,16 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreWithTransactio
         $this->dbal->update(
             $this->tableName,
             $row,
+            [
+                'id' => $subscription->id->value,
+            ]
+        );
+    }
+
+    public function remove(Subscription $subscription): void
+    {
+        $this->dbal->delete(
+            $this->tableName,
             [
                 'id' => $subscription->id->value,
             ]

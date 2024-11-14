@@ -8,7 +8,7 @@ use Neos\EventStore\Model\Event\SequenceNumber;
 
 /**
  * @implements \IteratorAggregate<Subscription>
- * @internal
+ * @api
  */
 final class Subscriptions implements \IteratorAggregate, \Countable, \JsonSerializable
 {

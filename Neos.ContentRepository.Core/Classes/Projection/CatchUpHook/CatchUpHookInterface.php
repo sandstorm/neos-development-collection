@@ -21,7 +21,7 @@ interface CatchUpHookInterface
 {
     /**
      * This hook is called at the beginning of a catch-up run;
-     * AFTER the Database Lock is acquired ({@see SubscriptionEngine::run()}).
+     * AFTER the Database Lock is acquired ({@see SubscriptionEngine::catchUpActive()}).
      */
     public function onBeforeCatchUp(SubscriptionStatus $subscriptionStatus): void;
 
@@ -39,7 +39,7 @@ interface CatchUpHookInterface
 
     /**
      * This hook is called at the END of a catch-up run
-     * BEFORE the Database Lock is released ({@see SubscriptionEngine::run()}).
+     * BEFORE the Database Lock is released ({@see SubscriptionEngine::catchUpActive()}).
      */
     public function onAfterCatchUp(): void;
 }

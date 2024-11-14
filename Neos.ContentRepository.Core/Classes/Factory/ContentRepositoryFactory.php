@@ -22,7 +22,6 @@ use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
 use Neos\ContentRepository\Core\DimensionSpace\ContentDimensionZookeeper;
 use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
-use Neos\ContentRepository\Core\EventStore\EventPersister;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\DimensionSpaceCommandHandler;
 use Neos\ContentRepository\Core\Feature\NodeAggregateCommandHandler;
 use Neos\ContentRepository\Core\Feature\NodeDuplication\NodeDuplicationCommandHandler;
@@ -70,7 +69,6 @@ final class ContentRepositoryFactory
 
     // The following properties store "singleton" references of objects for this content repository
     private ?ContentRepository $contentRepositoryRuntimeCache = null;
-    private ?EventPersister $eventPersisterRuntimeCache = null;
 
     /**
      * @param CatchUpHookFactoryInterface<ContentGraphReadModelInterface> $contentGraphCatchUpHookFactory
@@ -202,7 +200,9 @@ final class ContentRepositoryFactory
         $this->contentRepositoryRuntimeCache = new ContentRepository(
             $this->contentRepositoryId,
             $publicCommandBus,
-            $this->buildEventPersister(),
+            $this->eventStore,
+            $this->subscriberFactoryDependencies->eventNormalizer,
+            $this->subscriptionEngine,
             $this->subscriberFactoryDependencies->nodeTypeManager,
             $this->subscriberFactoryDependencies->interDimensionalVariationGraph,
             $this->subscriberFactoryDependencies->contentDimensionSource,
@@ -235,20 +235,8 @@ final class ContentRepositoryFactory
             $this->subscriberFactoryDependencies,
             $this->eventStore,
             $this->getOrBuild(),
-            $this->buildEventPersister(),
             $this->subscriptionEngine,
         );
         return $serviceFactory->build($serviceFactoryDependencies);
-    }
-
-    private function buildEventPersister(): EventPersister
-    {
-        if (!$this->eventPersisterRuntimeCache) {
-            $this->eventPersisterRuntimeCache = new EventPersister(
-                $this->eventStore,
-                $this->subscriberFactoryDependencies->eventNormalizer,
-            );
-        }
-        return $this->eventPersisterRuntimeCache;
     }
 }

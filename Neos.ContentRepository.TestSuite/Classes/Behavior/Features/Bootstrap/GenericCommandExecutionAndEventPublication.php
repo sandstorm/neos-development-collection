@@ -19,9 +19,9 @@ use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
-use Neos\ContentRepository\Core\EventStore\EventPersister;
-use Neos\ContentRepository\Core\EventStore\Events;
-use Neos\ContentRepository\Core\EventStore\EventsToPublish;
+use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryDependencies;
+use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryInterface;
+use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\AddDimensionShineThrough;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\MoveDimensionSpacePoint;
@@ -56,10 +56,12 @@ use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Command\RebaseWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\WorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
+use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Model\Event;
 use Neos\EventStore\Model\Event\StreamName;
 use Neos\EventStore\Model\EventEnvelope;
+use Neos\EventStore\Model\Events;
 use Neos\EventStore\Model\EventStream\ExpectedVersion;
 use Neos\EventStore\Model\EventStream\VirtualStreamName;
 use Neos\Utility\Arrays;
@@ -286,19 +288,23 @@ trait GenericCommandExecutionAndEventPublication
             Event\EventData::fromString(json_encode($eventPayload)),
             Event\EventMetadata::fromArray([])
         );
-        /** @var EventPersister $eventPersister */
-        $eventPersister = (new \ReflectionClass($this->currentContentRepository))->getProperty('eventPersister')
-            ->getValue($this->currentContentRepository);
-        /** @var EventNormalizer $eventNormalizer */
-        $eventNormalizer = (new \ReflectionClass($eventPersister))->getProperty('eventNormalizer')
-            ->getValue($eventPersister);
-        $event = $eventNormalizer->denormalize($artificiallyConstructedEvent);
 
-        $eventPersister->publishEvents($this->currentContentRepository, new EventsToPublish(
-            $streamName,
-            Events::with($event),
-            ExpectedVersion::ANY()
-        ));
+        // HACK can be replaced, once https://github.com/neos/neos-development-collection/pull/5341 is merged
+        $eventStoreAndSubscriptionEngine = new class implements ContentRepositoryServiceFactoryInterface {
+            public EventStoreInterface|null $eventStore;
+            public SubscriptionEngine|null $subscriptionEngine;
+            public function build(ContentRepositoryServiceFactoryDependencies $serviceFactoryDependencies): ContentRepositoryServiceInterface
+            {
+                $this->eventStore = $serviceFactoryDependencies->eventStore;
+                $this->subscriptionEngine = $serviceFactoryDependencies->subscriptionEngine;
+                return new class implements ContentRepositoryServiceInterface
+                {
+                };
+            }
+        };
+        $this->getContentRepositoryService($eventStoreAndSubscriptionEngine);
+        $eventStoreAndSubscriptionEngine->eventStore->commit($streamName, Events::with($artificiallyConstructedEvent), ExpectedVersion::ANY());
+        $eventStoreAndSubscriptionEngine->subscriptionEngine->catchUpActive();
     }
 
     /**

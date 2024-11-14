@@ -6,7 +6,6 @@ namespace Neos\ContentRepository\Core\Subscription\Engine;
 
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionCriteria;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
-use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreWithTransactionSupportInterface;
 use Neos\ContentRepository\Core\Subscription\Subscription;
 use Neos\ContentRepository\Core\Subscription\Subscriptions;
 
@@ -37,23 +36,16 @@ final class SubscriptionManager
      */
     public function findForUpdate(SubscriptionCriteria $criteria, \Closure $closure): mixed
     {
-        if ($this->subscriptionStore instanceof SubscriptionStoreWithTransactionSupportInterface) {
-            return $this->subscriptionStore->transactional(
-                /** @return T */
-                function () use ($closure, $criteria): mixed {
-                    try {
-                        return $closure($this->subscriptionStore->findByCriteria($criteria));
-                    } finally {
-                        $this->flush();
-                    }
-                },
-            );
-        }
-        try {
-            return $closure($this->subscriptionStore->findByCriteria($criteria));
-        } finally {
-            $this->flush();
-        }
+        return $this->subscriptionStore->transactional(
+        /** @return T */
+            function () use ($closure, $criteria): mixed {
+                try {
+                    return $closure($this->subscriptionStore->findByCriteria($criteria));
+                } finally {
+                    $this->flush();
+                }
+            },
+        );
     }
 
     public function find(SubscriptionCriteria $criteria): Subscriptions

@@ -5,13 +5,22 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Subscription\Engine;
 
 /**
- * @internal
+ * @api
  */
-final class Result
+final readonly class Result
 {
-    /** @param list<Error> $errors */
-    public function __construct(
-        public readonly array $errors = [],
+    private function __construct(
+        public readonly Errors|null $errors,
     ) {
+    }
+
+    public static function success(): self
+    {
+        return new self(null);
+    }
+
+    public static function failed(Errors $errors): self
+    {
+        return new self($errors);
     }
 }

@@ -6,7 +6,7 @@ namespace Neos\ContentRepository\Core\Subscription;
 
 /**
  * @implements \IteratorAggregate<SubscriptionStatus>
- * @internal
+ * @api
  */
 final class SubscriptionStatusFilter implements \IteratorAggregate
 {
@@ -60,5 +60,10 @@ final class SubscriptionStatusFilter implements \IteratorAggregate
     public function toStringArray(): array
     {
         return array_values(array_map(static fn (SubscriptionStatus $id) => $id->value, $this->statusByValue));
+    }
+
+    public function matches(SubscriptionStatus $status): bool
+    {
+        return array_key_exists($status->value, $this->statusByValue);
     }
 }

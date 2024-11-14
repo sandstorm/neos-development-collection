@@ -57,7 +57,7 @@ final class CrCommandController extends CommandController
     {
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
         $subscriptionService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new SubscriptionServiceFactory());
-        $subscriptionService->subscriptionEngine->run();
+        $subscriptionService->subscriptionEngine->catchUpActive();
     }
 
     public function subscriptionsResetCommand(string $contentRepository = 'default', bool $force = false): void

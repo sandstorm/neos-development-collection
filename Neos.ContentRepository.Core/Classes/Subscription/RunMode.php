@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Subscription;
 
 /**
- * @internal
+ * @api
  */
 enum RunMode : string
 {

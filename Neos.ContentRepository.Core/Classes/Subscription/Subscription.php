@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Subscription;
 
+use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\ContentRepository\Core\Subscription\Subscriber\Subscriber;
 use Neos\EventStore\Model\Event\SequenceNumber;
 
 /**
  * Note: This class is mutable by design!
  *
- * @internal
+ * @api
  */
 final class Subscription
 {
@@ -26,6 +27,9 @@ final class Subscription
     ) {
     }
 
+    /**
+     * @internal Only the {@see SubscriptionEngine} is supposed to instantiate subscriptions
+     */
     public static function createFromSubscriber(Subscriber $subscriber): self
     {
         return new self(
@@ -37,6 +41,9 @@ final class Subscription
         );
     }
 
+    /**
+     * @internal Only the {@see SubscriptionEngine} is supposed to mutate subscriptions
+     */
     public function set(
         SubscriptionStatus $status = null,
         SequenceNumber $position = null,
@@ -57,6 +64,9 @@ final class Subscription
         );
     }
 
+    /**
+     * @internal Only the {@see SubscriptionEngine} is supposed to mutate subscriptions
+     */
     public function fail(\Throwable $exception): void
     {
         $this->error = SubscriptionError::fromPreviousStatusAndException($this->status, $exception);

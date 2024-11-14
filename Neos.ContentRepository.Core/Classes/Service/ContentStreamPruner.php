@@ -23,6 +23,7 @@ use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Event\WorkspaceWasRebase
 use Neos\ContentRepository\Core\Service\ContentStreamPruner\ContentStreamForPruning;
 use Neos\ContentRepository\Core\Service\ContentStreamPruner\ContentStreamStatus;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
+use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Model\Event\EventType;
 use Neos\EventStore\Model\Event\EventTypes;
@@ -40,7 +41,8 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
 {
     public function __construct(
         private readonly EventStoreInterface $eventStore,
-        private readonly EventNormalizer $eventNormalizer
+        private readonly EventNormalizer $eventNormalizer,
+        private readonly SubscriptionEngine $subscriptionEngine,
     ) {
     }
 
@@ -160,10 +162,9 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
         }
 
         if ($danglingContentStreamsPresent) {
-            try {
-                //TODO $this->contentRepository->catchUpProjections();
-            } catch (\Throwable $e) {
-                $outputFn(sprintf('Could not catchup after removing unused content streams: %s. You might need to use ./flow contentstream:pruneremovedfromeventstream and replay.', $e->getMessage()));
+            $result = $this->subscriptionEngine->catchUpActive();
+            if ($result->hasErrors()) {
+                $outputFn('Catchup after removing unused content streams led to errors. You might need to use ./flow contentstream:pruneremovedfromeventstream and replay.');
             }
         } else {
             $outputFn('Okay. No pruneable streams in the event stream');

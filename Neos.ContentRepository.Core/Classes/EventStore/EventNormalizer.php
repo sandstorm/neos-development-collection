@@ -46,6 +46,7 @@ use Neos\EventStore\Model\Event;
 use Neos\EventStore\Model\Event\EventData;
 use Neos\EventStore\Model\Event\EventId;
 use Neos\EventStore\Model\Event\EventType;
+use Neos\EventStore\Model\Events;
 
 /**
  * Central authority to convert Content Repository domain events to Event Store EventData and EventType, vice versa.
@@ -145,6 +146,11 @@ final class EventNormalizer
             $causationId,
             $correlationId,
         );
+    }
+
+    public function normalizeEvents(EventsToPublish $eventsToPublish): Events
+    {
+        return Events::fromArray($eventsToPublish->events->map($this->normalize(...)));
     }
 
     public function denormalize(Event $event): EventInterface

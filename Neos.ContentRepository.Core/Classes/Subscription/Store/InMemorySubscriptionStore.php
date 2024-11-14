@@ -20,10 +20,9 @@ final class InMemorySubscriptionStore implements SubscriptionStoreInterface
         $this->subscriptions = Subscriptions::none();
     }
 
-
-    public function findOneById(SubscriptionId $subscriptionId): ?Subscription
+    public function setup(): void
     {
-        return $this->subscriptions->contain($subscriptionId) ? $this->subscriptions->get($subscriptionId) : null;
+        // no setup required
     }
 
     public function findByCriteria(SubscriptionCriteria $criteria): Subscriptions
@@ -35,7 +34,7 @@ final class InMemorySubscriptionStore implements SubscriptionStoreInterface
             if ($criteria->groups !== null && !$criteria->groups->contain($subscription->group)) {
                 return false;
             }
-            if ($criteria->status !== null && !in_array($subscription->status, $criteria->status, true)) {
+            if (!$criteria->status->matches($subscription->status)) {
                 return false;
             }
             return true;
@@ -50,5 +49,16 @@ final class InMemorySubscriptionStore implements SubscriptionStoreInterface
     public function update(Subscription $subscription): void
     {
         $this->subscriptions = $this->subscriptions->with($subscription);
+    }
+
+    public function remove(Subscription $subscription): void
+    {
+        $this->subscriptions = $this->subscriptions->without($subscription->id);
+    }
+
+    public function transactional(\Closure $closure): mixed
+    {
+        // In memory store does not support transaction boundaries
+        return $closure();
     }
 }

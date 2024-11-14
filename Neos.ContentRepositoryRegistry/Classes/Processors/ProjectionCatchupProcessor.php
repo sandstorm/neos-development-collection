@@ -19,6 +19,6 @@ final readonly class ProjectionCatchupProcessor implements ProcessorInterface
 
     public function run(ProcessingContext $context): void
     {
-        $this->subscriptionService->subscriptionEngine->run();
+        $this->subscriptionService->subscriptionEngine->catchUpActive();
     }
 }

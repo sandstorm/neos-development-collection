@@ -19,7 +19,7 @@ use Neos\ContentRepository\Core\CommandHandler\CommandHookInterface;
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
 use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
-use Neos\ContentRepository\Core\EventStore\EventPersister;
+use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\EventStore\InitiatingEventMetadata;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
@@ -36,7 +36,10 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreams;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
+use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
+use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Exception\ConcurrencyException;
+use Neos\EventStore\Model\Events;
 use Psr\Clock\ClockInterface;
 
 /**
@@ -57,7 +60,9 @@ final readonly class ContentRepository
     public function __construct(
         public readonly ContentRepositoryId $id,
         private readonly CommandBus $commandBus,
-        private readonly EventPersister $eventPersister,
+        private readonly EventStoreInterface $eventStore,
+        private readonly EventNormalizer $eventNormalizer,
+        private readonly SubscriptionEngine $subscriptionEngine,
         private readonly NodeTypeManager $nodeTypeManager,
         private readonly InterDimensionalVariationGraph $variationGraph,
         private readonly ContentDimensionSourceInterface $contentDimensionSource,
@@ -83,8 +88,8 @@ final readonly class ContentRepository
         // simple case
         if ($toPublish instanceof EventsToPublish) {
             $eventsToPublish = $this->enrichEventsToPublishWithMetadata($toPublish);
-            $this->eventPersister->publishWithoutCatchup($eventsToPublish);
-            // TODO how to solve this with a decoupled subscription engine? $this->catchupProjections();
+            $this->eventStore->commit($eventsToPublish->streamName, $this->eventNormalizer->normalizeEvents($eventsToPublish), $eventsToPublish->expectedVersion);
+            $this->subscriptionEngine->catchUpActive();
             return;
         }
 
@@ -93,7 +98,7 @@ final readonly class ContentRepository
             foreach ($toPublish as $yieldedEventsToPublish) {
                 $eventsToPublish = $this->enrichEventsToPublishWithMetadata($yieldedEventsToPublish);
                 try {
-                    $this->eventPersister->publishWithoutCatchup($eventsToPublish);
+                    $this->eventStore->commit($eventsToPublish->streamName, $this->eventNormalizer->normalizeEvents($eventsToPublish), $eventsToPublish->expectedVersion);
                 } catch (ConcurrencyException $concurrencyException) {
                     // we pass the exception into the generator (->throw), so it could be try-caught and reacted upon:
                     //
@@ -105,7 +110,7 @@ final readonly class ContentRepository
                     //   }
                     $yieldedErrorStrategy = $toPublish->throw($concurrencyException);
                     if ($yieldedErrorStrategy instanceof EventsToPublish) {
-                        $this->eventPersister->publishWithoutCatchup($yieldedErrorStrategy);
+                        $this->eventStore->commit($eventsToPublish->streamName, $this->eventNormalizer->normalizeEvents($yieldedErrorStrategy), $yieldedErrorStrategy->expectedVersion);
                     }
                     throw $concurrencyException;
                 }
@@ -113,7 +118,7 @@ final readonly class ContentRepository
         } finally {
             // We always NEED to catchup even if there was an unexpected ConcurrencyException to make sure previous commits are handled.
             // Technically it would be acceptable for the catchup to fail here (due to hook errors) because all the events are already persisted.
-            // TODO how to solve with the decoupled subscription engine? $this->catchupProjections();
+            $this->subscriptionEngine->catchUpActive();
         }
     }
 
