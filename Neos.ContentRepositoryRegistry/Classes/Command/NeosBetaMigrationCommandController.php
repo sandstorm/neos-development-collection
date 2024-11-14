@@ -16,6 +16,8 @@ use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryI
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\ContentRepositoryRegistry\Factory\EventStore\DoctrineEventStoreFactory;
+use Neos\EventStore\Model\Event;
+use Neos\EventStore\Model\Event\EventMetadata;
 use Neos\EventStore\Model\Event\EventType;
 use Neos\EventStore\Model\Event\EventTypes;
 use Neos\EventStore\Model\Event\SequenceNumber;
@@ -67,8 +69,25 @@ class NeosBetaMigrationCommandController extends CommandController
         );
         $this->connection->commit();
 
-        // reapply the NodeAggregateWasRemoved events at the end
-        $internals->eventStore->commit($streamName, Events::fromArray(array_map(fn (EventEnvelope $eventEnvelope) => $eventEnvelope->event, $eventsToReorder)), ExpectedVersion::ANY());
+        $mapper = function (EventEnvelope $eventEnvelope): Event {
+            $metadata = $event->eventMetadata?->value ?? [];
+            $metadata['reorderedByMigration'] = sprintf('Originally recorded at %s with sequence number %d', $eventEnvelope->recordedAt->format(\DateTimeInterface::ATOM), $eventEnvelope->sequenceNumber->value);
+            return new Event(
+                $eventEnvelope->event->id,
+                $eventEnvelope->event->type,
+                $eventEnvelope->event->data,
+                EventMetadata::fromArray($metadata),
+                $eventEnvelope->event->causationId,
+                $eventEnvelope->event->correlationId
+            );
+        };
+
+        // reapply the NodeAggregateWasRemoved events
+        $internals->eventStore->commit(
+            $streamName,
+            Events::fromArray(array_map($mapper, $eventsToReorder)),
+            ExpectedVersion::ANY()
+        );
 
         $this->outputLine('Reordered %d removals. Please replay and rebase your other workspaces.', [count($eventsToReorder)]);
     }
