@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepositoryRegistry\Service;
 
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
+use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNodeAndSerializedProperties;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\DisableNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\EnableNodeAggregate;
@@ -15,23 +17,28 @@ use Neos\ContentRepository\Core\Feature\NodeDuplication\Command\CopyNodesRecursi
 use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetSerializedNodeProperties;
 use Neos\ContentRepository\Core\Feature\NodeMove\Command\MoveNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Command\SetSerializedNodeReferences;
-use Neos\ContentRepository\Core\Feature\NodeReferencing\Event\NodeReferencesWereSet;
 use Neos\ContentRepository\Core\Feature\NodeRemoval\Command\RemoveNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeRenaming\Command\ChangeNodeAggregateName;
 use Neos\ContentRepository\Core\Feature\NodeTypeChange\Command\ChangeNodeAggregateType;
 use Neos\ContentRepository\Core\Feature\NodeVariation\Command\CreateNodeVariant;
 use Neos\ContentRepository\Core\Feature\RootNodeCreation\Command\CreateRootNodeAggregateWithNode;
 use Neos\ContentRepository\Core\Feature\RootNodeCreation\Command\UpdateRootNodeAggregateDimensions;
+use Neos\ContentRepository\Core\Feature\WorkspaceEventStreamName;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
+use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepositoryRegistry\Command\MigrateEventsCommandController;
 use Neos\ContentRepositoryRegistry\Factory\EventStore\DoctrineEventStoreFactory;
 use Neos\EventStore\EventStoreInterface;
+use Neos\EventStore\Model\Event;
+use Neos\EventStore\Model\Event\EventMetadata;
 use Neos\EventStore\Model\Event\EventType;
 use Neos\EventStore\Model\Event\EventTypes;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Neos\EventStore\Model\EventEnvelope;
+use Neos\EventStore\Model\Events;
 use Neos\EventStore\Model\EventStream\EventStreamFilter;
+use Neos\EventStore\Model\EventStream\ExpectedVersion;
 use Neos\EventStore\Model\EventStream\VirtualStreamName;
 use Neos\Neos\Domain\Model\WorkspaceClassification;
 use Neos\Neos\Domain\Model\WorkspaceRole;
@@ -734,6 +741,68 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
             $addedWorkspaceMetadata++;
         }
         $outputFn(sprintf('Added metadata & role assignments for %d workspaces.', $addedWorkspaceMetadata));
+    }
+
+    /**
+     * Reorders all NodeAggregateWasMoved events to allow replaying in case orphaned nodes existed in previous betas
+     */
+    public function reorderNodeAggregateWasRemoved(\Closure $outputFn): void
+    {
+        $liveWorkspaceContentStreamId = null;
+        // hardcoded to LIVE
+        foreach ($this->eventStore->load(WorkspaceEventStreamName::fromWorkspaceName(WorkspaceName::forLive())->getEventStreamName(), EventStreamFilter::create(EventTypes::create(EventType::fromString('RootWorkspaceWasCreated')))) as $eventEnvelope) {
+            $rootWorkspaceWasCreated = self::decodeEventPayload($eventEnvelope);
+            $liveWorkspaceContentStreamId = ContentStreamId::fromString($rootWorkspaceWasCreated['newContentStreamId']);
+            break;
+        }
+
+        if (!$liveWorkspaceContentStreamId) {
+            throw new \RuntimeException('Workspace live does not exist. No migration necessary.');
+        }
+
+        $backupEventTableName = DoctrineEventStoreFactory::databaseTableName($this->contentRepositoryId) . '_bkp_' . date('Y_m_d_H_i_s');
+        $outputFn('Backup: copying events table to %s', [$backupEventTableName]);
+        $this->copyEventTable($backupEventTableName);
+
+        $liveContentStreamName = ContentStreamEventStreamName::fromContentStreamId($liveWorkspaceContentStreamId)->getEventStreamName();
+        // get all NodeAggregateWasRemoved from the live content stream
+        $eventsToReorder = iterator_to_array($this->eventStore->load($liveContentStreamName, EventStreamFilter::create(EventTypes::create(EventType::fromString('NodeAggregateWasRemoved')))), false);
+
+        // remove all the NodeAggregateWasRemoved events at their sequenceNumbers
+        $eventTableName = DoctrineEventStoreFactory::databaseTableName($this->contentRepositoryId);
+        $this->connection->beginTransaction();
+        $this->connection->executeStatement(
+            'DELETE FROM ' . $eventTableName . ' WHERE sequencenumber IN (:sequenceNumbers)',
+            [
+                'sequenceNumbers' => array_map(fn (EventEnvelope $eventEnvelope) => $eventEnvelope->sequenceNumber->value, $eventsToReorder)
+            ],
+            [
+                'sequenceNumbers' => ArrayParameterType::STRING
+            ]
+        );
+        $this->connection->commit();
+
+        $mapper = function (EventEnvelope $eventEnvelope): Event {
+            $metadata = $event->eventMetadata?->value ?? [];
+            $metadata['reorderedByMigration'] = sprintf('Originally recorded at %s with sequence number %d', $eventEnvelope->recordedAt->format(\DateTimeInterface::ATOM), $eventEnvelope->sequenceNumber->value);
+            return new Event(
+                $eventEnvelope->event->id,
+                $eventEnvelope->event->type,
+                $eventEnvelope->event->data,
+                EventMetadata::fromArray($metadata),
+                $eventEnvelope->event->causationId,
+                $eventEnvelope->event->correlationId
+            );
+        };
+
+        // reapply the NodeAggregateWasRemoved events
+        $this->eventStore->commit(
+            $liveContentStreamName,
+            Events::fromArray(array_map($mapper, $eventsToReorder)),
+            ExpectedVersion::ANY()
+        );
+
+        $outputFn(sprintf('Reordered %d removals. Please replay and rebase your other workspaces.', count($eventsToReorder)));
     }
 
     /** ------------------------ */
