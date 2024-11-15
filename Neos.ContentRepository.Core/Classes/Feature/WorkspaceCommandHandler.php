@@ -507,7 +507,11 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             yield $this->reopenContentStreamWithoutConstraintChecks(
                 $workspace->currentContentStreamId
             );
-
+            if ($workspace->status === WorkspaceStatus::UP_TO_DATE) {
+                throw new \RuntimeException('TODO cannot publish changeset as the leftover changes would not be applicable.');
+            }
+            // todo either its a conflict with not applicable changes because the one change belongs to another OR the base workspace contains changes and we need to rebase first.
+            // we assume the latter and let the user up date the workspace first!
             throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getConflictingEvents());
         }
 
@@ -630,6 +634,11 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             yield $this->reopenContentStreamWithoutConstraintChecks(
                 $workspace->currentContentStreamId
             );
+            if ($workspace->status === WorkspaceStatus::UP_TO_DATE) {
+                throw new \RuntimeException('TODO cannot discard changeset as the leftover changes would not be applicable.');
+            }
+            // todo either its a conflict with not applicable changes because the one change belongs to another OR the base workspace contains changes and we need to rebase first.
+            // we assume the latter and let the user up date the workspace first!
             throw WorkspaceRebaseFailed::duringDiscard($commandSimulator->getConflictingEvents());
         }
 
