@@ -544,13 +544,4 @@ final class NodeType
     {
         $this->fullConfiguration = $fullConfiguration;
     }
-
-    /**
-     * Get the MoveNode strategy used when moving a node
-     */
-    public function getMoveNodeRelationDistributionStrategy(): RelationDistributionStrategy
-    {
-        $strategy = $this->getConfiguration('strategy.moveNode') ?: 'RelationDistributionStrategy::STRATEGY_GATHER_ALL';
-        return RelationDistributionStrategy::fromName($strategy);
-    }
 }

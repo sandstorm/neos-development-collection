@@ -96,13 +96,6 @@ trait NodeMove
             $command->nodeAggregateId,
         );
 
-        if ($command->relationDistributionStrategy === null) {
-            $nodeType = $this->nodeTypeManager->getNodeType($nodeAggregate->nodeTypeName);
-            $command = $command->withRelationDistributionStrategy(
-                $nodeType ? $nodeType->getMoveNodeRelationDistributionStrategy() : RelationDistributionStrategy::STRATEGY_GATHER_ALL
-            );
-        }
-
         $this->requireNodeAggregateToNotBeRoot($nodeAggregate);
         $this->requireNodeAggregateToBeUntethered($nodeAggregate);
         $this->requireNodeAggregateToCoverDimensionSpacePoint($nodeAggregate, $command->dimensionSpacePoint);
@@ -225,7 +218,7 @@ trait NodeMove
 
     private function resolveAffectedDimensionSpacePointSet(
         NodeAggregate $nodeAggregate,
-        ?Dto\RelationDistributionStrategy $relationDistributionStrategy,
+        Dto\RelationDistributionStrategy $relationDistributionStrategy,
         DimensionSpace\DimensionSpacePoint $referenceDimensionSpacePoint
     ): DimensionSpacePointSet {
         return match ($relationDistributionStrategy) {
