@@ -95,7 +95,6 @@ trait NodeMove
             $contentGraph,
             $command->nodeAggregateId,
         );
-
         $this->requireNodeAggregateToNotBeRoot($nodeAggregate);
         $this->requireNodeAggregateToBeUntethered($nodeAggregate);
         $this->requireNodeAggregateToCoverDimensionSpacePoint($nodeAggregate, $command->dimensionSpacePoint);
