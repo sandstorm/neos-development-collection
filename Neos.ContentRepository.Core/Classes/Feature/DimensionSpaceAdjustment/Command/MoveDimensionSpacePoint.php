@@ -58,9 +58,6 @@ final readonly class MoveDimensionSpacePoint implements
         return new self($workspaceName, $source, $target);
     }
 
-    /**
-     * @param array<string,mixed> $array
-     */
     public static function fromArray(array $array): self
     {
         return new self(

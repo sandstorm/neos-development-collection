@@ -34,11 +34,9 @@ enum RelationDistributionStrategy: string implements \JsonSerializable
     case STRATEGY_GATHER_ALL = 'gatherAll';
     case STRATEGY_GATHER_SPECIALIZATIONS = 'gatherSpecializations';
 
-    public static function fromString(?string $serialization): self
+    public static function default(): self
     {
-        return !is_null($serialization)
-            ? self::from($serialization)
-            : self::STRATEGY_GATHER_ALL;
+        return self::STRATEGY_GATHER_ALL;
     }
 
     public static function fromName(string $name): ?self

@@ -60,9 +60,6 @@ final readonly class CreateNodeVariant implements
         return new self($workspaceName, $nodeAggregateId, $sourceOrigin, $targetOrigin);
     }
 
-    /**
-     * @param array<string,mixed> $array
-     */
     public static function fromArray(array $array): self
     {
         return new self(

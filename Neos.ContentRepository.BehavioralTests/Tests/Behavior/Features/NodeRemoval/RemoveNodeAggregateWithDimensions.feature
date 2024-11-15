@@ -24,7 +24,7 @@ Feature: Remove NodeAggregate
       | nodeTypeName    | "Neos.ContentRepository:Root" |
     # We have to add another node since root nodes are in all dimension space points and thus cannot be varied
     # Node /document
-    And the command CreateNodeAggregateWithNodeAndSerializedProperties is executed with payload:
+    And the command CreateNodeAggregateWithNode is executed with payload:
       | Key                   | Value                                     |
       | nodeAggregateId       | "nody-mc-nodeface"                        |
       | nodeTypeName          | "Neos.ContentRepository.Testing:Document" |
@@ -32,7 +32,7 @@ Feature: Remove NodeAggregate
       | nodeName              | "document"                                |
     # We also want to add a child node to make sure it is correctly removed when the parent is removed
     # Node /document/child-document
-    And the command CreateNodeAggregateWithNodeAndSerializedProperties is executed with payload:
+    And the command CreateNodeAggregateWithNode is executed with payload:
       | Key                   | Value                                     |
       | nodeAggregateId       | "nodimus-prime"                           |
       | nodeTypeName          | "Neos.ContentRepository.Testing:Document" |
