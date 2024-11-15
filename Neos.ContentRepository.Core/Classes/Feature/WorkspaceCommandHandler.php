@@ -612,7 +612,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             // quick path everything was discarded
             yield from $this->discardWorkspace(
                 $workspace,
-                $workspaceContentStreamVersion,
                 $baseWorkspace,
                 $baseWorkspaceContentStreamVersion,
                 $command->newContentStreamId
@@ -684,12 +683,11 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             return;
         }
 
-        $workspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($workspace, $commandHandlingDependencies);
+        $this->requireContentStreamToNotBeClosed($workspace->currentContentStreamId, $commandHandlingDependencies);
         $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($baseWorkspace, $commandHandlingDependencies);
 
         yield from $this->discardWorkspace(
             $workspace,
-            $workspaceContentStreamVersion,
             $baseWorkspace,
             $baseWorkspaceContentStreamVersion,
             $command->newContentStreamId
@@ -701,7 +699,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
      */
     private function discardWorkspace(
         Workspace $workspace,
-        Version $workspaceContentStreamVersion,
         Workspace $baseWorkspace,
         Version $baseWorkspaceContentStreamVersion,
         ContentStreamId $newContentStream
