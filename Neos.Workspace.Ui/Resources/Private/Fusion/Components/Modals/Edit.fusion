@@ -41,16 +41,16 @@ prototype(Neos.Workspace.Ui:Component.Modal.Edit) < prototype(Neos.Fusion:Compon
           {private.i18n.id('workspaces.editWorkspace').arguments([props.workspaceTitle])}
         </div>
       </header>
-      <section>
-        <Neos.Fusion.Form:Form
-          form.target.action="update"
-          form.target.format="htmx"
-          form.target.arguments.workspaceName={props.workspaceName}
-          attributes.class="neos-inline"
-          attributes.hx-post={form.getTarget()}
-          attributes.hx-disabled-elt="find button"
-          attributes.hx-on--after-request={'document.getElementById("' + private.popoverId + '").hidePopover()'}
-        >
+      <Neos.Fusion.Form:Form
+        form.target.action="update"
+        form.target.format="htmx"
+        form.target.arguments.workspaceName={props.workspaceName}
+        attributes.class="neos-inline"
+        attributes.hx-post={form.getTarget()}
+        attributes.hx-disabled-elt="find button"
+        attributes.hx-on--after-request={'document.getElementById("' + private.popoverId + '").hidePopover()'}
+      >
+        <section>
           <fieldset>
             <Neos.Fusion.Form:Neos.BackendModule.FieldContainer
               field.name="title"
@@ -108,21 +108,21 @@ prototype(Neos.Workspace.Ui:Component.Modal.Edit) < prototype(Neos.Fusion:Compon
               </p>
             </Neos.Fusion.Form:Neos.BackendModule.FieldContainer>
           </fieldset>
-          <footer>
-            <Neos.Fusion.Form:Button attributes.class="neos-button neos-button-primary">
-              {private.i18n.id('applyChanges')}
-            </Neos.Fusion.Form:Button>
-            <button
-              type="button"
-              class="neos-button"
-              popovertarget={private.popoverId}
-              popovertargetaction="close"
-            >
-              {private.i18n.id('cancel', 'Cancel', [])}
-            </button>
-          </footer>
-        </Neos.Fusion.Form:Form>
-      </section>
+        </section>
+        <footer>
+          <button
+            type="button"
+            class="neos-button"
+            popovertarget={private.popoverId}
+            popovertargetaction="close"
+          >
+            {private.i18n.id('cancel', 'Cancel', [])}
+          </button>
+          <Neos.Fusion.Form:Button attributes.class="neos-button neos-button-primary">
+            {private.i18n.id('applyChanges')}
+          </Neos.Fusion.Form:Button>
+        </footer>
+      </Neos.Fusion.Form:Form>
     </div>
   `
 }
