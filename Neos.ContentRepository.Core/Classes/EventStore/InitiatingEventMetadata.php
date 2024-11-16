@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\EventStore;
 
-use Neos\ContentRepository\Core\SharedModel\User\UserId;
+use Neos\ContentRepository\Core\Feature\Security\Dto\UserId;
 use Neos\EventStore\Model\Event\EventMetadata;
 
 /**

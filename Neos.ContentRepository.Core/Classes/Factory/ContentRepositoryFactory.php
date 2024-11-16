@@ -15,9 +15,8 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Factory;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandBus;
-use Neos\ContentRepository\Core\CommandHandler\CommandHooks;
-use Neos\ContentRepository\Core\CommandHandler\CommandSimulatorFactory;
 use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
+use Neos\ContentRepository\Core\CommandHandler\CommandSimulatorFactory;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
 use Neos\ContentRepository\Core\DimensionSpace\ContentDimensionZookeeper;
@@ -32,7 +31,7 @@ use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\ProjectionsAndCatchUpHooks;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
-use Neos\ContentRepository\Core\SharedModel\User\UserIdProviderInterface;
+use Neos\ContentRepositoryRegistry\Factory\AuthProvider\AuthProviderFactoryInterface;
 use Neos\EventStore\EventStoreInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Serializer\Serializer;
@@ -54,7 +53,7 @@ final class ContentRepositoryFactory
         ContentDimensionSourceInterface $contentDimensionSource,
         Serializer $propertySerializer,
         ProjectionsAndCatchUpHooksFactory $projectionsAndCatchUpHooksFactory,
-        private readonly UserIdProviderInterface $userIdProvider,
+        private readonly AuthProviderFactoryInterface $authProviderFactory,
         private readonly ClockInterface $clock,
         private readonly CommandHooksFactory $commandHooksFactory,
     ) {
@@ -71,7 +70,7 @@ final class ContentRepositoryFactory
             $contentDimensionSource,
             $contentDimensionZookeeper,
             $interDimensionalVariationGraph,
-            new PropertyConverter($propertySerializer)
+            new PropertyConverter($propertySerializer),
         );
         $this->projectionsAndCatchUpHooks = $projectionsAndCatchUpHooksFactory->build($this->projectionFactoryDependencies);
     }
@@ -135,6 +134,7 @@ final class ContentRepositoryFactory
                 $this->projectionFactoryDependencies->eventNormalizer,
             )
         );
+        $authProvider = $this->authProviderFactory->build($this->contentRepositoryId, $contentGraphReadModel);
         $commandHooks = $this->commandHooksFactory->build(CommandHooksFactoryDependencies::create(
             $this->contentRepositoryId,
             $this->projectionsAndCatchUpHooks->contentGraphProjection->getState(),
@@ -152,7 +152,7 @@ final class ContentRepositoryFactory
             $this->projectionFactoryDependencies->nodeTypeManager,
             $this->projectionFactoryDependencies->interDimensionalVariationGraph,
             $this->projectionFactoryDependencies->contentDimensionSource,
-            $this->userIdProvider,
+            $authProvider,
             $this->clock,
             $contentGraphReadModel,
             $commandHooks,

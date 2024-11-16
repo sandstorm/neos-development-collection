@@ -15,7 +15,9 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap;
 
 use Neos\ContentRepository\Core\ContentRepository;
+use Neos\ContentRepository\Core\ContentRepositoryReadModel;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
+use Neos\ContentRepository\Core\Feature\Security\Dto\UserId;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregate;
@@ -23,11 +25,9 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\NodePath;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
-use Neos\ContentRepository\Core\SharedModel\User\UserId;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
+use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Helpers\TestingAuthProvider;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Helpers\FakeClock;
-use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Helpers\FakeUserIdProvider;
 
 /**
  * The node creation trait for behavioral tests
@@ -73,7 +73,7 @@ trait CRTestSuiteRuntimeVariables
      */
     public function iAmUserIdentifiedBy(string $userId): void
     {
-        FakeUserIdProvider::setUserId(UserId::fromString($userId));
+        TestingAuthProvider::setDefaultUserId(UserId::fromString($userId));
     }
 
     /**
@@ -111,13 +111,13 @@ trait CRTestSuiteRuntimeVariables
     }
 
     /**
-     * @When /^VisibilityConstraints are set to "(withoutRestrictions|frontend)"$/
+     * @When /^VisibilityConstraints are set to "(withoutRestrictions|default)"$/
      */
     public function visibilityConstraintsAreSetTo(string $restrictionType): void
     {
         $this->currentVisibilityConstraints = match ($restrictionType) {
             'withoutRestrictions' => VisibilityConstraints::withoutRestrictions(),
-            'frontend' => VisibilityConstraints::frontend(),
+            'default' => VisibilityConstraints::default(),
             default => throw new \InvalidArgumentException('Visibility constraint "' . $restrictionType . '" not supported.'),
         };
     }
