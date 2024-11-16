@@ -7,6 +7,11 @@ The Neos CMS workspace management module
 
 If you want to use Neos, please have a look at the `Neos documentation <https://docs.neos.io>`_
 
+User stories
+------------
+
+See :file:`Documentation/UserStories.rst`.
+
 Contribute
 ----------
 
