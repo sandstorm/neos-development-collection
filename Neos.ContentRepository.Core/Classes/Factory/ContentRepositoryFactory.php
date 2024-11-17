@@ -36,7 +36,6 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInt
 use Neos\ContentRepository\Core\Projection\ProjectionEventHandler;
 use Neos\ContentRepository\Core\Projection\ProjectionStates;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
-use Neos\ContentRepository\Core\SharedModel\User\UserIdProviderInterface;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\ContentRepository\Core\Subscription\RetryStrategy\NoRetryStrategy;
 use Neos\ContentRepository\Core\Subscription\RunMode;
@@ -45,6 +44,7 @@ use Neos\ContentRepository\Core\Subscription\Subscriber\Subscriber;
 use Neos\ContentRepository\Core\Subscription\Subscriber\Subscribers;
 use Neos\ContentRepository\Core\Subscription\SubscriptionGroup;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
+use Neos\ContentRepositoryRegistry\Factory\AuthProvider\AuthProviderFactoryInterface;
 use Neos\EventStore\EventStoreInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -77,7 +77,8 @@ final class ContentRepositoryFactory
         NodeTypeManager $nodeTypeManager,
         ContentDimensionSourceInterface $contentDimensionSource,
         Serializer $propertySerializer,
-        private readonly UserIdProviderInterface $userIdProvider,
+        ProjectionsAndCatchUpHooksFactory $projectionsAndCatchUpHooksFactory,
+        private readonly AuthProviderFactoryInterface $authProviderFactory,
         private readonly ClockInterface $clock,
         SubscriptionStoreInterface $subscriptionStore,
         ContentGraphProjectionFactoryInterface $contentGraphProjectionFactory,
@@ -99,7 +100,7 @@ final class ContentRepositoryFactory
             $contentDimensionSource,
             $contentDimensionZookeeper,
             $interDimensionalVariationGraph,
-            new PropertyConverter($propertySerializer)
+            new PropertyConverter($propertySerializer),
         );
         $subscribers = [];
         $additionalProjectionStates = [];
@@ -187,6 +188,7 @@ final class ContentRepositoryFactory
                 $this->subscriberFactoryDependencies->eventNormalizer,
             )
         );
+        $authProvider = $this->authProviderFactory->build($this->contentRepositoryId, $contentGraphReadModel);
         $commandHooks = $this->commandHooksFactory->build(CommandHooksFactoryDependencies::create(
             $this->contentRepositoryId,
             $this->contentGraphProjection->getState(),
@@ -203,7 +205,7 @@ final class ContentRepositoryFactory
             $this->subscriberFactoryDependencies->nodeTypeManager,
             $this->subscriberFactoryDependencies->interDimensionalVariationGraph,
             $this->subscriberFactoryDependencies->contentDimensionSource,
-            $this->userIdProvider,
+            $authProvider,
             $this->clock,
             $contentGraphReadModel,
             $commandHooks,
