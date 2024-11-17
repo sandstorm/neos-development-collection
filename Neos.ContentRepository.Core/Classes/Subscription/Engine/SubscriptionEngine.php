@@ -50,24 +50,20 @@ final class SubscriptionEngine
         $this->subscriptionStore->setup();
         $this->discoverNewSubscriptions();
         $this->retrySubscriptions($criteria);
-        return $this->subscriptionManager->findForUpdate(
-            SubscriptionCriteria::forEngineCriteriaAndStatus($criteria, SubscriptionStatus::NEW),
-            function (Subscriptions $subscriptions) use ($skipBooting) {
-                if ($subscriptions->isEmpty()) {
-                    $this->logger?->info('Subscription Engine: No subscriptions to setup, finish setup.');
-                    return Result::success();
-                }
-                $lastSequenceNumber = $this->lastSequenceNumber();
-                $errors = [];
-                foreach ($subscriptions as $subscription) {
-                    $error = $this->setupSubscription($subscription, $lastSequenceNumber, $skipBooting);
-                    if ($error !== null) {
-                        $errors[] = $error;
-                    }
-                }
-                return $errors === [] ? Result::success() : Result::failed(Errors::fromArray($errors));
+        $lastSequenceNumber = $this->lastSequenceNumber();
+        $subscriptions = $this->subscriptionStore->findByCriteria(SubscriptionCriteria::forEngineCriteriaAndStatus($criteria, SubscriptionStatus::NEW));
+        if ($subscriptions->isEmpty()) {
+            $this->logger?->info('Subscription Engine: No subscriptions to setup, finish setup.');
+            return Result::success();
+        }
+        $errors = [];
+        foreach ($subscriptions as $subscription) {
+            $error = $this->setupSubscription($subscription, $lastSequenceNumber, $skipBooting);
+            if ($error !== null) {
+                $errors[] = $error;
             }
-        );
+        }
+        return $errors === [] ? Result::success() : Result::failed(Errors::fromArray($errors));
     }
 
     public function boot(SubscriptionEngineCriteria|null $criteria = null): ProcessedResult

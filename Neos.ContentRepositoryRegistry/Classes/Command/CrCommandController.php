@@ -41,9 +41,16 @@ final class CrCommandController extends CommandController
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
         $subscriptionService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new SubscriptionServiceFactory());
         $subscriptionService->setupEventStore();
-        $subscriptionService->subscriptionEngine->setup();
-
-        $this->outputLine('<success>Content Repository "%s" was set up</success>', [$contentRepositoryId->value]);
+        $setupResult = $subscriptionService->subscriptionEngine->setup();
+        if ($setupResult->errors === null) {
+            $this->outputLine('<success>Content Repository "%s" was set up</success>', [$contentRepositoryId->value]);
+            return;
+        }
+        $this->outputLine('<success>Setup of Content Repository "%s" produced the following error%s</success>', [$contentRepositoryId->value, $setupResult->errors->count() === 1 ? '' : 's']);
+        foreach ($setupResult->errors as $error) {
+            $this->outputLine('<error><b>Subscription "%s":</b> %s</error>', [$error->subscriptionId->value, $error->message]);
+        }
+        $this->quit(1);
     }
 
     public function subscriptionsBootCommand(string $contentRepository = 'default'): void
