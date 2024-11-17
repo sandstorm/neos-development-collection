@@ -77,7 +77,6 @@ final class ContentRepositoryFactory
         NodeTypeManager $nodeTypeManager,
         ContentDimensionSourceInterface $contentDimensionSource,
         Serializer $propertySerializer,
-        ProjectionsAndCatchUpHooksFactory $projectionsAndCatchUpHooksFactory,
         private readonly AuthProviderFactoryInterface $authProviderFactory,
         private readonly ClockInterface $clock,
         SubscriptionStoreInterface $subscriptionStore,
