@@ -68,7 +68,7 @@ final class SubscriptionManager
         $this->forRemove->attach($subscription);
     }
 
-    private function flush(): void
+    public function flush(): void
     {
         foreach ($this->forAdd as $subscription) {
             if ($this->forRemove->contains($subscription)) {

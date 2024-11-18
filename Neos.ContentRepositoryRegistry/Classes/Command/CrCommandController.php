@@ -53,14 +53,35 @@ final class CrCommandController extends CommandController
         $this->quit(1);
     }
 
-    public function subscriptionsBootCommand(string $contentRepository = 'default'): void
+    public function subscriptionsBootCommand(string $contentRepository = 'default', bool $quiet = false): void
     {
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
         $subscriptionService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new SubscriptionServiceFactory());
-        $subscriptionService->subscriptionEngine->boot();
+        if (!$quiet) {
+            $this->outputLine('Booting new subscriptions');
+            // render memory consumption and time remaining
+            $this->output->getProgressBar()->setFormat('debug');
+            $this->output->progressStart();
+            $bootResult = $subscriptionService->subscriptionEngine->boot(progressCallback: fn () => $this->output->progressAdvance());
+            $this->output->progressFinish();
+            $this->outputLine();
+            if ($bootResult->errors === null) {
+                $this->outputLine('<success>Done</success>');
+                return;
+            }
+        } else {
+            $bootResult = $subscriptionService->subscriptionEngine->boot();
+        }
+        if ($bootResult->errors !== null) {
+            $this->outputLine('<success>Booting of Content Repository "%s" produced the following error%s</success>', [$contentRepositoryId->value, $bootResult->errors->count() === 1 ? '' : 's']);
+            foreach ($bootResult->errors as $error) {
+                $this->outputLine('<error><b>Subscription "%s":</b> %s</error>', [$error->subscriptionId->value, $error->message]);
+            }
+            $this->quit(1);
+        }
     }
 
-    public function subscriptionsCatchUpCommand(string $contentRepository = 'default'): void
+    public function subscriptionsCatchUpCommand(string $contentRepository = 'default', bool $quiet = false): void
     {
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
         $subscriptionService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new SubscriptionServiceFactory());
@@ -75,7 +96,16 @@ final class CrCommandController extends CommandController
         }
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
         $subscriptionService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new SubscriptionServiceFactory());
-        //$subscriptionService->subscriptionEngine->reset();
+        $resetResult = $subscriptionService->subscriptionEngine->reset();
+        if ($resetResult->errors === null) {
+            $this->outputLine('<success>Content Repository "%s" was reset</success>', [$contentRepositoryId->value]);
+            return;
+        }
+        $this->outputLine('<success>Reset of Content Repository "%s" produced the following error%s</success>', [$contentRepositoryId->value, $resetResult->errors->count() === 1 ? '' : 's']);
+        foreach ($resetResult->errors as $error) {
+            $this->outputLine('<error><b>Subscription "%s":</b> %s</error>', [$error->subscriptionId->value, $error->message]);
+        }
+        $this->quit(1);
     }
 
     /**

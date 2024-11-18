@@ -19,6 +19,6 @@ final readonly class ProjectionResetProcessor implements ProcessorInterface
 
     public function run(ProcessingContext $context): void
     {
-        // TODO implement $this->subscriptionService->reset();
+        $this->subscriptionService->subscriptionEngine->reset();
     }
 }

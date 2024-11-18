@@ -6,6 +6,7 @@ namespace Neos\ContentRepository\Core\Subscription\Engine;
 
 use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
+use Neos\ContentRepository\Core\Projection\ProjectionEventHandler;
 use Neos\ContentRepository\Core\Subscription\Exception\SubscriptionEngineAlreadyProcessingException;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatusFilter;
 use Neos\EventStore\EventStoreInterface;
@@ -63,17 +64,39 @@ final class SubscriptionEngine
                 $errors[] = $error;
             }
         }
+        $this->subscriptionManager->flush();
         return $errors === [] ? Result::success() : Result::failed(Errors::fromArray($errors));
     }
 
-    public function boot(SubscriptionEngineCriteria|null $criteria = null): ProcessedResult
+    public function boot(SubscriptionEngineCriteria|null $criteria = null, \Closure $progressCallback = null): ProcessedResult
     {
-        return $this->processExclusively(fn () => $this->catchUpSubscriptions($criteria ?? SubscriptionEngineCriteria::noConstraints(), SubscriptionStatus::BOOTING));
+        return $this->processExclusively(fn () => $this->catchUpSubscriptions($criteria ?? SubscriptionEngineCriteria::noConstraints(), SubscriptionStatus::BOOTING, $progressCallback));
     }
 
-    public function catchUpActive(SubscriptionEngineCriteria|null $criteria = null): ProcessedResult
+    public function catchUpActive(SubscriptionEngineCriteria|null $criteria = null, \Closure $progressCallback = null): ProcessedResult
     {
-        return $this->processExclusively(fn () => $this->catchUpSubscriptions($criteria ?? SubscriptionEngineCriteria::noConstraints(), SubscriptionStatus::ACTIVE));
+        return $this->processExclusively(fn () => $this->catchUpSubscriptions($criteria ?? SubscriptionEngineCriteria::noConstraints(), SubscriptionStatus::ACTIVE, $progressCallback));
+    }
+
+    public function reset(SubscriptionEngineCriteria|null $criteria = null, bool $skipBooting = false): Result
+    {
+        $criteria ??= SubscriptionEngineCriteria::noConstraints();
+
+        $this->logger?->info('Subscription Engine: Start to reset.');
+        $subscriptions = $this->subscriptionStore->findByCriteria(SubscriptionCriteria::forEngineCriteriaAndStatus($criteria, SubscriptionStatusFilter::any()));
+        if ($subscriptions->isEmpty()) {
+            $this->logger?->info('Subscription Engine: No subscriptions to reset.');
+            return Result::success();
+        }
+        $errors = [];
+        foreach ($subscriptions as $subscription) {
+            $error = $this->resetSubscription($subscription, $skipBooting);
+            if ($error !== null) {
+                $errors[] = $error;
+            }
+        }
+        $this->subscriptionManager->flush();
+        return $errors === [] ? Result::success() : Result::failed(Errors::fromArray($errors));
     }
 
     public function teardown(SubscriptionEngineCriteria|null $criteria = null): Result
@@ -170,8 +193,6 @@ final class SubscriptionEngine
     /**
      * Set up the subscription by retrieving the corresponding subscriber and calling the setUp method on its handler
      * If the setup fails, the subscription will be in the {@see SubscriptionStatus::ERROR} state and a corresponding {@see Error} is returned
-     *
-     * @param bool $skipBooting
      */
     private function setupSubscription(Subscription $subscription, SequenceNumber $lastSequenceNumber, bool $skipBooting): ?Error
     {
@@ -196,6 +217,31 @@ final class SubscriptionEngine
         }
         $this->subscriptionManager->update($subscription);
         $this->logger?->debug(sprintf('Subscription Engine: For Subscriber "%s" for "%s" the setup method has been executed, set to %s.', $subscriber::class, $subscription->id->value, $subscription->status->value));
+        return null;
+    }
+
+    /**
+     * TODO
+     */
+    private function resetSubscription(Subscription $subscription, bool $skipBooting): ?Error
+    {
+        $subscriber = $this->subscribers->get($subscription->id);
+        if (!$subscriber->handler instanceof ProjectionEventHandler) {
+            $this->logger?->info(sprintf('Subscription Engine: Subscriber handler "%s" for "%s" is no instance of %s, skipping reset', $subscriber->handler::class, $subscription->id->value, ProjectionEventHandler::class));
+            return null;
+        }
+        try {
+            $subscriber->handler->projection->resetState();
+        } catch (\Throwable $e) {
+            $this->logger?->error(sprintf('Subscription Engine: Subscriber handler "%s" for "%s" has an error in the resetState method: %s', $subscriber->handler::class, $subscription->id->value, $e->getMessage()));
+            return Error::fromSubscriptionIdAndException($subscription->id, $e);
+        }
+        $subscription->set(
+            status: $skipBooting ? SubscriptionStatus::ACTIVE : SubscriptionStatus::BOOTING,
+            position: SequenceNumber::none(),
+        );
+        $this->subscriptionManager->update($subscription);
+        $this->logger?->debug(sprintf('Subscription Engine: For Subscriber handler "%s" for "%s" the resetState method has been executed.', $subscriber->handler::class, $subscription->id->value));
         return null;
     }
 
@@ -233,7 +279,7 @@ final class SubscriptionEngine
         $this->logger?->info(sprintf('Subscription Engine: Retry subscription "%s" (%d) and set back to %s.', $subscription->id->value, $subscription->retryAttempt, $subscription->status->value));
     }
 
-    private function catchUpSubscriptions(SubscriptionEngineCriteria $criteria, SubscriptionStatus $subscriptionStatus): ProcessedResult
+    private function catchUpSubscriptions(SubscriptionEngineCriteria $criteria, SubscriptionStatus $subscriptionStatus, \Closure $progressClosure = null): ProcessedResult
     {
         $this->logger?->info(sprintf('Subscription Engine: Start catching up subscriptions in state "%s".', $subscriptionStatus->value));
 
@@ -243,7 +289,7 @@ final class SubscriptionEngine
 
         return $this->subscriptionManager->findForUpdate(
             SubscriptionCriteria::forEngineCriteriaAndStatus($criteria, $subscriptionStatus),
-            function (Subscriptions $subscriptions) use ($subscriptionStatus) {
+            function (Subscriptions $subscriptions) use ($subscriptionStatus, $progressClosure) {
                 if ($subscriptions->isEmpty()) {
                     $this->logger?->info(sprintf('Subscription Engine: No subscriptions in state "%s". Finishing catch up', $subscriptionStatus->value));
 
@@ -261,6 +307,9 @@ final class SubscriptionEngine
                 try {
                     $eventStream = $this->eventStore->load(VirtualStreamName::all())->withMinimumSequenceNumber($startSequenceNumber);
                     foreach ($eventStream as $eventEnvelope) {
+                        if ($progressClosure !== null) {
+                            $progressClosure($eventEnvelope);
+                        }
                         $domainEvent = $this->eventNormalizer->denormalize($eventEnvelope->event);
                         $sequenceNumber = $eventEnvelope->sequenceNumber;
                         foreach ($subscriptions as $subscription) {
