@@ -2,22 +2,26 @@
 
 declare(strict_types=1);
 
-namespace Neos\Neos\Domain\Service\NodeDuplication;
-
-use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
+namespace Neos\ContentRepository\Core\CommandHandler;
 
 /**
+ * @api can be used as collection of commands to be individually handled:
+ *
+ *     foreach ($commands as $command) {
+ *         $contentRepository->handle($command);
+ *     }
+ *
  * @implements \IteratorAggregate<CommandInterface>
  */
 final readonly class Commands implements \IteratorAggregate, \Countable
 {
-    /** @var array<CommandInterface> */
+    /** @var array<int,CommandInterface> */
     private array $items;
 
     private function __construct(
         CommandInterface ...$items
     ) {
-        $this->items = $items;
+        $this->items = array_values($items);
     }
 
     public static function create(CommandInterface ...$items): self
