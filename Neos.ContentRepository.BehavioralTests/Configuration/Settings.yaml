@@ -36,6 +36,7 @@ Neos:
         propertyConverters: {}
         contentGraphProjection:
           factoryObjectName: Neos\ContentGraph\DoctrineDbalAdapter\DoctrineDbalContentGraphProjectionFactory
+          catchUpHooks: {}
 
   Flow:
     object:
