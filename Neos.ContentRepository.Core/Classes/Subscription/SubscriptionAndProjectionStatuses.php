@@ -21,6 +21,9 @@ final readonly class SubscriptionAndProjectionStatuses implements \IteratorAggre
         $this->statuses = $statuses;
     }
 
+    /**
+     * @param array<SubscriptionAndProjectionStatus> $statuses
+     */
     public static function fromArray(array $statuses): self
     {
         return new self(...$statuses);

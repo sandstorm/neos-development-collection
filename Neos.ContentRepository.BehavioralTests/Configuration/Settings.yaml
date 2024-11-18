@@ -31,6 +31,8 @@ Neos:
           factoryObjectName: Neos\ContentRepositoryRegistry\Factory\AuthProvider\StaticAuthProviderFactory
         clock:
           factoryObjectName: Neos\ContentRepositoryRegistry\Factory\Clock\SystemClockFactory
+        subscriptionStore:
+          factoryObjectName: Neos\ContentRepositoryRegistry\Factory\SubscriptionStore\SubscriptionStoreFactory
         propertyConverters: {}
         contentGraphProjection:
           factoryObjectName: Neos\ContentGraph\DoctrineDbalAdapter\DoctrineDbalContentGraphProjectionFactory

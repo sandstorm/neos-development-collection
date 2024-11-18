@@ -15,9 +15,6 @@ final readonly class Errors implements \IteratorAggregate, \Countable
      */
     private array $errors;
 
-    /**
-     * @param array<Error> $errors
-     */
     private function __construct(
         Error ...$errors
     ) {

@@ -267,9 +267,8 @@ final class ContentRepositoryRegistry
 
     /**
      * @param array<string, mixed> $contentRepositorySettings
-     * @return CatchUpHookFactoryInterface<ContentGraphReadModelInterface>
      */
-    private function buildContentGraphCatchUpHookFactory(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): CatchUpHookFactoryInterface
+    private function buildContentGraphCatchUpHookFactory(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): CatchUpHookFactories
     {
         if (!isset($contentRepositorySettings['contentGraphProjection']['catchUpHooks'])) {
             throw InvalidConfigurationException::fromMessage('Content repository "%s" does not have the contentGraphProjection.catchUpHooks configured.', $contentRepositoryId->value);
