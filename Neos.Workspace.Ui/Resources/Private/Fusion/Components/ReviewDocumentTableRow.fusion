@@ -50,7 +50,7 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
   }
 
   renderer = afx`
-    <tr>
+    <tr data-documentPath={documentPath} data-isNew={document.documentChanges.isNew} data-isMoved={document.documentChanges.isMoved}>
       <Neos.Fusion:DataStructure
         @path="attributes.class"
         general="neos-document"
@@ -94,7 +94,7 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
                 attributes.hx-swap='innerHTML'
                 attributes.hx-target="#workspaceReview"
                 attributes.hx-swap="innerHTML"
-                attributes.disabled={!props.canPublishToWorkspace}
+                attributes.disabled={!props.canPublishToWorkspace }
         />
         <Neos.Workspace.Ui:Component.Button
                 title={props.canPublishToBaseWorkspace ? private.i18n.id('workspaces.publishAllChangesInThisDocument') :  private.i18n.id('workspaces.changes.noPermissionToPublishToBaseWorkspace')}

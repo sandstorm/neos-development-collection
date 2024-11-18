@@ -915,6 +915,7 @@ class WorkspaceController extends AbstractModuleController
                         )
                     );
 
+                    //ToDo: Consider dimensions
                     if(!isset($siteChanges[$siteNodeName]['documents'][$documentPath]['document'])) {
                         $documentNodeAddress = NodeAddress::create(
                             $contentRepository->id,

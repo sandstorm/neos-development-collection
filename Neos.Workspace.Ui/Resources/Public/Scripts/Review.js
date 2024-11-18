@@ -30,6 +30,22 @@ function initReviewFunctions(){
 					document.getElementById('batch-actions').classList.add('neos-hidden');
 					document.getElementById('all-actions').classList.remove('neos-hidden');
 				}
+				const neosDocument = checkbox.closest('.neos-document');
+				console.log(neosDocument.dataset.documentpath);
+				if(neosDocument.hasAttribute('data-isNew') || neosDocument.hasAttribute('data-isMoved')){
+					if(checkbox.checked){
+						neosDocument.dataset.documentpath.split('/').forEach(function (parentDocumentId) {
+							const parentElement = checkbox.closest('table').querySelector('.neos-document[data-isMoved][data-documentpath$="'+parentDocumentId+'"], .neos-document[data-isNew][data-documentpath$="'+parentDocumentId+'"]');
+							if (parentElement !== null) {
+								parentElement.querySelector('input').checked = checkbox.checked;
+							}
+						})
+					} else {
+						for (const childElement of document.querySelectorAll('.neos-document[data-documentpath^="'+neosDocument.dataset.documentpath+'"]')) {
+							childElement.querySelector('input').checked = checkbox.checked
+						}
+					}
+				}
 			});
 
 		}
@@ -52,7 +68,6 @@ function initReviewFunctions(){
 			'click', function (event) {
 				const collapseButton = document.getElementById('collapse-all');
 				let status = (collapseButton.dataset.toggled === 'true');
-				console.log(status);
 				if(status){
 					for (const toggle of document.querySelectorAll('.toggle-document')) {
 						toggle.children[0].classList.remove('fa-chevron-down');
@@ -78,6 +93,7 @@ function initReviewFunctions(){
 
 			}
 		)
+
 
 	}
 }

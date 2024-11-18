@@ -15,8 +15,7 @@ prototype(Neos.Workspace.Ui:Component.ReviewChangeTableRow) < prototype(Neos.Fus
 
   renderer = afx`
     <tr class="neos-change" >
-
-      <td id={"change-" + change.serializedNodeAddress} colspan="4">
+      <td colspan="4">
         <Neos.Fusion:DataStructure
           @path="attributes.class"
           general="neos-content-change"
