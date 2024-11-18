@@ -233,6 +233,7 @@ final class ContentRepositoryFactory
             $this->subscriberFactoryDependencies,
             $this->eventStore,
             $this->getOrBuild(),
+            $this->contentGraphProjection->getState(),
             $this->subscriptionEngine,
         );
         return $serviceFactory->build($serviceFactoryDependencies);

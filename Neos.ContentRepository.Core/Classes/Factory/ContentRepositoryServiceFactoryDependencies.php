@@ -21,6 +21,7 @@ use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\EventStore\EventStoreInterface;
@@ -43,6 +44,7 @@ final readonly class ContentRepositoryServiceFactoryDependencies
         public InterDimensionalVariationGraph $interDimensionalVariationGraph,
         public PropertyConverter $propertyConverter,
         public ContentRepository $contentRepository,
+        public ContentGraphReadModelInterface $contentGraphReadModel,
         // we don't need CommandBus, because this is included in ContentRepository->handle()
         public SubscriptionEngine $subscriptionEngine,
     ) {
@@ -55,6 +57,7 @@ final readonly class ContentRepositoryServiceFactoryDependencies
         SubscriberFactoryDependencies $projectionFactoryDependencies,
         EventStoreInterface $eventStore,
         ContentRepository $contentRepository,
+        ContentGraphReadModelInterface $contentGraphReadModel,
         SubscriptionEngine $subscriptionEngine,
     ): self {
         return new self(
@@ -67,6 +70,7 @@ final readonly class ContentRepositoryServiceFactoryDependencies
             $projectionFactoryDependencies->interDimensionalVariationGraph,
             $projectionFactoryDependencies->propertyConverter,
             $contentRepository,
+            $contentGraphReadModel,
             $subscriptionEngine,
         );
     }
