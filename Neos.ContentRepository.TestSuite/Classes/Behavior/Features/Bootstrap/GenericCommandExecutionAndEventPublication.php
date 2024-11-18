@@ -29,7 +29,6 @@ use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\MoveDim
 use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNode;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\DisableNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\EnableNodeAggregate;
-use Neos\ContentRepository\Core\Feature\NodeDuplication\Command\CopyNodesRecursively;
 use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetNodeProperties;
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
 use Neos\ContentRepository\Core\Feature\NodeMove\Command\MoveNodeAggregate;
@@ -245,7 +244,6 @@ trait GenericCommandExecutionAndEventPublication
             ChangeBaseWorkspace::class,
             ChangeNodeAggregateName::class,
             ChangeNodeAggregateType::class,
-            CopyNodesRecursively::class,
             CreateNodeAggregateWithNode::class,
             CreateNodeVariant::class,
             CreateRootNodeAggregateWithNode::class,
