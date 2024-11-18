@@ -116,4 +116,21 @@ class MigrateEventsCommandController extends CommandController
         $eventMigrationService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, $this->eventMigrationServiceFactory);
         $eventMigrationService->migrateReferencesToMultiFormat($this->outputLine(...));
     }
+
+    /**
+     * Reorders all NodeAggregateWasMoved events to allow replaying in case orphaned nodes existed in previous betas
+     *
+     * Fixes these bugs to allow to migrate to Beta 15:
+     *
+     * - #5364 https://github.com/neos/neos-development-collection/issues/5364
+     * - #5352 https://github.com/neos/neos-development-collection/issues/5352
+     *
+     * Included in November 2024 - before final Neos 9.0 release
+     */
+    public function reorderNodeAggregateWasRemovedCommand(string $contentRepository = 'default'): void
+    {
+        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
+        $eventMigrationService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, $this->eventMigrationServiceFactory);
+        $eventMigrationService->reorderNodeAggregateWasRemoved($this->outputLine(...));
+    }
 }
