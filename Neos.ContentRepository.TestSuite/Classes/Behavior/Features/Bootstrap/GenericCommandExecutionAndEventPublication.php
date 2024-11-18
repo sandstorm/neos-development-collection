@@ -191,7 +191,9 @@ trait GenericCommandExecutionAndEventPublication
             }
         }
         if ($commandClassName === CreateNodeAggregateWithNode::class || $commandClassName === SetNodeReferences::class) {
-            if (is_array($commandArguments['references'] ?? null)) {
+            if (is_string($commandArguments['references'] ?? null)) {
+                $commandArguments['references'] = iterator_to_array($this->mapRawNodeReferencesToNodeReferencesToWrite(json_decode($commandArguments['references'], true, 512, JSON_THROW_ON_ERROR)));
+            } elseif (is_array($commandArguments['references'] ?? null)) {
                 $commandArguments['references'] = iterator_to_array($this->mapRawNodeReferencesToNodeReferencesToWrite($commandArguments['references']));
             }
         }
