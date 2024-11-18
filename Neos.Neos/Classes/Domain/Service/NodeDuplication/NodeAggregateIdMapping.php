@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\Core\Feature\NodeDuplication\Dto;
+namespace Neos\Neos\Domain\Service\NodeDuplication;
 
 /*
  * This file is part of the Neos.ContentRepository package.
@@ -14,6 +14,7 @@ namespace Neos\ContentRepository\Core\Feature\NodeDuplication\Dto;
  * source code.
  */
 
+use Neos\ContentRepository\Core\Feature\NodeDuplication\Dto\NodeSubtreeSnapshot;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 
 /**
@@ -21,9 +22,7 @@ use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
  *
  * Usable for predefining NodeAggregateIds if multiple nodes are copied.
  *
- * You'll never create this class yourself; but you use {@see CopyNodesRecursively::createFromSubgraphAndStartNode()}
- *
- * @internal implementation detail of {@see CopyNodesRecursively} command
+ * @internal only needed for testing
  */
 final class NodeAggregateIdMapping implements \JsonSerializable
 {
@@ -60,6 +59,7 @@ final class NodeAggregateIdMapping implements \JsonSerializable
     public static function generateForNodeSubtreeSnapshot(NodeSubtreeSnapshot $nodeSubtreeSnapshot): self
     {
         $nodeAggregateIdMapping = [];
+        /** @phpstan-ignore neos.cr.internal */
         $nodeSubtreeSnapshot->walk(
             function (NodeSubtreeSnapshot $nodeSubtreeSnapshot) use (&$nodeAggregateIdMapping) {
                 // here, we create new random NodeAggregateIds.
