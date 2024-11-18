@@ -6,11 +6,12 @@ namespace Neos\ContentRepository\Core\Subscription\Engine;
 
 /**
  * @implements \IteratorAggregate<Error>
+ * @api
  */
 final readonly class Errors implements \IteratorAggregate, \Countable
 {
     /**
-     * array<Error>
+     * @var array<Error>
      */
     private array $errors;
 

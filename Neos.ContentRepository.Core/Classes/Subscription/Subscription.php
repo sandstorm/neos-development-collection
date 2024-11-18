@@ -11,7 +11,7 @@ use Neos\EventStore\Model\Event\SequenceNumber;
 /**
  * Note: This class is mutable by design!
  *
- * @api
+ * @internal
  */
 final class Subscription
 {

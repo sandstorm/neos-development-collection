@@ -8,6 +8,8 @@ use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\Projection\ProjectionEventHandler;
 use Neos\ContentRepository\Core\Subscription\Exception\SubscriptionEngineAlreadyProcessingException;
+use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatus;
+use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatuses;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatusFilter;
 use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Model\Event\SequenceNumber;
@@ -123,9 +125,20 @@ final class SubscriptionEngine
         return Result::success();
     }
 
-    public function subscriptions(SubscriptionCriteria|null $criteria = null): Subscriptions
+    public function subscriptionStatuses(SubscriptionCriteria|null $criteria = null): SubscriptionAndProjectionStatuses
     {
-        return $this->subscriptionStore->findByCriteria($criteria ?? SubscriptionCriteria::noConstraints());
+        $statuses = [];
+        foreach ($this->subscriptionStore->findByCriteria($criteria ?? SubscriptionCriteria::noConstraints()) as $subscription) {
+            $subscriber = $this->subscribers->get($subscription->id);
+            $statuses[] = SubscriptionAndProjectionStatus::create(
+                subscriptionId: $subscription->id,
+                subscriptionStatus: $subscription->status,
+                subscriptionPosition: $subscription->position,
+                subscriptionError: $subscription->error,
+                projectionStatus: $subscriber->handler instanceof ProjectionEventHandler ? $subscriber->handler->projection->status() : null,
+            );
+        }
+        return SubscriptionAndProjectionStatuses::fromArray($statuses);
     }
 
     private function handleEvent(EventEnvelope $eventEnvelope, EventInterface $domainEvent, Subscription $subscription): Error|null

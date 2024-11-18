@@ -8,7 +8,7 @@ use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 
 /**
  * @implements CatchUpHookFactoryInterface<ProjectionStateInterface>
- * @internal
+ * @api
  */
 final class CatchUpHookFactories implements CatchUpHookFactoryInterface
 {

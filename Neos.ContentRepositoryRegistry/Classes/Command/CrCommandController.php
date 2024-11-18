@@ -6,6 +6,7 @@ namespace Neos\ContentRepositoryRegistry\Command;
 use Neos\ContentRepository\Core\Projection\ProjectionStatusType;
 use Neos\ContentRepository\Core\Service\SubscriptionServiceFactory;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Neos\EventStore\Model\EventStore\StatusType;
@@ -123,35 +124,87 @@ final class CrCommandController extends CommandController
             $this->output->getOutput()->setVerbosity(Output::VERBOSITY_QUIET);
         }
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
-        $status = new stdClass();//TODO $this->contentRepositoryRegistry->get($contentRepositoryId)->status();
+        $subscriptionService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new SubscriptionServiceFactory());
+        $eventStoreStatus = $subscriptionService->eventStoreStatus();
+        $hasErrors = false;
+        $setupRequired = false;
+        $bootingRequired = false;
+        $resetRequired = false;
 
         $this->output('Event Store: ');
-        $this->outputLine(match ($status->eventStoreStatus->type) {
+        $this->outputLine(match ($eventStoreStatus->type) {
             StatusType::OK => '<success>OK</success>',
             StatusType::SETUP_REQUIRED => '<comment>Setup required!</comment>',
             StatusType::ERROR => '<error>ERROR</error>',
         });
-        if ($verbose && $status->eventStoreStatus->details !== '') {
-            $this->outputFormatted($status->eventStoreStatus->details, [], 2);
+        $hasErrors |= $eventStoreStatus->type === StatusType::ERROR;
+        if ($verbose && $eventStoreStatus->details !== '') {
+            $this->outputFormatted($eventStoreStatus->details, [], 2);
         }
         $this->outputLine();
-        foreach ($status->projectionStatuses as $projectionName => $projectionStatus) {
-            $this->output('Projection "<b>%s</b>": ', [$projectionName]);
-            $this->outputLine(match ($projectionStatus->type) {
-                ProjectionStatusType::OK => '<success>OK</success>',
-                ProjectionStatusType::SETUP_REQUIRED => '<comment>Setup required!</comment>',
-                ProjectionStatusType::REPLAY_REQUIRED => '<comment>Replay required!</comment>',
-                ProjectionStatusType::ERROR => '<error>ERROR</error>',
+        $this->outputLine('Subscriptions:');
+        $subscriptionStatuses = $subscriptionService->subscriptionEngine->subscriptionStatuses();
+        if ($subscriptionStatuses->isEmpty()) {
+            $this->outputLine('<error>There are no registered subscriptions yet, please run <em>./flow cr:setup</em></error>');
+            $this->quit(1);
+        }
+        foreach ($subscriptionStatuses as $status) {
+            $this->outputLine('  <b>%s</b>:', [$status->subscriptionId->value]);
+            $this->output('    Subscription: ', [$status->subscriptionId->value]);
+            $this->output(match ($status->subscriptionStatus) {
+                SubscriptionStatus::NEW => '<comment>NEW</comment>',
+                SubscriptionStatus::BOOTING => '<comment>BOOTING</comment>',
+                SubscriptionStatus::ACTIVE => '<success>ACTIVE</success>',
+                SubscriptionStatus::PAUSED => '<comment>PAUSED</comment>',
+                SubscriptionStatus::FINISHED => '<comment>FINISHED</comment>',
+                SubscriptionStatus::DETACHED => '<comment>DETACHED</comment>',
+                SubscriptionStatus::ERROR => '<error>ERROR</error>',
             });
-            if ($verbose && ($projectionStatus->type !== ProjectionStatusType::OK || $projectionStatus->details)) {
-                $lines = explode(chr(10), $projectionStatus->details ?: '<comment>No details available.</comment>');
+            $this->outputLine(' at position <b>%d</b>', [$status->subscriptionPosition->value]);
+            $hasErrors |= $status->subscriptionStatus === SubscriptionStatus::ERROR;
+            $bootingRequired |= $status->subscriptionStatus === SubscriptionStatus::BOOTING;
+            if ($verbose && $status->subscriptionError !== null) {
+                $lines = explode(chr(10), $status->subscriptionError->errorMessage ?: '<comment>No details available.</comment>');
                 foreach ($lines as $line) {
-                    $this->outputLine('  ' . $line);
+                    $this->outputLine('<error>      %s</error>', [$line]);
                 }
-                $this->outputLine();
+            }
+            if ($status->projectionStatus !== null) {
+                $this->output('    Projection: ');
+                $this->outputLine(match ($status->projectionStatus->type) {
+                    ProjectionStatusType::OK => '<success>OK</success>',
+                    ProjectionStatusType::SETUP_REQUIRED => '<comment>Setup required!</comment>',
+                    ProjectionStatusType::REPLAY_REQUIRED => '<comment>Replay required!</comment>',
+                    ProjectionStatusType::ERROR => '<error>ERROR</error>',
+                });
+                $hasErrors |= $status->projectionStatus->type === ProjectionStatusType::ERROR;
+                $setupRequired |= $status->projectionStatus->type === ProjectionStatusType::SETUP_REQUIRED;
+                $resetRequired |= $status->projectionStatus->type === ProjectionStatusType::REPLAY_REQUIRED;
+                if ($verbose && ($status->projectionStatus->type !== ProjectionStatusType::OK || $status->projectionStatus->details)) {
+                    $lines = explode(chr(10), $status->projectionStatus->details ?: '<comment>No details available.</comment>');
+                    foreach ($lines as $line) {
+                        $this->outputLine('      ' . $line);
+                    }
+                    $this->outputLine();
+                }
             }
         }
-        if (!$status->isOk()) {
+        if ($verbose) {
+            $this->outputLine();
+            if ($setupRequired) {
+                $this->outputLine('<comment>Setup required, please run <em>./flow cr:setup</em></comment>');
+            }
+            if ($bootingRequired) {
+                $this->outputLine('<comment>Some subscriptions need to be booted, please run <em>./flow cr:subscriptionsboot</em></comment>');
+            }
+            if ($resetRequired) {
+                $this->outputLine('<comment>Some subscriptions need to be replayed, please run <em>./flow cr:subscriptionsreset</em></comment>');
+            }
+            if ($hasErrors) {
+                $this->outputLine('<error>Some subscriptions/projections have failed</error>');
+            }
+        }
+        if ($hasErrors) {
             $this->quit(1);
         }
     }
