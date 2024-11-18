@@ -859,6 +859,45 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
         $outputFn(sprintf('Migration applied to %s events. Please replay the projections `./flow cr:projectionReplayAll`', count($this->eventsModified)));
     }
 
+    public function copyNodesStatus(\Closure $outputFn): void
+    {
+        $unpublishedCopyNodesInWorkspaces = [];
+
+        $streamName = VirtualStreamName::all();
+        $eventStream = $this->eventStore->load($streamName, EventStreamFilter::create(EventTypes::create(EventType::fromString('NodeAggregateWithNodeWasCreated'))));
+        foreach ($eventStream as $eventEnvelope) {
+            $eventMetaData = $eventEnvelope->event->metadata?->value;
+            // a copy is basically a NodeAggregateWithNodeWasCreated with CopyNodesRecursively command, so we skip others:
+            if (!$eventMetaData || ($eventMetaData['commandClass'] ?? null) !== CopyNodesRecursively::class) {
+                continue;
+            }
+
+            $eventData = self::decodeEventPayload($eventEnvelope);
+
+            if ($eventData['workspaceName'] !== 'live') {
+                $unpublishedCopyNodesInWorkspaces[$eventData['contentStreamId'] . ' (' . $eventData['workspaceName'] . ')'][] = sprintf(
+                    '@%s copy node %s to %s',
+                    $eventEnvelope->sequenceNumber->value,
+                    $eventMetaData['commandPayload']['nodeTreeToInsert']['nodeAggregateId'],
+                    $eventMetaData['commandPayload']['targetParentNodeAggregateId']
+                );
+            }
+        }
+
+        if ($unpublishedCopyNodesInWorkspaces === []) {
+            $outputFn('Everything regarding copy nodes okay.');
+            return;
+        }
+        $outputFn('<comment>WARNING: %d content streams contain unpublished legacy copy node events. They MUST be published before migrating to Neos 9 (stable) and will not be publishable afterward.</comment>', [count($unpublishedCopyNodesInWorkspaces)]);
+        foreach ($unpublishedCopyNodesInWorkspaces as $contentStream => $unpublishedCopyNodesInWorkspace) {
+            $outputFn('<comment>Content stream %s</comment>', [$contentStream]);
+            foreach ($unpublishedCopyNodesInWorkspace as $unpublishedCopyNode) {
+                $outputFn('  - %s', [$unpublishedCopyNode]);
+            }
+        }
+        $outputFn('<comment>NOTE: To reduce the number of matched content streams and to cleanup the event store run `./flow contentStream:removeDangling` and `./flow contentStream:pruneRemovedFromEventStream`</comment>');
+    }
+
     /** ------------------------ */
 
     /**

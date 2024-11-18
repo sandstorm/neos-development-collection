@@ -100,7 +100,7 @@ class MigrateEventsCommandController extends CommandController
      * Needed for feature "Stabilize WorkspaceName value object": https://github.com/neos/neos-development-collection/pull/5193
      *
      * Included in August 2024 - before final Neos 9.0 release
- *
+     *
      * @param string $contentRepository Identifier of the Content Repository to migrate
      */
     public function migratePayloadToValidWorkspaceNamesCommand(string $contentRepository = 'default'): void
@@ -148,5 +148,24 @@ class MigrateEventsCommandController extends CommandController
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
         $eventMigrationService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, $this->eventMigrationServiceFactory);
         $eventMigrationService->migrateCopyTetheredNode($this->outputLine(...));
+    }
+
+    /**
+     * Status information if content streams still contain legacy copy node events
+     *
+     * Needed for #5371: https://github.com/neos/neos-development-collection/pull/5371
+     *
+     * Included in November 2024 - before final Neos 9.0 release
+     *
+     * NOTE: To reduce the number of matched content streams and to cleanup the event store run
+     * `./flow contentStream:removeDangling` and `./flow contentStream:pruneRemovedFromEventStream`
+     *
+     * @param string $contentRepository Identifier of the Content Repository to check
+     */
+    public function copyNodesStatusCommand(string $contentRepository = 'default'): void
+    {
+        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
+        $eventMigrationService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, $this->eventMigrationServiceFactory);
+        $eventMigrationService->copyNodesStatus($this->outputLine(...));
     }
 }
