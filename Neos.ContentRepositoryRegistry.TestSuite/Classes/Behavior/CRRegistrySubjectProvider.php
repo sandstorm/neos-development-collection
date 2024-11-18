@@ -17,6 +17,7 @@ use Doctrine\DBAL\Connection;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryInterface;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
+use Neos\ContentRepository\Core\Service\SubscriptionServiceFactory;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\ContentRepositoryRegistry\Exception\ContentRepositoryNotFoundException;
@@ -55,6 +56,7 @@ trait CRRegistrySubjectProvider
     public function iInitializeContentRepository(string $contentRepositoryId): void
     {
         $contentRepository = $this->getContentRepository(ContentRepositoryId::fromString($contentRepositoryId));
+        $subscriptionService = $this->contentRepositoryRegistry->buildService($contentRepository->id, new SubscriptionServiceFactory());
         /** @var EventStoreInterface $eventStore */
         $eventStore = (new \ReflectionClass($contentRepository))->getProperty('eventStore')->getValue($contentRepository);
         /** @var Connection $databaseConnection */
@@ -63,10 +65,12 @@ trait CRRegistrySubjectProvider
         $databaseConnection->executeStatement('TRUNCATE ' . $eventTableName);
 
         if (!in_array($contentRepository->id, self::$alreadySetUpContentRepositories)) {
-            $contentRepository->setUp();
+            $subscriptionService->setupEventStore();
+            $subscriptionService->subscriptionEngine->setup();
             self::$alreadySetUpContentRepositories[] = $contentRepository->id;
         }
-        $contentRepository->resetProjectionStates();
+        $subscriptionService->subscriptionEngine->reset();
+        $subscriptionService->subscriptionEngine->boot();
     }
 
     /**

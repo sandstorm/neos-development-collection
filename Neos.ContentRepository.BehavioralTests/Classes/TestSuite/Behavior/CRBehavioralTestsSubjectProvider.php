@@ -18,6 +18,7 @@ use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
 use Doctrine\DBAL\Connection;
 use Neos\ContentRepository\Core\ContentRepository;
+use Neos\ContentRepository\Core\Service\SubscriptionServiceFactory;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Helpers\GherkinTableNodeBasedContentDimensionSource;
 use Neos\EventStore\EventStoreInterface;
@@ -169,8 +170,10 @@ trait CRBehavioralTestsSubjectProvider
          * Catch Up process and the testcase reset.
          */
         $contentRepository = $this->createContentRepository($contentRepositoryId);
+        $subscriptionService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new SubscriptionServiceFactory());
         if (!in_array($contentRepository->id, self::$alreadySetUpContentRepositories)) {
-            $contentRepository->setUp();
+            $subscriptionService->setupEventStore();
+            $subscriptionService->subscriptionEngine->setup();
             self::$alreadySetUpContentRepositories[] = $contentRepository->id;
         }
         /** @var EventStoreInterface $eventStore */
@@ -179,7 +182,8 @@ trait CRBehavioralTestsSubjectProvider
         $databaseConnection = (new \ReflectionClass($eventStore))->getProperty('connection')->getValue($eventStore);
         $eventTableName = sprintf('cr_%s_events', $contentRepositoryId->value);
         $databaseConnection->executeStatement('TRUNCATE ' . $eventTableName);
-        $contentRepository->resetProjectionStates();
+        $subscriptionService->subscriptionEngine->reset();
+        $subscriptionService->subscriptionEngine->boot();
 
         return $contentRepository;
     }

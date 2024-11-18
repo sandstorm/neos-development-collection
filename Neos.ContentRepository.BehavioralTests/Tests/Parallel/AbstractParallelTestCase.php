@@ -16,6 +16,8 @@ namespace Neos\ContentRepository\BehavioralTests\Tests\Parallel;
 
 use Doctrine\DBAL\Connection;
 use Neos\ContentRepository\Core\ContentRepository;
+use Neos\ContentRepository\Core\Service\SubscriptionService;
+use Neos\ContentRepository\Core\Service\SubscriptionServiceFactory;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Core\Bootstrap;
@@ -69,15 +71,19 @@ abstract class AbstractParallelTestCase extends TestCase // we don't use Flows f
         ContentRepositoryId $contentRepositoryId
     ): ContentRepository {
         $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
-        $contentRepository->setUp();
+        /** @var SubscriptionService $subscriptionService */
+        $subscriptionService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new SubscriptionServiceFactory());
+        $subscriptionService->setupEventStore();
+        $subscriptionService->subscriptionEngine->setup();
 
         $connection = $this->objectManager->get(Connection::class);
 
         // reset events and projections
         $eventTableName = sprintf('cr_%s_events', $contentRepositoryId->value);
         $connection->executeStatement('TRUNCATE ' . $eventTableName);
-        $contentRepository->resetProjectionStates();
 
+        $subscriptionService->subscriptionEngine->reset();
+        $subscriptionService->subscriptionEngine->boot();
         return $contentRepository;
     }
 
