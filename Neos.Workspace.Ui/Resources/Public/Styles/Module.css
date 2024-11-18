@@ -166,6 +166,11 @@ button .icon:not(:last-child) {
   color: var(--textSubtleLight);
 }
 
+[popover] form {
+  width: 400px;
+  max-width: 90vw;
+}
+
 [popover] .neos-close {
   color: white;
   font-size: calc(var(--generalFontSize) + 4px);

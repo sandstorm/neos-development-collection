@@ -128,7 +128,7 @@ prototype(Neos.Workspace.Ui:Component.WorkspaceTableRow) < prototype(Neos.Fusion
           icon="review"
           label={private.i18n.id('workspaces.reviewWorkspace.label')}
           title={private.i18n.id(props.workspaceListItem.pendingChanges.total ? 'workspaces.reviewWorkspace' : 'workspaces.reviewWorkspace.noChanges').arguments([props.workspaceListItem.title])}
-          attributes.disabled={false && props.workspaceListItem.pendingChanges.total == 0}
+          attributes.disabled={props.workspaceListItem.pendingChanges.total == 0}
           attributes.hx-get={private.reviewWorkspaceUri}
           attributes.hx-replace-url={private.reviewWorkspaceUri}
           attributes.hx-target="body"

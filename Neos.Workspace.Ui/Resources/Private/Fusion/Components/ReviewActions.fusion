@@ -2,11 +2,11 @@
 # Renders a document for review
 #
 prototype(Neos.Workspace.Ui:Component.ReviewActions) < prototype(Neos.Fusion:Component) {
-
-  canPublishToBaseWorkspace = ${canPublishToBaseWorkspace}
-  canPublishToWorkspace =  ${canPublishToWorkspace}
-  selectedWorkspaceName = ${selectedWorkspaceName}
-  baseWorkspaceLabel = ${baseWorkspaceLabel}
+  hasSiteChanges = false
+  canPublishToBaseWorkspace = false
+  canPublishToWorkspace =  false
+  selectedWorkspaceName = ''
+  baseWorkspaceLabel = ''
 
   @private {
     i18n = ${I18n.id('').source('Main').package('Neos.Workspace.Ui')}
@@ -40,7 +40,6 @@ prototype(Neos.Workspace.Ui:Component.ReviewActions) < prototype(Neos.Fusion:Com
         workspace = ${props.selectedWorkspaceName}
       }
     }
-
   }
 
   renderer = afx`
@@ -54,7 +53,7 @@ prototype(Neos.Workspace.Ui:Component.ReviewActions) < prototype(Neos.Fusion:Com
             attributes.hx-swap="innerHTML"
           />
         </div>
-        <div class="neos-pull-right workspace-action">
+        <div class="neos-pull-right workspace-action" @if={props.hasSiteChanges}>
           <div id="all-actions">
             <Neos.Workspace.Ui:Component.Button
               label={private.i18n.id('workspaces.discardAllChanges')}
