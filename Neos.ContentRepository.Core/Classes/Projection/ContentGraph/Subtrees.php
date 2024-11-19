@@ -22,9 +22,9 @@ final readonly class Subtrees implements \IteratorAggregate, \Countable
     /**
      * @internal
      */
-    public static function create(Subtree ...$items): self
+    public static function createEmpty(): self
     {
-        return new self(...$items);
+        return new self();
     }
 
     /**
