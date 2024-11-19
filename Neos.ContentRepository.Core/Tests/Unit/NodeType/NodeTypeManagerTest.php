@@ -114,7 +114,6 @@ class NodeTypeManagerTest extends TestCase
         ],
         'Neos.ContentRepository.Testing:Document' => [
             'abstract' => true,
-            'aggregate' => true
         ],
         'Neos.ContentRepository.Testing:Page' => [
             'superTypes' => ['Neos.ContentRepository.Testing:Document' => true],
@@ -271,23 +270,6 @@ class NodeTypeManagerTest extends TestCase
     public function getNodeTypeAllowsToRetrieveFinalNodeTypes()
     {
         self::assertTrue($this->nodeTypeManager->getNodeType('Neos.ContentRepository.Testing:MyFinalType')->isFinal());
-    }
-
-    /**
-     * @test
-     */
-    public function aggregateNodeTypeFlagIsFalseByDefault()
-    {
-        self::assertFalse($this->nodeTypeManager->getNodeType('Neos.ContentRepository.Testing:Text')->isAggregate());
-    }
-
-    /**
-     * @test
-     */
-    public function aggregateNodeTypeFlagIsInherited()
-    {
-        self::assertTrue($this->nodeTypeManager->getNodeType('Neos.ContentRepository.Testing:Document')->isAggregate());
-        self::assertTrue($this->nodeTypeManager->getNodeType('Neos.ContentRepository.Testing:Page')->isAggregate());
     }
 
     /**
