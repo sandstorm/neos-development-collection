@@ -100,7 +100,7 @@ final readonly class EventStoreImportProcessor implements ProcessorInterface, Co
         try {
             $this->eventStore->commit($contentStreamStreamName, Events::fromArray($domainEvents), ExpectedVersion::fromVersion(Version::first()));
         } catch (ConcurrencyException $e) {
-            throw new \RuntimeException(sprintf('Failed to publish %d events because the event stream "%s" for workspace "%s" already contains events.', count($domainEvents), $contentStreamStreamName->value, $workspace->workspaceName->value), 1729506818, $e);
+            throw new \RuntimeException(sprintf('Failed to publish %d events because the event stream "%s" for workspace "%s". Please prune the content repository first via `./flow site:pruneAll`.', count($domainEvents), $contentStreamStreamName->value, $workspace->workspaceName->value), 1729506818, $e);
         }
     }
 }
