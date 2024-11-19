@@ -25,6 +25,7 @@ use Neos\ContentRepository\Core\Feature\RootNodeCreation\Command\CreateRootNodeA
 use Neos\ContentRepository\Core\Feature\RootNodeCreation\Command\UpdateRootNodeAggregateDimensions;
 use Neos\ContentRepository\Core\Feature\WorkspaceEventStreamName;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateClassification;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepositoryRegistry\Command\MigrateEventsCommandController;
@@ -808,6 +809,93 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
         );
 
         $outputFn(sprintf('Reordered %d removals. Please replay and rebase your other workspaces.', count($eventsToReorder)));
+    }
+
+    public function migrateCopyTetheredNode(\Closure $outputFn): void
+    {
+        $this->eventsModified = [];
+
+        $backupEventTableName = DoctrineEventStoreFactory::databaseTableName($this->contentRepositoryId)
+            . '_bkp_' . date('Y_m_d_H_i_s');
+        $outputFn(sprintf('Backup: copying events table to %s', $backupEventTableName));
+
+        $this->copyEventTable($backupEventTableName);
+
+        $streamName = VirtualStreamName::all();
+        $eventStream = $this->eventStore->load($streamName, EventStreamFilter::create(EventTypes::create(EventType::fromString('NodeAggregateWithNodeWasCreated'))));
+        foreach ($eventStream as $eventEnvelope) {
+            $outputRewriteNotice = fn(string $message) => $outputFn(sprintf('%s@%s %s', $eventEnvelope->sequenceNumber->value, $eventEnvelope->event->type->value, $message));
+            if ($eventEnvelope->event->type->value !== 'NodeAggregateWithNodeWasCreated') {
+                throw new \RuntimeException(sprintf('Unhandled event: %s', $eventEnvelope->event->type->value));
+            }
+
+            $eventMetaData = $eventEnvelope->event->metadata?->value;
+            // a copy is basically a NodeAggregateWithNodeWasCreated with CopyNodesRecursively command, so we skip others:
+            if (!$eventMetaData || ($eventMetaData['commandClass'] ?? null) !== CopyNodesRecursively::class) {
+                continue;
+            }
+
+            $eventData = self::decodeEventPayload($eventEnvelope);
+            if ($eventData['nodeAggregateClassification'] !== NodeAggregateClassification::CLASSIFICATION_TETHERED->value) {
+                // this copy is okay
+                continue;
+            }
+
+            $eventData['nodeAggregateClassification'] = NodeAggregateClassification::CLASSIFICATION_REGULAR->value;
+            $this->updateEventPayload($eventEnvelope->sequenceNumber, $eventData);
+
+            $eventMetaData['commandPayload']['nodeTreeToInsert']['nodeAggregateClassification'] = NodeAggregateClassification::CLASSIFICATION_REGULAR->value;
+
+            $this->updateEventMetaData($eventEnvelope->sequenceNumber, $eventMetaData);
+            $outputRewriteNotice(sprintf('Copied tethered node "%s" of type "%s" (name: %s) was migrated', $eventData['nodeAggregateId'], $eventData['nodeTypeName'], json_encode($eventData['nodeName'])));
+        }
+
+        if (!count($this->eventsModified)) {
+            $outputFn('Migration was not necessary.');
+            return;
+        }
+
+        $outputFn();
+        $outputFn(sprintf('Migration applied to %s events. Please replay the projections `./flow cr:projectionReplayAll`', count($this->eventsModified)));
+    }
+
+    public function copyNodesStatus(\Closure $outputFn): void
+    {
+        $unpublishedCopyNodesInWorkspaces = [];
+
+        $streamName = VirtualStreamName::all();
+        $eventStream = $this->eventStore->load($streamName, EventStreamFilter::create(EventTypes::create(EventType::fromString('NodeAggregateWithNodeWasCreated'))));
+        foreach ($eventStream as $eventEnvelope) {
+            $eventMetaData = $eventEnvelope->event->metadata?->value;
+            // a copy is basically a NodeAggregateWithNodeWasCreated with CopyNodesRecursively command, so we skip others:
+            if (!$eventMetaData || ($eventMetaData['commandClass'] ?? null) !== CopyNodesRecursively::class) {
+                continue;
+            }
+
+            $eventData = self::decodeEventPayload($eventEnvelope);
+
+            if ($eventData['workspaceName'] !== 'live') {
+                $unpublishedCopyNodesInWorkspaces[$eventData['contentStreamId'] . ' (' . $eventData['workspaceName'] . ')'][] = sprintf(
+                    '@%s copy node %s to %s',
+                    $eventEnvelope->sequenceNumber->value,
+                    $eventMetaData['commandPayload']['nodeTreeToInsert']['nodeAggregateId'],
+                    $eventMetaData['commandPayload']['targetParentNodeAggregateId']
+                );
+            }
+        }
+
+        if ($unpublishedCopyNodesInWorkspaces === []) {
+            $outputFn('Everything regarding copy nodes okay.');
+            return;
+        }
+        $outputFn('<comment>WARNING: %d content streams contain unpublished legacy copy node events. They MUST be published before migrating to Neos 9 (stable) and will not be publishable afterward.</comment>', [count($unpublishedCopyNodesInWorkspaces)]);
+        foreach ($unpublishedCopyNodesInWorkspaces as $contentStream => $unpublishedCopyNodesInWorkspace) {
+            $outputFn('<comment>Content stream %s</comment>', [$contentStream]);
+            foreach ($unpublishedCopyNodesInWorkspace as $unpublishedCopyNode) {
+                $outputFn('  - %s', [$unpublishedCopyNode]);
+            }
+        }
+        $outputFn('<comment>NOTE: To reduce the number of matched content streams and to cleanup the event store run `./flow contentStream:removeDangling` and `./flow contentStream:pruneRemovedFromEventStream`</comment>');
     }
 
     /** ------------------------ */
