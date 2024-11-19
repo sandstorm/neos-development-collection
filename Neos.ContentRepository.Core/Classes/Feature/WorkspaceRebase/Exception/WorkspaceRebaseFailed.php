@@ -14,7 +14,7 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception;
 
-use Neos\ContentRepository\Core\Feature\WorkspaceRebase\CommandsThatFailedDuringRebase;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\ConflictingEvents;
 
 /**
  * @api this exception contains information about what exactly went wrong during rebase
@@ -22,7 +22,7 @@ use Neos\ContentRepository\Core\Feature\WorkspaceRebase\CommandsThatFailedDuring
 final class WorkspaceRebaseFailed extends \Exception
 {
     private function __construct(
-        public readonly CommandsThatFailedDuringRebase $commandsThatFailedDuringRebase,
+        public readonly ConflictingEvents $conflictingEvents,
         string $message,
         int $code,
         ?\Throwable $previous,
@@ -30,39 +30,39 @@ final class WorkspaceRebaseFailed extends \Exception
         parent::__construct($message, $code, $previous);
     }
 
-    public static function duringRebase(CommandsThatFailedDuringRebase $commandsThatFailedDuringRebase): self
+    public static function duringRebase(ConflictingEvents $conflictingEvents): self
     {
         return new self(
-            $commandsThatFailedDuringRebase,
-            sprintf('Rebase failed: %s', self::renderMessage($commandsThatFailedDuringRebase)),
+            $conflictingEvents,
+            sprintf('Rebase failed: %s', self::renderMessage($conflictingEvents)),
             1729974936,
-            $commandsThatFailedDuringRebase->first()?->exception
+            $conflictingEvents->first()?->getException()
         );
     }
 
-    public static function duringPublish(CommandsThatFailedDuringRebase $commandsThatFailedDuringRebase): self
+    public static function duringPublish(ConflictingEvents $conflictingEvents): self
     {
         return new self(
-            $commandsThatFailedDuringRebase,
-            sprintf('Publication failed: %s', self::renderMessage($commandsThatFailedDuringRebase)),
+            $conflictingEvents,
+            sprintf('Publication failed: %s', self::renderMessage($conflictingEvents)),
             1729974980,
-            $commandsThatFailedDuringRebase->first()?->exception
+            $conflictingEvents->first()?->getException()
         );
     }
 
-    public static function duringDiscard(CommandsThatFailedDuringRebase $commandsThatFailedDuringRebase): self
+    public static function duringDiscard(ConflictingEvents $conflictingEvents): self
     {
         return new self(
-            $commandsThatFailedDuringRebase,
-            sprintf('Discard failed: %s', self::renderMessage($commandsThatFailedDuringRebase)),
+            $conflictingEvents,
+            sprintf('Discard failed: %s', self::renderMessage($conflictingEvents)),
             1729974982,
-            $commandsThatFailedDuringRebase->first()?->exception
+            $conflictingEvents->first()?->getException()
         );
     }
 
-    private static function renderMessage(CommandsThatFailedDuringRebase $commandsThatFailedDuringRebase): string
+    private static function renderMessage(ConflictingEvents $conflictingEvents): string
     {
-        $firstFailure = $commandsThatFailedDuringRebase->first();
-        return sprintf('"%s" and %d further failures', $firstFailure?->exception->getMessage(), count($commandsThatFailedDuringRebase) - 1);
+        $firstConflict = $conflictingEvents->first();
+        return sprintf('"%s" and %d further conflicts', $firstConflict?->getException()->getMessage(), count($conflictingEvents) - 1);
     }
 }

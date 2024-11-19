@@ -24,10 +24,14 @@ final readonly class ExportedEvent implements \JsonSerializable
 
     public static function fromRawEvent(Event $event): self
     {
+        $payload = \json_decode($event->data->value, true, 512, JSON_THROW_ON_ERROR);
+        // unset content stream id as this is overwritten during import
+        unset($payload['contentStreamId'], $payload['workspaceName']);
+
         return new self(
             $event->id->value,
             $event->type->value,
-            \json_decode($event->data->value, true, 512, JSON_THROW_ON_ERROR),
+            $payload,
             $event->metadata?->value ?? [],
         );
     }
@@ -40,6 +44,7 @@ final readonly class ExportedEvent implements \JsonSerializable
         } catch (\JsonException $e) {
             throw new \InvalidArgumentException(sprintf('Failed to decode JSON "%s": %s', $json, $e->getMessage()), 1638432979, $e);
         }
+
         return new self(
             $data['identifier'],
             $data['type'],

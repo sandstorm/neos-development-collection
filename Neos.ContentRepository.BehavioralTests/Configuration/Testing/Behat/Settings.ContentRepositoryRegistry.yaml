@@ -2,8 +2,8 @@ Neos:
   ContentRepositoryRegistry:
     presets:
       default:
-        userIdProvider:
-          factoryObjectName: 'Neos\ContentRepository\TestSuite\Fakes\FakeUserIdProviderFactory'
+        authProvider:
+          factoryObjectName: Neos\ContentRepository\TestSuite\Fakes\FakeAuthProviderFactory
         clock:
           factoryObjectName: 'Neos\ContentRepository\TestSuite\Fakes\FakeClockFactory'
         nodeTypeManager:

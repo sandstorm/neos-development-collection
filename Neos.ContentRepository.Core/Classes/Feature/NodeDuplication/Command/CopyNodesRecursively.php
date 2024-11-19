@@ -14,19 +14,17 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Feature\NodeDuplication\Command;
 
-use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\Common\MatchableWithNodeIdToPublishOrDiscardInterface;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
-use Neos\ContentRepository\Core\Feature\NodeDuplication\Dto\NodeAggregateIdMapping;
 use Neos\ContentRepository\Core\Feature\NodeDuplication\Dto\NodeSubtreeSnapshot;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Dto\NodeIdToPublishOrDiscard;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
+use Neos\Neos\Domain\Service\NodeDuplication\NodeAggregateIdMapping;
 
 /**
  * CopyNodesRecursively command
@@ -35,10 +33,10 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
  * The node will be appended as child node of the given `parentNodeId` which must cover the given
  * `dimensionSpacePoint`.
  *
- * @api commands are the write-API of the ContentRepository
+ * @internal
+ * @deprecated with Neos 9 Beta 16, please use Neos's {@see \Neos\Neos\Domain\Service\NodeDuplicationService} instead.
  */
 final readonly class CopyNodesRecursively implements
-    CommandInterface,
     \JsonSerializable,
     MatchableWithNodeIdToPublishOrDiscardInterface,
     RebasableToOtherWorkspaceInterface
@@ -100,9 +98,6 @@ final readonly class CopyNodesRecursively implements
         );
     }
 
-    /**
-     * @param array<string,mixed> $array
-     */
     public static function fromArray(array $array): self
     {
         return new self(

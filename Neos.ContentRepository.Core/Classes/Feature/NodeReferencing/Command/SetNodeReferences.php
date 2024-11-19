@@ -6,6 +6,7 @@ namespace Neos\ContentRepository\Core\Feature\NodeReferencing\Command;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
+use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\NodeReferencesToWrite;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
@@ -46,5 +47,15 @@ final readonly class SetNodeReferences implements CommandInterface
     public static function create(WorkspaceName $workspaceName, NodeAggregateId $sourceNodeAggregateId, OriginDimensionSpacePoint $sourceOriginDimensionSpacePoint, NodeReferencesToWrite $references): self
     {
         return new self($workspaceName, $sourceNodeAggregateId, $sourceOriginDimensionSpacePoint, $references);
+    }
+
+    public static function fromArray(array $array): self
+    {
+        return new self(
+            WorkspaceName::fromString($array['workspaceName']),
+            NodeAggregateId::fromString($array['sourceNodeAggregateId']),
+            OriginDimensionSpacePoint::fromArray($array['sourceOriginDimensionSpacePoint']),
+            NodeReferencesToWrite::fromArray($array['references']),
+        );
     }
 }

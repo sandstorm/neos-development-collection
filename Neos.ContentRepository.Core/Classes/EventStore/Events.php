@@ -56,11 +56,6 @@ final class Events implements \IteratorAggregate, \Countable
         return array_map($callback, $this->events);
     }
 
-    public function isEmpty(): bool
-    {
-        return empty($this->events);
-    }
-
     public function count(): int
     {
         return count($this->events);

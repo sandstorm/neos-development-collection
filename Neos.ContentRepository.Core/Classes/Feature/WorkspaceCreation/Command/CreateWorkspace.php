@@ -46,4 +46,13 @@ final readonly class CreateWorkspace implements CommandInterface
     {
         return new self($workspaceName, $baseWorkspaceName, $newContentStreamId);
     }
+
+    public static function fromArray(array $array): self
+    {
+        return new self(
+            WorkspaceName::fromString($array['workspaceName']),
+            WorkspaceName::fromString($array['baseWorkspaceName']),
+            ContentStreamId::fromString($array['newContentStreamId']),
+        );
+    }
 }

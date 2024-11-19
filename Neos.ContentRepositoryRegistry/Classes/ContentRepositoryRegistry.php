@@ -6,28 +6,29 @@ namespace Neos\ContentRepositoryRegistry;
 
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
+use Neos\ContentRepository\Core\Factory\CommandHookFactoryInterface;
+use Neos\ContentRepository\Core\Factory\CommandHooksFactory;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryFactory;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryInterface;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
 use Neos\ContentRepository\Core\Factory\ProjectionsAndCatchUpHooksFactory;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\CatchUpHookFactoryInterface;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionFactoryInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
-use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionFactoryInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionFactoryInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryIds;
-use Neos\ContentRepository\Core\SharedModel\User\UserIdProviderInterface;
 use Neos\ContentRepositoryRegistry\Exception\ContentRepositoryNotFoundException;
 use Neos\ContentRepositoryRegistry\Exception\InvalidConfigurationException;
+use Neos\ContentRepositoryRegistry\Factory\AuthProvider\AuthProviderFactoryInterface;
 use Neos\ContentRepositoryRegistry\Factory\Clock\ClockFactoryInterface;
 use Neos\ContentRepositoryRegistry\Factory\ContentDimensionSource\ContentDimensionSourceFactoryInterface;
 use Neos\ContentRepositoryRegistry\Factory\EventStore\EventStoreFactoryInterface;
 use Neos\ContentRepositoryRegistry\Factory\NodeTypeManager\NodeTypeManagerFactoryInterface;
-use Neos\ContentRepositoryRegistry\Factory\UserIdProvider\UserIdProviderFactoryInterface;
 use Neos\ContentRepositoryRegistry\SubgraphCachingInMemory\ContentSubgraphWithRuntimeCaches;
 use Neos\ContentRepositoryRegistry\SubgraphCachingInMemory\SubgraphCachePool;
 use Neos\EventStore\EventStoreInterface;
@@ -175,8 +176,9 @@ final class ContentRepositoryRegistry
                 $this->buildContentDimensionSource($contentRepositoryId, $contentRepositorySettings),
                 $this->buildPropertySerializer($contentRepositoryId, $contentRepositorySettings),
                 $this->buildProjectionsFactory($contentRepositoryId, $contentRepositorySettings),
-                $this->buildUserIdProvider($contentRepositoryId, $contentRepositorySettings),
-                $clock
+                $this->buildAuthProviderFactory($contentRepositoryId, $contentRepositorySettings),
+                $clock,
+                $this->buildCommandHooksFactory($contentRepositoryId, $contentRepositorySettings),
             );
         } catch (\Exception $exception) {
             throw InvalidConfigurationException::fromException($contentRepositoryId, $exception);
@@ -275,6 +277,28 @@ final class ContentRepositoryRegistry
         return $projectionsAndCatchUpHooksFactory;
     }
 
+    /** @param array<string, mixed> $contentRepositorySettings */
+    private function buildCommandHooksFactory(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): CommandHooksFactory
+    {
+        $commandHooksSettings = $contentRepositorySettings['commandHooks'] ?? [];
+        if (!is_array($commandHooksSettings)) {
+            throw InvalidConfigurationException::fromMessage('Content repository "%s" does not have the "commandHooks" configured properly. Expected array, got %s.', $contentRepositoryId->value, get_debug_type($commandHooksSettings));
+        }
+        $commandHookFactories = [];
+        foreach ((new PositionalArraySorter($commandHooksSettings))->toArray() as $name => $commandHookSettings) {
+            // Allow to unset/disable command hooks
+            if ($commandHookSettings === null) {
+                continue;
+            }
+            $commandHookFactory = $this->objectManager->get($commandHookSettings['factoryObjectName']);
+            if (!$commandHookFactory instanceof CommandHookFactoryInterface) {
+                throw InvalidConfigurationException::fromMessage('Factory object name for command hook "%s" (content repository "%s") is not an instance of %s but %s.', $name, $contentRepositoryId->value, CommandHookFactoryInterface::class, get_debug_type($commandHookFactory));
+            }
+            $commandHookFactories[] = $commandHookFactory;
+        }
+        return new CommandHooksFactory(...$commandHookFactories);
+    }
+
     /**
      * @param ProjectionFactoryInterface<ProjectionInterface<ProjectionStateInterface>> $projectionFactory
      */
@@ -293,14 +317,14 @@ final class ContentRepositoryRegistry
     }
 
     /** @param array<string, mixed> $contentRepositorySettings */
-    private function buildUserIdProvider(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): UserIdProviderInterface
+    private function buildAuthProviderFactory(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): AuthProviderFactoryInterface
     {
-        isset($contentRepositorySettings['userIdProvider']['factoryObjectName']) || throw InvalidConfigurationException::fromMessage('Content repository "%s" does not have userIdProvider.factoryObjectName configured.', $contentRepositoryId->value);
-        $userIdProviderFactory = $this->objectManager->get($contentRepositorySettings['userIdProvider']['factoryObjectName']);
-        if (!$userIdProviderFactory instanceof UserIdProviderFactoryInterface) {
-            throw InvalidConfigurationException::fromMessage('userIdProvider.factoryObjectName for content repository "%s" is not an instance of %s but %s.', $contentRepositoryId->value, UserIdProviderFactoryInterface::class, get_debug_type($userIdProviderFactory));
+        isset($contentRepositorySettings['authProvider']['factoryObjectName']) || throw InvalidConfigurationException::fromMessage('Content repository "%s" does not have authProvider.factoryObjectName configured.', $contentRepositoryId->value);
+        $authProviderFactory = $this->objectManager->get($contentRepositorySettings['authProvider']['factoryObjectName']);
+        if (!$authProviderFactory instanceof AuthProviderFactoryInterface) {
+            throw InvalidConfigurationException::fromMessage('authProvider.factoryObjectName for content repository "%s" is not an instance of %s but %s.', $contentRepositoryId->value, AuthProviderFactoryInterface::class, get_debug_type($authProviderFactory));
         }
-        return $userIdProviderFactory->build($contentRepositoryId, $contentRepositorySettings['userIdProvider']['options'] ?? []);
+        return $authProviderFactory;
     }
 
     /** @param array<string, mixed> $contentRepositorySettings */
