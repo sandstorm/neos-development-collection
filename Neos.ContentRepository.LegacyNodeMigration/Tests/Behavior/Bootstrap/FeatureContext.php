@@ -252,20 +252,6 @@ class FeatureContext implements Context
 
     /** ---------------------------------- */
 
-    /**
-     * @param TableNode $table
-     * @return array
-     * @throws JsonException
-     */
-    private function parseJsonTable(TableNode $table): array
-    {
-        return array_map(static function (array $row) {
-            return array_map(static function (string $jsonValue) {
-                return json_decode($jsonValue, true, 512, JSON_THROW_ON_ERROR);
-            }, $row);
-        }, $table->getHash());
-    }
-
     protected function getContentRepositoryService(
         ContentRepositoryServiceFactoryInterface $factory
     ): ContentRepositoryServiceInterface {
