@@ -61,13 +61,12 @@ Feature: Rebasing auto-created nodes works
     And I expect this node to be a child of node user-cs-identifier;nody-mc-nodeface;{}
 
     # - then, for the auto-created child node, set a property.
-    When the command "SetSerializedNodeProperties" is executed with payload:
-      | Key                       | Value                                          |
-      | workspaceName             | "user-test"                                    |
-      | nodeAggregateId           | $this->currentNodeAggregateId                  |
-      | originDimensionSpacePoint | {}                                             |
-      | propertyValues            | {"text": {"value":"Modified","type":"string"}} |
-      | propertiesToUnset         | {}                                             |
+    When the command SetNodeProperties is executed with payload:
+      | Key                       | Value                         |
+      | workspaceName             | "user-test"                   |
+      | originDimensionSpacePoint | {}                            |
+      | propertyValues            | {"text": "Modified"}          |
+      | propertiesToUnset         | {}                            |
 
     # ensure that live is outdated so the rebase is required:
     When the command CreateNodeAggregateWithNode is executed with payload:
@@ -80,8 +79,8 @@ Feature: Rebasing auto-created nodes works
 
     # rebase of SetSerializedNodeProperties
     When the command RebaseWorkspace is executed with payload:
-      | Key                    | Value       |
-      | workspaceName          | "user-test" |
+      | Key                    | Value             |
+      | workspaceName          | "user-test"       |
       | rebasedContentStreamId | "user-cs-rebased" |
     # This should properly work; no error.
 

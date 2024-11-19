@@ -24,7 +24,7 @@ Feature: Variation of hidden nodes
       | Key             | Value                         |
       | nodeAggregateId | "lady-eleonode-rootford"      |
       | nodeTypeName    | "Neos.ContentRepository:Root" |
-    And VisibilityConstraints are set to "frontend"
+    And VisibilityConstraints are set to "default"
 
   Scenario: Specialize a node where the specialization target is enabled
     Given I am in dimension space point {"language":"de"}
