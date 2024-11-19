@@ -774,6 +774,11 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
         // get all NodeAggregateWasRemoved from the live content stream
         $eventsToReorder = iterator_to_array($this->eventStore->load($liveContentStreamName, EventStreamFilter::create(EventTypes::create(EventType::fromString('NodeAggregateWasRemoved')))), false);
 
+        if (!count($eventsToReorder)) {
+            $outputFn('Migration was not necessary.');
+            return;
+        }
+
         // remove all the NodeAggregateWasRemoved events at their sequenceNumbers
         $eventTableName = DoctrineEventStoreFactory::databaseTableName($this->contentRepositoryId);
         $this->connection->beginTransaction();
