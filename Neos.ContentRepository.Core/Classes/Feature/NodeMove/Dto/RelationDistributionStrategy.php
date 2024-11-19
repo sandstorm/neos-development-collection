@@ -39,16 +39,6 @@ enum RelationDistributionStrategy: string implements \JsonSerializable
         return self::STRATEGY_GATHER_ALL;
     }
 
-    public static function fromName(string $name): ?self
-    {
-        foreach (self::cases() as $status) {
-            if ($name === $status->name) {
-                return $status;
-            }
-        }
-        return null;
-    }
-
     public function jsonSerialize(): string
     {
         return $this->value;
