@@ -152,7 +152,7 @@ final class SubscriptionEngine
             $this->subscriptionManager->update($subscription);
             return Error::fromSubscriptionIdAndException($subscription->id, $e);
         }
-        $this->logger?->debug(sprintf('Subscription Engine: Subscriber "%s" for "%s" processed the event "%s" (sequence number: %d).', $subscriber->handler::class, $subscription->id->value, $eventEnvelope->event->type->value, $eventEnvelope->sequenceNumber->value));
+        $this->logger?->debug(sprintf('Subscription Engine: Subscriber "%s" for "%s" processed the event "%s" (sequence number: %d).', substr(strrchr($subscriber->handler::class, '\\') ?: '', 1), $subscription->id->value, $eventEnvelope->event->type->value, $eventEnvelope->sequenceNumber->value));
         $subscription->set(
             position: $eventEnvelope->sequenceNumber,
             retryAttempt: 0
@@ -320,11 +320,14 @@ final class SubscriptionEngine
                 try {
                     $eventStream = $this->eventStore->load(VirtualStreamName::all())->withMinimumSequenceNumber($startSequenceNumber);
                     foreach ($eventStream as $eventEnvelope) {
+                        $sequenceNumber = $eventEnvelope->sequenceNumber;
+                        if ($numberOfProcessedEvents > 0) {
+                            $this->logger?->debug(sprintf('Subscription Engine: Current event stream position: %s', $sequenceNumber->value));
+                        }
                         if ($progressClosure !== null) {
                             $progressClosure($eventEnvelope);
                         }
                         $domainEvent = $this->eventNormalizer->denormalize($eventEnvelope->event);
-                        $sequenceNumber = $eventEnvelope->sequenceNumber;
                         foreach ($subscriptions as $subscription) {
                             if ($subscription->status !== $subscriptionStatus) {
                                 continue;
@@ -340,7 +343,6 @@ final class SubscriptionEngine
                             $errors[] = $error;
                         }
                         $numberOfProcessedEvents++;
-                        $this->logger?->debug(sprintf('Subscription Engine: Current event stream position: %s', $sequenceNumber->value));
                     }
                 } finally {
                     foreach ($subscriptions as $subscription) {
@@ -370,7 +372,7 @@ final class SubscriptionEngine
                         $this->logger?->info(sprintf('Subscription Engine: Subscription "%s" has been set to active after booting.', $subscription->id->value));
                     }
                 }
-                $this->logger?->info('Subscription Engine: Finish catch up.');
+                $this->logger?->info(sprintf('Subscription Engine: Finish catch up. %d processed events %d errors.', $numberOfProcessedEvents, count($errors)));
                 return $errors === [] ? ProcessedResult::success($numberOfProcessedEvents) : ProcessedResult::failed($numberOfProcessedEvents, Errors::fromArray($errors));
             }
         );
