@@ -9,8 +9,6 @@ use Behat\Gherkin\Node\TableNode;
 use Neos\Behat\FlowBootstrapTrait;
 use Neos\ContentGraph\DoctrineDbalAdapter\Tests\Behavior\Features\Bootstrap\CrImportExportTrait;
 use Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\CRBehavioralTestsSubjectProvider;
-use Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinPyStringNodeBasedNodeTypeManagerFactory;
-use Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinTableNodeBasedContentDimensionSourceFactory;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryDependencies;
@@ -30,6 +28,8 @@ use Neos\ContentRepository\LegacyNodeMigration\Processors\EventExportProcessor;
 use Neos\ContentRepository\LegacyNodeMigration\Processors\SitesExportProcessor;
 use Neos\ContentRepository\LegacyNodeMigration\RootNodeTypeMapping;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\CRTestSuiteTrait;
+use Neos\ContentRepository\TestSuite\Fakes\FakeNodeTypeManagerFactory;
+use Neos\ContentRepository\TestSuite\Fakes\FakeContentDimensionSourceFactory;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Property\PropertyMapper;
 use Neos\Flow\ResourceManagement\PersistentResource;
@@ -266,8 +266,8 @@ class FeatureContext implements Context
     ): ContentRepository {
         $this->contentRepositoryRegistry->resetFactoryInstance($contentRepositoryId);
         $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
-        GherkinTableNodeBasedContentDimensionSourceFactory::reset();
-        GherkinPyStringNodeBasedNodeTypeManagerFactory::reset();
+        FakeContentDimensionSourceFactory::reset();
+        FakeNodeTypeManagerFactory::reset();
 
         return $contentRepository;
     }

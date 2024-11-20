@@ -15,7 +15,6 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap;
 
 use Neos\ContentRepository\Core\ContentRepository;
-use Neos\ContentRepository\Core\ContentRepositoryReadModel;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\Security\Dto\UserId;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface;
@@ -26,8 +25,8 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
-use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Helpers\TestingAuthProvider;
-use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Helpers\FakeClock;
+use Neos\ContentRepository\TestSuite\Fakes\FakeAuthProvider;
+use Neos\ContentRepository\TestSuite\Fakes\FakeClock;
 
 /**
  * The node creation trait for behavioral tests
@@ -73,7 +72,7 @@ trait CRTestSuiteRuntimeVariables
      */
     public function iAmUserIdentifiedBy(string $userId): void
     {
-        TestingAuthProvider::setDefaultUserId(UserId::fromString($userId));
+        FakeAuthProvider::setDefaultUserId(UserId::fromString($userId));
     }
 
     /**
