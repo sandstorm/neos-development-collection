@@ -267,8 +267,9 @@ final class ContentRepositoryRegistry
 
     /**
      * @param array<string, mixed> $contentRepositorySettings
+     * @return CatchUpHookFactoryInterface<ContentGraphReadModelInterface>
      */
-    private function buildContentGraphCatchUpHookFactory(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): CatchUpHookFactories
+    private function buildContentGraphCatchUpHookFactory(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): CatchUpHookFactoryInterface
     {
         if (!isset($contentRepositorySettings['contentGraphProjection']['catchUpHooks'])) {
             throw InvalidConfigurationException::fromMessage('Content repository "%s" does not have the contentGraphProjection.catchUpHooks configured.', $contentRepositoryId->value);
@@ -285,9 +286,11 @@ final class ContentRepositoryRegistry
             }
             $catchUpHookFactories = $catchUpHookFactories->with($catchUpHookFactory);
         }
+        /** @var CatchUpHookFactoryInterface<ContentGraphReadModelInterface> $catchUpHookFactories */
         return $catchUpHookFactories;
     }
 
+    /** @param array<string, mixed> $contentRepositorySettings */
     private function buildCommandHooksFactory(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): CommandHooksFactory
     {
         $commandHooksSettings = $contentRepositorySettings['commandHooks'] ?? [];
@@ -309,12 +312,13 @@ final class ContentRepositoryRegistry
         return new CommandHooksFactory(...$commandHookFactories);
     }
 
+    /** @param array<string, mixed> $contentRepositorySettings */
     private function buildAdditionalSubscribersFactories(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): ContentRepositorySubscriberFactories
     {
         if (!is_array($contentRepositorySettings['projections'] ?? [])) {
             throw InvalidConfigurationException::fromMessage('Content repository "%s" expects projections configured as array.', $contentRepositoryId->value);
         }
-        /** @var array<ProjectionFactoryInterface> $projectionFactories */
+        /** @var array<ProjectionSubscriberFactory> $projectionSubscriberFactories */
         $projectionSubscriberFactories = [];
         foreach (($contentRepositorySettings['projections'] ?? []) as $projectionName => $projectionOptions) {
             // Allow projections to be disabled by setting their configuration to `null`

@@ -56,7 +56,9 @@ final readonly class ProjectionStates implements \IteratorAggregate, \Countable
         if (!array_key_exists($className, $this->statesByClassName)) {
             throw new \InvalidArgumentException(sprintf('The state class "%s" does not exist.', $className), 1729687836);
         }
-        return $this->statesByClassName[$className];
+        /** @var T $state */
+        $state = $this->statesByClassName[$className];
+        return $state;
     }
 
     public function getIterator(): \Traversable
