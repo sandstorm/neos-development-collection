@@ -40,7 +40,7 @@ final class SubscriptionEngine
         $this->subscriptionManager = new SubscriptionManager($this->subscriptionStore);
     }
 
-    public function setup(SubscriptionEngineCriteria|null $criteria = null, bool $skipBooting = false): Result
+    public function setup(SubscriptionEngineCriteria|null $criteria = null): Result
     {
         $criteria ??= SubscriptionEngineCriteria::noConstraints();
 
@@ -56,7 +56,7 @@ final class SubscriptionEngine
         }
         $errors = [];
         foreach ($subscriptions as $subscription) {
-            $error = $this->setupSubscription($subscription, $skipBooting);
+            $error = $this->setupSubscription($subscription);
             if ($error !== null) {
                 $errors[] = $error;
             }
@@ -75,7 +75,7 @@ final class SubscriptionEngine
         return $this->processExclusively(fn () => $this->catchUpSubscriptions($criteria ?? SubscriptionEngineCriteria::noConstraints(), SubscriptionStatus::ACTIVE, $progressCallback));
     }
 
-    public function reset(SubscriptionEngineCriteria|null $criteria = null, bool $skipBooting = false): Result
+    public function reset(SubscriptionEngineCriteria|null $criteria = null): Result
     {
         $criteria ??= SubscriptionEngineCriteria::noConstraints();
 
@@ -87,7 +87,7 @@ final class SubscriptionEngine
         }
         $errors = [];
         foreach ($subscriptions as $subscription) {
-            $error = $this->resetSubscription($subscription, $skipBooting);
+            $error = $this->resetSubscription($subscription);
             if ($error !== null) {
                 $errors[] = $error;
             }
@@ -177,7 +177,7 @@ final class SubscriptionEngine
      * Set up the subscription by retrieving the corresponding subscriber and calling the setUp method on its handler
      * If the setup fails, the subscription will be in the {@see SubscriptionStatus::ERROR} state and a corresponding {@see Error} is returned
      */
-    private function setupSubscription(Subscription $subscription, bool $skipBooting): ?Error
+    private function setupSubscription(Subscription $subscription): ?Error
     {
         $subscriber = $this->subscribers->get($subscription->id);
         try {
@@ -189,7 +189,7 @@ final class SubscriptionEngine
             return Error::fromSubscriptionIdAndException($subscription->id, $e);
         }
         $subscription->set(
-            status: $skipBooting ? SubscriptionStatus::ACTIVE : SubscriptionStatus::BOOTING
+            status: SubscriptionStatus::BOOTING
         );
         $this->subscriptionManager->update($subscription);
         $this->logger?->debug(sprintf('Subscription Engine: For Subscriber "%s" for "%s" the setup method has been executed, set to %s.', $subscriber::class, $subscription->id->value, $subscription->status->value));
@@ -199,7 +199,7 @@ final class SubscriptionEngine
     /**
      * TODO
      */
-    private function resetSubscription(Subscription $subscription, bool $skipBooting): ?Error
+    private function resetSubscription(Subscription $subscription): ?Error
     {
         $subscriber = $this->subscribers->get($subscription->id);
         try {
@@ -209,7 +209,7 @@ final class SubscriptionEngine
             return Error::fromSubscriptionIdAndException($subscription->id, $e);
         }
         $subscription->set(
-            status: $skipBooting ? SubscriptionStatus::ACTIVE : SubscriptionStatus::BOOTING,
+            status: SubscriptionStatus::BOOTING,
             position: SequenceNumber::none(),
         );
         $this->subscriptionManager->update($subscription);
