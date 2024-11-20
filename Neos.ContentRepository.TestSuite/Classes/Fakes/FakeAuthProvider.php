@@ -12,6 +12,10 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\Neos\Security\ContentRepositoryAuthProvider\ContentRepositoryAuthProvider;
 
+/**
+ * Content Repository AuthProvider implementation for tests
+ * This is a mutable class in order to allow to adjust the behaviour during runtime for testing purposes
+ */
 final class FakeAuthProvider implements AuthProviderInterface
 {
     private static ?UserId $userId = null;
