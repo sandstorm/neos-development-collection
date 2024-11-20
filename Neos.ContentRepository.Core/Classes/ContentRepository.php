@@ -55,7 +55,7 @@ use Psr\Clock\ClockInterface;
  *
  * @api
  */
-final readonly class ContentRepository
+final class ContentRepository
 {
     /**
      * @internal use the {@see ContentRepositoryFactory::getOrBuild()} to instantiate

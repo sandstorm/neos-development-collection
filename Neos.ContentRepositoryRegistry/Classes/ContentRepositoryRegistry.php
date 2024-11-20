@@ -57,6 +57,9 @@ final class ContentRepositoryRegistry
      */
     private array $factoryInstances = [];
 
+    #[Flow\Inject(name: 'Neos.ContentRepositoryRegistry:Logger', lazy: false)]
+    protected LoggerInterface $logger;
+
     /**
      * @param array<string, mixed> $settings
      */
@@ -64,7 +67,6 @@ final class ContentRepositoryRegistry
         private readonly array $settings,
         private readonly ObjectManagerInterface $objectManager,
         private readonly SubgraphCachePool $subgraphCachePool,
-        private readonly LoggerInterface $logger,
     ) {
     }
 
