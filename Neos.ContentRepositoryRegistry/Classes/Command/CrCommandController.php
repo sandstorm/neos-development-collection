@@ -66,14 +66,14 @@ final class CrCommandController extends CommandController
             $bootResult = $subscriptionService->subscriptionEngine->boot(progressCallback: fn () => $this->output->progressAdvance());
             $this->output->progressFinish();
             $this->outputLine();
-            if ($bootResult->errors === null) {
+            if ($bootResult->hasFailed() === false) {
                 $this->outputLine('<success>Done</success>');
                 return;
             }
         } else {
             $bootResult = $subscriptionService->subscriptionEngine->boot();
         }
-        if ($bootResult->errors !== null) {
+        if ($bootResult->hasFailed()) {
             $this->outputLine('<success>Booting of Content Repository "%s" produced the following error%s</success>', [$contentRepositoryId->value, $bootResult->errors->count() === 1 ? '' : 's']);
             foreach ($bootResult->errors as $error) {
                 $this->outputLine('<error><b>Subscription "%s":</b> %s</error>', [$error->subscriptionId->value, $error->message]);

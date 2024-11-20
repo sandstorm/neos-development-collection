@@ -163,7 +163,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
 
         if ($danglingContentStreamsPresent) {
             $result = $this->subscriptionEngine->catchUpActive();
-            if ($result->hasErrors()) {
+            if ($result->hasFailed()) {
                 $outputFn('Catchup after removing unused content streams led to errors. You might need to use ./flow contentstream:pruneremovedfromeventstream and replay.');
             }
         } else {
