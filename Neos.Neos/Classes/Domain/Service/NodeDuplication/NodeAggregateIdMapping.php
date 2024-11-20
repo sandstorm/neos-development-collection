@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\Core\Feature\NodeDuplication\Dto;
+namespace Neos\Neos\Domain\Service\NodeDuplication;
 
 /*
  * This file is part of the Neos.ContentRepository package.
@@ -14,16 +14,13 @@ namespace Neos\ContentRepository\Core\Feature\NodeDuplication\Dto;
  * source code.
  */
 
+use Neos\ContentRepository\Core\Feature\NodeDuplication\Dto\NodeSubtreeSnapshot;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 
 /**
  * An assignment of "old" to "new" NodeAggregateIds
  *
- * Usable for predefining NodeAggregateIds if multiple nodes are copied.
- *
- * You'll never create this class yourself; but you use {@see CopyNodesRecursively::createFromSubgraphAndStartNode()}
- *
- * @internal implementation detail of {@see CopyNodesRecursively} command
+ * Usable for predefining NodeAggregateIds for deterministic testing, or fetching the newly inserted node.
  */
 final class NodeAggregateIdMapping implements \JsonSerializable
 {
@@ -34,12 +31,12 @@ final class NodeAggregateIdMapping implements \JsonSerializable
      *
      * @var array<string,NodeAggregateId>
      */
-    protected array $nodeAggregateIds = [];
+    private array $nodeAggregateIds = [];
 
     /**
      * @param array<string,NodeAggregateId> $nodeAggregateIds
      */
-    public function __construct(array $nodeAggregateIds)
+    private function __construct(array $nodeAggregateIds)
     {
         foreach ($nodeAggregateIds as $oldNodeAggregateId => $newNodeAggregateId) {
             $oldNodeAggregateId = NodeAggregateId::fromString($oldNodeAggregateId);
@@ -54,12 +51,25 @@ final class NodeAggregateIdMapping implements \JsonSerializable
         }
     }
 
+    public static function createEmpty(): self
+    {
+        return new self([]);
+    }
+
+    public function withNewNodeAggregateId(NodeAggregateId $oldNodeAggregateId, NodeAggregateId $newNodeAggregateId): self
+    {
+        $nodeAggregateIds = $this->nodeAggregateIds;
+        $nodeAggregateIds[$oldNodeAggregateId->value] = $newNodeAggregateId;
+        return new self($nodeAggregateIds);
+    }
+
     /**
      * Create a new id mapping, *GENERATING* new ids.
      */
     public static function generateForNodeSubtreeSnapshot(NodeSubtreeSnapshot $nodeSubtreeSnapshot): self
     {
         $nodeAggregateIdMapping = [];
+        /** @phpstan-ignore neos.cr.internal */
         $nodeSubtreeSnapshot->walk(
             function (NodeSubtreeSnapshot $nodeSubtreeSnapshot) use (&$nodeAggregateIdMapping) {
                 // here, we create new random NodeAggregateIds.
@@ -71,13 +81,13 @@ final class NodeAggregateIdMapping implements \JsonSerializable
     }
 
     /**
-     * @param array<string,string> $array
+     * @param array<string,string|NodeAggregateId> $array
      */
     public static function fromArray(array $array): self
     {
         $nodeAggregateIds = [];
         foreach ($array as $oldNodeAggregateId => $newNodeAggregateId) {
-            $nodeAggregateIds[$oldNodeAggregateId] = NodeAggregateId::fromString($newNodeAggregateId);
+            $nodeAggregateIds[$oldNodeAggregateId] = $newNodeAggregateId instanceof NodeAggregateId ? $newNodeAggregateId : NodeAggregateId::fromString($newNodeAggregateId);
         }
 
         return new self($nodeAggregateIds);

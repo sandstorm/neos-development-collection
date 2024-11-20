@@ -61,7 +61,6 @@ trait CRTestSuiteTrait
     use ContentStreamClosing;
 
     use NodeCreation;
-    use NodeCopying;
     use SubtreeTagging;
     use NodeModification;
     use NodeMove;
