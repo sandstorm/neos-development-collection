@@ -200,34 +200,6 @@ final class NodeTypeManager
     }
 
     /**
-     * This method can be used by Functional of Behavioral Tests to completely
-     * override the node types known in the system.
-     *
-     * In order to reset the node type override, an empty array can be passed in.
-     * In this case, the system-node-types are used again.
-     *
-     * @internal
-     * @param array<string,mixed> $completeNodeTypeConfiguration
-     */
-    public function overrideNodeTypes(array $completeNodeTypeConfiguration): void
-    {
-        $this->cachedNodeTypes = [];
-
-        if ($completeNodeTypeConfiguration === []) {
-            // as cachedNodeTypes is now empty loadNodeTypes will reload the default nodeTypes
-            return;
-        }
-
-        // the root node type must always exist
-        $completeNodeTypeConfiguration[NodeTypeName::ROOT_NODE_TYPE_NAME] ??= [];
-
-        foreach (array_keys($completeNodeTypeConfiguration) as $nodeTypeName) {
-            /** @var string $nodeTypeName */
-            $this->loadNodeType($nodeTypeName, $completeNodeTypeConfiguration);
-        }
-    }
-
-    /**
      * Checks if the given $nodeTypeNameToCheck is allowed as a childNode of the given $tetheredNodeName.
      *
      * Returns false if $tetheredNodeName is not tethered to $parentNodeTypeName, or if any of the $nodeTypeNameToCheck does not exist.

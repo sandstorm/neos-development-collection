@@ -449,17 +449,4 @@ class NodeTypeManagerTest extends TestCase
         self::assertTrue($nodeTypeManager->hasNodeType(NodeTypeName::ROOT_NODE_TYPE_NAME));
         self::assertInstanceOf(NodeType::class, $nodeTypeManager->getNodeType(NodeTypeName::ROOT_NODE_TYPE_NAME));
     }
-
-    /**
-     * @test
-     */
-    public function rootNodeTypeIsPresentAfterOverride()
-    {
-        $nodeTypeManager = NodeTypeManager::createFromArrayConfiguration(
-            []
-        );
-        $nodeTypeManager->overrideNodeTypes(['Some:NewNodeType' => []]);
-        self::assertTrue($nodeTypeManager->hasNodeType(NodeTypeName::fromString('Some:NewNodeType')));
-        self::assertTrue($nodeTypeManager->hasNodeType(NodeTypeName::ROOT_NODE_TYPE_NAME));
-    }
 }
