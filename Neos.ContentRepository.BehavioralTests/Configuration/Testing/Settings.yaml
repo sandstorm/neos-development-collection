@@ -24,11 +24,11 @@ Neos:
         eventStore:
           factoryObjectName: Neos\ContentRepositoryRegistry\Factory\EventStore\DoctrineEventStoreFactory
         nodeTypeManager:
-          factoryObjectName: Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinPyStringNodeBasedNodeTypeManagerFactory
+          factoryObjectName: Neos\ContentRepository\TestSuite\Fakes\FakeNodeTypeManagerFactory
         contentDimensionSource:
-          factoryObjectName: Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinTableNodeBasedContentDimensionSourceFactory
+          factoryObjectName: Neos\ContentRepository\TestSuite\Fakes\FakeContentDimensionSourceFactory
         authProvider:
-          factoryObjectName: Neos\ContentRepositoryRegistry\Factory\AuthProvider\StaticAuthProviderFactory
+          factoryObjectName: Neos\ContentRepository\TestSuite\Fakes\FakeAuthProviderFactory
         clock:
           factoryObjectName: Neos\ContentRepositoryRegistry\Factory\Clock\SystemClockFactory
         propertyConverters: {}

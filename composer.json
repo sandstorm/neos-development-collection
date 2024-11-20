@@ -110,7 +110,7 @@
         ],
         "test:paratest-cli": "../../bin/paratest --debug -v --functional --processes 2 --colors --stop-on-failure -c ../../Build/BuildEssentials/PhpUnit/FunctionalTests.xml",
         "test:parallel": [
-            "for f in Neos.ContentRepository.BehavioralTests/Tests/Parallel/**/*Test.php; do composer test:paratest-cli $f; done"
+            "for f in Neos.ContentRepository.BehavioralTests/Tests/Parallel/**/*Test.php; do composer test:paratest-cli $f || exit 1; done"
         ],
         "test:behat-cli": "../../bin/behat -f progress --strict --no-interaction",
         "test:behavioral": [
