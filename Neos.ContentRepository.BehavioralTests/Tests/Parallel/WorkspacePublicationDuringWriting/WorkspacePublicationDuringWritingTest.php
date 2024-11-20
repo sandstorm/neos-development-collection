@@ -173,6 +173,11 @@ class WorkspacePublicationDuringWritingTest extends AbstractParallelTestCase
 
         $this->log('writing finished');
         Assert::assertTrue(true, 'No exception was thrown ;)');
+
+        $subgraph = $this->contentRepository->getContentGraph(WorkspaceName::forLive())->getSubgraph(DimensionSpacePoint::createWithoutDimensions(), VisibilityConstraints::withoutRestrictions());
+        $node = $subgraph->findNodeById(NodeAggregateId::fromString('nody-mc-nodeface'));
+        Assert::assertNotNull($node);
+        Assert::assertSame($node->getProperty('title'), 'changed-title-50');
     }
 
     /**
