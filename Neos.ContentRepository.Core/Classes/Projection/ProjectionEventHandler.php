@@ -6,14 +6,13 @@ namespace Neos\ContentRepository\Core\Projection;
 
 use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookInterface;
-use Neos\ContentRepository\Core\Subscription\Subscriber\EventHandlerInterface;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\EventStore\Model\EventEnvelope;
 
 /**
  * @internal
  */
-final readonly class ProjectionEventHandler implements EventHandlerInterface
+final readonly class ProjectionEventHandler
 {
     /**
      * @param ProjectionInterface<ProjectionStateInterface> $projection
@@ -39,11 +38,6 @@ final readonly class ProjectionEventHandler implements EventHandlerInterface
     public static function createWithCatchUpHook(ProjectionInterface $projection, CatchUpHookInterface $catchUpHook): self
     {
         return new self($projection, $catchUpHook);
-    }
-
-    public function setup(): void
-    {
-        $this->projection->setUp();
     }
 
     public function onBeforeCatchUp(SubscriptionStatus $subscriptionStatus): void

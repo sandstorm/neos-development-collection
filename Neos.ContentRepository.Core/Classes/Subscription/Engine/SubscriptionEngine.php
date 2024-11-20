@@ -6,7 +6,6 @@ namespace Neos\ContentRepository\Core\Subscription\Engine;
 
 use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
-use Neos\ContentRepository\Core\Projection\ProjectionEventHandler;
 use Neos\ContentRepository\Core\Subscription\Exception\SubscriptionEngineAlreadyProcessingException;
 use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatuses;
@@ -135,7 +134,7 @@ final class SubscriptionEngine
                 subscriptionStatus: $subscription->status,
                 subscriptionPosition: $subscription->position,
                 subscriptionError: $subscription->error,
-                projectionStatus: $subscriber->handler instanceof ProjectionEventHandler ? $subscriber->handler->projection->status() : null,
+                projectionStatus: $subscriber->handler->projection->status(),
             );
         }
         return SubscriptionAndProjectionStatuses::fromArray($statuses);
@@ -211,7 +210,7 @@ final class SubscriptionEngine
     {
         $subscriber = $this->subscribers->get($subscription->id);
         try {
-            $subscriber->handler->setup();
+            $subscriber->handler->projection->setUp();
         } catch (\Throwable $e) {
             $this->logger?->error(sprintf('Subscription Engine: Subscriber "%s" for "%s" has an error in the setup method: %s', $subscriber::class, $subscription->id->value, $e->getMessage()));
             $subscription->fail($e);
@@ -239,10 +238,6 @@ final class SubscriptionEngine
     private function resetSubscription(Subscription $subscription, bool $skipBooting): ?Error
     {
         $subscriber = $this->subscribers->get($subscription->id);
-        if (!$subscriber->handler instanceof ProjectionEventHandler) {
-            $this->logger?->info(sprintf('Subscription Engine: Subscriber handler "%s" for "%s" is no instance of %s, skipping reset', $subscriber->handler::class, $subscription->id->value, ProjectionEventHandler::class));
-            return null;
-        }
         try {
             $subscriber->handler->projection->resetState();
         } catch (\Throwable $e) {

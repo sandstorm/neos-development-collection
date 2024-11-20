@@ -83,7 +83,7 @@ final class ContentRepositoryFactory
         ContentGraphProjectionFactoryInterface $contentGraphProjectionFactory,
         private readonly CatchUpHookFactoryInterface $contentGraphCatchUpHookFactory,
         private readonly CommandHooksFactory $commandHooksFactory,
-        private readonly ContentRepositorySubscriberFactories $additionalSubscriberFactories,
+        private readonly ContentRepositorySubscriberFactories $additionalProjectionsFactories,
         LoggerInterface|null $logger = null,
     ) {
         $contentDimensionZookeeper = new ContentDimensionZookeeper($contentDimensionSource);
@@ -103,7 +103,7 @@ final class ContentRepositoryFactory
         );
         $subscribers = [];
         $additionalProjectionStates = [];
-        foreach ($this->additionalSubscriberFactories as $additionalSubscriberFactory) {
+        foreach ($this->additionalProjectionsFactories as $additionalSubscriberFactory) {
             $subscriber = $additionalSubscriberFactory->build($this->subscriberFactoryDependencies);
             if ($subscriber->handler instanceof ProjectionEventHandler) {
                 $additionalProjectionStates[] = $subscriber->handler->projection->getState();

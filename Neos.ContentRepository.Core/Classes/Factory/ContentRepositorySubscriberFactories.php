@@ -5,23 +5,23 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Factory;
 
 /**
- * @implements \IteratorAggregate<ContentRepositorySubscriberFactoryInterface>
+ * @implements \IteratorAggregate<ProjectionSubscriberFactory>
  * @internal
  */
 final class ContentRepositorySubscriberFactories implements \IteratorAggregate
 {
     /**
-     * @var array<ContentRepositorySubscriberFactoryInterface>
+     * @var array<ProjectionSubscriberFactory>
      */
     private array $subscriberFactories;
 
-    private function __construct(ContentRepositorySubscriberFactoryInterface ...$subscriberFactories)
+    private function __construct(ProjectionSubscriberFactory ...$subscriberFactories)
     {
         $this->subscriberFactories = $subscriberFactories;
     }
 
     /**
-     * @param array<ContentRepositorySubscriberFactoryInterface> $subscriberFactories
+     * @param array<ProjectionSubscriberFactory> $subscriberFactories
      * @return self
      */
     public static function fromArray(array $subscriberFactories): self
