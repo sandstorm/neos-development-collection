@@ -2,6 +2,7 @@
 Feature: As a user of the CR I want to export the event stream using the EventExportProcessor
 
   Background:
+    Given the current date and time is "2023-03-16T12:00:00+01:00"
     Given using the following content dimensions:
       | Identifier | Values      | Generalizations |
       | language   | de, gsw, fr | gsw->de         |
@@ -35,7 +36,7 @@ Feature: As a user of the CR I want to export the event stream using the EventEx
     When the events are exported
     Then I expect the following jsonl:
       """
-      {"identifier":"random-event-uuid","type":"RootNodeAggregateWithNodeWasCreated","payload":{"nodeAggregateId":"lady-eleonode-rootford","nodeTypeName":"Neos.ContentRepository:Root","coveredDimensionSpacePoints":[{"language":"de"},{"language":"gsw"},{"language":"fr"}],"nodeAggregateClassification":"root"},"metadata":{"initiatingUserId":"system","initiatingTimestamp":"random-time"}}
-      {"identifier":"random-event-uuid","type":"NodeAggregateWithNodeWasCreated","payload":{"nodeAggregateId":"nody-mc-nodeface","nodeTypeName":"Neos.ContentRepository.Testing:Document","originDimensionSpacePoint":{"language":"de"},"succeedingSiblingsForCoverage":[{"dimensionSpacePoint":{"language":"de"},"nodeAggregateId":null},{"dimensionSpacePoint":{"language":"gsw"},"nodeAggregateId":null}],"parentNodeAggregateId":"lady-eleonode-rootford","nodeName":"child-document","initialPropertyValues":[],"nodeAggregateClassification":"regular","nodeReferences":[]},"metadata":{"initiatingUserId":"system","initiatingTimestamp":"random-time"}}
+      {"identifier":"random-event-uuid","type":"RootNodeAggregateWithNodeWasCreated","payload":{"nodeAggregateId":"lady-eleonode-rootford","nodeTypeName":"Neos.ContentRepository:Root","coveredDimensionSpacePoints":[{"language":"de"},{"language":"gsw"},{"language":"fr"}],"nodeAggregateClassification":"root"},"metadata":{"initiatingUserId":"system","initiatingTimestamp":"2023-03-16T12:00:00+01:00"}}
+      {"identifier":"random-event-uuid","type":"NodeAggregateWithNodeWasCreated","payload":{"nodeAggregateId":"nody-mc-nodeface","nodeTypeName":"Neos.ContentRepository.Testing:Document","originDimensionSpacePoint":{"language":"de"},"succeedingSiblingsForCoverage":[{"dimensionSpacePoint":{"language":"de"},"nodeAggregateId":null},{"dimensionSpacePoint":{"language":"gsw"},"nodeAggregateId":null}],"parentNodeAggregateId":"lady-eleonode-rootford","nodeName":"child-document","initialPropertyValues":[],"nodeAggregateClassification":"regular","nodeReferences":[]},"metadata":{"initiatingUserId":"system","initiatingTimestamp":"2023-03-16T12:00:00+01:00"}}
 
       """
