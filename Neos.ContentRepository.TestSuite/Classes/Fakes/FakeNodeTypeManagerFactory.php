@@ -36,7 +36,7 @@ final class FakeNodeTypeManagerFactory implements NodeTypeManagerFactoryInterfac
         }
         if (isset($options['nodeTypes'])) {
             // allows to be configured for testing
-            return new NodeTypeManager(fn (): array => $options['nodeTypes']);
+            return NodeTypeManager::createFromArrayConfiguration($options['nodeTypes']);
         }
         throw new \RuntimeException('NodeTypeManagerFactory uninitialized');
     }
@@ -46,8 +46,8 @@ final class FakeNodeTypeManagerFactory implements NodeTypeManagerFactoryInterfac
      */
     public static function setConfiguration(array $nodeTypesToUse): void
     {
-        self::$nodeTypeManager = new NodeTypeManager(
-            fn (): array => $nodeTypesToUse
+        self::$nodeTypeManager = NodeTypeManager::createFromArrayConfiguration(
+            $nodeTypesToUse
         );
     }
 

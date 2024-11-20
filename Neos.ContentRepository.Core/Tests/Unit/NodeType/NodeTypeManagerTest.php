@@ -41,8 +41,8 @@ class NodeTypeManagerTest extends TestCase
      */
     protected function prepareNodeTypeManager(array $nodeTypesFixtureData)
     {
-        $this->nodeTypeManager = new NodeTypeManager(
-            fn() => $nodeTypesFixtureData
+        $this->nodeTypeManager = NodeTypeManager::createFromArrayConfiguration(
+            $nodeTypesFixtureData
         );
     }
 
@@ -443,8 +443,8 @@ class NodeTypeManagerTest extends TestCase
      */
     public function rootNodeTypeIsAlwaysPresent()
     {
-        $nodeTypeManager = new NodeTypeManager(
-            fn() => []
+        $nodeTypeManager = NodeTypeManager::createFromArrayConfiguration(
+            []
         );
         self::assertTrue($nodeTypeManager->hasNodeType(NodeTypeName::ROOT_NODE_TYPE_NAME));
         self::assertInstanceOf(NodeType::class, $nodeTypeManager->getNodeType(NodeTypeName::ROOT_NODE_TYPE_NAME));
@@ -455,8 +455,8 @@ class NodeTypeManagerTest extends TestCase
      */
     public function rootNodeTypeIsPresentAfterOverride()
     {
-        $nodeTypeManager = new NodeTypeManager(
-            fn() => []
+        $nodeTypeManager = NodeTypeManager::createFromArrayConfiguration(
+            []
         );
         $nodeTypeManager->overrideNodeTypes(['Some:NewNodeType' => []]);
         self::assertTrue($nodeTypeManager->hasNodeType(NodeTypeName::fromString('Some:NewNodeType')));

@@ -40,12 +40,53 @@ final class NodeTypeManager
      */
     private array $cachedSubNodeTypes = [];
 
-    /**
-     * @internal
-     */
-    public function __construct(
+    private function __construct(
         private readonly \Closure $nodeTypeConfigLoader
     ) {
+    }
+
+    /**
+     * Initialise the NodeType manager with the NodeTypes configuration.
+     *
+     * The configuration is usually written in yaml format and then passed as array.
+     *
+     * A simple schema might look like this, were each key represents a NodeType:
+     *
+     *     'Vendor.Package:Root':
+     *       superTypes:
+     *         'Neos.ContentRepository:Root': true
+     *     'Vendor.Package:Document':
+     *       properties:
+     *         title:
+     *           type: string
+     *         uri:
+     *           type: GuzzleHttp\Psr7\Uri
+     *       references:
+     *         someReference: {}
+     *     'Vendor.Package:Text':
+     *       properties:
+     *         text:
+     *           type: string
+     *
+     * FIXME, for standalone integrations a type safe API should be offered: {@link https://github.com/neos/neos-development-collection/issues/4228}
+     *
+     * @param array<string,mixed> $configuration
+     * @internal only API for custom content repository integrations
+     */
+    public static function createFromArrayConfiguration(array $configuration): self
+    {
+        return new self(fn () => $configuration);
+    }
+
+    /**
+     * For documentation regarding the configuration format {@see NodeTypeManager::createFromArrayConfiguration}
+     *
+     * @param \Closure(): array<string,mixed> $nodeTypeConfigurationLoader
+     * @internal only API for custom content repository integrations
+     */
+    public static function createFromArrayConfigurationLoader(\Closure $nodeTypeConfigurationLoader): self
+    {
+        return new self($nodeTypeConfigurationLoader);
     }
 
     /**
