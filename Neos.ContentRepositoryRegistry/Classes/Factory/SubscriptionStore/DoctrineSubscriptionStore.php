@@ -121,16 +121,6 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
         );
     }
 
-    public function remove(Subscription $subscription): void
-    {
-        $this->dbal->delete(
-            $this->tableName,
-            [
-                'id' => $subscription->id->value,
-            ]
-        );
-    }
-
     /**
      * @return array<string, mixed>
      */

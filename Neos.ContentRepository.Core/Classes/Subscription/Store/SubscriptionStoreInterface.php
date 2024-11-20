@@ -20,8 +20,6 @@ interface SubscriptionStoreInterface
 
     public function update(Subscription $subscription): void;
 
-    public function remove(Subscription $subscription): void;
-
     /**
      * @template T
      * @param \Closure():T $closure

@@ -18,15 +18,11 @@ final class SubscriptionManager
     /** @var \SplObjectStorage<Subscription, null> */
     private \SplObjectStorage $forUpdate;
 
-    /** @var \SplObjectStorage<Subscription, null> */
-    private \SplObjectStorage $forRemove;
-
     public function __construct(
         private readonly SubscriptionStoreInterface $subscriptionStore,
     ) {
         $this->forAdd = new \SplObjectStorage();
         $this->forUpdate = new \SplObjectStorage();
-        $this->forRemove = new \SplObjectStorage();
     }
 
     /**
@@ -63,18 +59,9 @@ final class SubscriptionManager
         $this->forUpdate->attach($subscription);
     }
 
-    public function remove(Subscription $subscription): void
-    {
-        $this->forRemove->attach($subscription);
-    }
-
     public function flush(): void
     {
         foreach ($this->forAdd as $subscription) {
-            if ($this->forRemove->contains($subscription)) {
-                continue;
-            }
-
             $this->subscriptionStore->add($subscription);
         }
 
@@ -83,23 +70,10 @@ final class SubscriptionManager
                 continue;
             }
 
-            if ($this->forRemove->contains($subscription)) {
-                continue;
-            }
-
             $this->subscriptionStore->update($subscription);
-        }
-
-        foreach ($this->forRemove as $subscription) {
-            if ($this->forAdd->contains($subscription)) {
-                continue;
-            }
-
-            $this->subscriptionStore->remove($subscription);
         }
 
         $this->forAdd = new \SplObjectStorage();
         $this->forUpdate = new \SplObjectStorage();
-        $this->forRemove = new \SplObjectStorage();
     }
 }
