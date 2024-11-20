@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\EventStore;
 
 use Neos\ContentRepository\Core\ContentRepository;
+use Neos\ContentRepository\Core\EventStore\Events as DomainEvents;
 use Neos\ContentRepository\Core\Feature\ContentStreamClosing\Event\ContentStreamWasClosed;
 use Neos\ContentRepository\Core\Feature\ContentStreamClosing\Event\ContentStreamWasReopened;
 use Neos\ContentRepository\Core\Feature\ContentStreamCreation\Event\ContentStreamWasCreated;
@@ -148,9 +149,9 @@ final class EventNormalizer
         );
     }
 
-    public function normalizeEvents(EventsToPublish $eventsToPublish): Events
+    public function normalizeEvents(DomainEvents $events): Events
     {
-        return Events::fromArray($eventsToPublish->events->map($this->normalize(...)));
+        return Events::fromArray($events->map($this->normalize(...)));
     }
 
     public function denormalize(Event $event): EventInterface

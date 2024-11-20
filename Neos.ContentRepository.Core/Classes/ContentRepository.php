@@ -96,7 +96,7 @@ final class ContentRepository
         // simple case
         if ($toPublish instanceof EventsToPublish) {
             $eventsToPublish = $this->enrichEventsToPublishWithMetadata($toPublish);
-            $this->eventStore->commit($eventsToPublish->streamName, $this->eventNormalizer->normalizeEvents($eventsToPublish), $eventsToPublish->expectedVersion);
+            $this->eventStore->commit($eventsToPublish->streamName, $this->eventNormalizer->normalizeEvents($eventsToPublish->events), $eventsToPublish->expectedVersion);
             $catchUpResult = $this->subscriptionEngine->catchUpActive();
             if ($catchUpResult->hasErrors()) {
                 throw new \RuntimeException('Catchup led to errors.. todo', 1731612294);
@@ -109,7 +109,7 @@ final class ContentRepository
             foreach ($toPublish as $yieldedEventsToPublish) {
                 $eventsToPublish = $this->enrichEventsToPublishWithMetadata($yieldedEventsToPublish);
                 try {
-                    $this->eventStore->commit($eventsToPublish->streamName, $this->eventNormalizer->normalizeEvents($eventsToPublish), $eventsToPublish->expectedVersion);
+                    $this->eventStore->commit($eventsToPublish->streamName, $this->eventNormalizer->normalizeEvents($eventsToPublish->events), $eventsToPublish->expectedVersion);
                 } catch (ConcurrencyException $concurrencyException) {
                     // we pass the exception into the generator (->throw), so it could be try-caught and reacted upon:
                     //
@@ -121,7 +121,7 @@ final class ContentRepository
                     //   }
                     $yieldedErrorStrategy = $toPublish->throw($concurrencyException);
                     if ($yieldedErrorStrategy instanceof EventsToPublish) {
-                        $this->eventStore->commit($yieldedErrorStrategy->streamName, $this->eventNormalizer->normalizeEvents($yieldedErrorStrategy), $yieldedErrorStrategy->expectedVersion);
+                        $this->eventStore->commit($yieldedErrorStrategy->streamName, $this->eventNormalizer->normalizeEvents($yieldedErrorStrategy->events), $yieldedErrorStrategy->expectedVersion);
                     }
                     throw $concurrencyException;
                 }
