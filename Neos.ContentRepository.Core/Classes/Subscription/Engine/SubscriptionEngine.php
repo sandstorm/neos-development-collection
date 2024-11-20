@@ -311,7 +311,7 @@ final class SubscriptionEngine
                 foreach ($subscriptions as $subscription) {
                     $this->subscribers->get($subscription->id)->handler->onBeforeCatchUp($subscription->status);
                 }
-                $startSequenceNumber = $subscriptions->lowestPosition();
+                $startSequenceNumber = $subscriptions->lowestPosition()?->next() ?? SequenceNumber::none();
                 $this->logger?->debug(sprintf('Subscription Engine: Event stream is processed from position %s.', $startSequenceNumber->value));
 
                 /** @var list<Error> $errors */

@@ -109,15 +109,18 @@ final class Subscriptions implements \IteratorAggregate, \Countable, \JsonSerial
         return array_values($this->subscriptionsById);
     }
 
-    public function lowestPosition(): SequenceNumber
+    public function lowestPosition(): SequenceNumber|null
     {
-        $min = null;
-        foreach ($this->subscriptionsById as $subscription) {
-            if ($min !== null && $subscription->position->value >= $min->value) {
-                continue;
-            }
-            $min = $subscription->position;
+        if ($this->subscriptionsById === []) {
+            return null;
         }
-        return $min ?? SequenceNumber::fromInteger(0);
+        return SequenceNumber::fromInteger(
+            min(
+                array_map(
+                    fn (Subscription $subscription) => $subscription->position->value,
+                    $this->subscriptionsById
+                )
+            )
+        );
     }
 }
