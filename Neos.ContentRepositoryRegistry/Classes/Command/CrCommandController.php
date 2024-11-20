@@ -155,8 +155,6 @@ final class CrCommandController extends CommandController
                 SubscriptionStatus::NEW => '<comment>NEW</comment>',
                 SubscriptionStatus::BOOTING => '<comment>BOOTING</comment>',
                 SubscriptionStatus::ACTIVE => '<success>ACTIVE</success>',
-                SubscriptionStatus::PAUSED => '<comment>PAUSED</comment>',
-                SubscriptionStatus::FINISHED => '<comment>FINISHED</comment>',
                 SubscriptionStatus::DETACHED => '<comment>DETACHED</comment>',
                 SubscriptionStatus::ERROR => '<error>ERROR</error>',
             });

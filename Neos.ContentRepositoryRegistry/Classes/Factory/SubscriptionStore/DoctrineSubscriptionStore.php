@@ -46,7 +46,6 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
         $tableSchema = new Table($this->tableName, [
             (new Column('id', Type::getType(Types::STRING)))->setNotnull(true)->setLength(SubscriptionId::MAX_LENGTH)->setPlatformOption('charset', 'ascii')->setPlatformOption('collation', $isSqlite ? null : 'ascii_general_ci'),
             (new Column('group_name', Type::getType(Types::STRING)))->setNotnull(true)->setLength(100)->setPlatformOption('charset', 'ascii')->setPlatformOption('collation', $isSqlite ? null : 'ascii_general_ci'),
-            (new Column('run_mode', Type::getType(Types::STRING)))->setNotnull(true)->setLength(16)->setPlatformOption('charset', 'ascii')->setPlatformOption('collation', $isSqlite ? null : 'ascii_general_ci'),
             (new Column('position', Type::getType(Types::INTEGER)))->setNotnull(true),
             (new Column('status', Type::getType(Types::STRING)))->setNotnull(true)->setLength(32)->setPlatformOption('charset', 'ascii')->setPlatformOption('collation', $isSqlite ? null : 'ascii_general_ci'),
             (new Column('error_message', Type::getType(Types::TEXT)))->setNotnull(false),
@@ -151,7 +150,6 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
     {
         return [
             'group_name' => $subscription->group->value,
-            'run_mode' => $subscription->runMode->name,
             'status' => $subscription->status->name,
             'position' => $subscription->position->value,
             'error_message' => $subscription->error?->errorMessage,
@@ -176,7 +174,6 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
         }
         assert(is_string($row['id']));
         assert(is_string($row['group_name']));
-        assert(is_string($row['run_mode']));
         assert(is_string($row['status']));
         assert(is_int($row['position']));
         assert(is_int($row['retry_attempt']));
@@ -187,7 +184,6 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
         return new Subscription(
             SubscriptionId::fromString($row['id']),
             SubscriptionGroup::fromString($row['group_name']),
-            RunMode::from($row['run_mode']),
             SubscriptionStatus::from($row['status']),
             SequenceNumber::fromInteger($row['position']),
             $subscriptionError,

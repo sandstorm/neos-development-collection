@@ -37,8 +37,6 @@ use Neos\ContentRepository\Core\Projection\ProjectionEventHandler;
 use Neos\ContentRepository\Core\Projection\ProjectionStates;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
-use Neos\ContentRepository\Core\Subscription\RetryStrategy\NoRetryStrategy;
-use Neos\ContentRepository\Core\Subscription\RunMode;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
 use Neos\ContentRepository\Core\Subscription\Subscriber\Subscriber;
 use Neos\ContentRepository\Core\Subscription\Subscriber\Subscribers;
@@ -113,7 +111,7 @@ final class ContentRepositoryFactory
         $this->additionalProjectionStates = ProjectionStates::fromArray($additionalProjectionStates);
         $this->contentGraphProjection = $contentGraphProjectionFactory->build($this->subscriberFactoryDependencies);
         $subscribers[] = $this->buildContentGraphSubscriber();
-        $this->subscriptionEngine = new SubscriptionEngine($this->eventStore, $subscriptionStore, Subscribers::fromArray($subscribers), $eventNormalizer, new NoRetryStrategy(), $logger);
+        $this->subscriptionEngine = new SubscriptionEngine($this->eventStore, $subscriptionStore, Subscribers::fromArray($subscribers), $eventNormalizer, $logger);
     }
 
     private function buildContentGraphSubscriber(): Subscriber
@@ -121,7 +119,6 @@ final class ContentRepositoryFactory
         return new Subscriber(
             SubscriptionId::fromString('contentGraph'),
             SubscriptionGroup::fromString('default'),
-            RunMode::FROM_BEGINNING,
             ProjectionEventHandler::createWithCatchUpHook(
                 $this->contentGraphProjection,
                 $this->contentGraphCatchUpHookFactory->build(CatchUpHookFactoryDependencies::create(
