@@ -121,7 +121,7 @@ final class ContentRepository
                     //   }
                     $yieldedErrorStrategy = $toPublish->throw($concurrencyException);
                     if ($yieldedErrorStrategy instanceof EventsToPublish) {
-                        $this->eventStore->commit($eventsToPublish->streamName, $this->eventNormalizer->normalizeEvents($yieldedErrorStrategy), $yieldedErrorStrategy->expectedVersion);
+                        $this->eventStore->commit($yieldedErrorStrategy->streamName, $this->eventNormalizer->normalizeEvents($yieldedErrorStrategy), $yieldedErrorStrategy->expectedVersion);
                     }
                     throw $concurrencyException;
                 }
