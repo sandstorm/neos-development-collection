@@ -29,6 +29,14 @@ final readonly class SubscriptionAndProjectionStatuses implements \IteratorAggre
         return new self(...$statuses);
     }
 
+    public function first(): ?SubscriptionAndProjectionStatus
+    {
+        foreach ($this->statuses as $status) {
+            return $status;
+        }
+        return null;
+    }
+
     public function getIterator(): \Traversable
     {
         yield from $this->statuses;

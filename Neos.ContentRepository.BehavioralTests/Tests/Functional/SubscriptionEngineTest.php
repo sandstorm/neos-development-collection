@@ -24,6 +24,7 @@ use Neos\ContentRepository\Core\Subscription\Engine\Error;
 use Neos\ContentRepository\Core\Subscription\Engine\Errors;
 use Neos\ContentRepository\Core\Subscription\Engine\ProcessedResult;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
+use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionCriteria;
 use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatuses;
@@ -59,7 +60,7 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
 
     private ProjectionInterface&MockObject $fakeProjection;
 
-    private ProjectionStateInterface&MockObject $fakeProjectionState;
+    private ProjectionInterface&MockObject $secondFakeProjection;
 
     public function setUp(): void
     {
@@ -69,17 +70,25 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         $this->resetDatabase(
             $this->getObject(Connection::class),
             $contentRepositoryId,
-            true
+            keepSchema: true
         );
 
-        $this->fakeProjectionState = $this->getMockBuilder(ProjectionStateInterface::class)->disableAutoReturnValueGeneration()->getMock();
         $this->fakeProjection = $this->getMockBuilder(ProjectionInterface::class)->disableAutoReturnValueGeneration()->getMock();
-        $this->fakeProjection->method('getState')->willReturn($this->fakeProjectionState);
+        $this->fakeProjection->method('getState')->willReturn(new class implements ProjectionStateInterface {});
 
         FakeProjectionFactory::setProjection(
             'default',
             $this->fakeProjection
         );
+
+        $this->secondFakeProjection = $this->getMockBuilder(ProjectionInterface::class)->getMock();
+        $this->secondFakeProjection->method('getState')->willReturn(new class implements ProjectionStateInterface {});
+
+        FakeProjectionFactory::setProjection(
+            'second',
+            $this->secondFakeProjection
+        );
+
         FakeNodeTypeManagerFactory::setConfiguration([]);
         FakeContentDimensionSourceFactory::setWithoutDimensions();
 
@@ -123,7 +132,7 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         $this->resetDatabase(
             $this->getObject(Connection::class),
             $this->contentRepository->id,
-            true
+            keepSchema: false
         );
 
         $this->fakeProjection->expects(self::once())->method('status')->willReturn(ProjectionStatus::setupRequired('fake needs setup.'));
@@ -145,6 +154,13 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
                 subscriptionError: null,
                 projectionStatus: ProjectionStatus::setupRequired('fake needs setup.'),
             ),
+            SubscriptionAndProjectionStatus::create(
+                subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
+                subscriptionStatus: SubscriptionStatus::NEW,
+                subscriptionPosition: SequenceNumber::none(),
+                subscriptionError: null,
+                projectionStatus: ProjectionStatus::ok(),
+            ),
         ]);
 
         self::assertEquals($expected, $actualStatuses);
@@ -158,19 +174,27 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         $this->fakeProjection->expects(self::once())->method('setUp');
         $this->subscriptionService->subscriptionEngine->setup();
 
+        $this->secondFakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
         $this->fakeProjection->expects(self::exactly(2))->method('status')->willReturn(ProjectionStatus::ok());
         $actualStatuses = $this->subscriptionService->subscriptionEngine->subscriptionStatuses();
 
         $expected = SubscriptionAndProjectionStatuses::fromArray([
-            $contentGraphStatus = SubscriptionAndProjectionStatus::create(
+            SubscriptionAndProjectionStatus::create(
                 subscriptionId: SubscriptionId::fromString('contentGraph'),
                 subscriptionStatus: SubscriptionStatus::BOOTING,
                 subscriptionPosition: SequenceNumber::none(),
                 subscriptionError: null,
                 projectionStatus: ProjectionStatus::ok(),
             ),
-            $fakeProjectionStatus = SubscriptionAndProjectionStatus::create(
+            SubscriptionAndProjectionStatus::create(
                 subscriptionId: SubscriptionId::fromString('Vendor.Package:FakeProjection'),
+                subscriptionStatus: SubscriptionStatus::BOOTING,
+                subscriptionPosition: SequenceNumber::none(),
+                subscriptionError: null,
+                projectionStatus: ProjectionStatus::ok(),
+            ),
+            SubscriptionAndProjectionStatus::create(
+                subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
                 subscriptionStatus: SubscriptionStatus::BOOTING,
                 subscriptionPosition: SequenceNumber::none(),
                 subscriptionError: null,
@@ -180,8 +204,9 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
 
         self::assertEquals($expected, $actualStatuses);
 
-        self::assertEquals($contentGraphStatus, $this->subscriptionService->subscriptionEngine->subscriptionStatuses(SubscriptionCriteria::create(ids: [SubscriptionId::fromString('contentGraph')]))->first());
-        self::assertEquals($fakeProjectionStatus, $this->subscriptionService->subscriptionEngine->subscriptionStatuses(SubscriptionCriteria::create(ids: [SubscriptionId::fromString('Vendor.Package:FakeProjection')]))->first());
+        $this->expectOkayStatus('contentGraph', SubscriptionStatus::BOOTING, SequenceNumber::none());
+        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::none());
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::none());
     }
 
     /** @test */
@@ -195,7 +220,10 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         $result = $this->subscriptionService->subscriptionEngine->boot();
         self::assertEquals(ProcessedResult::success(0), $result);
         $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
-        self::assertEquals(self::expectedStatusesAtPosition(SubscriptionStatus::ACTIVE, SequenceNumber::none()), $this->subscriptionService->subscriptionEngine->subscriptionStatuses());
+        $this->secondFakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
+        $this->expectOkayStatus('contentGraph', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
 
         // commit an event:
         $this->eventStore->commit(
@@ -211,13 +239,18 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         // subsequent catchup setup'd does not change the position
         $result = $this->subscriptionService->subscriptionEngine->boot();
         self::assertEquals(ProcessedResult::success(0), $result);
-        self::assertEquals(self::expectedStatusesAtPosition(SubscriptionStatus::ACTIVE, SequenceNumber::none()), $this->subscriptionService->subscriptionEngine->subscriptionStatuses());
+        $this->expectOkayStatus('contentGraph', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
 
         // catchup active does apply the commited event
         $this->fakeProjection->expects(self::once())->method('apply')->with(self::isInstanceOf(ContentStreamWasCreated::class));
         $result = $this->subscriptionService->subscriptionEngine->catchUpActive();
         self::assertEquals(ProcessedResult::success(1), $result);
-        self::assertEquals(self::expectedStatusesAtPosition(SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1)), $this->subscriptionService->subscriptionEngine->subscriptionStatuses());
+
+        $this->expectOkayStatus('contentGraph', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
+        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
     }
 
     /** @test */
@@ -238,18 +271,14 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         $this->subscriptionService->subscriptionEngine->setup();
         $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
 
-        self::assertEquals(
-            self::expectedStatusesAtPosition(SubscriptionStatus::BOOTING, SequenceNumber::none()),
-            $this->subscriptionService->subscriptionEngine->subscriptionStatuses()
-        );
+        $this->expectOkayStatus('contentGraph', SubscriptionStatus::BOOTING, SequenceNumber::none());
+        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::none());
 
         $this->fakeProjection->expects(self::once())->method('apply')->with(self::isInstanceOf(ContentStreamWasCreated::class));
         $this->subscriptionService->subscriptionEngine->boot();
 
-        self::assertEquals(
-            self::expectedStatusesAtPosition(SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1)),
-            $this->subscriptionService->subscriptionEngine->subscriptionStatuses()
-        );
+        $this->expectOkayStatus('contentGraph', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
+        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
 
         // catchup is a noop because there are no unhandled events
         $result = $this->subscriptionService->subscriptionEngine->catchUpActive();
@@ -265,7 +294,8 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
         $result = $this->subscriptionService->subscriptionEngine->boot();
         self::assertEquals(ProcessedResult::success(0), $result);
-        self::assertEquals(self::expectedStatusesAtPosition(SubscriptionStatus::ACTIVE, SequenceNumber::none()), $this->subscriptionService->subscriptionEngine->subscriptionStatuses());
+        $this->expectOkayStatus('contentGraph', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
 
         // commit an event:
         $this->eventStore->commit(
@@ -548,6 +578,105 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         $this->expectOkayStatus('Vendor.Package:NewFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
     }
 
+    /** @test */
+    public function filteringSetup()
+    {
+        $this->fakeProjection->expects(self::once())->method('setUp');
+        $this->fakeProjection->expects(self::once())->method('status')->willReturn(ProjectionStatus::ok());
+
+        $this->secondFakeProjection->expects(self::never())->method('setUp');
+        $this->secondFakeProjection->expects(self::never())->method('apply');
+        $this->secondFakeProjection->expects(self::once())->method('status')->willReturn(ProjectionStatus::setupRequired('Set me up'));
+
+        $this->subscriptionService->setupEventStore();
+
+        $filter = SubscriptionEngineCriteria::create([SubscriptionId::fromString('Vendor.Package:FakeProjection')]);
+
+        $result = $this->subscriptionService->subscriptionEngine->setup($filter);
+        self::assertNull($result->errors);
+
+        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::none());
+
+        self::assertEquals(
+            SubscriptionAndProjectionStatus::create(
+                subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
+                subscriptionStatus: SubscriptionStatus::NEW,
+                subscriptionPosition: SequenceNumber::none(),
+                subscriptionError: null,
+                projectionStatus: ProjectionStatus::setupRequired('Set me up')
+            ),
+            $this->subscriptionStatus('Vendor.Package:SecondFakeProjection')
+        );
+    }
+
+    /** @test */
+    public function filteringCatchUpBoot()
+    {
+        $this->fakeProjection->expects(self::once())->method('setUp');
+        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
+
+        $this->secondFakeProjection->expects(self::once())->method('setUp');
+        $this->secondFakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
+
+        $this->subscriptionService->setupEventStore();
+
+        $result = $this->subscriptionService->subscriptionEngine->setup();
+        self::assertNull($result->errors);
+
+
+        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::none());
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::none());
+
+        $filter = SubscriptionEngineCriteria::create([SubscriptionId::fromString('Vendor.Package:FakeProjection')]);
+
+        $result = $this->subscriptionEngine->boot($filter);
+        self::assertNull($result->errors);
+
+        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::none());
+    }
+
+    /** @test */
+    public function filteringCatchUpActive()
+    {
+        $this->fakeProjection->expects(self::once())->method('setUp');
+        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
+
+        $this->secondFakeProjection->expects(self::once())->method('setUp');
+        $this->secondFakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
+
+        $this->subscriptionService->setupEventStore();
+
+        $result = $this->subscriptionService->subscriptionEngine->setup();
+        self::assertNull($result->errors);
+        $result = $this->subscriptionEngine->boot();
+        self::assertNull($result->errors);
+
+        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+
+        // commit an event:
+        $this->eventStore->commit(
+            ContentStreamEventStreamName::fromContentStreamId(ContentStreamId::fromString('cs-id'))->getEventStreamName(),
+            new Event(
+                Event\EventId::create(),
+                Event\EventType::fromString('ContentStreamWasCreated'),
+                Event\EventData::fromString(json_encode(['contentStreamId' => 'cs-id']))
+            ),
+            ExpectedVersion::NO_STREAM()
+        );
+
+        $this->fakeProjection->expects(self::once())->method('apply');
+        $this->secondFakeProjection->expects(self::never())->method('apply');
+
+        $filter = SubscriptionEngineCriteria::create([SubscriptionId::fromString('Vendor.Package:FakeProjection')]);
+        $result = $this->subscriptionEngine->catchUpActive($filter);
+        self::assertNull($result->errors);
+
+        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+    }
+
     private function resetDatabase(Connection $connection, ContentRepositoryId $contentRepositoryId, bool $keepSchema): void
     {
         $connection->prepare('SET FOREIGN_KEY_CHECKS = 0;')->executeStatement();
@@ -585,27 +714,6 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
             ),
             $actual
         );
-    }
-
-    // todo replace with expectOkayStatus
-    public static function expectedStatusesAtPosition(SubscriptionStatus $status, SequenceNumber $sequenceNumber): SubscriptionAndProjectionStatuses
-    {
-        return SubscriptionAndProjectionStatuses::fromArray([
-            SubscriptionAndProjectionStatus::create(
-                subscriptionId: SubscriptionId::fromString('contentGraph'),
-                subscriptionStatus: $status,
-                subscriptionPosition: $sequenceNumber,
-                subscriptionError: null,
-                projectionStatus: ProjectionStatus::ok(),
-            ),
-            SubscriptionAndProjectionStatus::create(
-                subscriptionId: SubscriptionId::fromString('Vendor.Package:FakeProjection'),
-                subscriptionStatus: $status,
-                subscriptionPosition: $sequenceNumber,
-                subscriptionError: null,
-                projectionStatus: ProjectionStatus::ok(),
-            ),
-        ]);
     }
 
     /**

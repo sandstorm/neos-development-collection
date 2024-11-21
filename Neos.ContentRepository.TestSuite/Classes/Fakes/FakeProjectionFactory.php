@@ -10,17 +10,17 @@ use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 
 class FakeProjectionFactory implements ProjectionFactoryInterface
 {
-    private static ProjectionInterface $projection;
+    private static array $projections;
 
     public function build(
         SubscriberFactoryDependencies $projectionFactoryDependencies,
         array $options,
     ): ProjectionInterface {
-        return static::$projection ?? throw new \RuntimeException('No projection defined for Fake.');
+        return static::$projections[$options['instanceId']] ?? throw new \RuntimeException('No projection defined for Fake.');
     }
 
-    public static function setProjection(ProjectionInterface $projection): void
+    public static function setProjection(string $instanceId, ProjectionInterface $projection): void
     {
-        self::$projection = $projection;
+        self::$projections[$instanceId] = $projection;
     }
 }
