@@ -1,9 +1,3 @@
-Neos\ContentRepositoryRegistry\ContentRepositoryRegistry:
-  arguments:
-    1:
-      setting: Neos.ContentRepositoryRegistry
-
-# !!! UGLY WORKAROUNDS, because we cannot wire non-Flow class constructor arguments here.
 
 # This adds a soft-dependency to the neos/contentgraph-doctrinedbaladapter package
 Neos\ContentGraph\DoctrineDbalAdapter\DoctrineDbalContentGraphProjectionFactory:

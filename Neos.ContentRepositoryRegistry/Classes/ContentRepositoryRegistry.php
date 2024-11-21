@@ -49,7 +49,7 @@ use Symfony\Component\Serializer\Serializer;
 /**
  * @api
  */
-#[Flow\Scope("singleton")]
+#[Flow\Scope('singleton')]
 final class ContentRepositoryRegistry
 {
     /**
@@ -57,17 +57,24 @@ final class ContentRepositoryRegistry
      */
     private array $factoryInstances = [];
 
+    private array $settings;
+
     #[Flow\Inject(name: 'Neos.ContentRepositoryRegistry:Logger', lazy: false)]
     protected LoggerInterface $logger;
 
+    #[Flow\Inject()]
+    protected ObjectManagerInterface $objectManager;
+
+    #[Flow\Inject()]
+    protected SubgraphCachePool $subgraphCachePool;
+
     /**
+     * @internal for flow wiring and test cases only
      * @param array<string, mixed> $settings
      */
-    public function __construct(
-        private readonly array $settings,
-        private readonly ObjectManagerInterface $objectManager,
-        private readonly SubgraphCachePool $subgraphCachePool,
-    ) {
+    public function injectSettings(array $settings): void
+    {
+        $this->settings = $settings;
     }
 
     /**
@@ -102,16 +109,6 @@ final class ContentRepositoryRegistry
         return ContentRepositoryIds::fromArray($contentRepositoryIds);
     }
 
-    /**
-     * @internal for test cases only
-     */
-    public function resetFactoryInstance(ContentRepositoryId $contentRepositoryId): void
-    {
-        if (array_key_exists($contentRepositoryId->value, $this->factoryInstances)) {
-            unset($this->factoryInstances[$contentRepositoryId->value]);
-        }
-    }
-
     public function subgraphForNode(Node $node): ContentSubgraphInterface
     {
         $contentRepository = $this->get($node->contentRepositoryId);
@@ -138,6 +135,16 @@ final class ContentRepositoryRegistry
     public function buildService(ContentRepositoryId $contentRepositoryId, ContentRepositoryServiceFactoryInterface $contentRepositoryServiceFactory): ContentRepositoryServiceInterface
     {
         return $this->getFactory($contentRepositoryId)->buildService($contentRepositoryServiceFactory);
+    }
+
+    /**
+     * @internal for test cases only
+     */
+    public function resetFactoryInstance(ContentRepositoryId $contentRepositoryId): void
+    {
+        if (array_key_exists($contentRepositoryId->value, $this->factoryInstances)) {
+            unset($this->factoryInstances[$contentRepositoryId->value]);
+        }
     }
 
     /**
