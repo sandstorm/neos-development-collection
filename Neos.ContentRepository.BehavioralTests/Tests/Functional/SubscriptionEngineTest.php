@@ -38,6 +38,7 @@ use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Model\Event;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Neos\EventStore\Model\EventStream\ExpectedVersion;
+use Neos\Flow\Configuration\ConfigurationManager;
 use Neos\Flow\Core\Bootstrap;
 use Neos\Flow\ObjectManagement\ObjectManagerInterface;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -75,13 +76,21 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         $this->fakeProjection->method('getState')->willReturn($this->fakeProjectionState);
 
         FakeProjectionFactory::setProjection(
+            'default',
             $this->fakeProjection
         );
         FakeNodeTypeManagerFactory::setConfiguration([]);
         FakeContentDimensionSourceFactory::setWithoutDimensions();
 
         $this->getObject(ContentRepositoryRegistry::class)->resetFactoryInstance($contentRepositoryId);
+        $originalSettings = $this->getObject(ConfigurationManager::class)->getConfiguration(ConfigurationManager::CONFIGURATION_TYPE_SETTINGS, 'Neos.ContentRepositoryRegistry');
+        $this->getObject(ContentRepositoryRegistry::class)->injectSettings($originalSettings);
 
+        $this->setupContentRepositoryDependencies($contentRepositoryId);
+    }
+
+    public function setupContentRepositoryDependencies(ContentRepositoryId $contentRepositoryId)
+    {
         $this->contentRepository = $this->getObject(ContentRepositoryRegistry::class)->get(
             $contentRepositoryId
         );
@@ -104,6 +113,7 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         $this->eventStore = $subscriptionEngineAndEventStoreAccessor->eventStore;
         $this->subscriptionEngine = $subscriptionEngineAndEventStoreAccessor->subscriptionEngine;
     }
+
 
     /** @test */
     public function statusOnEmptyDatabase()
@@ -411,6 +421,125 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         $this->expectOkayStatus('contentGraph', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(4));
     }
 
+    /** @test */
+    public function projectionIsDetachedIfConfigurationIsRemoved()
+    {
+        $this->fakeProjection->expects(self::once())->method('setUp');
+        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
+
+        $this->subscriptionService->setupEventStore();
+        $this->subscriptionService->subscriptionEngine->setup();
+
+        $result = $this->subscriptionService->subscriptionEngine->boot();
+        self::assertEquals(ProcessedResult::success(0), $result);
+
+        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+
+        $this->eventStore->commit(
+            ContentStreamEventStreamName::fromContentStreamId(ContentStreamId::fromString('cs-id'))->getEventStreamName(),
+            new Event(
+                Event\EventId::create(),
+                Event\EventType::fromString('ContentStreamWasCreated'),
+                Event\EventData::fromString(json_encode(['contentStreamId' => 'cs-id']))
+            ),
+            ExpectedVersion::NO_STREAM()
+        );
+
+        $mockSettings = $this->getObject(ConfigurationManager::class)->getConfiguration(ConfigurationManager::CONFIGURATION_TYPE_SETTINGS, 'Neos.ContentRepositoryRegistry');
+        unset($mockSettings['contentRepositories'][$this->contentRepository->id->value]['projections']['Vendor.Package:FakeProjection']);
+        $this->getObject(ContentRepositoryRegistry::class)->injectSettings($mockSettings);
+        $this->getObject(ContentRepositoryRegistry::class)->resetFactoryInstance($this->contentRepository->id);
+        $this->setupContentRepositoryDependencies($this->contentRepository->id);
+
+        // todo status is stale??, should be DETACHED
+        // $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+
+        $this->fakeProjection->expects(self::never())->method('apply');
+        // catchup or anything that finds detached subscribers
+        $result = $this->subscriptionEngine->catchUpActive();
+        self::assertEquals(ProcessedResult::success(1), $result);
+
+        self::assertEquals(
+            SubscriptionAndProjectionStatus::create(
+                subscriptionId: SubscriptionId::fromString('Vendor.Package:FakeProjection'),
+                subscriptionStatus: SubscriptionStatus::DETACHED,
+                subscriptionPosition: SequenceNumber::none(),
+                subscriptionError: null,
+                projectionStatus: null // no calculate-able at this point!
+            ),
+            $this->subscriptionStatus('Vendor.Package:FakeProjection')
+        );
+    }
+
+    /** @test */
+    public function newProjectionIsFoundConfigurationIsAdded()
+    {
+        $this->fakeProjection->expects(self::once())->method('setUp');
+        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
+
+        $this->subscriptionService->setupEventStore();
+        $this->subscriptionService->subscriptionEngine->setup();
+
+        $result = $this->subscriptionService->subscriptionEngine->boot();
+        self::assertEquals(ProcessedResult::success(0), $result);
+
+        self::assertNull($this->subscriptionStatus('Vendor.Package:NewFakeProjection'));
+        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+
+        $newFakeProjection = $this->getMockBuilder(ProjectionInterface::class)->disableAutoReturnValueGeneration()->getMock();
+        $newFakeProjection->method('getState')->willReturn(new class implements ProjectionStateInterface {});
+        $newFakeProjection->expects(self::exactly(3))->method('status')->willReturnOnConsecutiveCalls(
+            ProjectionStatus::setupRequired('Set me up'),
+            ProjectionStatus::ok(),
+            ProjectionStatus::ok(),
+        );
+
+        FakeProjectionFactory::setProjection(
+            'newFake',
+            $newFakeProjection
+        );
+
+        $mockSettings = $this->getObject(ConfigurationManager::class)->getConfiguration(ConfigurationManager::CONFIGURATION_TYPE_SETTINGS, 'Neos.ContentRepositoryRegistry');
+        $mockSettings['contentRepositories'][$this->contentRepository->id->value]['projections']['Vendor.Package:NewFakeProjection'] = [
+            'factoryObjectName' => FakeProjectionFactory::class,
+            'options' => [
+                'instanceId' => 'newFake'
+            ]
+        ];
+        $this->getObject(ContentRepositoryRegistry::class)->injectSettings($mockSettings);
+        $this->getObject(ContentRepositoryRegistry::class)->resetFactoryInstance($this->contentRepository->id);
+        $this->setupContentRepositoryDependencies($this->contentRepository->id);
+
+        // todo status doesnt find this projection yet?
+        self::assertNull($this->subscriptionStatus('Vendor.Package:NewFakeProjection'));
+
+        // do something that finds new subscriptions
+        $result = $this->subscriptionEngine->catchUpActive();
+        self::assertNull($result->errors);
+
+        self::assertEquals(
+            SubscriptionAndProjectionStatus::create(
+                subscriptionId: SubscriptionId::fromString('Vendor.Package:NewFakeProjection'),
+                subscriptionStatus: SubscriptionStatus::NEW,
+                subscriptionPosition: SequenceNumber::none(),
+                subscriptionError: null,
+                projectionStatus: ProjectionStatus::setupRequired('Set me up')
+            ),
+            $this->subscriptionStatus('Vendor.Package:NewFakeProjection')
+        );
+
+        // setup this projection
+        $newFakeProjection->expects(self::once())->method('setUp');
+        $result = $this->subscriptionEngine->setup();
+        self::assertNull($result->errors);
+
+        $this->expectOkayStatus('Vendor.Package:NewFakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::none());
+
+        $result = $this->subscriptionEngine->boot();
+        self::assertNull($result->errors);
+        $this->expectOkayStatus('Vendor.Package:NewFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+    }
+
     private function truncateTables(Connection $connection, ContentRepositoryId $contentRepositoryId): void
     {
         $connection->prepare('SET FOREIGN_KEY_CHECKS = 0;')->executeStatement();
@@ -426,7 +555,7 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         $connection->prepare('SET FOREIGN_KEY_CHECKS = 1;')->executeStatement();
     }
 
-    private function subscriptionStatus(string $subscriptionId): SubscriptionAndProjectionStatus
+    private function subscriptionStatus(string $subscriptionId): ?SubscriptionAndProjectionStatus
     {
         return $this->subscriptionService->subscriptionEngine->subscriptionStatuses(SubscriptionCriteria::create(ids: [SubscriptionId::fromString($subscriptionId)]))->first();
     }

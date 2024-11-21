@@ -58,6 +58,8 @@ Neos:
         projections:
           'Vendor.Package:FakeProjection':
             factoryObjectName: Neos\ContentRepository\TestSuite\Fakes\FakeProjectionFactory
+            options:
+              instanceId: default
             # TODO Test catchUpHooks:
             #   'Neos.Neos:FlushRouteCache':
             #     factoryObjectName: Neos\Neos\FrontendRouting\CatchUpHook\RouterCacheHookFactory
