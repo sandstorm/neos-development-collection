@@ -14,11 +14,10 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Factory;
 
-use Neos\ContentRepository\Core\Projection\ProjectionEventHandler;
 use Neos\ContentRepository\Core\Projection\ProjectionFactoryInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
-use Neos\ContentRepository\Core\Subscription\Subscriber\Subscriber;
+use Neos\ContentRepository\Core\Subscription\Subscriber\ProjectionSubscriber;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 
 /**
@@ -37,11 +36,12 @@ final readonly class ProjectionSubscriberFactory
     ) {
     }
 
-    public function build(SubscriberFactoryDependencies $dependencies): Subscriber
+    public function build(SubscriberFactoryDependencies $dependencies): ProjectionSubscriber
     {
-        return new Subscriber(
+        return new ProjectionSubscriber(
             $this->subscriptionId,
-            ProjectionEventHandler::create($this->projectionFactory->build($dependencies, $this->projectionFactoryOptions)),
+            $this->projectionFactory->build($dependencies, $this->projectionFactoryOptions),
+            null
         );
     }
 }

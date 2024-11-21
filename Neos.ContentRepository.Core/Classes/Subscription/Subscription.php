@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Subscription;
 
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
-use Neos\ContentRepository\Core\Subscription\Subscriber\Subscriber;
+use Neos\ContentRepository\Core\Subscription\Subscriber\ProjectionSubscriber;
 use Neos\EventStore\Model\Event\SequenceNumber;
 
 /**
@@ -28,7 +28,7 @@ final class Subscription
     /**
      * @internal Only the {@see SubscriptionEngine} is supposed to instantiate subscriptions
      */
-    public static function createFromSubscriber(Subscriber $subscriber): self
+    public static function createFromSubscriber(ProjectionSubscriber $subscriber): self
     {
         return new self(
             $subscriber->id,

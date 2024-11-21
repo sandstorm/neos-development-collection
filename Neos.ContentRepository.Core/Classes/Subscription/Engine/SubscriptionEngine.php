@@ -106,7 +106,7 @@ final class SubscriptionEngine
                 subscriptionStatus: $subscription->status,
                 subscriptionPosition: $subscription->position,
                 subscriptionError: $subscription->error,
-                projectionStatus: $subscriber->handler->projection->status(),
+                projectionStatus: $subscriber->projection->status(),
             );
         }
         return SubscriptionAndProjectionStatuses::fromArray($statuses);
@@ -116,14 +116,14 @@ final class SubscriptionEngine
     {
         $subscriber = $this->subscribers->get($subscription->id);
         try {
-            $subscriber->handler->handle($domainEvent, $eventEnvelope);
+            $subscriber->handle($domainEvent, $eventEnvelope);
         } catch (\Throwable $e) {
             $this->logger?->error(sprintf('Subscription Engine: Subscriber "%s" for "%s" could not process the event "%s" (sequence number: %d): %s', $subscriber::class, $subscription->id->value, $eventEnvelope->event->type->value, $eventEnvelope->sequenceNumber->value, $e->getMessage()));
             $subscription->fail($e);
             $this->subscriptionManager->update($subscription);
             return Error::fromSubscriptionIdAndException($subscription->id, $e);
         }
-        $this->logger?->debug(sprintf('Subscription Engine: Subscriber "%s" for "%s" processed the event "%s" (sequence number: %d).', substr(strrchr($subscriber->handler::class, '\\') ?: '', 1), $subscription->id->value, $eventEnvelope->event->type->value, $eventEnvelope->sequenceNumber->value));
+        $this->logger?->debug(sprintf('Subscription Engine: Subscriber "%s" for "%s" processed the event "%s" (sequence number: %d).', substr(strrchr($subscriber::class, '\\') ?: '', 1), $subscription->id->value, $eventEnvelope->event->type->value, $eventEnvelope->sequenceNumber->value));
         $subscription->set(
             position: $eventEnvelope->sequenceNumber,
             retryAttempt: 0
@@ -181,7 +181,7 @@ final class SubscriptionEngine
     {
         $subscriber = $this->subscribers->get($subscription->id);
         try {
-            $subscriber->handler->projection->setUp();
+            $subscriber->projection->setUp();
         } catch (\Throwable $e) {
             $this->logger?->error(sprintf('Subscription Engine: Subscriber "%s" for "%s" has an error in the setup method: %s', $subscriber::class, $subscription->id->value, $e->getMessage()));
             $subscription->fail($e);
@@ -203,9 +203,9 @@ final class SubscriptionEngine
     {
         $subscriber = $this->subscribers->get($subscription->id);
         try {
-            $subscriber->handler->projection->resetState();
+            $subscriber->projection->resetState();
         } catch (\Throwable $e) {
-            $this->logger?->error(sprintf('Subscription Engine: Subscriber handler "%s" for "%s" has an error in the resetState method: %s', $subscriber->handler::class, $subscription->id->value, $e->getMessage()));
+            $this->logger?->error(sprintf('Subscription Engine: Subscriber "%s" for "%s" has an error in the resetState method: %s', $subscriber::class, $subscription->id->value, $e->getMessage()));
             return Error::fromSubscriptionIdAndException($subscription->id, $e);
         }
         $subscription->set(
@@ -213,7 +213,7 @@ final class SubscriptionEngine
             position: SequenceNumber::none(),
         );
         $this->subscriptionManager->update($subscription);
-        $this->logger?->debug(sprintf('Subscription Engine: For Subscriber handler "%s" for "%s" the resetState method has been executed.', $subscriber->handler::class, $subscription->id->value));
+        $this->logger?->debug(sprintf('Subscription Engine: For Subscriber "%s" for "%s" the resetState method has been executed.', $subscriber::class, $subscription->id->value));
         return null;
     }
 
@@ -265,7 +265,7 @@ final class SubscriptionEngine
                     return ProcessedResult::success(0);
                 }
                 foreach ($subscriptions as $subscription) {
-                    $this->subscribers->get($subscription->id)->handler->onBeforeCatchUp($subscription->status);
+                    $this->subscribers->get($subscription->id)->onBeforeCatchUp($subscription->status);
                 }
                 $startSequenceNumber = $subscriptions->lowestPosition()?->next() ?? SequenceNumber::none();
                 $this->logger?->debug(sprintf('Subscription Engine: Event stream is processed from position %s.', $startSequenceNumber->value));
@@ -306,7 +306,7 @@ final class SubscriptionEngine
                     }
                 }
                 foreach ($subscriptions as $subscription) {
-                    $this->subscribers->get($subscription->id)->handler->onAfterCatchUp();
+                    $this->subscribers->get($subscription->id)->onAfterCatchUp();
                     if ($subscription->status !== $subscriptionStatus) {
                         continue;
                     }
