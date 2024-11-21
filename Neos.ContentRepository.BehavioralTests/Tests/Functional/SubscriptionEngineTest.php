@@ -66,9 +66,10 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         $this->objectManager = Bootstrap::$staticObjectManager;
         $contentRepositoryId = ContentRepositoryId::fromString('t_subscription');
 
-        $this->truncateTables(
+        $this->resetDatabase(
             $this->getObject(Connection::class),
-            $contentRepositoryId
+            $contentRepositoryId,
+            true
         );
 
         $this->fakeProjectionState = $this->getMockBuilder(ProjectionStateInterface::class)->disableAutoReturnValueGeneration()->getMock();
@@ -118,6 +119,13 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
     /** @test */
     public function statusOnEmptyDatabase()
     {
+        // fully drop the tables so that status has to recover if the subscriptions table is not there
+        $this->resetDatabase(
+            $this->getObject(Connection::class),
+            $this->contentRepository->id,
+            true
+        );
+
         $this->fakeProjection->expects(self::once())->method('status')->willReturn(ProjectionStatus::setupRequired('fake needs setup.'));
 
         $actualStatuses = $this->subscriptionService->subscriptionEngine->subscriptionStatuses();
@@ -540,16 +548,20 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         $this->expectOkayStatus('Vendor.Package:NewFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
     }
 
-    private function truncateTables(Connection $connection, ContentRepositoryId $contentRepositoryId): void
+    private function resetDatabase(Connection $connection, ContentRepositoryId $contentRepositoryId, bool $keepSchema): void
     {
         $connection->prepare('SET FOREIGN_KEY_CHECKS = 0;')->executeStatement();
-        foreach ($connection->getSchemaManager()->listTableNames() as $tableNames) {
+        foreach ($connection->createSchemaManager()->listTableNames() as $tableNames) {
             if (!str_starts_with($tableNames, sprintf('cr_%s_', $contentRepositoryId->value))) {
                 // speedup deletion, only delete current cr
                 continue;
             }
-            // todo use TRUNCATE to speed up
-            $sql = 'DROP TABLE ' . $tableNames;
+            if ($keepSchema) {
+                // truncate is faster
+                $sql = 'TRUNCATE TABLE ' . $tableNames;
+            } else {
+                $sql = 'DROP TABLE ' . $tableNames;
+            }
             $connection->prepare($sql)->executeStatement();
         }
         $connection->prepare('SET FOREIGN_KEY_CHECKS = 1;')->executeStatement();
