@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Subscription\Subscriber;
 
 use Neos\ContentRepository\Core\Projection\ProjectionEventHandler;
-use Neos\ContentRepository\Core\Subscription\SubscriptionGroup;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 
 /**
@@ -15,7 +14,6 @@ final class Subscriber
 {
     public function __construct(
         public readonly SubscriptionId $id,
-        public readonly SubscriptionGroup $group,
         public readonly ProjectionEventHandler $handler,
     ) {
     }

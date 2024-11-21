@@ -40,7 +40,6 @@ use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
 use Neos\ContentRepository\Core\Subscription\Subscriber\Subscriber;
 use Neos\ContentRepository\Core\Subscription\Subscriber\Subscribers;
-use Neos\ContentRepository\Core\Subscription\SubscriptionGroup;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepositoryRegistry\Factory\AuthProvider\AuthProviderFactoryInterface;
 use Neos\EventStore\EventStoreInterface;
@@ -118,7 +117,6 @@ final class ContentRepositoryFactory
     {
         return new Subscriber(
             SubscriptionId::fromString('contentGraph'),
-            SubscriptionGroup::fromString('default'),
             ProjectionEventHandler::createWithCatchUpHook(
                 $this->contentGraphProjection,
                 $this->contentGraphCatchUpHookFactory->build(CatchUpHookFactoryDependencies::create(

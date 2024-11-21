@@ -158,7 +158,6 @@ final class SubscriptionEngine
     {
         $registeredSubscriptions = $this->subscriptionStore->findByCriteria(SubscriptionCriteria::create(
             $criteria->ids,
-            $criteria->groups,
             SubscriptionStatusFilter::fromArray([SubscriptionStatus::ACTIVE]),
         ));
         foreach ($registeredSubscriptions as $subscription) {
@@ -221,7 +220,7 @@ final class SubscriptionEngine
     private function retrySubscriptions(SubscriptionEngineCriteria $criteria): void
     {
         $this->subscriptionManager->findForUpdate(
-            SubscriptionCriteria::create($criteria->ids, $criteria->groups, SubscriptionStatusFilter::fromArray([SubscriptionStatus::ERROR])),
+            SubscriptionCriteria::create($criteria->ids, SubscriptionStatusFilter::fromArray([SubscriptionStatus::ERROR])),
             fn (Subscriptions $subscriptions) => $subscriptions->map($this->retrySubscription(...)),
         );
     }

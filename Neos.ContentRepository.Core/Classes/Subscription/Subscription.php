@@ -17,7 +17,6 @@ final class Subscription
 {
     public function __construct(
         public readonly SubscriptionId $id,
-        public readonly SubscriptionGroup $group,
         public SubscriptionStatus $status,
         public SequenceNumber $position,
         public SubscriptionError|null $error = null,
@@ -33,7 +32,6 @@ final class Subscription
     {
         return new self(
             $subscriber->id,
-            $subscriber->group,
             SubscriptionStatus::NEW,
             SequenceNumber::fromInteger(0),
         );
@@ -52,7 +50,6 @@ final class Subscription
         $this->retryAttempt = $retryAttempt ?? $this->retryAttempt;
         return new self(
             $this->id,
-            $this->group,
             $status ?? $this->status,
             $position ?? $this->position,
             $this->error,

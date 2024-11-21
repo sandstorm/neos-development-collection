@@ -19,7 +19,6 @@ use Neos\ContentRepository\Core\Projection\ProjectionFactoryInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 use Neos\ContentRepository\Core\Subscription\Subscriber\Subscriber;
-use Neos\ContentRepository\Core\Subscription\SubscriptionGroup;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 
 /**
@@ -42,7 +41,6 @@ final readonly class ProjectionSubscriberFactory
     {
         return new Subscriber(
             $this->subscriptionId,
-            SubscriptionGroup::fromString('projections'),
             ProjectionEventHandler::create($this->projectionFactory->build($dependencies, $this->projectionFactoryOptions)),
         );
     }

@@ -61,9 +61,4 @@ final class SubscriptionStatusFilter implements \IteratorAggregate
     {
         return array_values(array_map(static fn (SubscriptionStatus $id) => $id->value, $this->statusByValue));
     }
-
-    public function matches(SubscriptionStatus $status): bool
-    {
-        return array_key_exists($status->value, $this->statusByValue);
-    }
 }
