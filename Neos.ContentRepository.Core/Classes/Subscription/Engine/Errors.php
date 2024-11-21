@@ -11,7 +11,7 @@ namespace Neos\ContentRepository\Core\Subscription\Engine;
 final readonly class Errors implements \IteratorAggregate, \Countable
 {
     /**
-     * @var array<Error>
+     * @var non-empty-array<Error>
      */
     private array $errors;
 
@@ -40,5 +40,12 @@ final readonly class Errors implements \IteratorAggregate, \Countable
     public function count(): int
     {
         return count($this->errors);
+    }
+
+    public function first(): Error
+    {
+        foreach ($this->errors as $error) {
+            return $error;
+        }
     }
 }

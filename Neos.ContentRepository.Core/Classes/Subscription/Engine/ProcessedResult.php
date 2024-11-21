@@ -42,8 +42,8 @@ final readonly class ProcessedResult
 
         $additionalFailedSubscribers = array_map(fn (Error $error) => $error->subscriptionId->value, $errors);
 
-        $additionalErrors = $additionalFailedSubscribers === [] ? '' : sprintf(' And subscribers %s with additional errors.', join(', ', $additionalFailedSubscribers));
-        $exceptionMessage = sprintf('Exception in subscriber "%s" while catching up: %s.%s', $firstError->subscriptionId->value, $firstError->message, $additionalErrors);
+        $additionalErrors = $additionalFailedSubscribers === [] ? '' : sprintf(' | And subscribers %s with additional errors.', join(', ', $additionalFailedSubscribers));
+        $exceptionMessage = sprintf('Exception in subscriber "%s" while catching up: %s%s', $firstError->subscriptionId->value, $firstError->message, $additionalErrors);
 
         // todo custom exception!
         throw new \RuntimeException($exceptionMessage, 1732132930, $firstError->throwable);
