@@ -13,6 +13,7 @@ use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
 use Neos\ContentRepository\Core\Feature\ContentStreamCreation\Event\ContentStreamWasCreated;
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Command\CreateRootWorkspace;
+use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStatus;
@@ -32,6 +33,7 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatuses;
 use Neos\ContentRepository\Core\Subscription\SubscriptionError;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
+use Neos\ContentRepository\TestSuite\Fakes\FakeCatchUpHookFactory;
 use Neos\ContentRepository\TestSuite\Fakes\FakeContentDimensionSourceFactory;
 use Neos\ContentRepository\TestSuite\Fakes\FakeNodeTypeManagerFactory;
 use Neos\ContentRepository\TestSuite\Fakes\FakeProjectionFactory;
@@ -63,6 +65,8 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
 
     private DebugEventProjection $secondFakeProjection;
 
+    private CatchUpHookInterface&MockObject $catchupHookForFakeProjection;
+
     public function setUp(): void
     {
         $this->objectManager = Bootstrap::$staticObjectManager;
@@ -90,6 +94,13 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         FakeProjectionFactory::setProjection(
             'second',
             $this->secondFakeProjection
+        );
+
+        $this->catchupHookForFakeProjection = $this->getMockBuilder(CatchUpHookInterface::class)->getMock();
+
+        FakeCatchUpHookFactory::setCatchupHook(
+            $this->secondFakeProjection->getState(),
+            $this->catchupHookForFakeProjection
         );
 
         FakeNodeTypeManagerFactory::setConfiguration([]);
@@ -421,6 +432,7 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         );
 
         $result = $this->subscriptionService->subscriptionEngine->catchUpActive();
+        // todo check that exception message is in the result
         self::assertTrue($result->hasFailed());
 
         self::assertEquals(
@@ -436,6 +448,51 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         $this->secondFakeProjection->killSaboteur();
 
         // todo find way to retry projection? catchup force?
+    }
+
+    /** @test todo test also what happens if onAfterCatchup fails */
+    public function projectionIsRolledBackAfterCatchupError()
+    {
+        $this->subscriptionService->setupEventStore();
+        $this->fakeProjection->expects(self::once())->method('setUp');
+        $this->fakeProjection->expects(self::once())->method('apply');
+        $this->subscriptionService->subscriptionEngine->setup();
+        $this->subscriptionService->subscriptionEngine->boot();
+
+        // commit an event
+        $this->commitExampleContentStreamEvent();
+
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class))->willThrowException(
+            $exception = new \RuntimeException('This catchup hook is kaputt.')
+        );
+
+        $expectedFailure = SubscriptionAndProjectionStatus::create(
+            subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
+            subscriptionStatus: SubscriptionStatus::ERROR,
+            subscriptionPosition: SequenceNumber::none(),
+            subscriptionError: SubscriptionError::fromPreviousStatusAndException(SubscriptionStatus::ACTIVE, $exception),
+            projectionStatus: ProjectionStatus::ok(),
+        );
+
+        self::assertEmpty(
+            $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
+        );
+
+        $this->subscriptionEngine->catchUpActive();
+
+        $result = $this->subscriptionService->subscriptionEngine->catchUpActive();
+        // todo check that exception message is in the result
+        self::assertTrue($result->hasFailed());
+
+        self::assertEquals(
+            $expectedFailure,
+            $this->subscriptionStatus('Vendor.Package:SecondFakeProjection')
+        );
+
+        // should be empty as we need an exact once delivery
+        self::assertEmpty(
+            $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
+        );
     }
 
     /** @test */

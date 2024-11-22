@@ -30,7 +30,7 @@ final class DebugEventProjection implements ProjectionInterface
 {
     private DebugEventProjectionState $state;
 
-    private \Exception|null $exceptionToThrowAfterApply;
+    private \Exception|null $exceptionToThrowAfterApply = null;
 
     public function __construct(
         private string $tableNamePrefix,
