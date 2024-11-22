@@ -225,16 +225,8 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
         $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
 
-        // commit an event:
-        $this->eventStore->commit(
-            ContentStreamEventStreamName::fromContentStreamId(ContentStreamId::fromString('cs-id'))->getEventStreamName(),
-            new Event(
-                Event\EventId::create(),
-                Event\EventType::fromString('ContentStreamWasCreated'),
-                Event\EventData::fromString(json_encode(['contentStreamId' => 'cs-id']))
-            ),
-            ExpectedVersion::NO_STREAM()
-        );
+        // commit an event
+        $this->commitExampleContentStreamEvent();
 
         // subsequent catchup setup'd does not change the position
         $result = $this->subscriptionService->subscriptionEngine->boot();
@@ -257,15 +249,8 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
     public function existingEventStoreEventsAreCaughtUpOnBoot()
     {
         $this->eventStore->setup();
-        $this->eventStore->commit(
-            ContentStreamEventStreamName::fromContentStreamId(ContentStreamId::fromString('cs-id'))->getEventStreamName(),
-            new Event(
-                Event\EventId::create(),
-                Event\EventType::fromString('ContentStreamWasCreated'),
-                Event\EventData::fromString(json_encode(['contentStreamId' => 'cs-id']))
-            ),
-            ExpectedVersion::NO_STREAM()
-        );
+        // commit an event
+        $this->commitExampleContentStreamEvent();
 
         $this->fakeProjection->expects(self::once())->method('setUp');
         $this->subscriptionService->subscriptionEngine->setup();
@@ -297,16 +282,8 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         $this->expectOkayStatus('contentGraph', SubscriptionStatus::ACTIVE, SequenceNumber::none());
         $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
 
-        // commit an event:
-        $this->eventStore->commit(
-            ContentStreamEventStreamName::fromContentStreamId(ContentStreamId::fromString('cs-id'))->getEventStreamName(),
-            new Event(
-                Event\EventId::create(),
-                Event\EventType::fromString('ContentStreamWasCreated'),
-                Event\EventData::fromString(json_encode(['contentStreamId' => 'cs-id']))
-            ),
-            ExpectedVersion::NO_STREAM()
-        );
+        // commit an event
+        $this->commitExampleContentStreamEvent();
 
         // catchup active tries to apply the commited event
         $this->fakeProjection->expects(self::exactly(3))->method('apply')->with(self::isInstanceOf(ContentStreamWasCreated::class))->willReturnOnConsecutiveCalls(
@@ -358,16 +335,8 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         $this->subscriptionService->subscriptionEngine->setup();
         $this->subscriptionService->subscriptionEngine->boot();
 
-        // commit an event:
-        $this->eventStore->commit(
-            ContentStreamEventStreamName::fromContentStreamId(ContentStreamId::fromString('cs-id'))->getEventStreamName(),
-            new Event(
-                Event\EventId::create(),
-                Event\EventType::fromString('ContentStreamWasCreated'),
-                Event\EventData::fromString(json_encode(['contentStreamId' => 'cs-id']))
-            ),
-            ExpectedVersion::NO_STREAM()
-        );
+        // commit an event
+        $this->commitExampleContentStreamEvent();
 
         // catchup active tries to apply the commited event
         $this->fakeProjection->expects(self::exactly(2))->method('apply')->with(self::isInstanceOf(ContentStreamWasCreated::class))->willReturnOnConsecutiveCalls(
@@ -473,15 +442,8 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
 
         $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
 
-        $this->eventStore->commit(
-            ContentStreamEventStreamName::fromContentStreamId(ContentStreamId::fromString('cs-id'))->getEventStreamName(),
-            new Event(
-                Event\EventId::create(),
-                Event\EventType::fromString('ContentStreamWasCreated'),
-                Event\EventData::fromString(json_encode(['contentStreamId' => 'cs-id']))
-            ),
-            ExpectedVersion::NO_STREAM()
-        );
+        // commit an event
+        $this->commitExampleContentStreamEvent();
 
         $mockSettings = $this->getObject(ConfigurationManager::class)->getConfiguration(ConfigurationManager::CONFIGURATION_TYPE_SETTINGS, 'Neos.ContentRepositoryRegistry');
         unset($mockSettings['contentRepositories'][$this->contentRepository->id->value]['projections']['Vendor.Package:FakeProjection']);
@@ -656,15 +618,7 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
 
         // commit an event:
-        $this->eventStore->commit(
-            ContentStreamEventStreamName::fromContentStreamId(ContentStreamId::fromString('cs-id'))->getEventStreamName(),
-            new Event(
-                Event\EventId::create(),
-                Event\EventType::fromString('ContentStreamWasCreated'),
-                Event\EventData::fromString(json_encode(['contentStreamId' => 'cs-id']))
-            ),
-            ExpectedVersion::NO_STREAM()
-        );
+        $this->commitExampleContentStreamEvent();
 
         $this->fakeProjection->expects(self::once())->method('apply');
         $this->secondFakeProjection->expects(self::never())->method('apply');
@@ -675,6 +629,40 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
 
         $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
         $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+    }
+
+    /** @test */
+    public function filteringReset()
+    {
+        $this->fakeProjection->expects(self::once())->method('setUp');
+        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
+
+        $this->secondFakeProjection->expects(self::once())->method('setUp');
+        $this->secondFakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
+
+        $this->subscriptionService->setupEventStore();
+
+        $result = $this->subscriptionService->subscriptionEngine->setup();
+        self::assertNull($result->errors);
+
+        // commit an event:
+        $this->commitExampleContentStreamEvent();
+
+        $this->fakeProjection->expects(self::once())->method('apply');
+        $this->fakeProjection->expects(self::once())->method('resetState');
+        $this->secondFakeProjection->expects(self::once())->method('apply');
+        $result = $this->subscriptionEngine->boot();
+        self::assertNull($result->errors);
+
+        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
+
+        $filter = SubscriptionEngineCriteria::create([SubscriptionId::fromString('Vendor.Package:FakeProjection')]);
+        $result = $this->subscriptionEngine->reset($filter);
+        self::assertNull($result->errors);
+
+        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::none());
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
     }
 
     private function resetDatabase(Connection $connection, ContentRepositoryId $contentRepositoryId, bool $keepSchema): void
@@ -699,6 +687,19 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
     private function subscriptionStatus(string $subscriptionId): ?SubscriptionAndProjectionStatus
     {
         return $this->subscriptionService->subscriptionEngine->subscriptionStatuses(SubscriptionCriteria::create(ids: [SubscriptionId::fromString($subscriptionId)]))->first();
+    }
+
+    private function commitExampleContentStreamEvent(): void
+    {
+        $this->eventStore->commit(
+            ContentStreamEventStreamName::fromContentStreamId(ContentStreamId::fromString('cs-id'))->getEventStreamName(),
+            new Event(
+                Event\EventId::create(),
+                Event\EventType::fromString('ContentStreamWasCreated'),
+                Event\EventData::fromString(json_encode(['contentStreamId' => 'cs-id']))
+            ),
+            ExpectedVersion::NO_STREAM()
+        );
     }
 
     private function expectOkayStatus($subscriptionId, SubscriptionStatus $status, SequenceNumber $sequenceNumber): void
