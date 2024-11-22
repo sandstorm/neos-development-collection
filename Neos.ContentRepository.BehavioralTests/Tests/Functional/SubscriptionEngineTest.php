@@ -394,6 +394,51 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
     }
 
     /** @test */
+    public function projectionIsRolledBackAfterError()
+    {
+        $this->subscriptionService->setupEventStore();
+        $this->fakeProjection->expects(self::once())->method('setUp');
+        $this->subscriptionService->subscriptionEngine->setup();
+        $this->subscriptionService->subscriptionEngine->boot();
+
+        // commit an event
+        $this->commitExampleContentStreamEvent();
+
+        $this->fakeProjection->expects(self::once())->method('apply')->with(self::isInstanceOf(ContentStreamWasCreated::class));
+
+        $this->secondFakeProjection->sabotageAfterApply($exception = new \RuntimeException('This projection is kaputt.'));
+
+        $expectedFailure = SubscriptionAndProjectionStatus::create(
+            subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
+            subscriptionStatus: SubscriptionStatus::ERROR,
+            subscriptionPosition: SequenceNumber::none(),
+            subscriptionError: SubscriptionError::fromPreviousStatusAndException(SubscriptionStatus::ACTIVE, $exception),
+            projectionStatus: ProjectionStatus::ok(),
+        );
+
+        self::assertEmpty(
+            $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
+        );
+
+        $result = $this->subscriptionService->subscriptionEngine->catchUpActive();
+        self::assertTrue($result->hasFailed());
+
+        self::assertEquals(
+            $expectedFailure,
+            $this->subscriptionStatus('Vendor.Package:SecondFakeProjection')
+        );
+
+        // should be empty as we need an exact once delivery
+        self::assertEmpty(
+            $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
+        );
+
+        $this->secondFakeProjection->killSaboteur();
+
+        // todo find way to retry projection? catchup force?
+    }
+
+    /** @test */
     public function projectionErrorWithMultipleProjectionsInContentRepositoryHandle()
     {
         $this->subscriptionService->setupEventStore();

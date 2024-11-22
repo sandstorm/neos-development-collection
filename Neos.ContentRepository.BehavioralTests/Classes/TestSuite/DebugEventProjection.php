@@ -30,6 +30,8 @@ final class DebugEventProjection implements ProjectionInterface
 {
     private DebugEventProjectionState $state;
 
+    private \Exception|null $exceptionToThrowAfterApply;
+
     public function __construct(
         private string $tableNamePrefix,
         private Connection $dbal
@@ -85,10 +87,23 @@ final class DebugEventProjection implements ProjectionInterface
            'stream' => $eventEnvelope->streamName->value,
            'type' => $eventEnvelope->event->type->value,
         ]);
+        if ($this->exceptionToThrowAfterApply) {
+            throw $this->exceptionToThrowAfterApply;
+        }
     }
 
     public function getState(): ProjectionStateInterface
     {
         return $this->state;
+    }
+
+    public function sabotageAfterApply(\Exception $exceptionToThrowAfterApply): void
+    {
+        $this->exceptionToThrowAfterApply = $exceptionToThrowAfterApply;
+    }
+
+    public function killSaboteur(): void
+    {
+        $this->exceptionToThrowAfterApply = null;
     }
 }

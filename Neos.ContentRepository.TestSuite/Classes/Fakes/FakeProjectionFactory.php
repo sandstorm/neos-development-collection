@@ -8,7 +8,10 @@ use Neos\ContentRepository\Core\Factory\SubscriberFactoryDependencies;
 use Neos\ContentRepository\Core\Projection\ProjectionFactoryInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 
-class FakeProjectionFactory implements ProjectionFactoryInterface
+/**
+ * @internal helper to configure custom projection mocks for testing
+ */
+final class FakeProjectionFactory implements ProjectionFactoryInterface
 {
     private static array $projections;
 
