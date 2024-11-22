@@ -1,0 +1,94 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Neos\ContentRepository\BehavioralTests\TestSuite;
+
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Schema\Column;
+use Doctrine\DBAL\Schema\Table;
+use Doctrine\DBAL\Types\Type;
+use Doctrine\DBAL\Types\Types;
+use Neos\ContentRepository\Core\EventStore\EventInterface;
+use Neos\ContentRepository\Core\Infrastructure\DbalSchemaDiff;
+use Neos\ContentRepository\Core\Infrastructure\DbalSchemaFactory;
+use Neos\ContentRepository\Core\Projection\ProjectionInterface;
+use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
+use Neos\ContentRepository\Core\Projection\ProjectionStatus;
+use Neos\EventStore\Model\EventEnvelope;
+use Neos\Flow\Annotations as Flow;
+
+/**
+ * Testing projection to assert (via primary key) that each event is only handled once, also in error cases via rollback
+ *
+ * TODO check also that order of inserted sequence numbers is correct and no holes
+ *
+ * @internal
+ * @Flow\Proxy(false)
+ */
+final class DebugEventProjection implements ProjectionInterface
+{
+    private DebugEventProjectionState $state;
+
+    public function __construct(
+        private string $tableNamePrefix,
+        private Connection $dbal
+    ) {
+        $this->state = new DebugEventProjectionState($this->tableNamePrefix, $this->dbal);
+    }
+
+    public function setUp(): void
+    {
+        foreach ($this->determineRequiredSqlStatements() as $statement) {
+            $this->dbal->executeStatement($statement);
+        }
+    }
+
+    public function status(): ProjectionStatus
+    {
+        $requiredSqlStatements = $this->determineRequiredSqlStatements();
+        if ($requiredSqlStatements !== []) {
+            return ProjectionStatus::setupRequired(sprintf('Requires %d SQL statements', count($requiredSqlStatements)));
+        }
+        return ProjectionStatus::ok();
+    }
+
+    private function determineRequiredSqlStatements(): array
+    {
+        $schemaManager = $this->dbal->createSchemaManager();
+
+        $table = new Table($this->tableNamePrefix, [
+            (new Column('sequencenumber', Type::getType(Types::INTEGER))),
+            (new Column('stream', Type::getType(Types::STRING))),
+            (new Column('type', Type::getType(Types::STRING)))
+        ]);
+
+        $table->setPrimaryKey([
+            'sequencenumber'
+        ]);
+
+        $schema = DbalSchemaFactory::createSchemaWithTables($schemaManager, [$table]);
+        $statements = DbalSchemaDiff::determineRequiredSqlStatements($this->dbal, $schema);
+
+        return $statements;
+    }
+
+    public function resetState(): void
+    {
+        $this->dbal->exec('TRUNCATE ' . $this->tableNamePrefix);
+    }
+
+    public function apply(EventInterface $event, EventEnvelope $eventEnvelope): void
+    {
+        $this->dbal->insert($this->tableNamePrefix, [
+           'sequencenumber' => $eventEnvelope->sequenceNumber->value,
+           'stream' => $eventEnvelope->streamName->value,
+           'type' => $eventEnvelope->event->type->value,
+        ]);
+    }
+
+    public function getState(): ProjectionStateInterface
+    {
+        return $this->state;
+    }
+}

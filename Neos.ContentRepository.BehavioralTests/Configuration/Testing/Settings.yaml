@@ -37,6 +37,11 @@ Neos:
         contentGraphProjection:
           factoryObjectName: Neos\ContentGraph\DoctrineDbalAdapter\DoctrineDbalContentGraphProjectionFactory
           catchUpHooks: {}
+        projections:
+          'Neos.Testing:DebugProjection':
+            factoryObjectName: Neos\ContentRepository\TestSuite\Fakes\FakeProjectionFactory
+            options:
+              instanceId: debug
 
       t_subscription:
         eventStore:
