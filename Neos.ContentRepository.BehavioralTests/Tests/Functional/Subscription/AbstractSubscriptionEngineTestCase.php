@@ -72,7 +72,7 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
         );
 
         $this->secondFakeProjection = new DebugEventProjection(
-            'cr_t_subscription_debug_projection',
+            sprintf('cr_%s_debug_projection', $contentRepositoryId->value),
             $this->getObject(Connection::class)
         );
 
