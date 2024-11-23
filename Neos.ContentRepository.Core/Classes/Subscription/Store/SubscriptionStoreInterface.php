@@ -26,4 +26,10 @@ interface SubscriptionStoreInterface
      * @return T
      */
     public function transactional(\Closure $closure): mixed;
+
+    public function createSavepoint(): void;
+
+    public function releaseSavepoint(): void;
+
+    public function rollbackSavepoint(): void;
 }

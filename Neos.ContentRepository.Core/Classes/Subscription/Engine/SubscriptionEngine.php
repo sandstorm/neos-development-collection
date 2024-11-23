@@ -265,10 +265,13 @@ final class SubscriptionEngine
                                 $this->logger?->debug(sprintf('Subscription Engine: Subscription "%s" is farther than the current position (%d >= %d), continue catch up.', $subscription->id->value, $subscription->position->value, $sequenceNumber->value));
                                 continue;
                             }
+                            $this->subscriptionStore->createSavepoint();
                             $error = $this->handleEvent($eventEnvelope, $domainEvent, $subscription);
                             if (!$error) {
+                                $this->subscriptionStore->releaseSavepoint();
                                 continue;
                             }
+                            $this->subscriptionStore->rollbackSavepoint();
                             $errors[] = $error;
                         }
                         $numberOfProcessedEvents++;
