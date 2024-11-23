@@ -15,6 +15,13 @@ use Neos\Flow\Configuration\ConfigurationManager;
 
 final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTestCase
 {
+    /** @after */
+    public function resetContentRepositoryRegistry(): void
+    {
+        $originalSettings = $this->getObject(ConfigurationManager::class)->getConfiguration(ConfigurationManager::CONFIGURATION_TYPE_SETTINGS, 'Neos.ContentRepositoryRegistry');
+        $this->getObject(ContentRepositoryRegistry::class)->injectSettings($originalSettings);
+    }
+
     /** @test */
     public function projectionIsDetachedIfConfigurationIsRemoved()
     {

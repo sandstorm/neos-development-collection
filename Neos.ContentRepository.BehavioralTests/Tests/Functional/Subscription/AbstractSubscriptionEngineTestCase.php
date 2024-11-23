@@ -33,7 +33,6 @@ use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Model\Event;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Neos\EventStore\Model\EventStream\ExpectedVersion;
-use Neos\Flow\Configuration\ConfigurationManager;
 use Neos\Flow\Core\Bootstrap;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -93,8 +92,6 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
         FakeContentDimensionSourceFactory::setWithoutDimensions();
 
         $this->getObject(ContentRepositoryRegistry::class)->resetFactoryInstance($contentRepositoryId);
-        $originalSettings = $this->getObject(ConfigurationManager::class)->getConfiguration(ConfigurationManager::CONFIGURATION_TYPE_SETTINGS, 'Neos.ContentRepositoryRegistry');
-        $this->getObject(ContentRepositoryRegistry::class)->injectSettings($originalSettings);
 
         $this->setupContentRepositoryDependencies($contentRepositoryId);
     }
