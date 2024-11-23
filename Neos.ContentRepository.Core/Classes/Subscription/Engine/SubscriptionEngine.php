@@ -160,27 +160,6 @@ final class SubscriptionEngine
         );
     }
 
-    private function discoverDetachedSubscriptions(SubscriptionEngineCriteria $criteria): void
-    {
-        $registeredSubscriptions = $this->subscriptionStore->findByCriteria(SubscriptionCriteria::create(
-            $criteria->ids,
-            SubscriptionStatusFilter::fromArray([SubscriptionStatus::ACTIVE]),
-        ));
-        foreach ($registeredSubscriptions as $subscription) {
-            if ($this->subscribers->contain($subscription->id)) {
-                continue;
-            }
-            $subscription->set(
-                status: SubscriptionStatus::DETACHED,
-            );
-            $this->subscriptionManager->update($subscription);
-            $this->logger?->info(sprintf('Subscription Engine: Subscriber for "%s" not found and has been marked as detached.', $subscription->id->value));
-        }
-        // todo use transaction here for discovery as well!!!
-        $this->subscriptionManager->flush();
-    }
-
-
     /**
      * Set up the subscription by retrieving the corresponding subscriber and calling the setUp method on its handler
      * If the setup fails, the subscription will be in the {@see SubscriptionStatus::ERROR} state and a corresponding {@see Error} is returned
@@ -227,11 +206,21 @@ final class SubscriptionEngine
         $this->logger?->info(sprintf('Subscription Engine: Start catching up subscriptions in state "%s".', $subscriptionStatus->value));
 
         $this->discoverNewSubscriptions();
-        $this->discoverDetachedSubscriptions($criteria);
 
         return $this->subscriptionManager->findForAndUpdate(
             SubscriptionCriteria::forEngineCriteriaAndStatus($criteria, $subscriptionStatus),
             function (Subscriptions $subscriptions) use ($subscriptionStatus, $progressClosure) {
+                foreach ($subscriptions as $subscription) {
+                    if (!$this->subscribers->contain($subscription->id)) {
+                        // mark detached subscriptions as we cannot handle them and exclude them from catchup
+                        $subscription->set(
+                            status: SubscriptionStatus::DETACHED,
+                        );
+                        $this->subscriptionManager->update($subscription);
+                        $this->logger?->info(sprintf('Subscription Engine: Subscriber for "%s" not found and has been marked as detached.', $subscription->id->value));
+                        $subscriptions = $subscriptions->without($subscription->id);
+                    }
+                }
                 if ($subscriptions->isEmpty()) {
                     $this->logger?->info(sprintf('Subscription Engine: No subscriptions in state "%s". Finishing catch up', $subscriptionStatus->value));
 

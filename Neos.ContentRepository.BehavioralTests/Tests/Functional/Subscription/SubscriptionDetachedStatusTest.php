@@ -45,22 +45,46 @@ final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTes
         $this->getObject(ContentRepositoryRegistry::class)->resetFactoryInstance($this->contentRepository->id);
         $this->setupContentRepositoryDependencies($this->contentRepository->id);
 
-        // todo status is stale??, should be DETACHED
+        // todo status is stale??, should be DETACHED, and also cr:setup should marke detached projections?!!
         // $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
 
         $this->fakeProjection->expects(self::never())->method('apply');
         // catchup or anything that finds detached subscribers
         $result = $this->subscriptionEngine->catchUpActive();
+        // todo result should reflect that there was an detachment? Throw error in CR?
+        self::assertEquals(ProcessedResult::success(1), $result);
+
+        $expectedDetachedState = SubscriptionAndProjectionStatus::create(
+            subscriptionId: SubscriptionId::fromString('Vendor.Package:FakeProjection'),
+            subscriptionStatus: SubscriptionStatus::DETACHED,
+            subscriptionPosition: SequenceNumber::none(),
+            subscriptionError: null,
+            projectionStatus: null // not calculate-able at this point!
+        );
+        self::assertEquals(
+            $expectedDetachedState,
+            $this->subscriptionStatus('Vendor.Package:FakeProjection')
+        );
+
+        // other projections are not interrupted
+        self::assertEquals(
+            [SequenceNumber::fromInteger(1)],
+            $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
+        );
+
+        // succeeding catchup's do not handle the detached one:
+        $this->commitExampleContentStreamEvent();
+        $result = $this->subscriptionEngine->catchUpActive();
         self::assertEquals(ProcessedResult::success(1), $result);
 
         self::assertEquals(
-            SubscriptionAndProjectionStatus::create(
-                subscriptionId: SubscriptionId::fromString('Vendor.Package:FakeProjection'),
-                subscriptionStatus: SubscriptionStatus::DETACHED,
-                subscriptionPosition: SequenceNumber::none(),
-                subscriptionError: null,
-                projectionStatus: null // not calculate-able at this point!
-            ),
+            [SequenceNumber::fromInteger(1), SequenceNumber::fromInteger(2)],
+            $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
+        );
+
+        // still detached
+        self::assertEquals(
+            $expectedDetachedState,
             $this->subscriptionStatus('Vendor.Package:FakeProjection')
         );
     }
