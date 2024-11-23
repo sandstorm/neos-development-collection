@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\BehavioralTests\Tests\Functional;
+namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Subscription;
 
 use Doctrine\DBAL\Connection;
 use Neos\ContentRepository\BehavioralTests\TestSuite\DebugEventProjection;
@@ -18,7 +18,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Just a test to check our mock is working {@see DebugEventProjection}
  */
-class DebugEventProjectionTest extends TestCase
+final class DebugEventProjectionTest extends TestCase
 {
     private DebugEventProjection $debugEventProjection;
 
