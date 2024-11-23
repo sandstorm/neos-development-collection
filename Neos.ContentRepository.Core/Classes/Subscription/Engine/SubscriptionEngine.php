@@ -168,6 +168,8 @@ final class SubscriptionEngine
             $this->subscriptionManager->update($subscription);
             $this->logger?->info(sprintf('Subscription Engine: Subscriber for "%s" not found and has been marked as detached.', $subscription->id->value));
         }
+        // todo use transaction here for discovery as well!!!
+        $this->subscriptionManager->flush();
     }
 
 
