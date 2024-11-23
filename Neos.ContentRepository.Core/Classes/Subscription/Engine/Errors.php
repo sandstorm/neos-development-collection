@@ -18,10 +18,10 @@ final readonly class Errors implements \IteratorAggregate, \Countable
     private function __construct(
         Error ...$errors
     ) {
-        $this->errors = $errors;
-        if ($this->errors === []) {
+        if ($errors === []) {
             throw new \InvalidArgumentException('Errors must not be empty.', 1731612542);
         }
+        $this->errors = $errors;
     }
 
     /**

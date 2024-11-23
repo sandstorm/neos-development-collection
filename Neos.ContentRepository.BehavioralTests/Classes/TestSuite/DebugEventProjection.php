@@ -23,6 +23,7 @@ use Neos\Flow\Annotations as Flow;
  *
  * TODO check also that order of inserted sequence numbers is correct and no holes
  *
+ * @implements ProjectionInterface<DebugEventProjectionState>
  * @internal
  * @Flow\Proxy(false)
  */
@@ -55,6 +56,9 @@ final class DebugEventProjection implements ProjectionInterface
         return ProjectionStatus::ok();
     }
 
+    /**
+     * @return array<string>
+     */
     private function determineRequiredSqlStatements(): array
     {
         $schemaManager = $this->dbal->createSchemaManager();

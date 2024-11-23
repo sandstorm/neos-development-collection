@@ -10,10 +10,14 @@ use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 
 /**
+ * @implements CatchUpHookFactoryInterface<ProjectionStateInterface>
  * @internal helper to configure custom catchup hook mocks for testing
  */
 final class FakeCatchUpHookFactory implements CatchUpHookFactoryInterface
 {
+    /**
+     * @var array<string, CatchUpHookInterface>
+     */
     private static array $catchupHooks;
 
     public function build(CatchUpHookFactoryDependencies $dependencies): CatchUpHookInterface
