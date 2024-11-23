@@ -6,6 +6,7 @@ namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Subscription;
 
 use Neos\ContentRepository\Core\Feature\ContentStreamCreation\Event\ContentStreamWasCreated;
 use Neos\ContentRepository\Core\Projection\ProjectionStatus;
+use Neos\ContentRepository\Core\Subscription\Exception\CatchUpFailed;
 use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionError;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
@@ -14,8 +15,8 @@ use Neos\EventStore\Model\Event\SequenceNumber;
 
 final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
 {
-    /** @test todo test also what happens if onAfterCatchup fails and also test catchup hooks in general */
-    public function projectionIsRolledBackAfterCatchupError()
+    /** @test */
+    public function error_onBeforeEvent_projectionIsNotRun()
     {
         $this->subscriptionService->setupEventStore();
         $this->fakeProjection->expects(self::once())->method('setUp');
@@ -27,6 +28,55 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
         $this->commitExampleContentStreamEvent();
 
         $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::ACTIVE);
+        // Todo test that onBeforeEvent|onAfterEvent are in the same transaction and that a rollback will also revert their state
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class))->willThrowException(
+            $exception = new \RuntimeException('This catchup hook is kaputt.')
+        );
+        $this->catchupHookForFakeProjection->expects(self::never())->method('onAfterEvent');
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp');
+
+        $this->secondFakeProjection->injectSaboteur(fn () => self::fail('Projection apply is not expected to be called!'));
+
+        $expectedFailure = SubscriptionAndProjectionStatus::create(
+            subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
+            subscriptionStatus: SubscriptionStatus::ERROR,
+            subscriptionPosition: SequenceNumber::none(),
+            subscriptionError: SubscriptionError::fromPreviousStatusAndException(SubscriptionStatus::ACTIVE, $exception),
+            projectionStatus: ProjectionStatus::ok(),
+        );
+
+        self::assertEmpty(
+            $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
+        );
+
+        $result = $this->subscriptionEngine->catchUpActive();
+        self::assertSame($result->errors?->first()->message, 'This catchup hook is kaputt.');
+
+        self::assertEquals(
+            $expectedFailure,
+            $this->subscriptionStatus('Vendor.Package:SecondFakeProjection')
+        );
+
+        // must be still empty because apply was never called
+        self::assertEmpty(
+            $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
+        );
+    }
+
+    /** @test */
+    public function error_onAfterEvent_projectionIsRolledBack()
+    {
+        $this->subscriptionService->setupEventStore();
+        $this->fakeProjection->expects(self::once())->method('setUp');
+        $this->fakeProjection->expects(self::once())->method('apply');
+        $this->subscriptionService->subscriptionEngine->setup();
+        $this->subscriptionService->subscriptionEngine->boot();
+
+        // commit an event
+        $this->commitExampleContentStreamEvent();
+
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::ACTIVE);
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class));
         $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class))->willThrowException(
             $exception = new \RuntimeException('This catchup hook is kaputt.')
         );
@@ -54,6 +104,96 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
         );
 
         // should be empty as we need an exact once delivery
+        self::assertEmpty(
+            $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
+        );
+    }
+
+    /** @test */
+    public function error_onBeforeCatchUp_abortsCatchup()
+    {
+        $this->subscriptionService->setupEventStore();
+        $this->fakeProjection->expects(self::once())->method('setUp');
+        $this->fakeProjection->expects(self::never())->method('apply');
+        $this->subscriptionService->subscriptionEngine->setup();
+        $this->subscriptionService->subscriptionEngine->boot();
+
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+
+        // commit an event
+        $this->commitExampleContentStreamEvent();
+
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::ACTIVE)->willThrowException(
+            new \RuntimeException('This catchup hook is kaputt.')
+        );
+        $this->catchupHookForFakeProjection->expects(self::never())->method('onBeforeEvent');
+        $this->catchupHookForFakeProjection->expects(self::never())->method('onAfterEvent');
+        $this->catchupHookForFakeProjection->expects(self::never())->method('onAfterCatchUp');
+
+        $this->secondFakeProjection->injectSaboteur(fn () => self::fail('Projection apply is not expected to be called!'));
+
+        self::assertEmpty(
+            $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
+        );
+
+        $expectedFailure = null;
+        try {
+            $this->subscriptionEngine->catchUpActive();
+        } catch (\Throwable $e) {
+            $expectedFailure = $e;
+        }
+        self::assertInstanceOf(CatchUpFailed::class, $expectedFailure);
+
+        self::assertSame($expectedFailure->getMessage(), 'Subscriber "Vendor.Package:SecondFakeProjection" could not invoke onBeforeCatchUp: This catchup hook is kaputt.');
+
+        // still the initial status
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+
+        // must be still empty because apply was never called
+        self::assertEmpty(
+            $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
+        );
+    }
+
+    /** @test */
+    public function error_onAfterCatchUp_abortsCatchupAndRollBack()
+    {
+        $this->subscriptionService->setupEventStore();
+        $this->fakeProjection->expects(self::once())->method('setUp');
+        $this->fakeProjection->expects(self::once())->method('apply');
+        $this->subscriptionService->subscriptionEngine->setup();
+        $this->subscriptionService->subscriptionEngine->boot();
+
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+
+        // commit an event
+        $this->commitExampleContentStreamEvent();
+
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeCatchUp');
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeEvent');
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterEvent');
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp')->willThrowException(
+            new \RuntimeException('This catchup hook is kaputt.')
+        );
+
+        self::assertEmpty(
+            $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
+        );
+
+        $expectedFailure = null;
+        try {
+            $this->subscriptionEngine->catchUpActive();
+        } catch (\Throwable $e) {
+            $expectedFailure = $e;
+        }
+        self::assertInstanceOf(CatchUpFailed::class, $expectedFailure);
+
+        self::assertSame($expectedFailure->getMessage(), 'Subscriber "Vendor.Package:SecondFakeProjection" could not invoke onAfterCatchUp: This catchup hook is kaputt.');
+
+        // still the initial status
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+
+        // must be empty because full rollback
         self::assertEmpty(
             $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
         );
