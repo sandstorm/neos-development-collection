@@ -99,13 +99,13 @@ final class SubscriptionEngine
     {
         $statuses = [];
         foreach ($this->subscriptionStore->findByCriteria($criteria ?? SubscriptionCriteria::noConstraints()) as $subscription) {
-            $subscriber = $this->subscribers->get($subscription->id);
+            $subscriber = $this->subscribers->contain($subscription->id) ? $this->subscribers->get($subscription->id) : null;
             $statuses[] = SubscriptionAndProjectionStatus::create(
                 subscriptionId: $subscription->id,
                 subscriptionStatus: $subscription->status,
                 subscriptionPosition: $subscription->position,
                 subscriptionError: $subscription->error,
-                projectionStatus: $subscriber->projection->status(),
+                projectionStatus: $subscriber?->projection->status(),
             );
         }
         return SubscriptionAndProjectionStatuses::fromArray($statuses);

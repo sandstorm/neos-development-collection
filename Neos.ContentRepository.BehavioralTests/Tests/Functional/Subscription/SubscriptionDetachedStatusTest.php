@@ -59,7 +59,7 @@ final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTes
                 subscriptionStatus: SubscriptionStatus::DETACHED,
                 subscriptionPosition: SequenceNumber::none(),
                 subscriptionError: null,
-                projectionStatus: null // no calculate-able at this point!
+                projectionStatus: null // not calculate-able at this point!
             ),
             $this->subscriptionStatus('Vendor.Package:FakeProjection')
         );
