@@ -4,19 +4,20 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Projection;
 
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
+
 /**
  * Collection of all states (aka read models) of all projections for a Content Repository
  *
  * @internal
- * @implements \IteratorAggregate<ProjectionStateInterface>
  */
-final readonly class ProjectionStates implements \IteratorAggregate, \Countable
+final readonly class ProjectionStates
 {
     /**
      * @param array<class-string<ProjectionStateInterface>, ProjectionStateInterface> $statesByClassName
      */
     private function __construct(
-        public array $statesByClassName,
+        private array $statesByClassName,
     ) {
     }
 
@@ -34,6 +35,9 @@ final readonly class ProjectionStates implements \IteratorAggregate, \Countable
         foreach ($states as $state) {
             if (!$state instanceof ProjectionStateInterface) {
                 throw new \InvalidArgumentException(sprintf('Expected instance of %s, got: %s', ProjectionStateInterface::class, get_debug_type($state)), 1729687661);
+            }
+            if ($state instanceof ContentGraphReadModelInterface) {
+                throw new \InvalidArgumentException(sprintf('The content graph state (%s) must not be part of the additional projection states', ContentGraphReadModelInterface::class), 1732390657);
             }
             if (array_key_exists($state::class, $statesByClassName)) {
                 throw new \InvalidArgumentException(sprintf('An instance of %s is already part of the set', $state::class), 1729687716);
@@ -53,21 +57,14 @@ final readonly class ProjectionStates implements \IteratorAggregate, \Countable
      */
     public function get(string $className): ProjectionStateInterface
     {
+        if ($className === ContentGraphReadModelInterface::class) {
+            throw new \InvalidArgumentException(sprintf('Accessing the content repository projection state (%s) via is not allowed. Please use the API on the content repository instead.', ContentGraphReadModelInterface::class), 1732390824);
+        }
         if (!array_key_exists($className, $this->statesByClassName)) {
-            throw new \InvalidArgumentException(sprintf('The state class "%s" does not exist.', $className), 1729687836);
+            throw new \InvalidArgumentException(sprintf('A projection state of type "%s" is not registered in this content repository.', $className), 1662033650);
         }
         /** @var T $state */
         $state = $this->statesByClassName[$className];
         return $state;
-    }
-
-    public function getIterator(): \Traversable
-    {
-        return new \ArrayIterator($this->statesByClassName);
-    }
-
-    public function count(): int
-    {
-        return count($this->statesByClassName);
     }
 }

@@ -140,11 +140,7 @@ final class ContentRepository
      */
     public function projectionState(string $projectionStateClassName): ProjectionStateInterface
     {
-        try {
-            return $this->projectionStates->get($projectionStateClassName);
-        } catch (\InvalidArgumentException $e) {
-            throw new \InvalidArgumentException(sprintf('A projection state of type "%s" is not registered in this content repository instance: %s', $projectionStateClassName, $e->getMessage()), 1662033650, $e);
-        }
+        return $this->projectionStates->get($projectionStateClassName);
     }
 
     /**
