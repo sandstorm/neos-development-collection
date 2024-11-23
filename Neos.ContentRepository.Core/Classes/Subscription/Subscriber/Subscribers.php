@@ -7,13 +7,13 @@ namespace Neos\ContentRepository\Core\Subscription\Subscriber;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 
 /**
- * @implements \IteratorAggregate<Subscriber>
+ * @implements \IteratorAggregate<ProjectionSubscriber>
  * @api
  */
 final class Subscribers implements \IteratorAggregate, \Countable, \JsonSerializable
 {
     /**
-     * @param array<string, Subscriber> $subscribersById
+     * @param array<string, ProjectionSubscriber> $subscribersById
      */
     private function __construct(
         private readonly array $subscribersById
@@ -21,14 +21,14 @@ final class Subscribers implements \IteratorAggregate, \Countable, \JsonSerializ
     }
 
     /**
-     * @param array<Subscriber> $subscribers
+     * @param array<ProjectionSubscriber> $subscribers
      */
     public static function fromArray(array $subscribers): self
     {
         $subscribersById = [];
         foreach ($subscribers as $subscriber) {
-            if (!$subscriber instanceof Subscriber) {
-                throw new \InvalidArgumentException(sprintf('Expected instance of %s, got: %s', Subscriber::class, get_debug_type($subscriber)), 1721731490);
+            if (!$subscriber instanceof ProjectionSubscriber) {
+                throw new \InvalidArgumentException(sprintf('Expected instance of %s, got: %s', ProjectionSubscriber::class, get_debug_type($subscriber)), 1721731490);
             }
             if (array_key_exists($subscriber->id->value, $subscribersById)) {
                 throw new \InvalidArgumentException(sprintf('Subscriber with id "%s" is already part of this set', $subscriber->id->value), 1721731494);
@@ -43,12 +43,12 @@ final class Subscribers implements \IteratorAggregate, \Countable, \JsonSerializ
         return self::fromArray([]);
     }
 
-    public function with(Subscriber $subscriber): self
+    public function with(ProjectionSubscriber $subscriber): self
     {
         return new self([...$this->subscribersById, $subscriber->id->value => $subscriber]);
     }
 
-    public function get(SubscriptionId $id): Subscriber
+    public function get(SubscriptionId $id): ProjectionSubscriber
     {
         if (!$this->contain($id)) {
             throw new \InvalidArgumentException(sprintf('Subscriber with the subscription id "%s" not found.', $id->value), 1721731490);

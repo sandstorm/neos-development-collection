@@ -33,16 +33,12 @@ use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookFactoryInterfa
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionFactoryInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
-use Neos\ContentRepository\Core\Projection\ProjectionEventHandler;
 use Neos\ContentRepository\Core\Projection\ProjectionStates;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
-use Neos\ContentRepository\Core\Subscription\RetryStrategy\NoRetryStrategy;
-use Neos\ContentRepository\Core\Subscription\RunMode;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
-use Neos\ContentRepository\Core\Subscription\Subscriber\Subscriber;
+use Neos\ContentRepository\Core\Subscription\Subscriber\ProjectionSubscriber;
 use Neos\ContentRepository\Core\Subscription\Subscriber\Subscribers;
-use Neos\ContentRepository\Core\Subscription\SubscriptionGroup;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepositoryRegistry\Factory\AuthProvider\AuthProviderFactoryInterface;
 use Neos\EventStore\EventStoreInterface;
@@ -105,33 +101,27 @@ final class ContentRepositoryFactory
         $additionalProjectionStates = [];
         foreach ($this->additionalSubscriberFactories as $additionalSubscriberFactory) {
             $subscriber = $additionalSubscriberFactory->build($this->subscriberFactoryDependencies);
-            if ($subscriber->handler instanceof ProjectionEventHandler) {
-                $additionalProjectionStates[] = $subscriber->handler->projection->getState();
-            }
+            $additionalProjectionStates[] = $subscriber->projection->getState();
             $subscribers[] = $subscriber;
         }
         $this->additionalProjectionStates = ProjectionStates::fromArray($additionalProjectionStates);
         $this->contentGraphProjection = $contentGraphProjectionFactory->build($this->subscriberFactoryDependencies);
         $subscribers[] = $this->buildContentGraphSubscriber();
-        $this->subscriptionEngine = new SubscriptionEngine($this->eventStore, $subscriptionStore, Subscribers::fromArray($subscribers), $eventNormalizer, new NoRetryStrategy(), $logger);
+        $this->subscriptionEngine = new SubscriptionEngine($this->eventStore, $subscriptionStore, Subscribers::fromArray($subscribers), $eventNormalizer, $logger);
     }
 
-    private function buildContentGraphSubscriber(): Subscriber
+    private function buildContentGraphSubscriber(): ProjectionSubscriber
     {
-        return new Subscriber(
+        return new ProjectionSubscriber(
             SubscriptionId::fromString('contentGraph'),
-            SubscriptionGroup::fromString('default'),
-            RunMode::FROM_BEGINNING,
-            ProjectionEventHandler::createWithCatchUpHook(
-                $this->contentGraphProjection,
-                $this->contentGraphCatchUpHookFactory->build(CatchUpHookFactoryDependencies::create(
-                    $this->contentRepositoryId,
-                    $this->contentGraphProjection->getState(),
-                    $this->subscriberFactoryDependencies->nodeTypeManager,
-                    $this->subscriberFactoryDependencies->contentDimensionSource,
-                    $this->subscriberFactoryDependencies->interDimensionalVariationGraph,
-                )),
-            ),
+            $this->contentGraphProjection,
+            $this->contentGraphCatchUpHookFactory->build(CatchUpHookFactoryDependencies::create(
+                $this->contentRepositoryId,
+                $this->contentGraphProjection->getState(),
+                $this->subscriberFactoryDependencies->nodeTypeManager,
+                $this->subscriberFactoryDependencies->contentDimensionSource,
+                $this->subscriberFactoryDependencies->interDimensionalVariationGraph,
+            )),
         );
     }
 

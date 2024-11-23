@@ -6,7 +6,6 @@ namespace Neos\ContentRepositoryRegistry\Factory\SubscriptionStore;
 
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Platforms\SqlitePlatform;
 use Doctrine\DBAL\Result;
 use Doctrine\DBAL\Schema\Column;
 use Doctrine\DBAL\Schema\Schema;
@@ -14,12 +13,10 @@ use Doctrine\DBAL\Schema\Table;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\Types;
 use Neos\ContentRepository\Core\Infrastructure\DbalSchemaDiff;
-use Neos\ContentRepository\Core\Subscription\RunMode;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionCriteria;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
 use Neos\ContentRepository\Core\Subscription\Subscription;
 use Neos\ContentRepository\Core\Subscription\SubscriptionError;
-use Neos\ContentRepository\Core\Subscription\SubscriptionGroup;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\Subscriptions;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
@@ -42,21 +39,16 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
         $schemaConfig->setDefaultTableOptions([
             'charset' => 'utf8mb4'
         ]);
-        $isSqlite = $this->dbal->getDatabasePlatform() instanceof SqlitePlatform;
         $tableSchema = new Table($this->tableName, [
-            (new Column('id', Type::getType(Types::STRING)))->setNotnull(true)->setLength(SubscriptionId::MAX_LENGTH)->setPlatformOption('charset', 'ascii')->setPlatformOption('collation', $isSqlite ? null : 'ascii_general_ci'),
-            (new Column('group_name', Type::getType(Types::STRING)))->setNotnull(true)->setLength(100)->setPlatformOption('charset', 'ascii')->setPlatformOption('collation', $isSqlite ? null : 'ascii_general_ci'),
-            (new Column('run_mode', Type::getType(Types::STRING)))->setNotnull(true)->setLength(16)->setPlatformOption('charset', 'ascii')->setPlatformOption('collation', $isSqlite ? null : 'ascii_general_ci'),
+            (new Column('id', Type::getType(Types::STRING)))->setNotnull(true)->setLength(SubscriptionId::MAX_LENGTH)->setPlatformOption('charset', 'ascii')->setPlatformOption('collation', 'ascii_general_ci'),
             (new Column('position', Type::getType(Types::INTEGER)))->setNotnull(true),
-            (new Column('status', Type::getType(Types::STRING)))->setNotnull(true)->setLength(32)->setPlatformOption('charset', 'ascii')->setPlatformOption('collation', $isSqlite ? null : 'ascii_general_ci'),
+            (new Column('status', Type::getType(Types::STRING)))->setNotnull(true)->setLength(32)->setPlatformOption('charset', 'ascii')->setPlatformOption('collation', 'ascii_general_ci'),
             (new Column('error_message', Type::getType(Types::TEXT)))->setNotnull(false),
-            (new Column('error_previous_status', Type::getType(Types::STRING)))->setNotnull(false)->setLength(32)->setPlatformOption('charset', 'ascii')->setPlatformOption('collation', $isSqlite ? null : 'ascii_general_ci'),
+            (new Column('error_previous_status', Type::getType(Types::STRING)))->setNotnull(false)->setLength(32)->setPlatformOption('charset', 'ascii')->setPlatformOption('collation', 'ascii_general_ci'),
             (new Column('error_trace', Type::getType(Types::TEXT)))->setNotnull(false),
-            (new Column('retry_attempt', Type::getType(Types::INTEGER)))->setNotnull(true),
             (new Column('last_saved_at', Type::getType(Types::DATETIME_IMMUTABLE)))->setNotnull(true),
         ]);
         $tableSchema->setPrimaryKey(['id']);
-        $tableSchema->addIndex(['group_name']);
         $tableSchema->addIndex(['status']);
         $schema = new Schema(
             [$tableSchema],
@@ -74,22 +66,12 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
             ->select('*')
             ->from($this->tableName)
             ->orderBy('id');
-        if (!$this->dbal->getDatabasePlatform() instanceof SQLitePlatform) {
-            $queryBuilder->forUpdate();
-        }
+        $queryBuilder->forUpdate();
         if ($criteria->ids !== null) {
             $queryBuilder->andWhere('id IN (:ids)')
                 ->setParameter(
                     'ids',
                     $criteria->ids->toStringArray(),
-                    Connection::PARAM_STR_ARRAY,
-                );
-        }
-        if ($criteria->groups !== null) {
-            $queryBuilder->andWhere('group_name IN (:groups)')
-                ->setParameter(
-                    'groups',
-                    $criteria->groups->toStringArray(),
                     Connection::PARAM_STR_ARRAY,
                 );
         }
@@ -134,30 +116,17 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
         );
     }
 
-    public function remove(Subscription $subscription): void
-    {
-        $this->dbal->delete(
-            $this->tableName,
-            [
-                'id' => $subscription->id->value,
-            ]
-        );
-    }
-
     /**
      * @return array<string, mixed>
      */
     private static function toDatabase(Subscription $subscription): array
     {
         return [
-            'group_name' => $subscription->group->value,
-            'run_mode' => $subscription->runMode->name,
             'status' => $subscription->status->name,
             'position' => $subscription->position->value,
             'error_message' => $subscription->error?->errorMessage,
             'error_previous_status' => $subscription->error?->previousStatus?->name,
             'error_trace' => $subscription->error?->errorTrace,
-            'retry_attempt' => $subscription->retryAttempt,
         ];
     }
 
@@ -175,23 +144,17 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
             $subscriptionError = null;
         }
         assert(is_string($row['id']));
-        assert(is_string($row['group_name']));
-        assert(is_string($row['run_mode']));
         assert(is_string($row['status']));
         assert(is_int($row['position']));
-        assert(is_int($row['retry_attempt']));
         assert(is_string($row['last_saved_at']));
         $lastSavedAt = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $row['last_saved_at']);
         assert($lastSavedAt instanceof DateTimeImmutable);
 
         return new Subscription(
             SubscriptionId::fromString($row['id']),
-            SubscriptionGroup::fromString($row['group_name']),
-            RunMode::from($row['run_mode']),
             SubscriptionStatus::from($row['status']),
             SequenceNumber::fromInteger($row['position']),
             $subscriptionError,
-            $row['retry_attempt'],
             $lastSavedAt,
         );
     }

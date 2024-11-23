@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Subscription\Engine;
 
-use Neos\ContentRepository\Core\Subscription\SubscriptionGroups;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionIds;
 
@@ -14,36 +13,28 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionIds;
 final class SubscriptionEngineCriteria
 {
     private function __construct(
-        public readonly SubscriptionIds|null $ids,
-        public readonly SubscriptionGroups|null $groups,
+        public readonly SubscriptionIds|null $ids
     ) {
     }
 
     /**
      * @param SubscriptionIds|array<string|SubscriptionId>|null $ids
-     * @param SubscriptionGroups|list<string>|null $groups
      */
     public static function create(
-        SubscriptionIds|array $ids = null,
-        SubscriptionGroups|array $groups = null,
+        SubscriptionIds|array $ids = null
     ): self {
         if (is_array($ids)) {
             $ids = SubscriptionIds::fromArray($ids);
         }
-        if (is_array($groups)) {
-            $groups = SubscriptionGroups::fromArray($groups);
-        }
         return new self(
-            $ids,
-            $groups,
+            $ids
         );
     }
 
     public static function noConstraints(): self
     {
         return new self(
-            ids: null,
-            groups: null,
+            ids: null
         );
     }
 }

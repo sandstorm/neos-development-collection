@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Subscription\Store;
 
 use Neos\ContentRepository\Core\Subscription\Subscription;
-use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\Subscriptions;
 
 /**
@@ -20,8 +19,6 @@ interface SubscriptionStoreInterface
     public function add(Subscription $subscription): void;
 
     public function update(Subscription $subscription): void;
-
-    public function remove(Subscription $subscription): void;
 
     /**
      * @template T

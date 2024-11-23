@@ -1,22 +1,29 @@
 <?php
 
+/*
+ * This file is part of the Neos.ContentRepository package.
+ *
+ * (c) Contributors of the Neos Project - www.neos.io
+ *
+ * This package is Open Source Software. For the full copyright and license
+ * information, please view the LICENSE file which was distributed with this
+ * source code.
+ */
+
 declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Factory;
 
-use Neos\ContentRepository\Core\Projection\ProjectionEventHandler;
 use Neos\ContentRepository\Core\Projection\ProjectionFactoryInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
-use Neos\ContentRepository\Core\Subscription\RunMode;
-use Neos\ContentRepository\Core\Subscription\Subscriber\Subscriber;
-use Neos\ContentRepository\Core\Subscription\SubscriptionGroup;
+use Neos\ContentRepository\Core\Subscription\Subscriber\ProjectionSubscriber;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 
 /**
  * @internal
  */
-final readonly class ProjectionSubscriberFactory implements ContentRepositorySubscriberFactoryInterface
+final readonly class ProjectionSubscriberFactory
 {
     /**
      * @param ProjectionFactoryInterface<ProjectionInterface<ProjectionStateInterface>> $projectionFactory
@@ -29,13 +36,12 @@ final readonly class ProjectionSubscriberFactory implements ContentRepositorySub
     ) {
     }
 
-    public function build(SubscriberFactoryDependencies $dependencies): Subscriber
+    public function build(SubscriberFactoryDependencies $dependencies): ProjectionSubscriber
     {
-        return new Subscriber(
+        return new ProjectionSubscriber(
             $this->subscriptionId,
-            SubscriptionGroup::fromString('projections'),
-            RunMode::FROM_BEGINNING,
-            ProjectionEventHandler::create($this->projectionFactory->build($dependencies, $this->projectionFactoryOptions)),
+            $this->projectionFactory->build($dependencies, $this->projectionFactoryOptions),
+            null
         );
     }
 }
