@@ -12,6 +12,7 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\Subscription\Engine\Error;
 use Neos\ContentRepository\Core\Subscription\Engine\Errors;
 use Neos\ContentRepository\Core\Subscription\Engine\ProcessedResult;
+use Neos\ContentRepository\Core\Subscription\Engine\Result;
 use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionError;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
@@ -109,18 +110,20 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
             $this->subscriptionStatus('Vendor.Package:FakeProjection')
         );
 
-        // todo BOOT and SETUP should not attempt to retry?!
         // setup does not change anything
-        // $result = $this->subscriptionService->subscriptionEngine->setup();
-        // self::assertNull($result->errors);
+        $result = $this->subscriptionService->subscriptionEngine->setup();
+        self::assertEquals(Result::success(), $result);
+        // nor catchup active
+        $result = $this->subscriptionService->subscriptionEngine->catchUpActive();
+        self::assertEquals(ProcessedResult::success(0), $result);
         // boot neither
-        // $result = $this->subscriptionService->subscriptionEngine->boot();
-        // self::assertNull($result->errors);
+        $result = $this->subscriptionService->subscriptionEngine->boot();
+        self::assertEquals(ProcessedResult::success(0), $result);
         // still the same state
-        // self::assertEquals(
-        //     $expectedFailure,
-        //     $this->subscriptionStatus('Vendor.Package:FakeProjection')
-        // );
+        self::assertEquals(
+            $expectedFailure,
+            $this->subscriptionStatus('Vendor.Package:FakeProjection')
+        );
 
         $this->fakeProjection->expects(self::once())->method('resetState');
 
