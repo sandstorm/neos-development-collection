@@ -42,16 +42,9 @@ final class Subscription
     public function set(
         SubscriptionStatus $status = null,
         SequenceNumber $position = null
-    ): self {
+    ): void {
         $this->status = $status ?? $this->status;
         $this->position = $position ?? $this->position;
-        return new self(
-            $this->id,
-            $status ?? $this->status,
-            $position ?? $this->position,
-            $this->error,
-            $this->lastSavedAt,
-        );
     }
 
     /**

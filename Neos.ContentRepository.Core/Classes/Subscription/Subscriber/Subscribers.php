@@ -8,7 +8,7 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 
 /**
  * @implements \IteratorAggregate<ProjectionSubscriber>
- * @api
+ * @internal
  */
 final class Subscribers implements \IteratorAggregate, \Countable, \JsonSerializable
 {

@@ -23,7 +23,7 @@ use Neos\ContentRepository\Core\Subscription\Subscriber\ProjectionSubscriber;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 
 /**
- * @internal
+ * @internal only API for custom content repository integrations
  */
 final readonly class ProjectionSubscriberFactory
 {

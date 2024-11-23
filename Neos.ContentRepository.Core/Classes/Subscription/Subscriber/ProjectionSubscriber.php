@@ -13,7 +13,7 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\EventStore\Model\EventEnvelope;
 
 /**
- * @api
+ * @internal
  */
 final class ProjectionSubscriber
 {

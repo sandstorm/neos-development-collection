@@ -23,7 +23,11 @@ use Neos\ContentRepository\Core\Subscription\Subscriptions;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Psr\Clock\ClockInterface;
+use Neos\Flow\Annotations as Flow;
 
+/**
+ * @Flow\Proxy(false)
+ */
 final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
 {
     public function __construct(
@@ -36,7 +40,6 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
     public function setup(): void
     {
         $schemaConfig = $this->dbal->createSchemaManager()->createSchemaConfig();
-        assert($schemaConfig !== null);
         $schemaConfig->setDefaultTableOptions([
             'charset' => 'utf8mb4'
         ]);

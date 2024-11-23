@@ -137,7 +137,7 @@ final class SubscriptionEngine
      */
     private function discoverNewSubscriptions(): void
     {
-        $this->subscriptionManager->findForUpdate(
+        $this->subscriptionManager->findForAndUpdate(
             SubscriptionCriteria::noConstraints(),
             function (Subscriptions $subscriptions) {
                 foreach ($this->subscribers as $subscriber) {
@@ -224,7 +224,7 @@ final class SubscriptionEngine
         $this->discoverNewSubscriptions();
         $this->discoverDetachedSubscriptions($criteria);
 
-        return $this->subscriptionManager->findForUpdate(
+        return $this->subscriptionManager->findForAndUpdate(
             SubscriptionCriteria::forEngineCriteriaAndStatus($criteria, $subscriptionStatus),
             function (Subscriptions $subscriptions) use ($subscriptionStatus, $progressClosure) {
                 if ($subscriptions->isEmpty()) {

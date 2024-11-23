@@ -30,7 +30,7 @@ final class SubscriptionManager
      * @param \Closure(Subscriptions):T $closure
      * @return T
      */
-    public function findForUpdate(SubscriptionCriteria $criteria, \Closure $closure): mixed
+    public function findForAndUpdate(SubscriptionCriteria $criteria, \Closure $closure): mixed
     {
         return $this->subscriptionStore->transactional(
             /** @return T */
@@ -42,11 +42,6 @@ final class SubscriptionManager
                 }
             },
         );
-    }
-
-    public function find(SubscriptionCriteria $criteria): Subscriptions
-    {
-        return $this->subscriptionStore->findByCriteria($criteria);
     }
 
     public function add(Subscription $subscription): void

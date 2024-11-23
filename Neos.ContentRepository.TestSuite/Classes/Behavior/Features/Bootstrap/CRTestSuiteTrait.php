@@ -22,7 +22,6 @@ use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryInterface
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
-use Neos\ContentRepository\Core\Projection\CatchUpOptions;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindSubtreeFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\NodeType\NodeTypeCriteria;
@@ -33,7 +32,6 @@ use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\ContentStreamClosing;
-use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\NodeCopying;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\NodeCreation;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\NodeModification;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features\NodeMove;
@@ -146,7 +144,6 @@ trait CRTestSuiteTrait
             public ContentGraphReadModelInterface|null $instance;
             public function build(ContentRepositoryServiceFactoryDependencies $serviceFactoryDependencies): ContentRepositoryServiceInterface
             {
-                // TODO find replacement – is that needed at all?
                 $this->instance = $serviceFactoryDependencies->contentGraphReadModel;
                 return new class implements ContentRepositoryServiceInterface
                 {

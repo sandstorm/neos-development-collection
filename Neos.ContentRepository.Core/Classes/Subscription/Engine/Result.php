@@ -10,7 +10,7 @@ namespace Neos\ContentRepository\Core\Subscription\Engine;
 final readonly class Result
 {
     private function __construct(
-        public readonly Errors|null $errors,
+        public Errors|null $errors,
     ) {
     }
 

@@ -6,7 +6,7 @@ namespace Neos\ContentRepository\Core\Factory;
 
 /**
  * @implements \IteratorAggregate<ProjectionSubscriberFactory>
- * @internal
+ * @internal only API for custom content repository integrations
  */
 final class ContentRepositorySubscriberFactories implements \IteratorAggregate
 {
