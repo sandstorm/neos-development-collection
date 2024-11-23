@@ -189,7 +189,7 @@ final class ContentRepositoryRegistry
                 $this->buildContentGraphProjectionFactory($contentRepositoryId, $contentRepositorySettings),
                 $this->buildContentGraphCatchUpHookFactory($contentRepositoryId, $contentRepositorySettings),
                 $this->buildCommandHooksFactory($contentRepositoryId, $contentRepositorySettings),
-                $this->buildAdditionalProjectionsFactories($contentRepositoryId, $contentRepositorySettings),
+                $this->buildAdditionalSubscribersFactories($contentRepositoryId, $contentRepositorySettings),
                 $this->logger,
             );
         } catch (\Exception $exception) {
@@ -315,7 +315,7 @@ final class ContentRepositoryRegistry
     }
 
     /** @param array<string, mixed> $contentRepositorySettings */
-    private function buildAdditionalProjectionsFactories(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): ContentRepositorySubscriberFactories
+    private function buildAdditionalSubscribersFactories(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): ContentRepositorySubscriberFactories
     {
         if (!is_array($contentRepositorySettings['projections'] ?? [])) {
             throw InvalidConfigurationException::fromMessage('Content repository "%s" expects projections configured as array.', $contentRepositoryId->value);
