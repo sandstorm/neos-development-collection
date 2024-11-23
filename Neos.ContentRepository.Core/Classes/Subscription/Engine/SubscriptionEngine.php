@@ -205,8 +205,6 @@ final class SubscriptionEngine
     {
         $this->logger?->info(sprintf('Subscription Engine: Start catching up subscriptions in state "%s".', $subscriptionStatus->value));
 
-        $this->discoverNewSubscriptions();
-
         return $this->subscriptionManager->findForAndUpdate(
             SubscriptionCriteria::forEngineCriteriaAndStatus($criteria, $subscriptionStatus),
             function (Subscriptions $subscriptions) use ($subscriptionStatus, $progressClosure) {

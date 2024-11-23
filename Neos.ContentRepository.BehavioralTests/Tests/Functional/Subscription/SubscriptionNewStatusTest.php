@@ -10,7 +10,6 @@ use Neos\ContentRepository\Core\Projection\ProjectionStatus;
 use Neos\ContentRepository\Core\Subscription\Engine\ProcessedResult;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
 use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatus;
-use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatuses;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepository\TestSuite\Fakes\FakeProjectionFactory;
@@ -69,8 +68,8 @@ final class SubscriptionNewStatusTest extends AbstractSubscriptionEngineTestCase
         // todo status doesnt find this projection yet?
         self::assertNull($this->subscriptionStatus('Vendor.Package:NewFakeProjection'));
 
-        // do something that finds new subscriptions
-        $result = $this->subscriptionEngine->catchUpActive();
+        // do something that finds new subscriptions, trigger a setup on a specific projection:
+        $result = $this->subscriptionEngine->setup(SubscriptionEngineCriteria::create([SubscriptionId::fromString('contentGraph')]));
         self::assertNull($result->errors);
 
         self::assertEquals(
