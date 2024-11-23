@@ -65,7 +65,7 @@ final class ContentRepositoryFactory
     private ?ContentRepository $contentRepositoryRuntimeCache = null;
 
     /**
-     * @param CatchUpHookFactoryInterface<ContentGraphReadModelInterface> $contentGraphCatchUpHookFactory
+     * @param CatchUpHookFactoryInterface<ContentGraphReadModelInterface>|null $contentGraphCatchUpHookFactory
      */
     public function __construct(
         private readonly ContentRepositoryId $contentRepositoryId,
@@ -77,7 +77,7 @@ final class ContentRepositoryFactory
         private readonly ClockInterface $clock,
         SubscriptionStoreInterface $subscriptionStore,
         ContentGraphProjectionFactoryInterface $contentGraphProjectionFactory,
-        private readonly CatchUpHookFactoryInterface $contentGraphCatchUpHookFactory,
+        private readonly CatchUpHookFactoryInterface|null $contentGraphCatchUpHookFactory,
         private readonly CommandHooksFactory $commandHooksFactory,
         private readonly ContentRepositorySubscriberFactories $additionalSubscriberFactories,
         LoggerInterface|null $logger = null,
@@ -115,7 +115,7 @@ final class ContentRepositoryFactory
         return new ProjectionSubscriber(
             SubscriptionId::fromString('contentGraph'),
             $this->contentGraphProjection,
-            $this->contentGraphCatchUpHookFactory->build(CatchUpHookFactoryDependencies::create(
+            $this->contentGraphCatchUpHookFactory?->build(CatchUpHookFactoryDependencies::create(
                 $this->contentRepositoryId,
                 $this->contentGraphProjection->getState(),
                 $this->subscriberFactoryDependencies->nodeTypeManager,

@@ -14,6 +14,8 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Factory;
 
+use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookFactoryDependencies;
+use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookFactoryInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionFactoryInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
@@ -27,21 +29,32 @@ final readonly class ProjectionSubscriberFactory
 {
     /**
      * @param ProjectionFactoryInterface<ProjectionInterface<ProjectionStateInterface>> $projectionFactory
+     * @param CatchUpHookFactoryInterface<ProjectionStateInterface>|null $catchUpHookFactory
      * @param array<string, mixed> $projectionFactoryOptions
      */
     public function __construct(
         private SubscriptionId $subscriptionId,
         private ProjectionFactoryInterface $projectionFactory,
+        private ?CatchUpHookFactoryInterface $catchUpHookFactory,
         private array $projectionFactoryOptions,
     ) {
     }
 
     public function build(SubscriberFactoryDependencies $dependencies): ProjectionSubscriber
     {
+        $projection = $this->projectionFactory->build($dependencies, $this->projectionFactoryOptions);
+        $catchUpHook = $this->catchUpHookFactory?->build(CatchUpHookFactoryDependencies::create(
+            $dependencies->contentRepositoryId,
+            $projection->getState(),
+            $dependencies->nodeTypeManager,
+            $dependencies->contentDimensionSource,
+            $dependencies->interDimensionalVariationGraph,
+        ));
+
         return new ProjectionSubscriber(
             $this->subscriptionId,
-            $this->projectionFactory->build($dependencies, $this->projectionFactoryOptions),
-            null
+            $projection,
+            $catchUpHook,
         );
     }
 }

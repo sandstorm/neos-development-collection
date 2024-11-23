@@ -51,6 +51,11 @@ final class CatchUpHookFactories implements CatchUpHookFactoryInterface
         return array_key_exists($catchUpHookFactoryClassName, $this->catchUpHookFactories);
     }
 
+    public function isEmpty(): bool
+    {
+        return $this->catchUpHookFactories === [];
+    }
+
     public function build(CatchUpHookFactoryDependencies $dependencies): CatchUpHookInterface
     {
         $catchUpHooks = array_map(static fn(CatchUpHookFactoryInterface $catchUpHookFactory) => $catchUpHookFactory->build($dependencies), $this->catchUpHookFactories);

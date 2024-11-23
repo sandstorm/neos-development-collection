@@ -21,6 +21,7 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInt
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\Projection\ProjectionFactoryInterface;
+use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryIds;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
@@ -57,6 +58,9 @@ final class ContentRepositoryRegistry
      */
     private array $factoryInstances = [];
 
+    /**
+     * @var array<string, mixed>
+     */
     private array $settings;
 
     #[Flow\Inject(name: 'Neos.ContentRepositoryRegistry:Logger', lazy: false)]
@@ -183,6 +187,8 @@ final class ContentRepositoryRegistry
             unset($contentRepositorySettings['preset']);
         }
         try {
+            /** @var CatchUpHookFactoryInterface<ContentGraphReadModelInterface>|null $contentGraphCatchUpHookFactory */
+            $contentGraphCatchUpHookFactory = $this->buildCatchUpHookFactory($contentRepositoryId, 'contentGraph', $contentRepositorySettings['contentGraphProjection']);
             $clock = $this->buildClock($contentRepositoryId, $contentRepositorySettings);
             return new ContentRepositoryFactory(
                 $contentRepositoryId,
@@ -194,7 +200,7 @@ final class ContentRepositoryRegistry
                 $clock,
                 $this->buildSubscriptionStore($contentRepositoryId, $clock, $contentRepositorySettings),
                 $this->buildContentGraphProjectionFactory($contentRepositoryId, $contentRepositorySettings),
-                $this->buildContentGraphCatchUpHookFactory($contentRepositoryId, $contentRepositorySettings),
+                $contentGraphCatchUpHookFactory,
                 $this->buildCommandHooksFactory($contentRepositoryId, $contentRepositorySettings),
                 $this->buildAdditionalSubscribersFactories($contentRepositoryId, $contentRepositorySettings),
                 $this->logger,
@@ -275,27 +281,29 @@ final class ContentRepositoryRegistry
     }
 
     /**
-     * @param array<string, mixed> $contentRepositorySettings
-     * @return CatchUpHookFactoryInterface<ContentGraphReadModelInterface>
+     * @param array<string, mixed> $projectionOptions
+     * @return CatchUpHookFactoryInterface<ProjectionStateInterface>|null
      */
-    private function buildContentGraphCatchUpHookFactory(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): CatchUpHookFactoryInterface
+    private function buildCatchUpHookFactory(ContentRepositoryId $contentRepositoryId, string $projectionName, array $projectionOptions): ?CatchUpHookFactoryInterface
     {
-        if (!isset($contentRepositorySettings['contentGraphProjection']['catchUpHooks'])) {
-            throw InvalidConfigurationException::fromMessage('Content repository "%s" does not have the contentGraphProjection.catchUpHooks configured.', $contentRepositoryId->value);
+        if (!isset($projectionOptions['catchUpHooks'])) {
+            return null;
         }
         $catchUpHookFactories = CatchUpHookFactories::create();
-        foreach ($contentRepositorySettings['contentGraphProjection']['catchUpHooks'] as $catchUpHookName => $catchUpHookOptions) {
+        foreach ($projectionOptions['catchUpHooks'] as $catchUpHookName => $catchUpHookOptions) {
             if ($catchUpHookOptions === null) {
                 // Allow catch up hooks to be disabled by setting their configuration to `null`
                 continue;
             }
             $catchUpHookFactory = $this->objectManager->get($catchUpHookOptions['factoryObjectName']);
             if (!$catchUpHookFactory instanceof CatchUpHookFactoryInterface) {
-                throw InvalidConfigurationException::fromMessage('CatchUpHook factory object name for content graph CatchUpHook "%s" (content repository "%s") is not an instance of %s but %s', $catchUpHookName, $contentRepositoryId->value, CatchUpHookFactoryInterface::class, get_debug_type($catchUpHookFactory));
+                throw InvalidConfigurationException::fromMessage('CatchUpHook factory object name for hook "%s" in projection "%s" (content repository "%s") is not an instance of %s but %s', $catchUpHookName, $projectionName, $contentRepositoryId->value, CatchUpHookFactoryInterface::class, get_debug_type($catchUpHookFactory));
             }
             $catchUpHookFactories = $catchUpHookFactories->with($catchUpHookFactory);
         }
-        /** @var CatchUpHookFactoryInterface<ContentGraphReadModelInterface> $catchUpHookFactories */
+        if ($catchUpHookFactories->isEmpty()) {
+            return null;
+        }
         return $catchUpHookFactories;
     }
 
@@ -344,6 +352,7 @@ final class ContentRepositoryRegistry
             $projectionSubscriberFactories[$projectionName] = new ProjectionSubscriberFactory(
                 SubscriptionId::fromString($projectionName),
                 $projectionFactory,
+                $this->buildCatchUpHookFactory($contentRepositoryId, $projectionName, $projectionOptions),
                 $projectionOptions['options'] ?? [],
             );
         }
