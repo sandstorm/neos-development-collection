@@ -208,10 +208,7 @@ final class SubscriptionEngine
             $this->logger?->error(sprintf('Subscription Engine: Subscriber "%s" for "%s" has an error in the resetState method: %s', $subscriber::class, $subscription->id->value, $e->getMessage()));
             return Error::fromSubscriptionIdAndException($subscription->id, $e);
         }
-        $subscription->set(
-            status: SubscriptionStatus::BOOTING,
-            position: SequenceNumber::none(),
-        );
+        $subscription->reset();
         $this->subscriptionManager->update($subscription);
         $this->logger?->debug(sprintf('Subscription Engine: For Subscriber "%s" for "%s" the resetState method has been executed.', $subscriber::class, $subscription->id->value));
         return null;

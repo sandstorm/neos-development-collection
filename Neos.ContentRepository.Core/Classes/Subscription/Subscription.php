@@ -47,6 +47,13 @@ final class Subscription
         $this->position = $position ?? $this->position;
     }
 
+    public function reset(): void
+    {
+        $this->status = SubscriptionStatus::BOOTING;
+        $this->position = SequenceNumber::none();
+        $this->error = null;
+    }
+
     /**
      * @internal Only the {@see SubscriptionEngine} is supposed to mutate subscriptions
      */
