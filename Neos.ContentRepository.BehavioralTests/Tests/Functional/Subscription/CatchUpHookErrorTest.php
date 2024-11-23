@@ -144,7 +144,7 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
         }
         self::assertInstanceOf(CatchUpFailed::class, $expectedFailure);
 
-        self::assertSame($expectedFailure->getMessage(), 'Subscriber "Vendor.Package:SecondFakeProjection" could not invoke onBeforeCatchUp: This catchup hook is kaputt.');
+        self::assertSame($expectedFailure->getMessage(), 'Subscriber "Vendor.Package:SecondFakeProjection" failed onBeforeCatchUp: This catchup hook is kaputt.');
 
         // still the initial status
         $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
@@ -188,7 +188,7 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
         }
         self::assertInstanceOf(CatchUpFailed::class, $expectedFailure);
 
-        self::assertSame($expectedFailure->getMessage(), 'Subscriber "Vendor.Package:SecondFakeProjection" could not invoke onAfterCatchUp: This catchup hook is kaputt.');
+        self::assertSame($expectedFailure->getMessage(), 'Subscriber "Vendor.Package:SecondFakeProjection" failed onAfterCatchUp: This catchup hook is kaputt.');
 
         // still the initial status
         $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());

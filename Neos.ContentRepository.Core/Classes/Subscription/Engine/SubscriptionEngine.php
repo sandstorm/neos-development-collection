@@ -6,6 +6,7 @@ namespace Neos\ContentRepository\Core\Subscription\Engine;
 
 use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
+use Neos\ContentRepository\Core\Subscription\Exception\CatchUpFailed;
 use Neos\ContentRepository\Core\Subscription\Exception\SubscriptionEngineAlreadyProcessingException;
 use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatuses;
@@ -230,7 +231,14 @@ final class SubscriptionEngine
                     return ProcessedResult::success(0);
                 }
                 foreach ($subscriptions as $subscription) {
-                    $this->subscribers->get($subscription->id)->onBeforeCatchUp($subscription->status);
+                    try {
+                        $this->subscribers->get($subscription->id)->onBeforeCatchUp($subscription->status);
+                    } catch (\Throwable $e) {
+                        // analog to onAfterCatchUp, we tolerate no exceptions here and consider it a critical developer error.
+                        $message = sprintf('Subscriber "%s" failed onBeforeCatchUp: %s', $subscription->id->value, $e->getMessage());
+                        $this->logger?->critical($message);
+                        throw new CatchUpFailed($message, 1732374000, $e);
+                    }
                 }
                 $startSequenceNumber = $subscriptions->lowestPosition()?->next() ?? SequenceNumber::none();
                 $this->logger?->debug(sprintf('Subscription Engine: Event stream is processed from position %s.', $startSequenceNumber->value));
@@ -271,7 +279,14 @@ final class SubscriptionEngine
                     }
                 }
                 foreach ($subscriptions as $subscription) {
-                    $this->subscribers->get($subscription->id)->onAfterCatchUp();
+                    try {
+                        $this->subscribers->get($subscription->id)->onAfterCatchUp();
+                    } catch (\Throwable $e) {
+                        // analog to onBeforeCatchUp, we tolerate no exceptions here and consider it a critical developer error.
+                        $message = sprintf('Subscriber "%s" failed onAfterCatchUp: %s', $subscription->id->value, $e->getMessage());
+                        $this->logger?->critical($message);
+                        throw new CatchUpFailed($message, 1732374000, $e);
+                    }
                     if ($subscription->status !== $subscriptionStatus) {
                         continue;
                     }
