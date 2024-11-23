@@ -69,9 +69,9 @@ Neos:
             factoryObjectName: Neos\ContentRepository\TestSuite\Fakes\FakeProjectionFactory
             options:
               instanceId: second
-              catchUpHooks:
-                'Vendor.Package:FakeCatchupHook':
-                  factoryObjectName: Neos\ContentRepository\TestSuite\Fakes\FakeCatchUpHookFactory
+            catchUpHooks:
+              'Vendor.Package:FakeCatchupHook':
+                factoryObjectName: Neos\ContentRepository\TestSuite\Fakes\FakeCatchUpHookFactory
 
   Flow:
     object:

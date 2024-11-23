@@ -513,9 +513,12 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
         // commit an event
         $this->commitExampleContentStreamEvent();
 
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::ACTIVE);
         $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class))->willThrowException(
             $exception = new \RuntimeException('This catchup hook is kaputt.')
         );
+        // TODO pass the error subscription status to onAfterCatchUp, so that in case of an error it can be prevented that mails f.x. will be sent?
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp');
 
         $expectedFailure = SubscriptionAndProjectionStatus::create(
             subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
@@ -529,9 +532,7 @@ final class SubscriptionEngineTest extends TestCase // we don't use Flows functi
             $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
         );
 
-        $this->subscriptionEngine->catchUpActive();
-
-        $result = $this->subscriptionService->subscriptionEngine->catchUpActive();
+        $result = $this->subscriptionEngine->catchUpActive();
         self::assertSame($result->errors?->first()->message, 'This catchup hook is kaputt.');
 
         self::assertEquals(
