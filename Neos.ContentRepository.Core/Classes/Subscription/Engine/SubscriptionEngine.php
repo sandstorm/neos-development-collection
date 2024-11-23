@@ -48,7 +48,6 @@ final class SubscriptionEngine
 
         $this->subscriptionStore->setup();
         $this->discoverNewSubscriptions();
-        $this->retrySubscriptions($criteria);
         $subscriptions = $this->subscriptionStore->findByCriteria(SubscriptionCriteria::forEngineCriteriaAndStatus($criteria, SubscriptionStatus::NEW));
         if ($subscriptions->isEmpty()) {
             $this->logger?->info('Subscription Engine: No subscriptions to setup, finish setup.');
@@ -125,8 +124,7 @@ final class SubscriptionEngine
         }
         $this->logger?->debug(sprintf('Subscription Engine: Subscriber "%s" for "%s" processed the event "%s" (sequence number: %d).', substr(strrchr($subscriber::class, '\\') ?: '', 1), $subscription->id->value, $eventEnvelope->event->type->value, $eventEnvelope->sequenceNumber->value));
         $subscription->set(
-            position: $eventEnvelope->sequenceNumber,
-            retryAttempt: 0
+            position: $eventEnvelope->sequenceNumber
         );
         return null;
     }
@@ -217,44 +215,12 @@ final class SubscriptionEngine
         return null;
     }
 
-    private function retrySubscriptions(SubscriptionEngineCriteria $criteria): void
-    {
-        $this->subscriptionManager->findForUpdate(
-            SubscriptionCriteria::create($criteria->ids, SubscriptionStatusFilter::fromArray([SubscriptionStatus::ERROR])),
-            fn (Subscriptions $subscriptions) => $subscriptions->map($this->retrySubscription(...)),
-        );
-    }
-
-    private function retrySubscription(Subscription $subscription): void
-    {
-        if ($subscription->error === null) {
-            return;
-        }
-        $retryable = in_array(
-            $subscription->error->previousStatus,
-            [SubscriptionStatus::NEW, SubscriptionStatus::BOOTING, SubscriptionStatus::ACTIVE],
-            true,
-        );
-        if (!$retryable) {
-            return;
-        }
-        $subscription->set(
-            status: $subscription->error->previousStatus,
-            retryAttempt: $subscription->retryAttempt + 1,
-        );
-        $subscription->error = null;
-        $this->subscriptionManager->update($subscription);
-
-        $this->logger?->info(sprintf('Subscription Engine: Retry subscription "%s" (%d) and set back to %s.', $subscription->id->value, $subscription->retryAttempt, $subscription->status->value));
-    }
-
     private function catchUpSubscriptions(SubscriptionEngineCriteria $criteria, SubscriptionStatus $subscriptionStatus, \Closure $progressClosure = null): ProcessedResult
     {
         $this->logger?->info(sprintf('Subscription Engine: Start catching up subscriptions in state "%s".', $subscriptionStatus->value));
 
         $this->discoverNewSubscriptions();
         $this->discoverDetachedSubscriptions($criteria);
-        $this->retrySubscriptions($criteria);
 
         return $this->subscriptionManager->findForUpdate(
             SubscriptionCriteria::forEngineCriteriaAndStatus($criteria, $subscriptionStatus),

@@ -46,7 +46,6 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
             (new Column('error_message', Type::getType(Types::TEXT)))->setNotnull(false),
             (new Column('error_previous_status', Type::getType(Types::STRING)))->setNotnull(false)->setLength(32)->setPlatformOption('charset', 'ascii')->setPlatformOption('collation', 'ascii_general_ci'),
             (new Column('error_trace', Type::getType(Types::TEXT)))->setNotnull(false),
-            (new Column('retry_attempt', Type::getType(Types::INTEGER)))->setNotnull(true),
             (new Column('last_saved_at', Type::getType(Types::DATETIME_IMMUTABLE)))->setNotnull(true),
         ]);
         $tableSchema->setPrimaryKey(['id']);
@@ -128,7 +127,6 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
             'error_message' => $subscription->error?->errorMessage,
             'error_previous_status' => $subscription->error?->previousStatus?->name,
             'error_trace' => $subscription->error?->errorTrace,
-            'retry_attempt' => $subscription->retryAttempt,
         ];
     }
 
@@ -148,7 +146,6 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
         assert(is_string($row['id']));
         assert(is_string($row['status']));
         assert(is_int($row['position']));
-        assert(is_int($row['retry_attempt']));
         assert(is_string($row['last_saved_at']));
         $lastSavedAt = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $row['last_saved_at']);
         assert($lastSavedAt instanceof DateTimeImmutable);
@@ -158,7 +155,6 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
             SubscriptionStatus::from($row['status']),
             SequenceNumber::fromInteger($row['position']),
             $subscriptionError,
-            $row['retry_attempt'],
             $lastSavedAt,
         );
     }

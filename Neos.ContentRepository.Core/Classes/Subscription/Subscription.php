@@ -20,7 +20,6 @@ final class Subscription
         public SubscriptionStatus $status,
         public SequenceNumber $position,
         public SubscriptionError|null $error = null,
-        public int $retryAttempt = 0,
         public readonly \DateTimeImmutable|null $lastSavedAt = null,
     ) {
     }
@@ -42,18 +41,15 @@ final class Subscription
      */
     public function set(
         SubscriptionStatus $status = null,
-        SequenceNumber $position = null,
-        int $retryAttempt = null,
+        SequenceNumber $position = null
     ): self {
         $this->status = $status ?? $this->status;
         $this->position = $position ?? $this->position;
-        $this->retryAttempt = $retryAttempt ?? $this->retryAttempt;
         return new self(
             $this->id,
             $status ?? $this->status,
             $position ?? $this->position,
             $this->error,
-            $retryAttempt ?? $this->retryAttempt,
             $this->lastSavedAt,
         );
     }
