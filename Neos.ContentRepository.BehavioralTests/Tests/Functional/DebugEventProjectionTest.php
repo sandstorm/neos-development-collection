@@ -20,38 +20,88 @@ use PHPUnit\Framework\TestCase;
  */
 class DebugEventProjectionTest extends TestCase
 {
-    /** @test */
-    public function fakeProjectionRejectsDuplicateEvents()
+    private DebugEventProjection $debugEventProjection;
+
+    public function setUp(): void
     {
-        $debugProjection = new DebugEventProjection(
+        $this->debugEventProjection = new DebugEventProjection(
             'test_debug_projection',
             Bootstrap::$staticObjectManager->get(Connection::class)
         );
 
-        $debugProjection->setUp();
+        $this->debugEventProjection->setUp();
+    }
 
-        $this->expectException(\Doctrine\DBAL\Exception\UniqueConstraintViolationException::class);
+    public function tearDown(): void
+    {
+        $this->debugEventProjection->resetState();
+    }
 
-        $fakeEventEnvelope = new EventEnvelope(
+    /** @test */
+    public function fakeProjectionRejectsDuplicateEvents()
+    {
+        $fakeEventEnvelope = $this->createExampleEventEnvelopeForPosition(
+            SequenceNumber::fromInteger(1)
+        );
+
+        $this->debugEventProjection->apply(
+            $this->getMockBuilder(EventInterface::class)->getMock(),
+            $fakeEventEnvelope
+        );
+
+        $this->expectExceptionMessage('Must not happen! Debug projection detected duplicate event 1 of type ContentStreamWasCreated');
+
+        $this->debugEventProjection->apply(
+            $this->getMockBuilder(EventInterface::class)->getMock(),
+            $fakeEventEnvelope
+        );
+    }
+
+    /** @test */
+    public function fakeProjectionWithSaboteur()
+    {
+        $fakeEventEnvelope1 = $this->createExampleEventEnvelopeForPosition(
+            SequenceNumber::fromInteger(1)
+        );
+
+        $fakeEventEnvelope2 = $this->createExampleEventEnvelopeForPosition(
+            SequenceNumber::fromInteger(2)
+        );
+
+        $this->debugEventProjection->injectSaboteur(
+            fn (EventEnvelope $eventEnvelope) =>
+                $eventEnvelope->sequenceNumber->value === 2
+                    ? throw new \RuntimeException('sabotage!!!')
+                    : null
+        );
+
+        // catchup
+        $this->debugEventProjection->apply(
+            $this->getMockBuilder(EventInterface::class)->getMock(),
+            $fakeEventEnvelope1
+        );
+
+        $this->expectExceptionMessage('sabotage!!!');
+
+        $this->debugEventProjection->apply(
+            $this->getMockBuilder(EventInterface::class)->getMock(),
+            $fakeEventEnvelope2
+        );
+    }
+
+    private function createExampleEventEnvelopeForPosition(SequenceNumber $sequenceNumber): EventEnvelope
+    {
+        $cs = ContentStreamId::create();
+        return new EventEnvelope(
             new Event(
                 Event\EventId::create(),
                 Event\EventType::fromString('ContentStreamWasCreated'),
-                Event\EventData::fromString(json_encode(['contentStreamId' => 'cs-id']))
+                Event\EventData::fromString(json_encode(['contentStreamId' => $cs->value]))
             ),
-            ContentStreamEventStreamName::fromContentStreamId(ContentStreamId::fromString('cs-id'))->getEventStreamName(),
+            ContentStreamEventStreamName::fromContentStreamId($cs)->getEventStreamName(),
             Event\Version::first(),
-            SequenceNumber::fromInteger(1),
+            $sequenceNumber,
             new \DateTimeImmutable()
-        );
-
-        $debugProjection->apply(
-            $this->getMockBuilder(EventInterface::class)->getMock(),
-            $fakeEventEnvelope
-        );
-
-        $debugProjection->apply(
-            $this->getMockBuilder(EventInterface::class)->getMock(),
-            $fakeEventEnvelope
         );
     }
 }

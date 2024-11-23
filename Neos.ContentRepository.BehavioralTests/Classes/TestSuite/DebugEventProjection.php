@@ -30,7 +30,7 @@ final class DebugEventProjection implements ProjectionInterface
 {
     private DebugEventProjectionState $state;
 
-    private \Exception|null $exceptionToThrowAfterApply = null;
+    private \Closure|null $saboteur = null;
 
     public function __construct(
         private string $tableNamePrefix,
@@ -82,13 +82,17 @@ final class DebugEventProjection implements ProjectionInterface
 
     public function apply(EventInterface $event, EventEnvelope $eventEnvelope): void
     {
-        $this->dbal->insert($this->tableNamePrefix, [
-           'sequencenumber' => $eventEnvelope->sequenceNumber->value,
-           'stream' => $eventEnvelope->streamName->value,
-           'type' => $eventEnvelope->event->type->value,
-        ]);
-        if ($this->exceptionToThrowAfterApply) {
-            throw $this->exceptionToThrowAfterApply;
+        try {
+            $this->dbal->insert($this->tableNamePrefix, [
+               'sequencenumber' => $eventEnvelope->sequenceNumber->value,
+               'stream' => $eventEnvelope->streamName->value,
+               'type' => $eventEnvelope->event->type->value,
+            ]);
+        } catch (\Doctrine\DBAL\Exception\UniqueConstraintViolationException $exception) {
+            throw new \RuntimeException(sprintf('Must not happen! Debug projection detected duplicate event %s of type %s', $eventEnvelope->sequenceNumber->value, $eventEnvelope->event->type->value), 1732360282, $exception);
+        }
+        if ($this->saboteur) {
+            ($this->saboteur)($eventEnvelope);
         }
     }
 
@@ -97,13 +101,13 @@ final class DebugEventProjection implements ProjectionInterface
         return $this->state;
     }
 
-    public function sabotageAfterApply(\Exception $exceptionToThrowAfterApply): void
+    public function injectSaboteur(\Closure $saboteur): void
     {
-        $this->exceptionToThrowAfterApply = $exceptionToThrowAfterApply;
+        $this->saboteur = $saboteur;
     }
 
     public function killSaboteur(): void
     {
-        $this->exceptionToThrowAfterApply = null;
+        $this->saboteur = null;
     }
 }
