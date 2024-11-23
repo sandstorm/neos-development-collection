@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepositoryRegistry\Factory\SubscriptionStore;
 
 use DateTimeImmutable;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Result;
 use Doctrine\DBAL\Schema\Column;
@@ -34,7 +35,7 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
 
     public function setup(): void
     {
-        $schemaConfig = $this->dbal->getSchemaManager()->createSchemaConfig();
+        $schemaConfig = $this->dbal->createSchemaManager()->createSchemaConfig();
         assert($schemaConfig !== null);
         $schemaConfig->setDefaultTableOptions([
             'charset' => 'utf8mb4'
@@ -72,7 +73,7 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
                 ->setParameter(
                     'ids',
                     $criteria->ids->toStringArray(),
-                    Connection::PARAM_STR_ARRAY,
+                    ArrayParameterType::STRING,
                 );
         }
         if (!$criteria->status->isEmpty()) {
@@ -80,7 +81,7 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
                 ->setParameter(
                     'status',
                     $criteria->status->toStringArray(),
-                    Connection::PARAM_STR_ARRAY,
+                    ArrayParameterType::STRING,
                 );
         }
         $result = $queryBuilder->executeQuery();
@@ -136,17 +137,10 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
     private static function fromDatabase(array $row): Subscription
     {
         if (isset($row['error_message'])) {
-            assert(is_string($row['error_message']));
-            assert(!isset($row['error_previous_status']) || is_string($row['error_previous_status']));
-            assert(is_string($row['error_trace']));
             $subscriptionError = new SubscriptionError($row['error_message'], SubscriptionStatus::from($row['error_previous_status']), $row['error_trace']);
         } else {
             $subscriptionError = null;
         }
-        assert(is_string($row['id']));
-        assert(is_string($row['status']));
-        assert(is_int($row['position']));
-        assert(is_string($row['last_saved_at']));
         $lastSavedAt = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $row['last_saved_at']);
         assert($lastSavedAt instanceof DateTimeImmutable);
 
