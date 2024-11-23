@@ -8,7 +8,9 @@ use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStatus;
 use Neos\ContentRepository\Core\Subscription\Engine\ProcessedResult;
+use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
 use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatus;
+use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatuses;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepository\TestSuite\Fakes\FakeProjectionFactory;
@@ -92,5 +94,42 @@ final class SubscriptionNewStatusTest extends AbstractSubscriptionEngineTestCase
         $result = $this->subscriptionEngine->boot();
         self::assertNull($result->errors);
         $this->expectOkayStatus('Vendor.Package:NewFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+    }
+
+    /** @test */
+    public function newProjectionsAreFoundViaStatus()
+    {
+        // only setup content graph so that the other projections are NEW, but still found
+        $this->subscriptionEngine->setup(SubscriptionEngineCriteria::create([SubscriptionId::fromString('contentGraph')]));
+
+        $this->fakeProjection->expects(self::once())->method('status')->willReturn(ProjectionStatus::setupRequired('fake needs setup.'));
+
+        $actualStatuses = $this->subscriptionService->subscriptionEngine->subscriptionStatuses();
+
+        $expected = SubscriptionAndProjectionStatuses::fromArray([
+            SubscriptionAndProjectionStatus::create(
+                subscriptionId: SubscriptionId::fromString('contentGraph'),
+                subscriptionStatus: SubscriptionStatus::BOOTING,
+                subscriptionPosition: SequenceNumber::none(),
+                subscriptionError: null,
+                projectionStatus: ProjectionStatus::ok(),
+            ),
+            SubscriptionAndProjectionStatus::create(
+                subscriptionId: SubscriptionId::fromString('Vendor.Package:FakeProjection'),
+                subscriptionStatus: SubscriptionStatus::NEW,
+                subscriptionPosition: SequenceNumber::none(),
+                subscriptionError: null,
+                projectionStatus: ProjectionStatus::setupRequired('fake needs setup.'),
+            ),
+            SubscriptionAndProjectionStatus::create(
+                subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
+                subscriptionStatus: SubscriptionStatus::NEW,
+                subscriptionPosition: SequenceNumber::none(),
+                subscriptionError: null,
+                projectionStatus: ProjectionStatus::setupRequired('Requires 1 SQL statements'),
+            ),
+        ]);
+
+        self::assertEquals($expected, $actualStatuses);
     }
 }

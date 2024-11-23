@@ -21,6 +21,11 @@ final readonly class SubscriptionAndProjectionStatuses implements \IteratorAggre
         $this->statuses = $statuses;
     }
 
+    public static function createEmpty(): self
+    {
+        return new self();
+    }
+
     /**
      * @param array<SubscriptionAndProjectionStatus> $statuses
      */

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Subscription\Engine;
 
+use Doctrine\DBAL\Exception\TableNotFoundException;
 use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\Subscription\Exception\CatchUpFailed;
@@ -99,7 +100,13 @@ final class SubscriptionEngine
     public function subscriptionStatuses(SubscriptionCriteria|null $criteria = null): SubscriptionAndProjectionStatuses
     {
         $statuses = [];
-        foreach ($this->subscriptionStore->findByCriteria($criteria ?? SubscriptionCriteria::noConstraints()) as $subscription) {
+        try {
+            $subscriptions = $this->subscriptionStore->findByCriteria($criteria ?? SubscriptionCriteria::noConstraints());
+        } catch (TableNotFoundException) {
+            // the schema is not setup - thus there are no subscribers
+            return SubscriptionAndProjectionStatuses::createEmpty();
+        }
+        foreach ($subscriptions as $subscription) {
             $subscriber = $this->subscribers->contain($subscription->id) ? $this->subscribers->get($subscription->id) : null;
             $statuses[] = SubscriptionAndProjectionStatus::create(
                 subscriptionId: $subscription->id,
