@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Service;
 
+use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\WorkspaceEventStreamName;
@@ -22,7 +23,33 @@ use Neos\EventStore\Model\EventStream\EventStreamFilter;
 use Neos\EventStore\Model\EventStream\VirtualStreamName;
 
 /**
- * API to set up and manage a content repository
+ * Set up and manage a content repository
+ *
+ * Initialisation / Tear down
+ * --------------------------
+ * The method {@see setUp} sets up the content repository like event store and projection database tables.
+ * It is non-destructive.
+ *
+ * Resetting a content repository with {@see prune} method will purge the event stream and reset all projection states.
+ *
+ * Staus information
+ * -----------------
+ * The status of the content repository e.g. if a setup is required or if all subscriptions are active and their position
+ * can be examined with two methods:
+ *
+ * The event store status is available via {@see eventStoreStatus}, while the subscription status are returned
+ * via {@see subscriptionStatuses}. Further documentation in {@see SubscriptionStatuses}.
+ *
+ * Replay / Catchup of projections
+ * -------------------------------
+ * The methods {@see replayProjection}, {@see replayAllProjections} and {@see catchupProjection}
+ * can be leveraged to interact with the projection catchup. In the happy path no interaction is necessary,
+ * as {@see ContentRepository::handle()} triggers the projections after applying the events.
+ *
+ * For initialising on a new database - which contains events already - a replay will make sure that the projections
+ * are emptied and reapply the events.
+ *
+ * The explicit catchup of a projection is only required when adding new projections after installation, of after fixing a projection error.
  *
  * @api
  */
@@ -102,6 +129,8 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
      */
     public function catchupProjection(SubscriptionId $subscriptionId, \Closure|null $progressCallback = null): Error|null
     {
+        // todo if a projection is in error state and will be explicit caught up here we might as well attempt that without saying the user should setup?
+        // also setup then can avoid doing the repairing!
         $bootResult = $this->subscriptionEngine->boot(SubscriptionEngineCriteria::create([$subscriptionId]), progressCallback: $progressCallback);
         if ($bootResult->errors !== null) {
             return self::createErrorForReason('catchup', $bootResult->errors);
