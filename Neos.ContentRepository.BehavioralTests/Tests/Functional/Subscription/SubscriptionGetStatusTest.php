@@ -25,7 +25,7 @@ final class SubscriptionGetStatusTest extends AbstractSubscriptionEngineTestCase
             keepSchema: false
         );
 
-        $actualStatuses = $this->subscriptionService->subscriptionEngine->subscriptionStatuses();
+        $actualStatuses = $this->subscriptionEngine->subscriptionStatuses();
         self::assertTrue($actualStatuses->isEmpty());
 
         self::assertNull(
@@ -48,7 +48,7 @@ final class SubscriptionGetStatusTest extends AbstractSubscriptionEngineTestCase
 
         $this->fakeProjection->expects(self::once())->method('status')->willReturn(ProjectionStatus::setupRequired('fake needs setup.'));
 
-        $actualStatuses = $this->subscriptionService->subscriptionEngine->subscriptionStatuses();
+        $actualStatuses = $this->subscriptionEngine->subscriptionStatuses();
 
         $expected = SubscriptionAndProjectionStatuses::fromArray([
             SubscriptionAndProjectionStatus::create(

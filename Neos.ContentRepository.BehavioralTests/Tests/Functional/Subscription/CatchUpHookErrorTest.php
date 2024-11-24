@@ -18,11 +18,11 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
     /** @test */
     public function error_onBeforeEvent_projectionIsNotRun()
     {
-        $this->subscriptionService->setupEventStore();
+        $this->eventStore->setup();
         $this->fakeProjection->expects(self::once())->method('setUp');
         $this->fakeProjection->expects(self::once())->method('apply');
-        $this->subscriptionService->subscriptionEngine->setup();
-        $this->subscriptionService->subscriptionEngine->boot();
+        $this->subscriptionEngine->setup();
+        $this->subscriptionEngine->boot();
 
         // commit an event
         $this->commitExampleContentStreamEvent();
@@ -66,11 +66,11 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
     /** @test */
     public function error_onAfterEvent_projectionIsRolledBack()
     {
-        $this->subscriptionService->setupEventStore();
+        $this->eventStore->setup();
         $this->fakeProjection->expects(self::once())->method('setUp');
         $this->fakeProjection->expects(self::once())->method('apply');
-        $this->subscriptionService->subscriptionEngine->setup();
-        $this->subscriptionService->subscriptionEngine->boot();
+        $this->subscriptionEngine->setup();
+        $this->subscriptionEngine->boot();
 
         // commit an event
         $this->commitExampleContentStreamEvent();
@@ -112,11 +112,11 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
     /** @test */
     public function error_onBeforeCatchUp_abortsCatchup()
     {
-        $this->subscriptionService->setupEventStore();
+        $this->eventStore->setup();
         $this->fakeProjection->expects(self::once())->method('setUp');
         $this->fakeProjection->expects(self::never())->method('apply');
-        $this->subscriptionService->subscriptionEngine->setup();
-        $this->subscriptionService->subscriptionEngine->boot();
+        $this->subscriptionEngine->setup();
+        $this->subscriptionEngine->boot();
 
         $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
 
@@ -158,11 +158,11 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
     /** @test */
     public function error_onAfterCatchUp_abortsCatchupAndRollBack()
     {
-        $this->subscriptionService->setupEventStore();
+        $this->eventStore->setup();
         $this->fakeProjection->expects(self::once())->method('setUp');
         $this->fakeProjection->expects(self::once())->method('apply');
-        $this->subscriptionService->subscriptionEngine->setup();
-        $this->subscriptionService->subscriptionEngine->boot();
+        $this->subscriptionEngine->setup();
+        $this->subscriptionEngine->boot();
 
         $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
 

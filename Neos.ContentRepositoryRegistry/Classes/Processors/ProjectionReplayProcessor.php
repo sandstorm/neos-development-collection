@@ -3,22 +3,22 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepositoryRegistry\Processors;
 
-use Neos\ContentRepository\Core\Service\SubscriptionService;
+use Neos\ContentRepository\Core\Service\ContentRepositoryMaintainer;
 use Neos\ContentRepository\Export\ProcessingContext;
 use Neos\ContentRepository\Export\ProcessorInterface;
 
 /**
  * @internal
  */
-final readonly class ProjectionResetProcessor implements ProcessorInterface
+final readonly class ProjectionReplayProcessor implements ProcessorInterface
 {
     public function __construct(
-        private SubscriptionService $subscriptionService,
+        private ContentRepositoryMaintainer $contentRepositoryMaintainer,
     ) {
     }
 
     public function run(ProcessingContext $context): void
     {
-        $this->subscriptionService->subscriptionEngine->reset();
+        $this->contentRepositoryMaintainer->replayAllProjections();
     }
 }

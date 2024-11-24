@@ -32,10 +32,10 @@ final class SubscriptionNewStatusTest extends AbstractSubscriptionEngineTestCase
         $this->fakeProjection->expects(self::exactly(2))->method('setUp');
         $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
 
-        $this->subscriptionService->setupEventStore();
-        $this->subscriptionService->subscriptionEngine->setup();
+        $this->eventStore->setup();
+        $this->subscriptionEngine->setup();
 
-        $result = $this->subscriptionService->subscriptionEngine->boot();
+        $result = $this->subscriptionEngine->boot();
         self::assertEquals(ProcessedResult::success(0), $result);
 
         self::assertNull($this->subscriptionStatus('Vendor.Package:NewFakeProjection'));

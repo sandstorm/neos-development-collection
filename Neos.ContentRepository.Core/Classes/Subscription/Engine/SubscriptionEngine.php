@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Subscription\Engine;
 
 use Doctrine\DBAL\Exception\TableNotFoundException;
+use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
+use Neos\ContentRepository\Core\Service\ContentRepositoryMaintainer;
 use Neos\ContentRepository\Core\Subscription\Exception\CatchUpFailed;
 use Neos\ContentRepository\Core\Subscription\Exception\SubscriptionEngineAlreadyProcessingException;
 use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatus;
@@ -25,7 +27,7 @@ use Neos\ContentRepository\Core\Subscription\Subscription;
 use Neos\ContentRepository\Core\Subscription\Subscriptions;
 
 /**
- * @api
+ * @internal public API is the {@see ContentRepository::handle()} and the {@see ContentRepositoryMaintainer}
  */
 final class SubscriptionEngine
 {

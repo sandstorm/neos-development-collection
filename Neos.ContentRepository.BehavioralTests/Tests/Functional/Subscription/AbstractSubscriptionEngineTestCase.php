@@ -15,8 +15,6 @@ use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStatus;
-use Neos\ContentRepository\Core\Service\SubscriptionService;
-use Neos\ContentRepository\Core\Service\SubscriptionServiceFactory;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
@@ -40,8 +38,6 @@ use PHPUnit\Framework\TestCase;
 abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't use Flows functional test case as it would reset the database afterwards
 {
     protected ContentRepository $contentRepository;
-
-    protected SubscriptionService $subscriptionService;
 
     protected SubscriptionEngine $subscriptionEngine;
 
@@ -102,8 +98,6 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
             $contentRepositoryId
         );
 
-        $this->subscriptionService = $this->getObject(ContentRepositoryRegistry::class)->buildService($contentRepositoryId, new SubscriptionServiceFactory());
-
         $subscriptionEngineAndEventStoreAccessor = new class implements ContentRepositoryServiceFactoryInterface {
             public EventStoreInterface|null $eventStore;
             public SubscriptionEngine|null $subscriptionEngine;
@@ -142,7 +136,7 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
 
     final protected function subscriptionStatus(string $subscriptionId): ?SubscriptionAndProjectionStatus
     {
-        return $this->subscriptionService->subscriptionEngine->subscriptionStatuses(SubscriptionCriteria::create(ids: [SubscriptionId::fromString($subscriptionId)]))->first();
+        return $this->subscriptionEngine->subscriptionStatuses(SubscriptionCriteria::create(ids: [SubscriptionId::fromString($subscriptionId)]))->first();
     }
 
     final protected function commitExampleContentStreamEvent(): void

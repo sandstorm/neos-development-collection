@@ -51,4 +51,17 @@ final readonly class SubscriptionAndProjectionStatuses implements \IteratorAggre
     {
         return $this->statuses === [];
     }
+
+    public function isOk(): bool
+    {
+        foreach ($this->statuses as $status) {
+            if ($status->subscriptionStatus === SubscriptionStatus::ERROR) {
+                return false;
+            }
+            if ($status->projectionStatus?->type !== ProjectionStatusType::OK) {
+                return false;
+            }
+        }
+        return true;
+    }
 }

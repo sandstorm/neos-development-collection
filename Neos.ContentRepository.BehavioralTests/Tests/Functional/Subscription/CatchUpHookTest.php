@@ -13,11 +13,11 @@ final class CatchUpHookTest extends AbstractSubscriptionEngineTestCase
     /** @test */
     public function catchUpHooksAreExecutedAndCanAccessTheCorrectProjectionsState()
     {
-        $this->subscriptionService->setupEventStore();
+        $this->eventStore->setup();
         $this->fakeProjection->expects(self::once())->method('setUp');
         $this->fakeProjection->expects(self::once())->method('apply');
-        $this->subscriptionService->subscriptionEngine->setup();
-        $this->subscriptionService->subscriptionEngine->boot();
+        $this->subscriptionEngine->setup();
+        $this->subscriptionEngine->boot();
 
         // commit an event
         $this->commitExampleContentStreamEvent();

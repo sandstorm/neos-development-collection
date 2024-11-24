@@ -18,9 +18,9 @@ final class SubscriptionResetTest extends AbstractSubscriptionEngineTestCase
         $this->fakeProjection->expects(self::once())->method('setUp');
         $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
 
-        $this->subscriptionService->setupEventStore();
+        $this->eventStore->setup();
 
-        $result = $this->subscriptionService->subscriptionEngine->setup();
+        $result = $this->subscriptionEngine->setup();
         self::assertNull($result->errors);
         self::assertEmpty(
             $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()

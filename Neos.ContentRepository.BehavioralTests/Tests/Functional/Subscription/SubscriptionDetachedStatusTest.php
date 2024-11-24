@@ -28,10 +28,10 @@ final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTes
         $this->fakeProjection->expects(self::once())->method('setUp');
         $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
 
-        $this->subscriptionService->setupEventStore();
-        $this->subscriptionService->subscriptionEngine->setup();
+        $this->eventStore->setup();
+        $this->subscriptionEngine->setup();
 
-        $result = $this->subscriptionService->subscriptionEngine->boot();
+        $result = $this->subscriptionEngine->boot();
         self::assertEquals(ProcessedResult::success(0), $result);
 
         $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
@@ -96,12 +96,12 @@ final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTes
         $this->fakeProjection->expects(self::once())->method('apply');
         $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
 
-        $this->subscriptionService->setupEventStore();
-        $this->subscriptionService->subscriptionEngine->setup();
+        $this->eventStore->setup();
+        $this->subscriptionEngine->setup();
 
         $this->commitExampleContentStreamEvent();
 
-        $result = $this->subscriptionService->subscriptionEngine->boot();
+        $result = $this->subscriptionEngine->boot();
         self::assertEquals(ProcessedResult::success(1), $result);
 
         $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
