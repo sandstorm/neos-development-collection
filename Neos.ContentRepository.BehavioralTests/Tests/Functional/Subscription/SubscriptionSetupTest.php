@@ -89,6 +89,44 @@ final class SubscriptionSetupTest extends AbstractSubscriptionEngineTestCase
     }
 
     /** @test */
+    public function setupIsInvokedForBootingSubscribers()
+    {
+        $this->fakeProjection->expects(self::exactly(2))->method('setUp');
+        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
+
+        // hard reset, so that the tests actually need sql migrations
+        $this->secondFakeProjection->dropTables();
+
+        $this->subscriptionService->setupEventStore();
+
+        // initial setup for FakeProjection
+
+        $result = $this->subscriptionService->subscriptionEngine->setup();
+        self::assertNull($result->errors);
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::none());
+
+        // then an update is fetched, the status changes:
+
+        $this->secondFakeProjection->schemaNeedsAdditionalColumn('column_after_update');
+
+        self::assertEquals(
+            SubscriptionAndProjectionStatus::create(
+                subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
+                subscriptionStatus: SubscriptionStatus::BOOTING,
+                subscriptionPosition: SequenceNumber::none(),
+                subscriptionError: null,
+                projectionStatus: ProjectionStatus::setupRequired('Requires 1 SQL statements')
+            ),
+            $this->subscriptionStatus('Vendor.Package:SecondFakeProjection')
+        );
+
+        $result = $this->subscriptionService->subscriptionEngine->setup();
+        self::assertNull($result->errors);
+
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::none());
+    }
+
+    /** @test */
     public function setupIsInvokedForPreviouslyActiveSubscribers()
     {
         // Usecase: Setup a content repository and then when the subscribers are active, update to a new patch which requires a setup

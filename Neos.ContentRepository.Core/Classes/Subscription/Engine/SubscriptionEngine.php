@@ -50,9 +50,13 @@ final class SubscriptionEngine
 
         $this->subscriptionStore->setup();
         $this->discoverNewSubscriptions();
-        $subscriptions = $this->subscriptionStore->findByCriteria(SubscriptionCriteria::forEngineCriteriaAndStatus($criteria, SubscriptionStatus::NEW));
+        $subscriptions = $this->subscriptionStore->findByCriteria(SubscriptionCriteria::forEngineCriteriaAndStatus($criteria, SubscriptionStatusFilter::fromArray([
+            SubscriptionStatus::NEW,
+            SubscriptionStatus::BOOTING,
+            SubscriptionStatus::ACTIVE,
+        ])));
         if ($subscriptions->isEmpty()) {
-            $this->logger?->info('Subscription Engine: No subscriptions to setup, finish setup.');
+            $this->logger?->info('Subscription Engine: No subscriptions found.'); // todo not happy? Because there must be at least the content graph?!!
             return Result::success();
         }
         $errors = [];
@@ -170,16 +174,22 @@ final class SubscriptionEngine
         try {
             $subscriber->projection->setUp();
         } catch (\Throwable $e) {
+            // todo wrap in savepoint to ensure error do not mess up the projection?
             $this->logger?->error(sprintf('Subscription Engine: Subscriber "%s" for "%s" has an error in the setup method: %s', $subscriber::class, $subscription->id->value, $e->getMessage()));
             $subscription->fail($e);
             $this->subscriptionManager->update($subscription);
             return Error::fromSubscriptionIdAndException($subscription->id, $e);
         }
+
+        if ($subscription->status === SubscriptionStatus::ACTIVE) {
+            $this->logger?->debug(sprintf('Subscription Engine: Active subscriber "%s" for "%s" has been re-setup.', $subscriber::class, $subscription->id->value));
+            return null;
+        }
+        $this->logger?->debug(sprintf('Subscription Engine: Subscriber "%s" for "%s" has been setup, set to %s from previous %s.', $subscriber::class, $subscription->id->value, SubscriptionStatus::BOOTING->name, $subscription->status->name));
         $subscription->set(
             status: SubscriptionStatus::BOOTING
         );
         $this->subscriptionManager->update($subscription);
-        $this->logger?->debug(sprintf('Subscription Engine: For Subscriber "%s" for "%s" the setup method has been executed, set to %s.', $subscriber::class, $subscription->id->value, $subscription->status->value));
         return null;
     }
 

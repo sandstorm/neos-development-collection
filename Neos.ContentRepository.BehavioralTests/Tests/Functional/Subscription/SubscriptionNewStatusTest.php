@@ -27,9 +27,9 @@ final class SubscriptionNewStatusTest extends AbstractSubscriptionEngineTestCase
     }
 
     /** @test */
-    public function newProjectionIsFoundConfigurationIsAdded()
+    public function newProjectionIsFoundWhenConfigurationIsAdded()
     {
-        $this->fakeProjection->expects(self::once())->method('setUp');
+        $this->fakeProjection->expects(self::exactly(2))->method('setUp');
         $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
 
         $this->subscriptionService->setupEventStore();
