@@ -62,44 +62,85 @@ final class CrCommandController extends CommandController
         }
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
         $contentRepositoryMaintainer = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new ContentRepositoryMaintainerFactory());
-
         $eventStoreStatus = $contentRepositoryMaintainer->eventStoreStatus();
+        $hasErrors = false;
+        $setupRequired = false;
+        $bootingRequired = false;
         $this->output('Event Store: ');
         $this->outputLine(match ($eventStoreStatus->type) {
             StatusType::OK => '<success>OK</success>',
             StatusType::SETUP_REQUIRED => '<comment>Setup required!</comment>',
             StatusType::ERROR => '<error>ERROR</error>',
         });
+        $hasErrors |= $eventStoreStatus->type === StatusType::ERROR;
         if ($verbose && $eventStoreStatus->details !== '') {
             $this->outputFormatted($eventStoreStatus->details, [], 2);
         }
         $this->outputLine();
-
+        $this->outputLine('Subscriptions:');
         $subscriptionStatuses = $contentRepositoryMaintainer->subscriptionStatuses();
-        foreach ($subscriptionStatuses as $subscriptionStatus) {
-            if ($subscriptionStatus instanceof DetachedSubscriptionStatus) {
-                $this->output('<comment>Subscriber "<b>%s</b>" %s detached.</comment>', [$subscriptionStatus->subscriptionId->value, $subscriptionStatus->subscriptionStatus === SubscriptionStatus::DETACHED ? 'is' : 'will be']);
+        if ($subscriptionStatuses->isEmpty()) {
+            $this->outputLine('<error>There are no registered subscriptions yet, please run <em>./flow cr:setup</em></error>');
+            $this->quit(1);
+        }
+        foreach ($subscriptionStatuses as $status) {
+            if ($status instanceof DetachedSubscriptionStatus) {
+                $this->outputLine('  <b>%s</b>:', [$status->subscriptionId->value]);
+                $this->output('    Subscription: ');
+                $this->output('%s <comment>DETACHED</comment>', [$status->subscriptionId->value, $status->subscriptionStatus === SubscriptionStatus::DETACHED ? 'is' : 'will be']);
+                $this->outputLine(' at position <b>%d</b>', [$status->subscriptionPosition->value]);
             }
-            if ($subscriptionStatus instanceof ProjectionSubscriptionStatus) {
-                // todo reimplement 40e8d35e09ee690406c6a9cfc823c775d4ee3b51
-                $this->output('Projection "<b>%s</b>": ', [$subscriptionStatus->subscriptionId->value]);
-                $projectionStatus = $subscriptionStatus->setupStatus;
-
-                $this->outputLine(match ($projectionStatus->type) {
+            if ($status instanceof ProjectionSubscriptionStatus) {
+                $this->outputLine('  <b>%s</b>:', [$status->subscriptionId->value]);
+                $this->output('    Projection: ');
+                $this->output(match ($status->subscriptionStatus) {
+                    SubscriptionStatus::NEW => '<comment>NEW</comment>',
+                    SubscriptionStatus::BOOTING => '<comment>BOOTING</comment>',
+                    SubscriptionStatus::ACTIVE => '<success>ACTIVE</success>',
+                    SubscriptionStatus::DETACHED => '<comment>DETACHED</comment>',
+                    SubscriptionStatus::ERROR => '<error>ERROR</error>',
+                });
+                $this->outputLine(' at position <b>%d</b>', [$status->subscriptionPosition->value]);
+                $hasErrors |= $status->subscriptionStatus === SubscriptionStatus::ERROR;
+                $bootingRequired |= $status->subscriptionStatus === SubscriptionStatus::BOOTING;
+                // detached can be reattached via setup:
+                $setupRequired |= $status->subscriptionStatus === SubscriptionStatus::DETACHED;
+                if ($verbose && $status->subscriptionError !== null) {
+                    $lines = explode(chr(10), $status->subscriptionError->errorMessage ?: '<comment>No details available.</comment>');
+                    foreach ($lines as $line) {
+                        $this->outputLine('<error>      %s</error>', [$line]);
+                    }
+                }
+                $this->output('    Setup: ');
+                $this->outputLine(match ($status->setupStatus->type) {
                     ProjectionSetupStatusType::OK => '<success>OK</success>',
-                    ProjectionSetupStatusType::SETUP_REQUIRED => '<comment>Setup required!</comment>',
+                    ProjectionSetupStatusType::SETUP_REQUIRED => '<comment>SETUP REQUIRED</comment>',
                     ProjectionSetupStatusType::ERROR => '<error>ERROR</error>',
                 });
-                if ($verbose && ($projectionStatus->type !== ProjectionSetupStatusType::OK || $projectionStatus->details)) {
-                    $lines = explode(chr(10), $projectionStatus->details ?: '<comment>No details available.</comment>');
+                $hasErrors |= $status->setupStatus->type === ProjectionSetupStatusType::ERROR;
+                $setupRequired |= $status->setupStatus->type === ProjectionSetupStatusType::SETUP_REQUIRED;
+                if ($verbose && ($status->setupStatus->type !== ProjectionSetupStatusType::OK || $status->setupStatus->details)) {
+                    $lines = explode(chr(10), $status->setupStatus->details ?: '<comment>No details available.</comment>');
                     foreach ($lines as $line) {
-                        $this->outputLine('  ' . $line);
+                        $this->outputLine('      ' . $line);
                     }
                     $this->outputLine();
                 }
             }
         }
-        if ($eventStoreStatus->type !== StatusType::OK || !$subscriptionStatuses->isOk()) {
+        if ($verbose) {
+            $this->outputLine();
+            if ($setupRequired) {
+                $this->outputLine('<comment>Setup required, please run <em>./flow cr:setup</em></comment>');
+            }
+            if ($bootingRequired) {
+                $this->outputLine('<comment>Catchup needed for projections, please run <em>./flow cr:projectioncatchup [projection-name]</em></comment>');
+            }
+            if ($hasErrors) {
+                $this->outputLine('<error>Some projections are not okay</error>');
+            }
+        }
+        if ($hasErrors) {
             $this->quit(1);
         }
     }

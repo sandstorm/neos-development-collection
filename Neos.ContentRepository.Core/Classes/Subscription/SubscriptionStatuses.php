@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Subscription;
 
-use Neos\ContentRepository\Core\Projection\ProjectionSetupStatusType;
-
 /**
  * A collection of the states of the subscribers.
  *
@@ -61,21 +59,5 @@ final readonly class SubscriptionStatuses implements \IteratorAggregate
     public function isEmpty(): bool
     {
         return $this->statuses === [];
-    }
-
-    public function isOk(): bool
-    {
-        foreach ($this->statuses as $status) {
-            // ignores DetachedSubscriptionStatus
-            if ($status instanceof ProjectionSubscriptionStatus) {
-                if ($status->subscriptionStatus === SubscriptionStatus::ERROR) {
-                    return false;
-                }
-                if ($status->setupStatus->type !== ProjectionSetupStatusType::OK) {
-                    return false;
-                }
-            }
-        }
-        return true;
     }
 }
