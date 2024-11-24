@@ -33,6 +33,11 @@ final class DebugEventProjection implements ProjectionInterface
 
     private \Closure|null $saboteur = null;
 
+    /**
+     * @var array<Column>
+     */
+    private array $additionalColumnsForSchema = [];
+
     public function __construct(
         private string $tableNamePrefix,
         private Connection $dbal
@@ -66,7 +71,8 @@ final class DebugEventProjection implements ProjectionInterface
         $table = new Table($this->tableNamePrefix, [
             (new Column('sequencenumber', Type::getType(Types::INTEGER))),
             (new Column('stream', Type::getType(Types::STRING))),
-            (new Column('type', Type::getType(Types::STRING)))
+            (new Column('type', Type::getType(Types::STRING))),
+            ...$this->additionalColumnsForSchema
         ]);
 
         $table->setPrimaryKey([
@@ -81,7 +87,7 @@ final class DebugEventProjection implements ProjectionInterface
 
     public function resetState(): void
     {
-        $this->dbal->exec('TRUNCATE ' . $this->tableNamePrefix);
+        $this->dbal->executeStatement('TRUNCATE ' . $this->tableNamePrefix);
     }
 
     public function apply(EventInterface $event, EventEnvelope $eventEnvelope): void
@@ -113,5 +119,15 @@ final class DebugEventProjection implements ProjectionInterface
     public function killSaboteur(): void
     {
         $this->saboteur = null;
+    }
+
+    public function schemaNeedsAdditionalColumn(string $name): void
+    {
+        $this->additionalColumnsForSchema[$name] = (new Column($name, Type::getType(Types::STRING)))->setNotnull(false);
+    }
+
+    public function dropTables(): void
+    {
+        $this->dbal->executeStatement('DROP TABLE ' . $this->tableNamePrefix);
     }
 }

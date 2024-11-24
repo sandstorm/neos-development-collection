@@ -81,4 +81,37 @@ final class SubscriptionActiveStatusTest extends AbstractSubscriptionEngineTestC
         $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
         $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
     }
+
+    /** @test */
+    public function catchupWithNoEventsKeepsThePreviousPositionOfTheSubscribers()
+    {
+        $this->subscriptionService->setupEventStore();
+
+        $this->fakeProjection->expects(self::once())->method('setUp');
+        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
+        $this->subscriptionService->subscriptionEngine->setup();
+
+        $result = $this->subscriptionService->subscriptionEngine->boot();
+        self::assertEquals(ProcessedResult::success(0), $result);
+        $this->expectOkayStatus('contentGraph', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+
+        // commit an event
+        $this->commitExampleContentStreamEvent();
+
+        // catchup active does apply the commited event
+        $this->fakeProjection->expects(self::once())->method('apply')->with(self::isInstanceOf(ContentStreamWasCreated::class));
+        $result = $this->subscriptionService->subscriptionEngine->catchUpActive();
+        self::assertEquals(ProcessedResult::success(1), $result);
+
+        $this->expectOkayStatus('contentGraph', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
+
+        // empty catchup must keep the sequence numbers of the projections okay
+        $result = $this->subscriptionService->subscriptionEngine->catchUpActive();
+        self::assertEquals(ProcessedResult::success(0), $result);
+
+        $this->expectOkayStatus('contentGraph', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
+        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
+    }
 }
