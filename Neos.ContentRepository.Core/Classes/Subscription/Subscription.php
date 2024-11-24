@@ -47,10 +47,8 @@ final class Subscription
         $this->position = $position ?? $this->position;
     }
 
-    public function reset(): void
+    public function unsetError(): void
     {
-        $this->status = SubscriptionStatus::BOOTING;
-        $this->position = SequenceNumber::none();
         $this->error = null;
     }
 

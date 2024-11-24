@@ -55,6 +55,7 @@ final class SubscriptionEngine
             SubscriptionStatus::BOOTING,
             SubscriptionStatus::ACTIVE,
             SubscriptionStatus::DETACHED,
+            SubscriptionStatus::ERROR,
         ])));
         if ($subscriptions->isEmpty()) {
             $this->logger?->info('Subscription Engine: No subscriptions found.'); // todo not happy? Because there must be at least the content graph?!!
@@ -196,6 +197,15 @@ final class SubscriptionEngine
             $this->logger?->debug(sprintf('Subscription Engine: Active subscriber "%s" for "%s" has been re-setup.', $subscriber::class, $subscription->id->value));
             return null;
         }
+        if ($subscription->status === SubscriptionStatus::ERROR) {
+            $this->logger?->debug(sprintf('Subscription Engine: Failed subscriber "%s" for "%s" has been re-setup, set to %s. Previous error: %s.', $subscriber::class, $subscription->id->value, SubscriptionStatus::BOOTING->name, $subscription->error?->errorMessage));
+            $subscription->set(
+                status: SubscriptionStatus::BOOTING
+            );
+            $subscription->unsetError();
+            $this->subscriptionManager->update($subscription);
+            return null;
+        }
         $this->logger?->debug(sprintf('Subscription Engine: Subscriber "%s" for "%s" has been setup, set to %s from previous %s.', $subscriber::class, $subscription->id->value, SubscriptionStatus::BOOTING->name, $subscription->status->name));
         $subscription->set(
             status: SubscriptionStatus::BOOTING
@@ -216,7 +226,11 @@ final class SubscriptionEngine
             $this->logger?->error(sprintf('Subscription Engine: Subscriber "%s" for "%s" has an error in the resetState method: %s', $subscriber::class, $subscription->id->value, $e->getMessage()));
             return Error::fromSubscriptionIdAndException($subscription->id, $e);
         }
-        $subscription->reset();
+        $subscription->set(
+            status: SubscriptionStatus::BOOTING,
+            position: SequenceNumber::none()
+        );
+        $subscription->unsetError();
         $this->subscriptionManager->update($subscription);
         $this->logger?->debug(sprintf('Subscription Engine: For Subscriber "%s" for "%s" the resetState method has been executed.', $subscriber::class, $subscription->id->value));
         return null;
