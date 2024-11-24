@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Service;
 
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
+use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
+use Neos\ContentRepository\Core\Feature\WorkspaceEventStreamName;
 use Neos\ContentRepository\Core\Subscription\Engine\Errors;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
@@ -12,7 +14,11 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionStatuses;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\Error\Messages\Error;
 use Neos\EventStore\EventStoreInterface;
+use Neos\EventStore\Model\Event\EventType;
+use Neos\EventStore\Model\Event\EventTypes;
+use Neos\EventStore\Model\Event\StreamName;
 use Neos\EventStore\Model\EventStore\Status as EventStoreStatus;
+use Neos\EventStore\Model\EventStream\EventStreamFilter;
 use Neos\EventStore\Model\EventStream\VirtualStreamName;
 
 /**
@@ -27,8 +33,7 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
      */
     public function __construct(
         private EventStoreInterface $eventStore,
-        private SubscriptionEngine $subscriptionEngine,
-        private ContentStreamPruner $contentStreamPruner
+        private SubscriptionEngine $subscriptionEngine
     ) {
     }
 
@@ -119,8 +124,13 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
      */
     public function prune(): Error|null
     {
-        // todo move pruneAllWorkspacesAndContentStreamsFromEventStream here.
-        $this->contentStreamPruner->pruneAllWorkspacesAndContentStreamsFromEventStream();
+        // prune all streams:
+        foreach ($this->findAllContentStreamStreamNames() as $contentStreamStreamName) {
+            $this->eventStore->deleteStream($contentStreamStreamName);
+        }
+        foreach ($this->findAllWorkspaceStreamNames() as $workspaceStreamName) {
+            $this->eventStore->deleteStream($workspaceStreamName);
+        }
         $resetResult = $this->subscriptionEngine->reset();
         if ($resetResult->errors !== null) {
             return self::createErrorForReason('reset', $resetResult->errors);
@@ -142,5 +152,49 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
             $message[] = sprintf('    Subscription "%s": %s', $error->subscriptionId->value, $error->message);
         }
         return new Error(join("\n", $message));
+    }
+
+    /**
+     * @return list<StreamName>
+     */
+    private function findAllContentStreamStreamNames(): array
+    {
+        $events = $this->eventStore->load(
+            VirtualStreamName::forCategory(ContentStreamEventStreamName::EVENT_STREAM_NAME_PREFIX),
+            EventStreamFilter::create(
+                EventTypes::create(
+                // we are only interested in the creation events to limit the amount of events to fetch
+                    EventType::fromString('ContentStreamWasCreated'),
+                    EventType::fromString('ContentStreamWasForked')
+                )
+            )
+        );
+        $allStreamNames = [];
+        foreach ($events as $eventEnvelope) {
+            $allStreamNames[] = $eventEnvelope->streamName;
+        }
+        return array_unique($allStreamNames, SORT_REGULAR);
+    }
+
+    /**
+     * @return list<StreamName>
+     */
+    private function findAllWorkspaceStreamNames(): array
+    {
+        $events = $this->eventStore->load(
+            VirtualStreamName::forCategory(WorkspaceEventStreamName::EVENT_STREAM_NAME_PREFIX),
+            EventStreamFilter::create(
+                EventTypes::create(
+                // we are only interested in the creation events to limit the amount of events to fetch
+                    EventType::fromString('RootWorkspaceWasCreated'),
+                    EventType::fromString('WorkspaceWasCreated')
+                )
+            )
+        );
+        $allStreamNames = [];
+        foreach ($events as $eventEnvelope) {
+            $allStreamNames[] = $eventEnvelope->streamName;
+        }
+        return array_unique($allStreamNames, SORT_REGULAR);
     }
 }

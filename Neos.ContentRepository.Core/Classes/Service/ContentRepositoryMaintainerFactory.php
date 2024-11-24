@@ -18,12 +18,7 @@ class ContentRepositoryMaintainerFactory implements ContentRepositoryServiceFact
     ): ContentRepositoryMaintainer {
         return new ContentRepositoryMaintainer(
             $serviceFactoryDependencies->eventStore,
-            $serviceFactoryDependencies->subscriptionEngine,
-            new ContentStreamPruner(
-                $serviceFactoryDependencies->eventStore,
-                $serviceFactoryDependencies->eventNormalizer,
-                $serviceFactoryDependencies->subscriptionEngine,
-            )
+            $serviceFactoryDependencies->subscriptionEngine
         );
     }
 }

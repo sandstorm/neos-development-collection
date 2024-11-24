@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Service;
 
-use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
 use Neos\ContentRepository\Core\Feature\ContentStreamCreation\Event\ContentStreamWasCreated;
@@ -27,7 +26,6 @@ use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Model\Event\EventType;
 use Neos\EventStore\Model\Event\EventTypes;
-use Neos\EventStore\Model\Event\StreamName;
 use Neos\EventStore\Model\EventStream\EventStreamFilter;
 use Neos\EventStore\Model\EventStream\ExpectedVersion;
 use Neos\EventStore\Model\EventStream\VirtualStreamName;
@@ -200,15 +198,6 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
         }
     }
 
-    public function pruneAllWorkspacesAndContentStreamsFromEventStream(): void
-    {
-        foreach ($this->findAllContentStreamStreamNames() as $contentStreamStreamName) {
-            $this->eventStore->deleteStream($contentStreamStreamName);
-        }
-        foreach ($this->findAllWorkspaceStreamNames() as $workspaceStreamName) {
-            $this->eventStore->deleteStream($workspaceStreamName);
-        }
-    }
 
     /**
      * Find all removed content streams that are unused in the event stream
@@ -410,49 +399,5 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
             }
         }
         return $cs;
-    }
-
-    /**
-     * @return list<StreamName>
-     */
-    private function findAllContentStreamStreamNames(): array
-    {
-        $events = $this->eventStore->load(
-            VirtualStreamName::forCategory(ContentStreamEventStreamName::EVENT_STREAM_NAME_PREFIX),
-            EventStreamFilter::create(
-                EventTypes::create(
-                    // we are only interested in the creation events to limit the amount of events to fetch
-                    EventType::fromString('ContentStreamWasCreated'),
-                    EventType::fromString('ContentStreamWasForked')
-                )
-            )
-        );
-        $allStreamNames = [];
-        foreach ($events as $eventEnvelope) {
-            $allStreamNames[] = $eventEnvelope->streamName;
-        }
-        return array_unique($allStreamNames, SORT_REGULAR);
-    }
-
-    /**
-     * @return list<StreamName>
-     */
-    private function findAllWorkspaceStreamNames(): array
-    {
-        $events = $this->eventStore->load(
-            VirtualStreamName::forCategory(WorkspaceEventStreamName::EVENT_STREAM_NAME_PREFIX),
-            EventStreamFilter::create(
-                EventTypes::create(
-                    // we are only interested in the creation events to limit the amount of events to fetch
-                    EventType::fromString('RootWorkspaceWasCreated'),
-                    EventType::fromString('WorkspaceWasCreated')
-                )
-            )
-        );
-        $allStreamNames = [];
-        foreach ($events as $eventEnvelope) {
-            $allStreamNames[] = $eventEnvelope->streamName;
-        }
-        return array_unique($allStreamNames, SORT_REGULAR);
     }
 }
