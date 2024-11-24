@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Subscription;
 
 use Neos\ContentRepository\Core\Projection\ProjectionSetupStatus;
+use Neos\ContentRepository\Core\Subscription\DetachedSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\Engine\ProcessedResult;
 use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
@@ -45,8 +46,15 @@ final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTes
         $this->getObject(ContentRepositoryRegistry::class)->resetFactoryInstance($this->contentRepository->id);
         $this->setupContentRepositoryDependencies($this->contentRepository->id);
 
-        // todo status is stale??, should be DETACHED, and also cr:setup should marke detached projections?!!
-        // $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+        self::assertEquals(
+            DetachedSubscriptionStatus::create(
+                subscriptionId: SubscriptionId::fromString('Vendor.Package:FakeProjection'),
+                // the state is still active as we do not mutate it during the setup call!
+                subscriptionStatus: SubscriptionStatus::ACTIVE,
+                subscriptionPosition: SequenceNumber::none()
+            ),
+            $this->subscriptionStatus('Vendor.Package:FakeProjection')
+        );
 
         $this->fakeProjection->expects(self::never())->method('apply');
         // catchup to mark detached subscribers
@@ -54,15 +62,12 @@ final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTes
         // todo result should reflect that there was an detachment? Throw error in CR?
         self::assertEquals(ProcessedResult::success(1), $result);
 
-        $expectedDetachedState = ProjectionSubscriptionStatus::create(
-            subscriptionId: SubscriptionId::fromString('Vendor.Package:FakeProjection'),
-            subscriptionStatus: SubscriptionStatus::DETACHED,
-            subscriptionPosition: SequenceNumber::none(),
-            subscriptionError: null,
-            setupStatus: null // not calculate-able at this point!
-        );
         self::assertEquals(
-            $expectedDetachedState,
+            $expectedDetachedState = DetachedSubscriptionStatus::create(
+                subscriptionId: SubscriptionId::fromString('Vendor.Package:FakeProjection'),
+                subscriptionStatus: SubscriptionStatus::DETACHED,
+                subscriptionPosition: SequenceNumber::none()
+            ),
             $this->subscriptionStatus('Vendor.Package:FakeProjection')
         );
 
@@ -120,12 +125,10 @@ final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTes
         // todo result should reflect that there was an detachment?
         self::assertNull($result->errors);
 
-        $expectedDetachedState = ProjectionSubscriptionStatus::create(
+        $expectedDetachedState = DetachedSubscriptionStatus::create(
             subscriptionId: SubscriptionId::fromString('Vendor.Package:FakeProjection'),
             subscriptionStatus: SubscriptionStatus::DETACHED,
-            subscriptionPosition: SequenceNumber::fromInteger(1),
-            subscriptionError: null,
-            setupStatus: null // not calculate-able at this point!
+            subscriptionPosition: SequenceNumber::fromInteger(1)
         );
         self::assertEquals(
             $expectedDetachedState,

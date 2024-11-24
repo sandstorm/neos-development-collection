@@ -13,18 +13,21 @@ use Neos\ContentRepository\Core\Projection\ProjectionSetupStatusType;
  * other *SubscriptionStatus value objects will also be hold in this set.
  * Like "ListeningSubscriptionStatus" if a "ListeningSubscriber" is introduced.
  *
+ * In case the subscriber is not available currently - e.g. will be detached, a {@see DetachedSubscriptionStatus} will be returned.
+ * Note that ProjectionSubscriptionStatus with status == Detached can be returned, if the projection is installed again!
+ *
  * @api
- * @implements \IteratorAggregate<ProjectionSubscriptionStatus>
+ * @implements \IteratorAggregate<ProjectionSubscriptionStatus|DetachedSubscriptionStatus>
  */
 final readonly class SubscriptionStatuses implements \IteratorAggregate
 {
     /**
-     * @var array<ProjectionSubscriptionStatus> $statuses
+     * @var array<ProjectionSubscriptionStatus|DetachedSubscriptionStatus> $statuses
      */
     private array $statuses;
 
     private function __construct(
-        ProjectionSubscriptionStatus ...$statuses,
+        ProjectionSubscriptionStatus|DetachedSubscriptionStatus ...$statuses,
     ) {
         $this->statuses = $statuses;
     }
@@ -35,14 +38,14 @@ final readonly class SubscriptionStatuses implements \IteratorAggregate
     }
 
     /**
-     * @param array<ProjectionSubscriptionStatus> $statuses
+     * @param array<ProjectionSubscriptionStatus|DetachedSubscriptionStatus> $statuses
      */
     public static function fromArray(array $statuses): self
     {
         return new self(...$statuses);
     }
 
-    public function first(): ?ProjectionSubscriptionStatus
+    public function first(): ProjectionSubscriptionStatus|DetachedSubscriptionStatus|null
     {
         foreach ($this->statuses as $status) {
             return $status;
@@ -63,11 +66,14 @@ final readonly class SubscriptionStatuses implements \IteratorAggregate
     public function isOk(): bool
     {
         foreach ($this->statuses as $status) {
-            if ($status->subscriptionStatus === SubscriptionStatus::ERROR) {
-                return false;
-            }
-            if ($status->setupStatus?->type !== ProjectionSetupStatusType::OK) {
-                return false;
+            // ignores DetachedSubscriptionStatus
+            if ($status instanceof ProjectionSubscriptionStatus) {
+                if ($status->subscriptionStatus === SubscriptionStatus::ERROR) {
+                    return false;
+                }
+                if ($status->setupStatus->type !== ProjectionSetupStatusType::OK) {
+                    return false;
+                }
             }
         }
         return true;

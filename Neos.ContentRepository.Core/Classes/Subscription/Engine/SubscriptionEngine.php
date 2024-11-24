@@ -9,6 +9,7 @@ use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\Service\ContentRepositoryMaintainer;
+use Neos\ContentRepository\Core\Subscription\DetachedSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\Exception\CatchUpFailed;
 use Neos\ContentRepository\Core\Subscription\Exception\SubscriptionEngineAlreadyProcessingException;
 use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
@@ -115,13 +116,21 @@ final class SubscriptionEngine
             return SubscriptionStatuses::createEmpty();
         }
         foreach ($subscriptions as $subscription) {
-            $subscriber = $this->subscribers->contain($subscription->id) ? $this->subscribers->get($subscription->id) : null;
+            if (!$this->subscribers->contain($subscription->id)) {
+                $statuses[] = DetachedSubscriptionStatus::create(
+                    $subscription->id,
+                    $subscription->status,
+                    $subscription->position
+                );
+                continue;
+            }
+            $subscriber = $this->subscribers->get($subscription->id);
             $statuses[] = ProjectionSubscriptionStatus::create(
                 subscriptionId: $subscription->id,
                 subscriptionStatus: $subscription->status,
                 subscriptionPosition: $subscription->position,
                 subscriptionError: $subscription->error,
-                setupStatus: $subscriber?->projection->setUpStatus(),
+                setupStatus: $subscriber->projection->setUpStatus(),
             );
         }
         return SubscriptionStatuses::fromArray($statuses);

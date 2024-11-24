@@ -6,7 +6,10 @@ namespace Neos\ContentRepositoryRegistry\Command;
 use Neos\ContentRepository\Core\Projection\ProjectionSetupStatusType;
 use Neos\ContentRepository\Core\Service\ContentRepositoryMaintainerFactory;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
+use Neos\ContentRepository\Core\Subscription\DetachedSubscriptionStatus;
+use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\EventStore\Model\EventStore\StatusType;
 use Neos\Flow\Annotations as Flow;
@@ -73,25 +76,27 @@ final class CrCommandController extends CommandController
         $this->outputLine();
 
         $subscriptionStatuses = $contentRepositoryMaintainer->subscriptionStatuses();
-        foreach ($subscriptionStatuses as $projectionSubscriptionStatus) {
-            // todo reimplement 40e8d35e09ee690406c6a9cfc823c775d4ee3b51
-            $this->output('Projection "<b>%s</b>": ', [$projectionSubscriptionStatus->subscriptionId->value]);
-            $projectionStatus = $projectionSubscriptionStatus->setupStatus;
-            if ($projectionStatus === null) {
-                $this->outputLine('<comment>No status available.</comment>'); // todo this means detached?
-                continue;
+        foreach ($subscriptionStatuses as $subscriptionStatus) {
+            if ($subscriptionStatus instanceof DetachedSubscriptionStatus) {
+                $this->output('<comment>Subscriber "<b>%s</b>" %s detached.</comment>', [$subscriptionStatus->subscriptionId->value, $subscriptionStatus->subscriptionStatus === SubscriptionStatus::DETACHED ? 'is' : 'will be']);
             }
-            $this->outputLine(match ($projectionStatus->type) {
-                ProjectionSetupStatusType::OK => '<success>OK</success>',
-                ProjectionSetupStatusType::SETUP_REQUIRED => '<comment>Setup required!</comment>',
-                ProjectionSetupStatusType::ERROR => '<error>ERROR</error>',
-            });
-            if ($verbose && ($projectionStatus->type !== ProjectionSetupStatusType::OK || $projectionStatus->details)) {
-                $lines = explode(chr(10), $projectionStatus->details ?: '<comment>No details available.</comment>');
-                foreach ($lines as $line) {
-                    $this->outputLine('  ' . $line);
+            if ($subscriptionStatus instanceof ProjectionSubscriptionStatus) {
+                // todo reimplement 40e8d35e09ee690406c6a9cfc823c775d4ee3b51
+                $this->output('Projection "<b>%s</b>": ', [$subscriptionStatus->subscriptionId->value]);
+                $projectionStatus = $subscriptionStatus->setupStatus;
+
+                $this->outputLine(match ($projectionStatus->type) {
+                    ProjectionSetupStatusType::OK => '<success>OK</success>',
+                    ProjectionSetupStatusType::SETUP_REQUIRED => '<comment>Setup required!</comment>',
+                    ProjectionSetupStatusType::ERROR => '<error>ERROR</error>',
+                });
+                if ($verbose && ($projectionStatus->type !== ProjectionSetupStatusType::OK || $projectionStatus->details)) {
+                    $lines = explode(chr(10), $projectionStatus->details ?: '<comment>No details available.</comment>');
+                    foreach ($lines as $line) {
+                        $this->outputLine('  ' . $line);
+                    }
+                    $this->outputLine();
                 }
-                $this->outputLine();
             }
         }
         if ($eventStoreStatus->type !== StatusType::OK || !$subscriptionStatuses->isOk()) {

@@ -17,6 +17,7 @@ use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionSetupStatus;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
+use Neos\ContentRepository\Core\Subscription\DetachedSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionCriteria;
 use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
@@ -134,7 +135,7 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
         $connection->prepare('SET FOREIGN_KEY_CHECKS = 1;')->executeStatement();
     }
 
-    final protected function subscriptionStatus(string $subscriptionId): ?ProjectionSubscriptionStatus
+    final protected function subscriptionStatus(string $subscriptionId): ProjectionSubscriptionStatus|DetachedSubscriptionStatus|null
     {
         return $this->subscriptionEngine->subscriptionStatuses(SubscriptionCriteria::create(ids: [SubscriptionId::fromString($subscriptionId)]))->first();
     }

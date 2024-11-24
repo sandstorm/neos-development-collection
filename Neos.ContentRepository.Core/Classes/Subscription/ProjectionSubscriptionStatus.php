@@ -17,7 +17,7 @@ final readonly class ProjectionSubscriptionStatus
         public SubscriptionStatus $subscriptionStatus,
         public SequenceNumber $subscriptionPosition,
         public SubscriptionError|null $subscriptionError,
-        public ProjectionSetupStatus|null $setupStatus,
+        public ProjectionSetupStatus $setupStatus,
     ) {
     }
 
@@ -29,7 +29,7 @@ final readonly class ProjectionSubscriptionStatus
         SubscriptionStatus $subscriptionStatus,
         SequenceNumber $subscriptionPosition,
         SubscriptionError|null $subscriptionError,
-        ProjectionSetupStatus|null $setupStatus
+        ProjectionSetupStatus $setupStatus
     ): self {
         return new self($subscriptionId, $subscriptionStatus, $subscriptionPosition, $subscriptionError, $setupStatus);
     }
