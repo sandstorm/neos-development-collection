@@ -54,6 +54,7 @@ final class SubscriptionEngine
             SubscriptionStatus::NEW,
             SubscriptionStatus::BOOTING,
             SubscriptionStatus::ACTIVE,
+            SubscriptionStatus::DETACHED,
         ])));
         if ($subscriptions->isEmpty()) {
             $this->logger?->info('Subscription Engine: No subscriptions found.'); // todo not happy? Because there must be at least the content graph?!!
@@ -170,6 +171,16 @@ final class SubscriptionEngine
      */
     private function setupSubscription(Subscription $subscription): ?Error
     {
+        if (!$this->subscribers->contain($subscription->id)) {
+            // mark detached subscriptions as we cannot set up
+            $subscription->set(
+                status: SubscriptionStatus::DETACHED,
+            );
+            $this->subscriptionManager->update($subscription);
+            $this->logger?->info(sprintf('Subscription Engine: Subscriber for "%s" not found and has been marked as detached.', $subscription->id->value));
+            return null;
+        }
+
         $subscriber = $this->subscribers->get($subscription->id);
         try {
             $subscriber->projection->setUp();
