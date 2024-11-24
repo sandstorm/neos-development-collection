@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Subscription;
 
-use Neos\ContentRepository\Core\Projection\ProjectionStatus;
+use Neos\ContentRepository\Core\Projection\ProjectionSetupStatus;
 use Neos\ContentRepository\Core\Subscription\Engine\ProcessedResult;
-use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatus;
+use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
@@ -26,7 +26,7 @@ final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTes
     public function projectionIsDetachedOnCatchupActive()
     {
         $this->fakeProjection->expects(self::once())->method('setUp');
-        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
+        $this->fakeProjection->expects(self::any())->method('setUpStatus')->willReturn(ProjectionSetupStatus::ok());
 
         $this->eventStore->setup();
         $this->subscriptionEngine->setup();
@@ -54,12 +54,12 @@ final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTes
         // todo result should reflect that there was an detachment? Throw error in CR?
         self::assertEquals(ProcessedResult::success(1), $result);
 
-        $expectedDetachedState = SubscriptionAndProjectionStatus::create(
+        $expectedDetachedState = ProjectionSubscriptionStatus::create(
             subscriptionId: SubscriptionId::fromString('Vendor.Package:FakeProjection'),
             subscriptionStatus: SubscriptionStatus::DETACHED,
             subscriptionPosition: SequenceNumber::none(),
             subscriptionError: null,
-            projectionStatus: null // not calculate-able at this point!
+            setupStatus: null // not calculate-able at this point!
         );
         self::assertEquals(
             $expectedDetachedState,
@@ -94,7 +94,7 @@ final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTes
     {
         $this->fakeProjection->expects(self::exactly(2))->method('setUp');
         $this->fakeProjection->expects(self::once())->method('apply');
-        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
+        $this->fakeProjection->expects(self::any())->method('setUpStatus')->willReturn(ProjectionSetupStatus::ok());
 
         $this->eventStore->setup();
         $this->subscriptionEngine->setup();
@@ -120,12 +120,12 @@ final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTes
         // todo result should reflect that there was an detachment?
         self::assertNull($result->errors);
 
-        $expectedDetachedState = SubscriptionAndProjectionStatus::create(
+        $expectedDetachedState = ProjectionSubscriptionStatus::create(
             subscriptionId: SubscriptionId::fromString('Vendor.Package:FakeProjection'),
             subscriptionStatus: SubscriptionStatus::DETACHED,
             subscriptionPosition: SequenceNumber::fromInteger(1),
             subscriptionError: null,
-            projectionStatus: null // not calculate-able at this point!
+            setupStatus: null // not calculate-able at this point!
         );
         self::assertEquals(
             $expectedDetachedState,
@@ -147,12 +147,12 @@ final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTes
         $this->setupContentRepositoryDependencies($this->contentRepository->id);
 
         self::assertEquals(
-            SubscriptionAndProjectionStatus::create(
+            ProjectionSubscriptionStatus::create(
                 subscriptionId: SubscriptionId::fromString('Vendor.Package:FakeProjection'),
                 subscriptionStatus: SubscriptionStatus::DETACHED,
                 subscriptionPosition: SequenceNumber::fromInteger(1),
                 subscriptionError: null,
-                projectionStatus: ProjectionStatus::ok() // state _IS_ calculate-able at this point, todo better reflect meaning: is detached, but re-attachable!
+                setupStatus: ProjectionSetupStatus::ok() // state _IS_ calculate-able at this point, todo better reflect meaning: is detached, but re-attachable!
             ),
             $this->subscriptionStatus('Vendor.Package:FakeProjection')
         );

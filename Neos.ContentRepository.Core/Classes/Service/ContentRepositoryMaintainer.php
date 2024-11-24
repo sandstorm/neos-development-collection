@@ -8,7 +8,7 @@ use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
 use Neos\ContentRepository\Core\Subscription\Engine\Errors;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
-use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatuses;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatuses;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\Error\Messages\Error;
 use Neos\EventStore\EventStoreInterface;
@@ -55,7 +55,7 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
         return $this->eventStore->status();
     }
 
-    public function subscriptionStatuses(): SubscriptionAndProjectionStatuses
+    public function subscriptionStatuses(): SubscriptionStatuses
     {
         return $this->subscriptionEngine->subscriptionStatuses();
     }

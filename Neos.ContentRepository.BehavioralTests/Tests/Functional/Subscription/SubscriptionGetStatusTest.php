@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Subscription;
 
 use Doctrine\DBAL\Connection;
-use Neos\ContentRepository\Core\Projection\ProjectionStatus;
+use Neos\ContentRepository\Core\Projection\ProjectionSetupStatus;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
-use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatus;
-use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatuses;
+use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatuses;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\EventStore\Model\Event\SequenceNumber;
@@ -46,31 +46,31 @@ final class SubscriptionGetStatusTest extends AbstractSubscriptionEngineTestCase
         $this->subscriptionEngine->setup(SubscriptionEngineCriteria::create([SubscriptionId::fromString('contentGraph')]));
         $this->expectOkayStatus('contentGraph', SubscriptionStatus::BOOTING, SequenceNumber::none());
 
-        $this->fakeProjection->expects(self::once())->method('status')->willReturn(ProjectionStatus::setupRequired('fake needs setup.'));
+        $this->fakeProjection->expects(self::once())->method('setUpStatus')->willReturn(ProjectionSetupStatus::setupRequired('fake needs setup.'));
 
         $actualStatuses = $this->subscriptionEngine->subscriptionStatuses();
 
-        $expected = SubscriptionAndProjectionStatuses::fromArray([
-            SubscriptionAndProjectionStatus::create(
+        $expected = SubscriptionStatuses::fromArray([
+            ProjectionSubscriptionStatus::create(
                 subscriptionId: SubscriptionId::fromString('contentGraph'),
                 subscriptionStatus: SubscriptionStatus::BOOTING,
                 subscriptionPosition: SequenceNumber::none(),
                 subscriptionError: null,
-                projectionStatus: ProjectionStatus::ok(),
+                setupStatus: ProjectionSetupStatus::ok(),
             ),
-            SubscriptionAndProjectionStatus::create(
+            ProjectionSubscriptionStatus::create(
                 subscriptionId: SubscriptionId::fromString('Vendor.Package:FakeProjection'),
                 subscriptionStatus: SubscriptionStatus::NEW,
                 subscriptionPosition: SequenceNumber::none(),
                 subscriptionError: null,
-                projectionStatus: ProjectionStatus::setupRequired('fake needs setup.'),
+                setupStatus: ProjectionSetupStatus::setupRequired('fake needs setup.'),
             ),
-            SubscriptionAndProjectionStatus::create(
+            ProjectionSubscriptionStatus::create(
                 subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
                 subscriptionStatus: SubscriptionStatus::NEW,
                 subscriptionPosition: SequenceNumber::none(),
                 subscriptionError: null,
-                projectionStatus: ProjectionStatus::setupRequired('Requires 1 SQL statements'),
+                setupStatus: ProjectionSetupStatus::setupRequired('Requires 1 SQL statements'),
             ),
         ]);
 

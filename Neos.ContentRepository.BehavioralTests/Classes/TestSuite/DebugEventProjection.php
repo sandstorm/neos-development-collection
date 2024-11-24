@@ -14,7 +14,7 @@ use Neos\ContentRepository\Core\Infrastructure\DbalSchemaDiff;
 use Neos\ContentRepository\Core\Infrastructure\DbalSchemaFactory;
 use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
-use Neos\ContentRepository\Core\Projection\ProjectionStatus;
+use Neos\ContentRepository\Core\Projection\ProjectionSetupStatus;
 use Neos\EventStore\Model\EventEnvelope;
 use Neos\Flow\Annotations as Flow;
 
@@ -52,13 +52,13 @@ final class DebugEventProjection implements ProjectionInterface
         }
     }
 
-    public function status(): ProjectionStatus
+    public function setUpStatus(): ProjectionSetupStatus
     {
         $requiredSqlStatements = $this->determineRequiredSqlStatements();
         if ($requiredSqlStatements !== []) {
-            return ProjectionStatus::setupRequired(sprintf('Requires %d SQL statements', count($requiredSqlStatements)));
+            return ProjectionSetupStatus::setupRequired(sprintf('Requires %d SQL statements', count($requiredSqlStatements)));
         }
-        return ProjectionStatus::ok();
+        return ProjectionSetupStatus::ok();
     }
 
     /**

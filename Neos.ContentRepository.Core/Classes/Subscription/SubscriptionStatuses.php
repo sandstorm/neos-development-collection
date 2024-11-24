@@ -4,19 +4,27 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Subscription;
 
+use Neos\ContentRepository\Core\Projection\ProjectionSetupStatusType;
+
 /**
+ * A collection of the states of the subscribers.
+ *
+ * Currently only projections are the available subscribers, but when the concept is extended,
+ * other *SubscriptionStatus value objects will also be hold in this set.
+ * Like "ListeningSubscriptionStatus" if a "ListeningSubscriber" is introduced.
+ *
  * @api
- * @implements \IteratorAggregate<SubscriptionAndProjectionStatus>
+ * @implements \IteratorAggregate<ProjectionSubscriptionStatus>
  */
-final readonly class SubscriptionAndProjectionStatuses implements \IteratorAggregate
+final readonly class SubscriptionStatuses implements \IteratorAggregate
 {
     /**
-     * @var array<SubscriptionAndProjectionStatus> $statuses
+     * @var array<ProjectionSubscriptionStatus> $statuses
      */
     private array $statuses;
 
     private function __construct(
-        SubscriptionAndProjectionStatus ...$statuses,
+        ProjectionSubscriptionStatus ...$statuses,
     ) {
         $this->statuses = $statuses;
     }
@@ -27,14 +35,14 @@ final readonly class SubscriptionAndProjectionStatuses implements \IteratorAggre
     }
 
     /**
-     * @param array<SubscriptionAndProjectionStatus> $statuses
+     * @param array<ProjectionSubscriptionStatus> $statuses
      */
     public static function fromArray(array $statuses): self
     {
         return new self(...$statuses);
     }
 
-    public function first(): ?SubscriptionAndProjectionStatus
+    public function first(): ?ProjectionSubscriptionStatus
     {
         foreach ($this->statuses as $status) {
             return $status;
@@ -58,7 +66,7 @@ final readonly class SubscriptionAndProjectionStatuses implements \IteratorAggre
             if ($status->subscriptionStatus === SubscriptionStatus::ERROR) {
                 return false;
             }
-            if ($status->projectionStatus?->type !== ProjectionStatusType::OK) {
+            if ($status->setupStatus?->type !== ProjectionSetupStatusType::OK) {
                 return false;
             }
         }

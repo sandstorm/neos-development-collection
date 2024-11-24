@@ -7,6 +7,12 @@ namespace Neos\ContentRepository\Core\Subscription\Subscriber;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 
 /**
+ * A collection of the registered subscribers.
+ *
+ * Currently only projections are the available subscribers, but when the concept is extended,
+ * other *Subscriber value objects will also be hold in this set.
+ * Like a possible "ListeningSubscriber" to only listen to events without the capabilities of a full-blown projection.
+ *
  * @implements \IteratorAggregate<ProjectionSubscriber>
  * @internal
  */

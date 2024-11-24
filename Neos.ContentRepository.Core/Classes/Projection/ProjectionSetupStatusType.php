@@ -7,10 +7,9 @@ namespace Neos\ContentRepository\Core\Projection;
 /**
  * @api
  */
-enum ProjectionStatusType
+enum ProjectionSetupStatusType
 {
     case OK;
-    case ERROR;
     case SETUP_REQUIRED;
-    case REPLAY_REQUIRED;
+    case ERROR;
 }

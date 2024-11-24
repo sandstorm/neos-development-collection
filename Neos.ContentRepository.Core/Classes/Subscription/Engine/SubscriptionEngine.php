@@ -11,8 +11,8 @@ use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\Service\ContentRepositoryMaintainer;
 use Neos\ContentRepository\Core\Subscription\Exception\CatchUpFailed;
 use Neos\ContentRepository\Core\Subscription\Exception\SubscriptionEngineAlreadyProcessingException;
-use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatus;
-use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatuses;
+use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatuses;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatusFilter;
 use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Model\Event\SequenceNumber;
@@ -105,26 +105,26 @@ final class SubscriptionEngine
         return $errors === [] ? Result::success() : Result::failed(Errors::fromArray($errors));
     }
 
-    public function subscriptionStatuses(SubscriptionCriteria|null $criteria = null): SubscriptionAndProjectionStatuses
+    public function subscriptionStatuses(SubscriptionCriteria|null $criteria = null): SubscriptionStatuses
     {
         $statuses = [];
         try {
             $subscriptions = $this->subscriptionStore->findByCriteria($criteria ?? SubscriptionCriteria::noConstraints());
         } catch (TableNotFoundException) {
             // the schema is not setup - thus there are no subscribers
-            return SubscriptionAndProjectionStatuses::createEmpty();
+            return SubscriptionStatuses::createEmpty();
         }
         foreach ($subscriptions as $subscription) {
             $subscriber = $this->subscribers->contain($subscription->id) ? $this->subscribers->get($subscription->id) : null;
-            $statuses[] = SubscriptionAndProjectionStatus::create(
+            $statuses[] = ProjectionSubscriptionStatus::create(
                 subscriptionId: $subscription->id,
                 subscriptionStatus: $subscription->status,
                 subscriptionPosition: $subscription->position,
                 subscriptionError: $subscription->error,
-                projectionStatus: $subscriber?->projection->status(),
+                setupStatus: $subscriber?->projection->setUpStatus(),
             );
         }
-        return SubscriptionAndProjectionStatuses::fromArray($statuses);
+        return SubscriptionStatuses::fromArray($statuses);
     }
 
     private function handleEvent(EventEnvelope $eventEnvelope, EventInterface $domainEvent, Subscription $subscription): Error|null

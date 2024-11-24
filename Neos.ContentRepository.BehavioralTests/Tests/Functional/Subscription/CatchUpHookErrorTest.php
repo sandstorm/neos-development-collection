@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Subscription;
 
 use Neos\ContentRepository\Core\Feature\ContentStreamCreation\Event\ContentStreamWasCreated;
-use Neos\ContentRepository\Core\Projection\ProjectionStatus;
+use Neos\ContentRepository\Core\Projection\ProjectionSetupStatus;
 use Neos\ContentRepository\Core\Subscription\Exception\CatchUpFailed;
-use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatus;
+use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionError;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
@@ -37,12 +37,12 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
 
         $this->secondFakeProjection->injectSaboteur(fn () => self::fail('Projection apply is not expected to be called!'));
 
-        $expectedFailure = SubscriptionAndProjectionStatus::create(
+        $expectedFailure = ProjectionSubscriptionStatus::create(
             subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
             subscriptionStatus: SubscriptionStatus::ERROR,
             subscriptionPosition: SequenceNumber::none(),
             subscriptionError: SubscriptionError::fromPreviousStatusAndException(SubscriptionStatus::ACTIVE, $exception),
-            projectionStatus: ProjectionStatus::ok(),
+            setupStatus: ProjectionSetupStatus::ok(),
         );
 
         self::assertEmpty(
@@ -83,12 +83,12 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
         // TODO pass the error subscription status to onAfterCatchUp, so that in case of an error it can be prevented that mails f.x. will be sent?
         $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp');
 
-        $expectedFailure = SubscriptionAndProjectionStatus::create(
+        $expectedFailure = ProjectionSubscriptionStatus::create(
             subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
             subscriptionStatus: SubscriptionStatus::ERROR,
             subscriptionPosition: SequenceNumber::none(),
             subscriptionError: SubscriptionError::fromPreviousStatusAndException(SubscriptionStatus::ACTIVE, $exception),
-            projectionStatus: ProjectionStatus::ok(),
+            setupStatus: ProjectionSetupStatus::ok(),
         );
 
         self::assertEmpty(

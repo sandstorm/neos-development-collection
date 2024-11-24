@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Subscription;
 
-use Neos\ContentRepository\Core\Projection\ProjectionStatus;
+use Neos\ContentRepository\Core\Projection\ProjectionSetupStatus;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
@@ -16,7 +16,7 @@ final class SubscriptionResetTest extends AbstractSubscriptionEngineTestCase
     public function filteringReset()
     {
         $this->fakeProjection->expects(self::once())->method('setUp');
-        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
+        $this->fakeProjection->expects(self::any())->method('setUpStatus')->willReturn(ProjectionSetupStatus::ok());
 
         $this->eventStore->setup();
 

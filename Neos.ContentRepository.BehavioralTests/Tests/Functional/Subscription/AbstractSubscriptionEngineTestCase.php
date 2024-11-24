@@ -14,12 +14,12 @@ use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
-use Neos\ContentRepository\Core\Projection\ProjectionStatus;
+use Neos\ContentRepository\Core\Projection\ProjectionSetupStatus;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionCriteria;
-use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatus;
+use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepository\TestSuite\Fakes\FakeCatchUpHookFactory;
@@ -134,7 +134,7 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
         $connection->prepare('SET FOREIGN_KEY_CHECKS = 1;')->executeStatement();
     }
 
-    final protected function subscriptionStatus(string $subscriptionId): ?SubscriptionAndProjectionStatus
+    final protected function subscriptionStatus(string $subscriptionId): ?ProjectionSubscriptionStatus
     {
         return $this->subscriptionEngine->subscriptionStatuses(SubscriptionCriteria::create(ids: [SubscriptionId::fromString($subscriptionId)]))->first();
     }
@@ -156,12 +156,12 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
     {
         $actual = $this->subscriptionStatus($subscriptionId);
         self::assertEquals(
-            SubscriptionAndProjectionStatus::create(
+            ProjectionSubscriptionStatus::create(
                 subscriptionId: SubscriptionId::fromString($subscriptionId),
                 subscriptionStatus: $status,
                 subscriptionPosition: $sequenceNumber,
                 subscriptionError: null,
-                projectionStatus: ProjectionStatus::ok(),
+                setupStatus: ProjectionSetupStatus::ok(),
             ),
             $actual
         );

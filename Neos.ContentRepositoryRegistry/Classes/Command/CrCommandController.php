@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepositoryRegistry\Command;
 
-use Neos\ContentRepository\Core\Projection\ProjectionStatusType;
+use Neos\ContentRepository\Core\Projection\ProjectionSetupStatusType;
 use Neos\ContentRepository\Core\Service\ContentRepositoryMaintainerFactory;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
@@ -73,21 +73,20 @@ final class CrCommandController extends CommandController
         $this->outputLine();
 
         $subscriptionStatuses = $contentRepositoryMaintainer->subscriptionStatuses();
-        foreach ($subscriptionStatuses as $subscriptionStatus) {
+        foreach ($subscriptionStatuses as $projectionSubscriptionStatus) {
             // todo reimplement 40e8d35e09ee690406c6a9cfc823c775d4ee3b51
-            $this->output('Projection "<b>%s</b>": ', [$subscriptionStatus->subscriptionId->value]);
-            $projectionStatus = $subscriptionStatus->projectionStatus;
+            $this->output('Projection "<b>%s</b>": ', [$projectionSubscriptionStatus->subscriptionId->value]);
+            $projectionStatus = $projectionSubscriptionStatus->setupStatus;
             if ($projectionStatus === null) {
                 $this->outputLine('<comment>No status available.</comment>'); // todo this means detached?
                 continue;
             }
             $this->outputLine(match ($projectionStatus->type) {
-                ProjectionStatusType::OK => '<success>OK</success>',
-                ProjectionStatusType::SETUP_REQUIRED => '<comment>Setup required!</comment>',
-                ProjectionStatusType::REPLAY_REQUIRED => '<comment>Replay required!</comment>',
-                ProjectionStatusType::ERROR => '<error>ERROR</error>',
+                ProjectionSetupStatusType::OK => '<success>OK</success>',
+                ProjectionSetupStatusType::SETUP_REQUIRED => '<comment>Setup required!</comment>',
+                ProjectionSetupStatusType::ERROR => '<error>ERROR</error>',
             });
-            if ($verbose && ($projectionStatus->type !== ProjectionStatusType::OK || $projectionStatus->details)) {
+            if ($verbose && ($projectionStatus->type !== ProjectionSetupStatusType::OK || $projectionStatus->details)) {
                 $lines = explode(chr(10), $projectionStatus->details ?: '<comment>No details available.</comment>');
                 foreach ($lines as $line) {
                     $this->outputLine('  ' . $line);

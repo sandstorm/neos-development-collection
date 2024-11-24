@@ -6,10 +6,10 @@ namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Subscription;
 
 use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
-use Neos\ContentRepository\Core\Projection\ProjectionStatus;
+use Neos\ContentRepository\Core\Projection\ProjectionSetupStatus;
 use Neos\ContentRepository\Core\Subscription\Engine\ProcessedResult;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
-use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatus;
+use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepository\TestSuite\Fakes\FakeProjectionFactory;
@@ -30,7 +30,7 @@ final class SubscriptionNewStatusTest extends AbstractSubscriptionEngineTestCase
     public function newProjectionIsFoundWhenConfigurationIsAdded()
     {
         $this->fakeProjection->expects(self::exactly(2))->method('setUp');
-        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
+        $this->fakeProjection->expects(self::any())->method('setUpStatus')->willReturn(ProjectionSetupStatus::ok());
 
         $this->eventStore->setup();
         $this->subscriptionEngine->setup();
@@ -43,10 +43,10 @@ final class SubscriptionNewStatusTest extends AbstractSubscriptionEngineTestCase
 
         $newFakeProjection = $this->getMockBuilder(ProjectionInterface::class)->disableAutoReturnValueGeneration()->getMock();
         $newFakeProjection->method('getState')->willReturn(new class implements ProjectionStateInterface {});
-        $newFakeProjection->expects(self::exactly(3))->method('status')->willReturnOnConsecutiveCalls(
-            ProjectionStatus::setupRequired('Set me up'),
-            ProjectionStatus::ok(),
-            ProjectionStatus::ok(),
+        $newFakeProjection->expects(self::exactly(3))->method('setUpStatus')->willReturnOnConsecutiveCalls(
+            ProjectionSetupStatus::setupRequired('Set me up'),
+            ProjectionSetupStatus::ok(),
+            ProjectionSetupStatus::ok(),
         );
 
         FakeProjectionFactory::setProjection(
@@ -73,12 +73,12 @@ final class SubscriptionNewStatusTest extends AbstractSubscriptionEngineTestCase
         self::assertNull($result->errors);
 
         self::assertEquals(
-            SubscriptionAndProjectionStatus::create(
+            ProjectionSubscriptionStatus::create(
                 subscriptionId: SubscriptionId::fromString('Vendor.Package:NewFakeProjection'),
                 subscriptionStatus: SubscriptionStatus::NEW,
                 subscriptionPosition: SequenceNumber::none(),
                 subscriptionError: null,
-                projectionStatus: ProjectionStatus::setupRequired('Set me up')
+                setupStatus: ProjectionSetupStatus::setupRequired('Set me up')
             ),
             $this->subscriptionStatus('Vendor.Package:NewFakeProjection')
         );
