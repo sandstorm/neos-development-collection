@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Subscription;
 
 use Neos\ContentRepository\Core\Feature\ContentStreamCreation\Event\ContentStreamWasCreated;
-use Neos\ContentRepository\Core\Projection\ProjectionSetupStatus;
+use Neos\ContentRepository\Core\Projection\ProjectionStatus;
 use Neos\ContentRepository\Core\Subscription\Engine\ProcessedResult;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
@@ -24,7 +24,7 @@ final class SubscriptionBootingStatusTest extends AbstractSubscriptionEngineTest
 
         $this->fakeProjection->expects(self::once())->method('setUp');
         $this->subscriptionEngine->setup();
-        $this->fakeProjection->expects(self::any())->method('setUpStatus')->willReturn(ProjectionSetupStatus::ok());
+        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
 
         $this->expectOkayStatus('contentGraph', SubscriptionStatus::BOOTING, SequenceNumber::none());
         $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::none());
@@ -44,7 +44,7 @@ final class SubscriptionBootingStatusTest extends AbstractSubscriptionEngineTest
     public function filteringCatchUpBoot()
     {
         $this->fakeProjection->expects(self::once())->method('setUp');
-        $this->fakeProjection->expects(self::any())->method('setUpStatus')->willReturn(ProjectionSetupStatus::ok());
+        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
 
         $this->eventStore->setup();
 

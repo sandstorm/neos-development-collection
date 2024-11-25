@@ -14,7 +14,7 @@ use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
-use Neos\ContentRepository\Core\Projection\ProjectionSetupStatus;
+use Neos\ContentRepository\Core\Projection\ProjectionStatus;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\Subscription\DetachedSubscriptionStatus;
@@ -162,7 +162,7 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
                 subscriptionStatus: $status,
                 subscriptionPosition: $sequenceNumber,
                 subscriptionError: null,
-                setupStatus: ProjectionSetupStatus::ok(),
+                setupStatus: ProjectionStatus::ok(),
             ),
             $actual
         );

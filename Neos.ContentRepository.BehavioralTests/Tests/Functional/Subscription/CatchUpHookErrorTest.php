@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Subscription;
 
 use Neos\ContentRepository\Core\Feature\ContentStreamCreation\Event\ContentStreamWasCreated;
-use Neos\ContentRepository\Core\Projection\ProjectionSetupStatus;
+use Neos\ContentRepository\Core\Projection\ProjectionStatus;
 use Neos\ContentRepository\Core\Subscription\Exception\CatchUpFailed;
 use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionError;
@@ -42,7 +42,7 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
             subscriptionStatus: SubscriptionStatus::ERROR,
             subscriptionPosition: SequenceNumber::none(),
             subscriptionError: SubscriptionError::fromPreviousStatusAndException(SubscriptionStatus::ACTIVE, $exception),
-            setupStatus: ProjectionSetupStatus::ok(),
+            setupStatus: ProjectionStatus::ok(),
         );
 
         self::assertEmpty(
@@ -88,7 +88,7 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
             subscriptionStatus: SubscriptionStatus::ERROR,
             subscriptionPosition: SequenceNumber::none(),
             subscriptionError: SubscriptionError::fromPreviousStatusAndException(SubscriptionStatus::ACTIVE, $exception),
-            setupStatus: ProjectionSetupStatus::ok(),
+            setupStatus: ProjectionStatus::ok(),
         );
 
         self::assertEmpty(

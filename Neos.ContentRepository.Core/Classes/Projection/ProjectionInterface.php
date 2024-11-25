@@ -26,9 +26,9 @@ interface ProjectionInterface
     public function setUp(): void;
 
     /**
-     * Determines the setup status of the projection
+     * Determines the setup status of the projection. E.g. are the database tables created or any columns missing.
      */
-    public function setUpStatus(): ProjectionSetupStatus;
+    public function status(): ProjectionStatus;
 
     public function apply(EventInterface $event, EventEnvelope $eventEnvelope): void;
 

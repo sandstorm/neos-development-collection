@@ -6,7 +6,7 @@ namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Subscription;
 
 use Neos\ContentRepository\Core\Feature\ContentStreamCreation\Event\ContentStreamWasCreated;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Command\CreateRootWorkspace;
-use Neos\ContentRepository\Core\Projection\ProjectionSetupStatus;
+use Neos\ContentRepository\Core\Projection\ProjectionStatus;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\Subscription\Engine\Error;
@@ -28,7 +28,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
         $this->eventStore->setup();
         $this->fakeProjection->expects(self::once())->method('setUp');
         $this->subscriptionEngine->setup();
-        $this->fakeProjection->expects(self::any())->method('setUpStatus')->willReturn(ProjectionSetupStatus::ok());
+        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
         $result = $this->subscriptionEngine->boot();
         self::assertEquals(ProcessedResult::success(0), $result);
         $this->expectOkayStatus('contentGraph', SubscriptionStatus::ACTIVE, SequenceNumber::none());
@@ -46,7 +46,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
             subscriptionStatus: SubscriptionStatus::ERROR,
             subscriptionPosition: SequenceNumber::none(),
             subscriptionError: SubscriptionError::fromPreviousStatusAndException(SubscriptionStatus::ACTIVE, $exception),
-            setupStatus: ProjectionSetupStatus::ok(),
+            setupStatus: ProjectionStatus::ok(),
         );
 
         $result = $this->subscriptionEngine->catchUpActive();
@@ -80,7 +80,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
     {
         $this->eventStore->setup();
         $this->fakeProjection->expects(self::once())->method('setUp');
-        $this->fakeProjection->expects(self::any())->method('setUpStatus')->willReturn(ProjectionSetupStatus::ok());
+        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
         $this->subscriptionEngine->setup();
         $this->subscriptionEngine->boot();
 
@@ -98,7 +98,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
             subscriptionStatus: SubscriptionStatus::ERROR,
             subscriptionPosition: SequenceNumber::none(),
             subscriptionError: SubscriptionError::fromPreviousStatusAndException(SubscriptionStatus::ACTIVE, $exception),
-            setupStatus: ProjectionSetupStatus::ok(),
+            setupStatus: ProjectionStatus::ok(),
         );
 
         $result = $this->subscriptionEngine->catchUpActive();
@@ -158,7 +158,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
             subscriptionStatus: SubscriptionStatus::ERROR,
             subscriptionPosition: SequenceNumber::none(),
             subscriptionError: SubscriptionError::fromPreviousStatusAndException(SubscriptionStatus::ACTIVE, $exception),
-            setupStatus: ProjectionSetupStatus::ok(),
+            setupStatus: ProjectionStatus::ok(),
         );
 
         self::assertEmpty(
@@ -235,7 +235,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
             subscriptionStatus: SubscriptionStatus::ERROR,
             subscriptionPosition: SequenceNumber::fromInteger(1),
             subscriptionError: SubscriptionError::fromPreviousStatusAndException(SubscriptionStatus::ACTIVE, $exception),
-            setupStatus: ProjectionSetupStatus::ok(),
+            setupStatus: ProjectionStatus::ok(),
         );
 
         self::assertEquals(
@@ -280,7 +280,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
     {
         $this->eventStore->setup();
         $this->fakeProjection->expects(self::once())->method('setUp');
-        $this->fakeProjection->expects(self::any())->method('setUpStatus')->willReturn(ProjectionSetupStatus::ok());
+        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
         $this->subscriptionEngine->setup();
         $this->subscriptionEngine->boot();
 

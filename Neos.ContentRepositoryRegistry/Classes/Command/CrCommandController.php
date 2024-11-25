@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepositoryRegistry\Command;
 
-use Neos\ContentRepository\Core\Projection\ProjectionSetupStatusType;
+use Neos\ContentRepository\Core\Projection\ProjectionStatusType;
 use Neos\ContentRepository\Core\Service\ContentRepositoryMaintainerFactory;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\Subscription\DetachedSubscriptionStatus;
@@ -113,13 +113,13 @@ final class CrCommandController extends CommandController
                 }
                 $this->output('    Setup: ');
                 $this->outputLine(match ($status->setupStatus->type) {
-                    ProjectionSetupStatusType::OK => '<success>OK</success>',
-                    ProjectionSetupStatusType::SETUP_REQUIRED => '<comment>SETUP REQUIRED</comment>',
-                    ProjectionSetupStatusType::ERROR => '<error>ERROR</error>',
+                    ProjectionStatusType::OK => '<success>OK</success>',
+                    ProjectionStatusType::SETUP_REQUIRED => '<comment>SETUP REQUIRED</comment>',
+                    ProjectionStatusType::ERROR => '<error>ERROR</error>',
                 });
-                $hasErrors |= $status->setupStatus->type === ProjectionSetupStatusType::ERROR;
-                $setupRequired |= $status->setupStatus->type === ProjectionSetupStatusType::SETUP_REQUIRED;
-                if ($verbose && ($status->setupStatus->type !== ProjectionSetupStatusType::OK || $status->setupStatus->details)) {
+                $hasErrors |= $status->setupStatus->type === ProjectionStatusType::ERROR;
+                $setupRequired |= $status->setupStatus->type === ProjectionStatusType::SETUP_REQUIRED;
+                if ($verbose && ($status->setupStatus->type !== ProjectionStatusType::OK || $status->setupStatus->details)) {
                     $lines = explode(chr(10), $status->setupStatus->details ?: '<comment>No details available.</comment>');
                     foreach ($lines as $line) {
                         $this->outputLine('      ' . $line);

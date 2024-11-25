@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Subscription;
 
 use Neos\ContentRepository\Core\Feature\ContentStreamCreation\Event\ContentStreamWasCreated;
-use Neos\ContentRepository\Core\Projection\ProjectionSetupStatus;
+use Neos\ContentRepository\Core\Projection\ProjectionStatus;
 use Neos\ContentRepository\Core\Subscription\Engine\ProcessedResult;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
@@ -24,7 +24,7 @@ final class SubscriptionActiveStatusTest extends AbstractSubscriptionEngineTestC
 
         $result = $this->subscriptionEngine->boot();
         self::assertEquals(ProcessedResult::success(0), $result);
-        $this->fakeProjection->expects(self::any())->method('setUpStatus')->willReturn(ProjectionSetupStatus::ok());
+        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
         $this->expectOkayStatus('contentGraph', SubscriptionStatus::ACTIVE, SequenceNumber::none());
         $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
         $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
@@ -53,7 +53,7 @@ final class SubscriptionActiveStatusTest extends AbstractSubscriptionEngineTestC
     public function filteringCatchUpActive()
     {
         $this->fakeProjection->expects(self::once())->method('setUp');
-        $this->fakeProjection->expects(self::any())->method('setUpStatus')->willReturn(ProjectionSetupStatus::ok());
+        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
 
         $this->eventStore->setup();
 
@@ -88,7 +88,7 @@ final class SubscriptionActiveStatusTest extends AbstractSubscriptionEngineTestC
         $this->eventStore->setup();
 
         $this->fakeProjection->expects(self::once())->method('setUp');
-        $this->fakeProjection->expects(self::any())->method('setUpStatus')->willReturn(ProjectionSetupStatus::ok());
+        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
         $this->subscriptionEngine->setup();
 
         $result = $this->subscriptionEngine->boot();

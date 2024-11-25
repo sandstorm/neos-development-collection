@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Subscription;
 
-use Neos\ContentRepository\Core\Projection\ProjectionSetupStatus;
+use Neos\ContentRepository\Core\Projection\ProjectionStatus;
 use Neos\EventStore\Model\Event\SequenceNumber;
 
 /**
@@ -17,7 +17,7 @@ final readonly class ProjectionSubscriptionStatus
         public SubscriptionStatus $subscriptionStatus,
         public SequenceNumber $subscriptionPosition,
         public SubscriptionError|null $subscriptionError,
-        public ProjectionSetupStatus $setupStatus,
+        public ProjectionStatus $setupStatus,
     ) {
     }
 
@@ -29,7 +29,7 @@ final readonly class ProjectionSubscriptionStatus
         SubscriptionStatus $subscriptionStatus,
         SequenceNumber $subscriptionPosition,
         SubscriptionError|null $subscriptionError,
-        ProjectionSetupStatus $setupStatus
+        ProjectionStatus $setupStatus
     ): self {
         return new self($subscriptionId, $subscriptionStatus, $subscriptionPosition, $subscriptionError, $setupStatus);
     }

@@ -130,7 +130,7 @@ final class SubscriptionEngine
                 subscriptionStatus: $subscription->status,
                 subscriptionPosition: $subscription->position,
                 subscriptionError: $subscription->error,
-                setupStatus: $subscriber->projection->setUpStatus(),
+                setupStatus: $subscriber->projection->status(),
             );
         }
         return SubscriptionStatuses::fromArray($statuses);
