@@ -49,9 +49,9 @@ use Neos\EventStore\Model\EventStream\VirtualStreamName;
  * as {@see ContentRepository::handle()} triggers the projections after applying the events.
  *
  * For initialising on a new database - which contains events already - a replay will make sure that the projections
- * are emptied and reapply the events.
+ * are emptied and reapply the events. After registering a new projection a setup is needed and a replay of this projection.
  *
- * The explicit catchup of a projection is only required when adding new projections after installation, of after fixing a projection error.
+ * The explicit catchup of a projection is only required after fixing a projection error.
  *
  * @api
  */
@@ -121,13 +121,13 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
     }
 
     /**
-     * Catchup one specific projection.
+     * Catchup one specific projection for debugging or fixing it.
      *
-     * The explicit catchup is required for new projections in the booting state.
+     * The explicit catchup is only needed for projections in the booting state with an advanced position.
+     * So in the case of an error or for a detached projection, the setup will move the projection back to booting keeping its current position.
+     * Running a full replay would work but might be overkill, instead this catchup will just attempt boot the projection back to active.
      *
-     * We don't offer an API to catch up all projections catchupAllProjection as we would have to distinct between booting or catchup if its active already.
-     *
-     * This method is only needed in rare cases for debugging or after installing a new projection or fixing its errors.
+     * We don't offer an API to catch up all projections at once (like catchupAllProjections). Instead, a replayAll can be used.
      */
     public function catchupProjection(SubscriptionId $subscriptionId, \Closure|null $progressCallback = null): Error|null
     {
@@ -201,7 +201,7 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
             VirtualStreamName::forCategory(ContentStreamEventStreamName::EVENT_STREAM_NAME_PREFIX),
             EventStreamFilter::create(
                 EventTypes::create(
-                // we are only interested in the creation events to limit the amount of events to fetch
+                    // we are only interested in the creation events to limit the amount of events to fetch
                     EventType::fromString('ContentStreamWasCreated'),
                     EventType::fromString('ContentStreamWasForked')
                 )
@@ -223,7 +223,7 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
             VirtualStreamName::forCategory(WorkspaceEventStreamName::EVENT_STREAM_NAME_PREFIX),
             EventStreamFilter::create(
                 EventTypes::create(
-                // we are only interested in the creation events to limit the amount of events to fetch
+                    // we are only interested in the creation events to limit the amount of events to fetch
                     EventType::fromString('RootWorkspaceWasCreated'),
                     EventType::fromString('WorkspaceWasCreated')
                 )

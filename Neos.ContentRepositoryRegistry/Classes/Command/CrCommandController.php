@@ -247,9 +247,11 @@ final class CrCommandController extends CommandController
     }
 
     /**
-     * Catchup one specific projection.
+     * Catchup one specific projection for debugging or fixing it.
      *
-     * The explicit catchup is required for new projections in the booting state, after installing a new projection or fixing its errors.
+     * The explicit catchup is only needed for projections in the booting state with an advanced position.
+     * So in the case of an error or for a detached projection, the setup will move the projection back to booting keeping its current position.
+     * Running a full replay would work but might be overkill, instead this catchup will just attempt boot the projection back to active.
      *
      * @param string $projection Identifier of the projection to catchup like it was configured (e.g. "contentGraph", "Vendor.Package:YourProjection")
      * @param string $contentRepository Identifier of the Content Repository instance to operate on
