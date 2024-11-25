@@ -11,6 +11,8 @@ use Neos\ContentRepository\Core\Feature\WorkspaceEventStreamName;
 use Neos\ContentRepository\Core\Subscription\Engine\Errors;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
+use Neos\ContentRepository\Core\Subscription\Store\SubscriptionCriteria;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatusCollection;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\Error\Messages\Error;
@@ -129,22 +131,29 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
      */
     public function catchupProjection(SubscriptionId $subscriptionId, \Closure|null $progressCallback = null): Error|null
     {
-        // todo if a projection is in error state and will be explicit caught up here we might as well attempt that without saying the user should setup?
-        // also setup then can avoid doing the repairing!
-        $bootResult = $this->subscriptionEngine->boot(SubscriptionEngineCriteria::create([$subscriptionId]), progressCallback: $progressCallback);
-        if ($bootResult->errors !== null) {
-            return self::createErrorForReason('catchup', $bootResult->errors);
+        $subscriptionStatus = $this->subscriptionEngine->subscriptionStatus(SubscriptionCriteria::create([$subscriptionId]))->first();
+
+        if ($subscriptionStatus === null) {
+            return new Error(sprintf('Projection "%s" is not registered.', $subscriptionId->value));
         }
-        if ($bootResult->numberOfProcessedEvents > 0) {
-            // the projection was bootet
+
+        if ($subscriptionStatus->subscriptionStatus === SubscriptionStatus::BOOTING) {
+            $bootResult = $this->subscriptionEngine->boot(SubscriptionEngineCriteria::create([$subscriptionId]), progressCallback: $progressCallback);
+            if ($bootResult->errors !== null) {
+                return self::createErrorForReason('booting', $bootResult->errors);
+            }
             return null;
         }
-        // todo the projection was active, and we might still want to catch it up ... find reason for this? And combine boot and catchup?
-        $catchupResult = $this->subscriptionEngine->catchUpActive(SubscriptionEngineCriteria::create([$subscriptionId]), progressCallback: $progressCallback);
-        if ($catchupResult->errors !== null) {
-            return self::createErrorForReason('catchup', $catchupResult->errors);
+
+        if ($subscriptionStatus->subscriptionStatus === SubscriptionStatus::ACTIVE) {
+            $catchupResult = $this->subscriptionEngine->catchUpActive(SubscriptionEngineCriteria::create([$subscriptionId]), progressCallback: $progressCallback);
+            if ($catchupResult->errors !== null) {
+                return self::createErrorForReason('catchup', $catchupResult->errors);
+            }
+            return null;
         }
-        return null;
+
+        return new Error(sprintf('Cannot catch-up projection "%s" with state %s. Please setup the content repository first.', $subscriptionId->value, $subscriptionStatus->subscriptionStatus->name));
     }
 
     /**
