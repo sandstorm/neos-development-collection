@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Subscription;
 
 /**
- * A collection of the states of the subscribers.
+ * A collection of the status of the subscribers.
  *
  * Currently only projections are the available subscribers, but when the concept is extended,
  * other *SubscriptionStatus value objects will also be hold in this set.
@@ -17,17 +17,17 @@ namespace Neos\ContentRepository\Core\Subscription;
  * @api
  * @implements \IteratorAggregate<ProjectionSubscriptionStatus|DetachedSubscriptionStatus>
  */
-final readonly class SubscriptionStatuses implements \IteratorAggregate
+final readonly class SubscriptionStatusCollection implements \IteratorAggregate
 {
     /**
-     * @var array<ProjectionSubscriptionStatus|DetachedSubscriptionStatus> $statuses
+     * @var array<ProjectionSubscriptionStatus|DetachedSubscriptionStatus> $items
      */
-    private array $statuses;
+    private array $items;
 
     private function __construct(
-        ProjectionSubscriptionStatus|DetachedSubscriptionStatus ...$statuses,
+        ProjectionSubscriptionStatus|DetachedSubscriptionStatus ...$items,
     ) {
-        $this->statuses = $statuses;
+        $this->items = $items;
     }
 
     public static function createEmpty(): self
@@ -36,16 +36,16 @@ final readonly class SubscriptionStatuses implements \IteratorAggregate
     }
 
     /**
-     * @param array<ProjectionSubscriptionStatus|DetachedSubscriptionStatus> $statuses
+     * @param array<ProjectionSubscriptionStatus|DetachedSubscriptionStatus> $items
      */
-    public static function fromArray(array $statuses): self
+    public static function fromArray(array $items): self
     {
-        return new self(...$statuses);
+        return new self(...$items);
     }
 
     public function first(): ProjectionSubscriptionStatus|DetachedSubscriptionStatus|null
     {
-        foreach ($this->statuses as $status) {
+        foreach ($this->items as $status) {
             return $status;
         }
         return null;
@@ -53,11 +53,11 @@ final readonly class SubscriptionStatuses implements \IteratorAggregate
 
     public function getIterator(): \Traversable
     {
-        yield from $this->statuses;
+        yield from $this->items;
     }
 
     public function isEmpty(): bool
     {
-        return $this->statuses === [];
+        return $this->items === [];
     }
 }

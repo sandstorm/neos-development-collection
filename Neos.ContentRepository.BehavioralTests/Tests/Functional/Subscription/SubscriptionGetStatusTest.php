@@ -8,7 +8,7 @@ use Doctrine\DBAL\Connection;
 use Neos\ContentRepository\Core\Projection\ProjectionStatus;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
 use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
-use Neos\ContentRepository\Core\Subscription\SubscriptionStatuses;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatusCollection;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\EventStore\Model\Event\SequenceNumber;
@@ -25,7 +25,7 @@ final class SubscriptionGetStatusTest extends AbstractSubscriptionEngineTestCase
             keepSchema: false
         );
 
-        $actualStatuses = $this->subscriptionEngine->subscriptionStatuses();
+        $actualStatuses = $this->subscriptionEngine->subscriptionStatus();
         self::assertTrue($actualStatuses->isEmpty());
 
         self::assertNull(
@@ -48,9 +48,9 @@ final class SubscriptionGetStatusTest extends AbstractSubscriptionEngineTestCase
 
         $this->fakeProjection->expects(self::once())->method('status')->willReturn(ProjectionStatus::setupRequired('fake needs setup.'));
 
-        $actualStatuses = $this->subscriptionEngine->subscriptionStatuses();
+        $actualStatuses = $this->subscriptionEngine->subscriptionStatus();
 
-        $expected = SubscriptionStatuses::fromArray([
+        $expected = SubscriptionStatusCollection::fromArray([
             ProjectionSubscriptionStatus::create(
                 subscriptionId: SubscriptionId::fromString('contentGraph'),
                 subscriptionStatus: SubscriptionStatus::BOOTING,

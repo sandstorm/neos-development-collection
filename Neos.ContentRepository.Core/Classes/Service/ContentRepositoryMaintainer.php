@@ -11,7 +11,7 @@ use Neos\ContentRepository\Core\Feature\WorkspaceEventStreamName;
 use Neos\ContentRepository\Core\Subscription\Engine\Errors;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
-use Neos\ContentRepository\Core\Subscription\SubscriptionStatuses;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatusCollection;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\Error\Messages\Error;
 use Neos\EventStore\EventStoreInterface;
@@ -38,7 +38,7 @@ use Neos\EventStore\Model\EventStream\VirtualStreamName;
  * can be examined with two methods:
  *
  * The event store status is available via {@see eventStoreStatus}, while the subscription status are returned
- * via {@see subscriptionStatuses}. Further documentation in {@see SubscriptionStatuses}.
+ * via {@see SubscriptionStatusCollection}. Further documentation in {@see SubscriptionStatusCollection}.
  *
  * Replay / Catchup of projections
  * -------------------------------
@@ -87,9 +87,9 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
         return $this->eventStore->status();
     }
 
-    public function subscriptionStatuses(): SubscriptionStatuses
+    public function subscriptionStatus(): SubscriptionStatusCollection
     {
-        return $this->subscriptionEngine->subscriptionStatuses();
+        return $this->subscriptionEngine->subscriptionStatus();
     }
 
     public function replayProjection(SubscriptionId $subscriptionId, \Closure|null $progressCallback = null): Error|null

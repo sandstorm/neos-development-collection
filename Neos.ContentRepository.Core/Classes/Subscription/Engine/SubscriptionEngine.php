@@ -13,7 +13,7 @@ use Neos\ContentRepository\Core\Subscription\DetachedSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\Exception\CatchUpFailed;
 use Neos\ContentRepository\Core\Subscription\Exception\SubscriptionEngineAlreadyProcessingException;
 use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
-use Neos\ContentRepository\Core\Subscription\SubscriptionStatuses;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatusCollection;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatusFilter;
 use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Model\Event\SequenceNumber;
@@ -106,14 +106,14 @@ final class SubscriptionEngine
         return $errors === [] ? Result::success() : Result::failed(Errors::fromArray($errors));
     }
 
-    public function subscriptionStatuses(SubscriptionCriteria|null $criteria = null): SubscriptionStatuses
+    public function subscriptionStatus(SubscriptionCriteria|null $criteria = null): SubscriptionStatusCollection
     {
         $statuses = [];
         try {
             $subscriptions = $this->subscriptionStore->findByCriteria($criteria ?? SubscriptionCriteria::noConstraints());
         } catch (TableNotFoundException) {
             // the schema is not setup - thus there are no subscribers
-            return SubscriptionStatuses::createEmpty();
+            return SubscriptionStatusCollection::createEmpty();
         }
         foreach ($subscriptions as $subscription) {
             if (!$this->subscribers->contain($subscription->id)) {
@@ -133,7 +133,7 @@ final class SubscriptionEngine
                 setupStatus: $subscriber->projection->status(),
             );
         }
-        return SubscriptionStatuses::fromArray($statuses);
+        return SubscriptionStatusCollection::fromArray($statuses);
     }
 
     private function handleEvent(EventEnvelope $eventEnvelope, EventInterface $domainEvent, Subscription $subscription): Error|null

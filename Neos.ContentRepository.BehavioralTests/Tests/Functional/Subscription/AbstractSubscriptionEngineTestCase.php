@@ -137,7 +137,7 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
 
     final protected function subscriptionStatus(string $subscriptionId): ProjectionSubscriptionStatus|DetachedSubscriptionStatus|null
     {
-        return $this->subscriptionEngine->subscriptionStatuses(SubscriptionCriteria::create(ids: [SubscriptionId::fromString($subscriptionId)]))->first();
+        return $this->subscriptionEngine->subscriptionStatus(SubscriptionCriteria::create(ids: [SubscriptionId::fromString($subscriptionId)]))->first();
     }
 
     final protected function commitExampleContentStreamEvent(): void

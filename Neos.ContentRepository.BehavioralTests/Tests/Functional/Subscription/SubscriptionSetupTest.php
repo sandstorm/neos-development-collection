@@ -7,7 +7,7 @@ namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Subscription;
 use Neos\ContentRepository\Core\Projection\ProjectionStatus;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
 use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
-use Neos\ContentRepository\Core\Subscription\SubscriptionStatuses;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatusCollection;
 use Neos\ContentRepository\Core\Subscription\SubscriptionError;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
@@ -24,9 +24,9 @@ final class SubscriptionSetupTest extends AbstractSubscriptionEngineTestCase
         $this->subscriptionEngine->setup();
 
         $this->fakeProjection->expects(self::exactly(2))->method('status')->willReturn(ProjectionStatus::ok());
-        $actualStatuses = $this->subscriptionEngine->subscriptionStatuses();
+        $actualStatuses = $this->subscriptionEngine->subscriptionStatus();
 
-        $expected = SubscriptionStatuses::fromArray([
+        $expected = SubscriptionStatusCollection::fromArray([
             ProjectionSubscriptionStatus::create(
                 subscriptionId: SubscriptionId::fromString('contentGraph'),
                 subscriptionStatus: SubscriptionStatus::BOOTING,

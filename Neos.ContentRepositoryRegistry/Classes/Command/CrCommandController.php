@@ -78,12 +78,12 @@ final class CrCommandController extends CommandController
         }
         $this->outputLine();
         $this->outputLine('Subscriptions:');
-        $subscriptionStatuses = $contentRepositoryMaintainer->subscriptionStatuses();
-        if ($subscriptionStatuses->isEmpty()) {
+        $subscriptionStatusCollection = $contentRepositoryMaintainer->subscriptionStatus();
+        if ($subscriptionStatusCollection->isEmpty()) {
             $this->outputLine('<error>There are no registered subscriptions yet, please run <em>./flow cr:setup</em></error>');
             $this->quit(1);
         }
-        foreach ($subscriptionStatuses as $status) {
+        foreach ($subscriptionStatusCollection as $status) {
             if ($status instanceof DetachedSubscriptionStatus) {
                 $this->outputLine('  <b>%s</b>:', [$status->subscriptionId->value]);
                 $this->output('    Subscription: ');
