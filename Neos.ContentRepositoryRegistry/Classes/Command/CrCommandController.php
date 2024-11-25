@@ -73,7 +73,7 @@ final class CrCommandController extends CommandController
             StatusType::SETUP_REQUIRED => '<comment>Setup required!</comment>',
             StatusType::ERROR => '<error>ERROR</error>',
         });
-        $this->output('  Position: %d', [$crStatus->eventStorePosition->value]);
+        $this->outputLine('  Position: %d', [$crStatus->eventStorePosition->value]);
         $hasErrors |= $crStatus->eventStoreStatus->type === StatusType::ERROR;
         if ($verbose && $crStatus->eventStoreStatus->details !== '') {
             $this->outputFormatted($crStatus->eventStoreStatus->details, [], 2);
@@ -93,6 +93,21 @@ final class CrCommandController extends CommandController
             }
             if ($status instanceof ProjectionSubscriptionStatus) {
                 $this->outputLine('  <b>%s</b>:', [$status->subscriptionId->value]);
+                $this->output('    Setup: ');
+                $this->outputLine(match ($status->setupStatus->type) {
+                    ProjectionStatusType::OK => '<success>OK</success>',
+                    ProjectionStatusType::SETUP_REQUIRED => '<comment>SETUP REQUIRED</comment>',
+                    ProjectionStatusType::ERROR => '<error>ERROR</error>',
+                });
+                $hasErrors |= $status->setupStatus->type === ProjectionStatusType::ERROR;
+                $setupRequired |= $status->setupStatus->type === ProjectionStatusType::SETUP_REQUIRED;
+                if ($verbose && ($status->setupStatus->type !== ProjectionStatusType::OK || $status->setupStatus->details)) {
+                    $lines = explode(chr(10), $status->setupStatus->details ?: '<comment>No details available.</comment>');
+                    foreach ($lines as $line) {
+                        $this->outputLine('      ' . $line);
+                    }
+                    $this->outputLine();
+                }
                 $this->output('    Projection: ');
                 $this->output(match ($status->subscriptionStatus) {
                     SubscriptionStatus::NEW => '<comment>NEW</comment>',
@@ -111,21 +126,6 @@ final class CrCommandController extends CommandController
                     foreach ($lines as $line) {
                         $this->outputLine('<error>      %s</error>', [$line]);
                     }
-                }
-                $this->output('    Setup: ');
-                $this->outputLine(match ($status->setupStatus->type) {
-                    ProjectionStatusType::OK => '<success>OK</success>',
-                    ProjectionStatusType::SETUP_REQUIRED => '<comment>SETUP REQUIRED</comment>',
-                    ProjectionStatusType::ERROR => '<error>ERROR</error>',
-                });
-                $hasErrors |= $status->setupStatus->type === ProjectionStatusType::ERROR;
-                $setupRequired |= $status->setupStatus->type === ProjectionStatusType::SETUP_REQUIRED;
-                if ($verbose && ($status->setupStatus->type !== ProjectionStatusType::OK || $status->setupStatus->details)) {
-                    $lines = explode(chr(10), $status->setupStatus->details ?: '<comment>No details available.</comment>');
-                    foreach ($lines as $line) {
-                        $this->outputLine('      ' . $line);
-                    }
-                    $this->outputLine();
                 }
             }
         }
