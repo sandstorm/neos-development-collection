@@ -62,28 +62,29 @@ final class CrCommandController extends CommandController
         }
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
         $contentRepositoryMaintainer = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new ContentRepositoryMaintainerFactory());
-        $eventStoreStatus = $contentRepositoryMaintainer->eventStoreStatus();
+        $crStatus = $contentRepositoryMaintainer->status();
         $hasErrors = false;
         $setupRequired = false;
         $bootingRequired = false;
-        $this->output('Event Store: ');
-        $this->outputLine(match ($eventStoreStatus->type) {
+        $this->outputLine('Event Store:');
+        $this->output('  Setup: ');
+        $this->outputLine(match ($crStatus->eventStoreStatus->type) {
             StatusType::OK => '<success>OK</success>',
             StatusType::SETUP_REQUIRED => '<comment>Setup required!</comment>',
             StatusType::ERROR => '<error>ERROR</error>',
         });
-        $hasErrors |= $eventStoreStatus->type === StatusType::ERROR;
-        if ($verbose && $eventStoreStatus->details !== '') {
-            $this->outputFormatted($eventStoreStatus->details, [], 2);
+        $this->output('  Position: %d', [$crStatus->eventStorePosition->value]);
+        $hasErrors |= $crStatus->eventStoreStatus->type === StatusType::ERROR;
+        if ($verbose && $crStatus->eventStoreStatus->details !== '') {
+            $this->outputFormatted($crStatus->eventStoreStatus->details, [], 2);
         }
         $this->outputLine();
         $this->outputLine('Subscriptions:');
-        $subscriptionStatusCollection = $contentRepositoryMaintainer->subscriptionStatus();
-        if ($subscriptionStatusCollection->isEmpty()) {
+        if ($crStatus->subscriptionStatus->isEmpty()) {
             $this->outputLine('<error>There are no registered subscriptions yet, please run <em>./flow cr:setup</em></error>');
             $this->quit(1);
         }
-        foreach ($subscriptionStatusCollection as $status) {
+        foreach ($crStatus->subscriptionStatus as $status) {
             if ($status instanceof DetachedSubscriptionStatus) {
                 $this->outputLine('  <b>%s</b>:', [$status->subscriptionId->value]);
                 $this->output('    Subscription: ');
@@ -134,7 +135,7 @@ final class CrCommandController extends CommandController
                 $this->outputLine('<comment>Setup required, please run <em>./flow cr:setup</em></comment>');
             }
             if ($bootingRequired) {
-                $this->outputLine('<comment>Catchup needed for projections, please run <em>./flow cr:projectioncatchup [projection-name]</em></comment>');
+                $this->outputLine('<comment>Catchup or replay needed for <comment>BOOTING</comment> projections</comment>');
             }
             if ($hasErrors) {
                 $this->outputLine('<error>Some projections are not okay</error>');

@@ -8,19 +8,20 @@ use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\WorkspaceEventStreamName;
+use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryStatus;
 use Neos\ContentRepository\Core\Subscription\Engine\Errors;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionCriteria;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
-use Neos\ContentRepository\Core\Subscription\SubscriptionStatusCollection;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatusCollection;
 use Neos\Error\Messages\Error;
 use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Model\Event\EventType;
 use Neos\EventStore\Model\Event\EventTypes;
+use Neos\EventStore\Model\Event\SequenceNumber;
 use Neos\EventStore\Model\Event\StreamName;
-use Neos\EventStore\Model\EventStore\Status as EventStoreStatus;
 use Neos\EventStore\Model\EventStream\EventStreamFilter;
 use Neos\EventStore\Model\EventStream\VirtualStreamName;
 
@@ -37,10 +38,10 @@ use Neos\EventStore\Model\EventStream\VirtualStreamName;
  * Staus information
  * -----------------
  * The status of the content repository e.g. if a setup is required or if all subscriptions are active and their position
- * can be examined with two methods:
+ * can be examined with {@see status}
  *
- * The event store status is available via {@see eventStoreStatus}, while the subscription status are returned
- * via {@see SubscriptionStatusCollection}. Further documentation in {@see SubscriptionStatusCollection}.
+ * The event store status is available via {@see ContentRepositoryStatus::$eventStoreStatus}, and the subscription status
+ * via {@see ContentRepositoryStatus::$subscriptionStatus}. Further documentation in {@see SubscriptionStatusCollection}.
  *
  * Replay / Catchup of projections
  * -------------------------------
@@ -84,14 +85,15 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
         return null;
     }
 
-    public function eventStoreStatus(): EventStoreStatus
+    public function status(): ContentRepositoryStatus
     {
-        return $this->eventStore->status();
-    }
+        $lastEventEnvelope = current(iterator_to_array($this->eventStore->load(VirtualStreamName::all())->backwards()->limit(1))) ?: null;
 
-    public function subscriptionStatus(): SubscriptionStatusCollection
-    {
-        return $this->subscriptionEngine->subscriptionStatus();
+        return ContentRepositoryStatus::create(
+            $this->eventStore->status(),
+            $lastEventEnvelope?->sequenceNumber ?? SequenceNumber::none(),
+            $this->subscriptionEngine->subscriptionStatus()
+        );
     }
 
     public function replayProjection(SubscriptionId $subscriptionId, \Closure|null $progressCallback = null): Error|null
