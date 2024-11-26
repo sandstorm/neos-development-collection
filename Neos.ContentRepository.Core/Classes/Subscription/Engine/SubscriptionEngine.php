@@ -28,7 +28,12 @@ use Neos\ContentRepository\Core\Subscription\Subscription;
 use Neos\ContentRepository\Core\Subscription\Subscriptions;
 
 /**
- * @internal public API is the {@see ContentRepository::handle()} and the {@see ContentRepositoryMaintainer}
+ * This is the internal core for the catchup
+ *
+ * All functionality is low level and well encapsulated and abstracted by the {@see ContentRepositoryMaintainer}
+ * It presents the only API way to interact with catchup and offers more maintenance tasks.
+ *
+ * @internal implementation detail of {@see ContentRepository::handle()} and the {@see ContentRepositoryMaintainer}
  */
 final class SubscriptionEngine
 {

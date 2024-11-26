@@ -13,7 +13,6 @@ use Neos\ContentRepository\Core\Subscription\Engine\Errors;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionCriteria;
-use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatusCollection;
 use Neos\Error\Messages\Error;
@@ -43,16 +42,28 @@ use Neos\EventStore\Model\EventStream\VirtualStreamName;
  * The event store status is available via {@see ContentRepositoryStatus::$eventStoreStatus}, and the subscription status
  * via {@see ContentRepositoryStatus::$subscriptionStatus}. Further documentation in {@see SubscriptionStatusCollection}.
  *
- * Replay / Catchup of projections
- * -------------------------------
- * The methods {@see replayProjection}, {@see replayAllProjections} and {@see catchupProjection}
- * can be leveraged to interact with the projection catchup. In the happy path no interaction is necessary,
- * as {@see ContentRepository::handle()} triggers the projections after applying the events.
+ * Projection subscriptions
+ * ------------------------
+ *
+ * This maintainer offers also the public API to interact with the projection catchup. In the happy path,
+ * no interaction is necessary, as {@see ContentRepository::handle()} triggers the projections after applying the events.
+ *
+ * Special cases:
+ *
+ * *Replay*
  *
  * For initialising on a new database - which contains events already - a replay will make sure that the projections
- * are emptied and reapply the events. After registering a new projection a setup is needed and a replay of this projection.
+ * are emptied and reapply the events. This can be triggered via {@see replayProjection} or {@see replayAllProjections}
  *
- * The explicit catchup of a projection is only required after fixing a projection error.
+ * And after registering a new projection a setup as well as a replay of this projection is also required.
+ *
+ * *Reactivate*
+ *
+ * In case a projection is detached but is reinstalled a reactivation is needed via {@see reactivateSubscription}
+ *
+ * Also in case a projection runs into the error status, its code needs to be fixed, and it can also be attempted to be reactivated.
+ *
+ * Note that in both cases a projection replay would also work, but with the difference that the projection is reset as well.
  *
  * @api
  */
@@ -123,39 +134,22 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
     }
 
     /**
-     * Catchup one specific projection for debugging or fixing it.
+     * Reactivate a projection
      *
-     * The explicit catchup is only needed for projections in the booting state with an advanced position.
-     * So in the case of an error or for a detached projection, the setup will move the projection back to booting keeping its current position.
-     * Running a full replay would work but might be overkill, instead this catchup will just attempt boot the projection back to active.
-     *
-     * We don't offer an API to catch up all projections at once (like catchupAllProjections). Instead, a replayAll can be used.
+     * The explicit catchup is only needed for projections in the error or detached status with an advanced position.
+     * Running a full replay would work but might be overkill, instead this reactivation will just attempt
+     * catchup the projection back to active from its current position.
      */
-    public function catchupProjection(SubscriptionId $subscriptionId, \Closure|null $progressCallback = null): Error|null
+    public function reactivateSubscription(SubscriptionId $subscriptionId, \Closure|null $progressCallback = null): Error|null
     {
         $subscriptionStatus = $this->subscriptionEngine->subscriptionStatus(SubscriptionCriteria::create([$subscriptionId]))->first();
 
         if ($subscriptionStatus === null) {
-            return new Error(sprintf('Projection "%s" is not registered.', $subscriptionId->value));
+            return new Error(sprintf('Subscription "%s" is not registered.', $subscriptionId->value));
         }
 
-        if ($subscriptionStatus->subscriptionStatus === SubscriptionStatus::BOOTING) {
-            $bootResult = $this->subscriptionEngine->boot(SubscriptionEngineCriteria::create([$subscriptionId]), progressCallback: $progressCallback);
-            if ($bootResult->errors !== null) {
-                return self::createErrorForReason('booting', $bootResult->errors);
-            }
-            return null;
-        }
-
-        if ($subscriptionStatus->subscriptionStatus === SubscriptionStatus::ACTIVE) {
-            $catchupResult = $this->subscriptionEngine->catchUpActive(SubscriptionEngineCriteria::create([$subscriptionId]), progressCallback: $progressCallback);
-            if ($catchupResult->errors !== null) {
-                return self::createErrorForReason('catchup', $catchupResult->errors);
-            }
-            return null;
-        }
-
-        return new Error(sprintf('Cannot catch-up projection "%s" with state %s. Please setup the content repository first.', $subscriptionId->value, $subscriptionStatus->subscriptionStatus->name));
+        // todo implement https://github.com/patchlevel/event-sourcing/blob/b8591c56b21b049f46bead8e7ab424fd2afe9917/src/Subscription/Engine/DefaultSubscriptionEngine.php#L624
+        return null;
     }
 
     /**

@@ -64,6 +64,7 @@ final class CrCommandController extends CommandController
         $contentRepositoryMaintainer = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new ContentRepositoryMaintainerFactory());
         $crStatus = $contentRepositoryMaintainer->status();
         $hasErrors = false;
+        $reactivationRequired = false;
         $setupRequired = false;
         $bootingRequired = false;
         $this->outputLine('Event Store:');
@@ -118,9 +119,9 @@ final class CrCommandController extends CommandController
                 });
                 $this->outputLine(' at position <b>%d</b>', [$status->subscriptionPosition->value]);
                 $hasErrors |= $status->subscriptionStatus === SubscriptionStatus::ERROR;
+                $reactivationRequired |= $status->subscriptionStatus === SubscriptionStatus::ERROR;
                 $bootingRequired |= $status->subscriptionStatus === SubscriptionStatus::BOOTING;
-                // detached can be reattached via setup:
-                $setupRequired |= $status->subscriptionStatus === SubscriptionStatus::DETACHED;
+                $reactivationRequired |= $status->subscriptionStatus === SubscriptionStatus::DETACHED;
                 if ($verbose && $status->subscriptionError !== null) {
                     $lines = explode(chr(10), $status->subscriptionError->errorMessage ?: '<comment>No details available.</comment>');
                     foreach ($lines as $line) {
@@ -135,10 +136,10 @@ final class CrCommandController extends CommandController
                 $this->outputLine('<comment>Setup required, please run <em>./flow cr:setup</em></comment>');
             }
             if ($bootingRequired) {
-                $this->outputLine('<comment>Catchup or replay needed for <comment>BOOTING</comment> projections</comment>');
+                $this->outputLine('<comment>Replay needed for <comment>BOOTING</comment> projections, please run <em>./flow cr:projectionreplay [subscription-id]</em></comment>');
             }
-            if ($hasErrors) {
-                $this->outputLine('<error>Some projections are not okay</error>');
+            if ($reactivationRequired) {
+                $this->outputLine('<comment>Reactivation of <comment>ERROR</comment> or <comment>DETACHED</comment> projection required, please run <em>./flow cr:reactivatesubscription [subscription-id]</em></comment>');
             }
         }
         if ($hasErrors) {
@@ -248,31 +249,31 @@ final class CrCommandController extends CommandController
     }
 
     /**
-     * Catchup one specific projection for debugging or fixing it.
+     * Reactivate a projection
      *
-     * The explicit catchup is only needed for projections in the booting state with an advanced position.
-     * So in the case of an error or for a detached projection, the setup will move the projection back to booting keeping its current position.
-     * Running a full replay would work but might be overkill, instead this catchup will just attempt boot the projection back to active.
+     * The explicit catchup is only needed for projections in the error or detached status with an advanced position.
+     * Running a full replay would work but might be overkill, instead this reactivation will just attempt
+     * catchup the projection back to active from its current position.
      *
-     * @param string $projection Identifier of the projection to catchup like it was configured (e.g. "contentGraph", "Vendor.Package:YourProjection")
+     * @param string $projection Identifier of the projection to reactivate like it was configured (e.g. "contentGraph", "Vendor.Package:YourProjection")
      * @param string $contentRepository Identifier of the Content Repository instance to operate on
      * @param bool $quiet If set only fatal errors are rendered to the output (must be used with --force flag to avoid user input)
      */
-    public function projectionCatchupCommand(string $projection, string $contentRepository = 'default', bool $quiet = false): void
+    public function reactivateSubscriptionCommand(string $projection, string $contentRepository = 'default', bool $quiet = false): void
     {
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
         $contentRepositoryMaintainer = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new ContentRepositoryMaintainerFactory());
 
         $progressCallback = null;
         if (!$quiet) {
-            $this->outputLine('Catchup projection "%s" of Content Repository "%s" ...', [$projection, $contentRepositoryId->value]);
+            $this->outputLine('Reactivate projection "%s" of Content Repository "%s" ...', [$projection, $contentRepositoryId->value]);
             // render memory consumption and time remaining
             $this->output->getProgressBar()->setFormat('debug');
             $this->output->progressStart();
             $progressCallback = fn () => $this->output->progressAdvance();
         }
 
-        $result = $contentRepositoryMaintainer->catchupProjection(SubscriptionId::fromString($projection), progressCallback: $progressCallback);
+        $result = $contentRepositoryMaintainer->reactivateSubscription(SubscriptionId::fromString($projection), progressCallback: $progressCallback);
 
         if (!$quiet) {
             $this->output->progressFinish();
