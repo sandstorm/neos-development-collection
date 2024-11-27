@@ -378,7 +378,7 @@ final class SubscriptionEngine
     private function processExclusively(\Closure $closure): mixed
     {
         if ($this->processing) {
-            throw new SubscriptionEngineAlreadyProcessingException();
+            throw new SubscriptionEngineAlreadyProcessingException('Subscription engine is already processing', 1732714075);
         }
         $this->processing = true;
         try {

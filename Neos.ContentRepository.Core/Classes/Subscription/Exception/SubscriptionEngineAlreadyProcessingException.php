@@ -9,8 +9,4 @@ namespace Neos\ContentRepository\Core\Subscription\Exception;
  */
 final class SubscriptionEngineAlreadyProcessingException extends \RuntimeException
 {
-    public function __construct()
-    {
-        parent::__construct('Subscription engine is already processing');
-    }
 }
