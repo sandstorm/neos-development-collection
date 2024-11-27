@@ -349,15 +349,12 @@ final class SubscriptionEngine
                     $this->logger?->debug(sprintf('Subscription Engine: Subscription "%s" is farther than the current position (%d >= %d), continue catch up.', $subscription->id->value, $subscription->position->value, $sequenceNumber->value));
                     continue;
                 }
-                $this->subscriptionStore->createSavepoint();
                 $error = $this->handleEvent($eventEnvelope, $domainEvent, $subscription->id);
                 if ($error !== null) {
                     // ERROR Case:
-                    // 1.) roll back the partially applied event on the subscriber
-                    $this->subscriptionStore->rollbackSavepoint();
-                    // 2.) for the leftover events we are not including this failed subscription for catchup
+                    // 1.) for the leftover events we are not including this failed subscription for catchup
                     $subscriptionsToCatchup = $subscriptionsToCatchup->without($subscription->id);
-                    // 3.) update the subscription error state on either its unchanged or new position (if some events worked)
+                    // 2.) update the subscription error state on either its unchanged or new position (if some events worked)
                     $this->subscriptionStore->update(
                         $subscription->id,
                         status: SubscriptionStatus::ERROR,
@@ -367,7 +364,7 @@ final class SubscriptionEngine
                             $error->throwable
                         ),
                     );
-                    // 4.) invoke onAfterCatchUp, as onBeforeCatchUp was invoked already and to be consistent we want to "shutdown" this catchup iteration event though we know it failed
+                    // 3.) invoke onAfterCatchUp, as onBeforeCatchUp was invoked already and to be consistent we want to "shutdown" this catchup iteration event though we know it failed
                     // todo put the ERROR $subscriptionStatus into the after hook, so it can properly be reacted upon
                     try {
                         $this->subscribers->get($subscription->id)->onAfterCatchUp();
@@ -381,7 +378,6 @@ final class SubscriptionEngine
                     continue;
                 }
                 // HAPPY Case:
-                $this->subscriptionStore->releaseSavepoint();
                 $highestSequenceNumberForSubscriber[$subscription->id->value] = $eventEnvelope->sequenceNumber;
             }
             $numberOfProcessedEvents++;

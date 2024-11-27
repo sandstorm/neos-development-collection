@@ -169,19 +169,4 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
     {
         return $this->dbal->transactional($closure);
     }
-
-    public function createSavepoint(): void
-    {
-        $this->dbal->createSavepoint('SUBSCRIBER');
-    }
-
-    public function releaseSavepoint(): void
-    {
-        $this->dbal->releaseSavepoint('SUBSCRIBER');
-    }
-
-    public function rollbackSavepoint(): void
-    {
-        $this->dbal->rollbackSavepoint('SUBSCRIBER');
-    }
 }
