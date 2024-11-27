@@ -8,7 +8,7 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionIds;
 
 /**
- * @internal
+ * @internal implementation detail of the catchup
  */
 final class SubscriptionEngineCriteria
 {

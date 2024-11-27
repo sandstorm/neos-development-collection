@@ -6,7 +6,7 @@ namespace Neos\ContentRepository\Core\Subscription;
 
 /**
  * @implements \IteratorAggregate<SubscriptionId>
- * @api
+ * @internal implementation detail of the catchup
  */
 final class SubscriptionIds implements \IteratorAggregate, \Countable, \JsonSerializable
 {

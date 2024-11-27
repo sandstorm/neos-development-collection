@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Subscription;
 
 /**
- * @api
+ * @api part of the subscription status
  */
 enum SubscriptionStatus : string
 {

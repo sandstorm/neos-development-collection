@@ -9,7 +9,9 @@ use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
 use Neos\ContentRepository\Core\Subscription\Subscription;
 use Neos\ContentRepository\Core\Subscription\Subscriptions;
 
-/** @internal */
+/**
+ * @internal implementation detail of the catchup
+ */
 final class SubscriptionManager
 {
     /** @var \SplObjectStorage<Subscription, null> */

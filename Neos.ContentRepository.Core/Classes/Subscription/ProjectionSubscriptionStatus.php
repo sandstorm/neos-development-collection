@@ -8,7 +8,7 @@ use Neos\ContentRepository\Core\Projection\ProjectionStatus;
 use Neos\EventStore\Model\Event\SequenceNumber;
 
 /**
- * @api
+ * @api part of the subscription status
  */
 final readonly class ProjectionSubscriptionStatus
 {
@@ -22,7 +22,7 @@ final readonly class ProjectionSubscriptionStatus
     }
 
     /**
-     * @internal
+     * @internal implementation detail of the catchup
      */
     public static function create(
         SubscriptionId $subscriptionId,

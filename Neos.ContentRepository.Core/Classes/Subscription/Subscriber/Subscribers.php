@@ -14,7 +14,7 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionId;
  * Like a possible "ListeningSubscriber" to only listen to events without the capabilities of a full-blown projection.
  *
  * @implements \IteratorAggregate<ProjectionSubscriber>
- * @internal
+ * @internal implementation detail of the catchup
  */
 final class Subscribers implements \IteratorAggregate, \Countable, \JsonSerializable
 {

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Subscription\Engine;
 
 /**
- * @api
+ * @internal implementation detail of the catchup
  */
 final readonly class ProcessedResult
 {

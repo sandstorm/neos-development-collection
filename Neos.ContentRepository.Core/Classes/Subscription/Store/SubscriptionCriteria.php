@@ -11,7 +11,7 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatusFilter;
 
 /**
- * @api
+ * @internal implementation detail of the catchup
  */
 final readonly class SubscriptionCriteria
 {

@@ -7,7 +7,7 @@ namespace Neos\ContentRepository\Core\Subscription\Engine;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 
 /**
- * @internal
+ * @internal implementation detail of the catchup
  */
 final class Error
 {

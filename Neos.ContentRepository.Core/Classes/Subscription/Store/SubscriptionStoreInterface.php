@@ -8,7 +8,7 @@ use Neos\ContentRepository\Core\Subscription\Subscription;
 use Neos\ContentRepository\Core\Subscription\Subscriptions;
 
 /**
- * @api
+ * @internal only API for custom content repository integrations
  */
 interface SubscriptionStoreInterface
 {
