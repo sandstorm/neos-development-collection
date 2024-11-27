@@ -74,7 +74,11 @@ final class CrCommandController extends CommandController
             StatusType::SETUP_REQUIRED => '<comment>Setup required!</comment>',
             StatusType::ERROR => '<error>ERROR</error>',
         });
-        $this->outputLine('  Position: %d', [$crStatus->eventStorePosition->value]);
+        if ($crStatus->eventStorePosition) {
+            $this->outputLine('  Position: %d', [$crStatus->eventStorePosition->value]);
+        } else {
+            $this->outputLine('  Position: <error>Loading failed!</error>');
+        }
         $hasErrors |= $crStatus->eventStoreStatus->type === StatusType::ERROR;
         if ($verbose && $crStatus->eventStoreStatus->details !== '') {
             $this->outputFormatted($crStatus->eventStoreStatus->details, [], 2);
@@ -117,7 +121,12 @@ final class CrCommandController extends CommandController
                     SubscriptionStatus::DETACHED => '<comment>DETACHED</comment>',
                     SubscriptionStatus::ERROR => '<error>ERROR</error>',
                 });
-                $this->outputLine(' at position <b>%d</b>', [$status->subscriptionPosition->value]);
+                if ($crStatus->eventStorePosition?->value > $status->subscriptionPosition->value) {
+                    // projection is behind
+                    $this->outputLine(' at position <error>%d</error>', [$status->subscriptionPosition->value]);
+                } else {
+                    $this->outputLine(' at position <b>%d</b>', [$status->subscriptionPosition->value]);
+                }
                 $hasErrors |= $status->subscriptionStatus === SubscriptionStatus::ERROR;
                 $reactivationRequired |= $status->subscriptionStatus === SubscriptionStatus::ERROR;
                 $bootingRequired |= $status->subscriptionStatus === SubscriptionStatus::BOOTING;

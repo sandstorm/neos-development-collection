@@ -23,6 +23,7 @@ use Neos\EventStore\Model\Event\SequenceNumber;
 use Neos\EventStore\Model\Event\StreamName;
 use Neos\EventStore\Model\EventStream\EventStreamFilter;
 use Neos\EventStore\Model\EventStream\VirtualStreamName;
+use Doctrine\DBAL\Exception as DBALException;
 
 /**
  * Set up and manage a content repository
@@ -98,11 +99,16 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
 
     public function status(): ContentRepositoryStatus
     {
-        $lastEventEnvelope = current(iterator_to_array($this->eventStore->load(VirtualStreamName::all())->backwards()->limit(1))) ?: null;
+        try {
+            $lastEventEnvelope = current(iterator_to_array($this->eventStore->load(VirtualStreamName::all())->backwards()->limit(1))) ?: null;
+            $sequenceNumber = $lastEventEnvelope?->sequenceNumber ?? SequenceNumber::none();
+        } catch (DBALException) {
+            $sequenceNumber = null;
+        }
 
         return ContentRepositoryStatus::create(
             $this->eventStore->status(),
-            $lastEventEnvelope?->sequenceNumber ?? SequenceNumber::none(),
+            $sequenceNumber,
             $this->subscriptionEngine->subscriptionStatus()
         );
     }

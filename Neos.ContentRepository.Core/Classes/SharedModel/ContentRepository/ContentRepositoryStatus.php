@@ -26,9 +26,14 @@ use Neos\EventStore\Model\EventStore\Status as EventStoreStatus;
  */
 final readonly class ContentRepositoryStatus
 {
+    /**
+     * @param EventStoreStatus $eventStoreStatus
+     * @param SequenceNumber|null $eventStorePosition The position of the event store. NULL if an error occurred, see error state of $eventStoreStatus
+     * @param SubscriptionStatusCollection $subscriptionStatus
+     */
     private function __construct(
         public EventStoreStatus $eventStoreStatus,
-        public SequenceNumber $eventStorePosition,
+        public SequenceNumber|null $eventStorePosition,
         public SubscriptionStatusCollection $subscriptionStatus,
     ) {
     }
@@ -38,7 +43,7 @@ final readonly class ContentRepositoryStatus
      */
     public static function create(
         EventStoreStatus $eventStoreStatus,
-        SequenceNumber $eventStorePosition,
+        SequenceNumber|null $eventStorePosition,
         SubscriptionStatusCollection $subscriptionStatus,
     ): self {
         return new self(
