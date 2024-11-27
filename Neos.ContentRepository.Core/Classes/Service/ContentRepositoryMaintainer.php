@@ -85,14 +85,14 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
         $eventStoreIsEmpty = iterator_count($this->eventStore->load(VirtualStreamName::all())->limit(1)) === 0;
         $setupResult = $this->subscriptionEngine->setup();
         if ($setupResult->errors !== null) {
-            return self::createErrorForReason('setup', $setupResult->errors);
+            return self::createErrorForReason('Setup failed:', $setupResult->errors);
         }
         if ($eventStoreIsEmpty) {
             // note: possibly introduce $skipBooting flag instead
             // see https://github.com/patchlevel/event-sourcing/blob/b8591c56b21b049f46bead8e7ab424fd2afe9917/src/Subscription/Engine/DefaultSubscriptionEngine.php#L42
             $bootResult = $this->subscriptionEngine->boot();
             if ($bootResult->errors !== null) {
-                return self::createErrorForReason('initial catchup', $bootResult->errors);
+                return self::createErrorForReason('Initial catchup failed:', $bootResult->errors);
             }
         }
         return null;
@@ -125,11 +125,11 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
         }
         $resetResult = $this->subscriptionEngine->reset(SubscriptionEngineCriteria::create([$subscriptionId]));
         if ($resetResult->errors !== null) {
-            return self::createErrorForReason('reset', $resetResult->errors);
+            return self::createErrorForReason('Reset failed:', $resetResult->errors);
         }
         $bootResult = $this->subscriptionEngine->boot(SubscriptionEngineCriteria::create([$subscriptionId]), $progressCallback);
         if ($bootResult->errors !== null) {
-            return self::createErrorForReason('catchup', $bootResult->errors);
+            return self::createErrorForReason('Catchup failed:', $bootResult->errors);
         }
         return null;
     }
@@ -138,11 +138,11 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
     {
         $resetResult = $this->subscriptionEngine->reset();
         if ($resetResult->errors !== null) {
-            return self::createErrorForReason('reset', $resetResult->errors);
+            return self::createErrorForReason('Reset failed:', $resetResult->errors);
         }
         $bootResult = $this->subscriptionEngine->boot(progressCallback: $progressCallback);
         if ($bootResult->errors !== null) {
-            return self::createErrorForReason('catchup', $bootResult->errors);
+            return self::createErrorForReason('Catchup failed:', $bootResult->errors);
         }
         return null;
     }
@@ -163,8 +163,10 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
         if ($subscriptionStatus->subscriptionStatus === SubscriptionStatus::NEW) {
             return new Error(sprintf('Subscription "%s" is not setup and cannot be reactivated.', $subscriptionId->value));
         }
-
-        // todo implement https://github.com/patchlevel/event-sourcing/blob/b8591c56b21b049f46bead8e7ab424fd2afe9917/src/Subscription/Engine/DefaultSubscriptionEngine.php#L624
+        $reactivateResult = $this->subscriptionEngine->reactivate(SubscriptionEngineCriteria::create([$subscriptionId]), $progressCallback);
+        if ($reactivateResult->errors !== null) {
+            return self::createErrorForReason('Could not reactivate subscriber:', $reactivateResult->errors);
+        }
         return null;
     }
 
@@ -183,12 +185,12 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
         }
         $resetResult = $this->subscriptionEngine->reset();
         if ($resetResult->errors !== null) {
-            return self::createErrorForReason('reset', $resetResult->errors);
+            return self::createErrorForReason('Reset failed:', $resetResult->errors);
         }
         // note: possibly introduce $skipBooting flag like for setup
         $bootResult = $this->subscriptionEngine->boot();
         if ($bootResult->errors !== null) {
-            return self::createErrorForReason('booting', $bootResult->errors);
+            return self::createErrorForReason('Catchup failed:', $bootResult->errors);
         }
         return null;
     }
@@ -196,7 +198,7 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
     private static function createErrorForReason(string $method, Errors $errors): Error
     {
         $message = [];
-        $message[] = sprintf('%s produced the following error%s', $method, $errors->count() === 1 ? '' : 's');
+        $message[] = sprintf('%s: Following error%s', $method, $errors->count() === 1 ? '' : 's');
         foreach ($errors as $error) {
             $message[] = sprintf('    Subscription "%s": %s', $error->subscriptionId->value, $error->message);
         }

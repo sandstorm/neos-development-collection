@@ -7,6 +7,7 @@ namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Subscription;
 use Neos\ContentRepository\Core\Projection\ProjectionStatus;
 use Neos\ContentRepository\Core\Subscription\DetachedSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\Engine\ProcessedResult;
+use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
 use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
@@ -97,7 +98,7 @@ final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTes
     /** @test */
     public function projectionIsDetachedOnSetupAndReattachedIfPossible()
     {
-        $this->fakeProjection->expects(self::exactly(2))->method('setUp');
+        $this->fakeProjection->expects(self::once())->method('setUp');
         $this->fakeProjection->expects(self::once())->method('apply');
         $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
 
@@ -160,9 +161,10 @@ final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTes
             $this->subscriptionStatus('Vendor.Package:FakeProjection')
         );
 
-        // setup does re-attach as the projection is found again
-        $this->subscriptionEngine->setup();
+        // reactivate does re-attach as the projection if its found again
+        $result = $this->subscriptionEngine->reactivate(SubscriptionEngineCriteria::create([SubscriptionId::fromString('Vendor.Package:FakeProjection')]));
+        self::assertNull($result->errors);
 
-        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::fromInteger(1));
+        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
     }
 }
