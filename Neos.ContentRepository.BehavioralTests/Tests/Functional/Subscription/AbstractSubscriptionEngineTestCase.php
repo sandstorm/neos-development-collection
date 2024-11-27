@@ -36,6 +36,9 @@ use Neos\Flow\Core\Bootstrap;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * @internal, only for tests of the Neos.* namespace
+ */
 abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't use Flows functional test case as it would reset the database afterwards
 {
     protected ContentRepository $contentRepository;

@@ -47,10 +47,14 @@ final class CrCommandController extends CommandController
      * To check if the content repository needs to be setup look into cr:status.
      * That command will also display information what is about to be migrated.
      *
+     * @param bool $quiet If set, no output is generated. This is useful if only the exit code (0 = all OK, 1 = errors or warnings) is of interest
      * @param string $contentRepository Identifier of the Content Repository to set up
      */
-    public function setupCommand(string $contentRepository = 'default'): void
+    public function setupCommand(string $contentRepository = 'default', bool $quiet = false): void
     {
+        if ($quiet) {
+            $this->output->getOutput()->setVerbosity(Output::VERBOSITY_QUIET);
+        }
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
         $contentRepositoryMaintainer = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new ContentRepositoryMaintainerFactory());
 

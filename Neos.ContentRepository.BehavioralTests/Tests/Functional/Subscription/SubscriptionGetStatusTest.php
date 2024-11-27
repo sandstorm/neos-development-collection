@@ -6,12 +6,15 @@ namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Subscription;
 
 use Doctrine\DBAL\Connection;
 use Neos\ContentRepository\Core\Projection\ProjectionStatus;
+use Neos\ContentRepository\Core\Service\ContentRepositoryMaintainerFactory;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
 use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatusCollection;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
+use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\EventStore\Model\Event\SequenceNumber;
+use Neos\EventStore\Model\EventStore\StatusType;
 
 final class SubscriptionGetStatusTest extends AbstractSubscriptionEngineTestCase
 {
@@ -25,8 +28,13 @@ final class SubscriptionGetStatusTest extends AbstractSubscriptionEngineTestCase
             keepSchema: false
         );
 
-        $actualStatuses = $this->subscriptionEngine->subscriptionStatus();
-        self::assertTrue($actualStatuses->isEmpty());
+        $crMaintainer = $this->getObject(ContentRepositoryRegistry::class)->buildService($this->contentRepository->id, new ContentRepositoryMaintainerFactory());
+
+        $status = $crMaintainer->status();
+
+        self::assertEquals(StatusType::SETUP_REQUIRED, $status->eventStoreStatus->type);
+        self::assertNull($status->eventStorePosition);
+        self::assertTrue($status->subscriptionStatus->isEmpty());
 
         self::assertNull(
             $this->subscriptionStatus('contentGraph')
