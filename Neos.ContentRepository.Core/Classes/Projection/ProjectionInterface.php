@@ -26,7 +26,7 @@ interface ProjectionInterface
     public function setUp(): void;
 
     /**
-     * Determines the status of the projection (not to confuse with {@see getState()})
+     * Determines the setup status of the projection. E.g. are the database tables created or any columns missing.
      */
     public function status(): ProjectionStatus;
 

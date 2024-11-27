@@ -6,7 +6,7 @@ namespace Neos\ContentRepository\Core\Subscription\Engine;
 
 /**
  * @implements \IteratorAggregate<Error>
- * @api
+ * @internal implementation detail of the catchup
  */
 final readonly class Errors implements \IteratorAggregate, \Countable
 {

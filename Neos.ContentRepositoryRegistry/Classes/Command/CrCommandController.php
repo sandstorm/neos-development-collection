@@ -4,26 +4,38 @@ declare(strict_types=1);
 namespace Neos\ContentRepositoryRegistry\Command;
 
 use Neos\ContentRepository\Core\Projection\ProjectionStatusType;
-use Neos\ContentRepository\Core\Service\SubscriptionServiceFactory;
+use Neos\ContentRepository\Core\Service\ContentRepositoryMaintainerFactory;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
+use Neos\ContentRepository\Core\Subscription\DetachedSubscriptionStatus;
+use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
-use Neos\EventStore\Model\Event\SequenceNumber;
 use Neos\EventStore\Model\EventStore\StatusType;
+use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Cli\CommandController;
-use stdClass;
-use Symfony\Component\Console\Helper\ProgressBar;
-use Symfony\Component\Console\Output\ConsoleOutput;
 use Symfony\Component\Console\Output\Output;
 
+/**
+ * Set up a content repository
+ *
+ * *Initialisation*
+ *
+ * The command "./flow cr:setup" sets up the content repository like event store and subscription database tables.
+ * It is non-destructive.
+ *
+ * Note that a reset is not implemented here but for the Neos CMS use-case provided via "./flow site:pruneAll"
+ *
+ * *Staus information*
+ *
+ * The status of the content repository e.g. if a setup is required or if all subscriptions are active and their position
+ * can be examined with "./flow cr:status"
+ *
+ * See also {@see ContentRepositoryMaintainer} for more information.
+ */
 final class CrCommandController extends CommandController
 {
-
-    public function __construct(
-        private readonly ContentRepositoryRegistry $contentRepositoryRegistry,
-    ) {
-        parent::__construct();
-    }
+    #[Flow\Inject()]
+    protected ContentRepositoryRegistry $contentRepositoryRegistry;
 
     /**
      * Sets up and checks required dependencies for a Content Repository instance
@@ -35,78 +47,23 @@ final class CrCommandController extends CommandController
      * To check if the content repository needs to be setup look into cr:status.
      * That command will also display information what is about to be migrated.
      *
+     * @param bool $quiet If set, no output is generated. This is useful if only the exit code (0 = all OK, 1 = errors or warnings) is of interest
      * @param string $contentRepository Identifier of the Content Repository to set up
      */
-    public function setupCommand(string $contentRepository = 'default'): void
+    public function setupCommand(string $contentRepository = 'default', bool $quiet = false): void
     {
+        if ($quiet) {
+            $this->output->getOutput()->setVerbosity(Output::VERBOSITY_QUIET);
+        }
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
-        $subscriptionService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new SubscriptionServiceFactory());
-        $subscriptionService->setupEventStore();
-        $setupResult = $subscriptionService->subscriptionEngine->setup();
-        if ($setupResult->errors === null) {
-            $this->outputLine('<success>Content Repository "%s" was set up</success>', [$contentRepositoryId->value]);
-            return;
-        }
-        $this->outputLine('<success>Setup of Content Repository "%s" produced the following error%s</success>', [$contentRepositoryId->value, $setupResult->errors->count() === 1 ? '' : 's']);
-        foreach ($setupResult->errors as $error) {
-            $this->outputLine('<error><b>Subscription "%s":</b> %s</error>', [$error->subscriptionId->value, $error->message]);
-        }
-        $this->quit(1);
-    }
+        $contentRepositoryMaintainer = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new ContentRepositoryMaintainerFactory());
 
-    public function subscriptionsBootCommand(string $contentRepository = 'default', bool $quiet = false): void
-    {
-        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
-        $subscriptionService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new SubscriptionServiceFactory());
-        if (!$quiet) {
-            $this->outputLine('Booting new subscriptions');
-            // render memory consumption and time remaining
-            $this->output->getProgressBar()->setFormat('debug');
-            $this->output->progressStart();
-            $bootResult = $subscriptionService->subscriptionEngine->boot(progressCallback: fn () => $this->output->progressAdvance());
-            $this->output->progressFinish();
-            $this->outputLine();
-            if ($bootResult->hasFailed() === false) {
-                $this->outputLine('<success>Done</success>');
-                return;
-            }
-        } else {
-            $bootResult = $subscriptionService->subscriptionEngine->boot();
-        }
-        if ($bootResult->hasFailed()) {
-            $this->outputLine('<success>Booting of Content Repository "%s" produced the following error%s</success>', [$contentRepositoryId->value, $bootResult->errors->count() === 1 ? '' : 's']);
-            foreach ($bootResult->errors as $error) {
-                $this->outputLine('<error><b>Subscription "%s":</b> %s</error>', [$error->subscriptionId->value, $error->message]);
-            }
+        $result = $contentRepositoryMaintainer->setUp();
+        if ($result !== null) {
+            $this->outputLine('<error>%s</error>', [$result->getMessage()]);
             $this->quit(1);
         }
-    }
-
-    public function subscriptionsCatchUpCommand(string $contentRepository = 'default', bool $quiet = false): void
-    {
-        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
-        $subscriptionService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new SubscriptionServiceFactory());
-        $subscriptionService->subscriptionEngine->catchUpActive();
-    }
-
-    public function subscriptionsResetCommand(string $contentRepository = 'default', bool $force = false): void
-    {
-        if (!$force && !$this->output->askConfirmation('<error>Are you sure? (y/n)</error> ', false)) {
-            $this->outputLine('Cancelled');
-            $this->quit();
-        }
-        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
-        $subscriptionService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new SubscriptionServiceFactory());
-        $resetResult = $subscriptionService->subscriptionEngine->reset();
-        if ($resetResult->errors === null) {
-            $this->outputLine('<success>Content Repository "%s" was reset</success>', [$contentRepositoryId->value]);
-            return;
-        }
-        $this->outputLine('<success>Reset of Content Repository "%s" produced the following error%s</success>', [$contentRepositoryId->value, $resetResult->errors->count() === 1 ? '' : 's']);
-        foreach ($resetResult->errors as $error) {
-            $this->outputLine('<error><b>Subscription "%s":</b> %s</error>', [$error->subscriptionId->value, $error->message]);
-        }
-        $this->quit(1);
+        $this->outputLine('<success>Content Repository "%s" was set up</success>', [$contentRepositoryId->value]);
     }
 
     /**
@@ -124,66 +81,81 @@ final class CrCommandController extends CommandController
             $this->output->getOutput()->setVerbosity(Output::VERBOSITY_QUIET);
         }
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
-        $subscriptionService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new SubscriptionServiceFactory());
-        $eventStoreStatus = $subscriptionService->eventStoreStatus();
+        $contentRepositoryMaintainer = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new ContentRepositoryMaintainerFactory());
+        $crStatus = $contentRepositoryMaintainer->status();
         $hasErrors = false;
+        $reactivationRequired = false;
         $setupRequired = false;
         $bootingRequired = false;
-        $resetRequired = false;
-
-        $this->output('Event Store: ');
-        $this->outputLine(match ($eventStoreStatus->type) {
+        $this->outputLine('Event Store:');
+        $this->output('  Setup: ');
+        $this->outputLine(match ($crStatus->eventStoreStatus->type) {
             StatusType::OK => '<success>OK</success>',
             StatusType::SETUP_REQUIRED => '<comment>Setup required!</comment>',
             StatusType::ERROR => '<error>ERROR</error>',
         });
-        $hasErrors |= $eventStoreStatus->type === StatusType::ERROR;
-        if ($verbose && $eventStoreStatus->details !== '') {
-            $this->outputFormatted($eventStoreStatus->details, [], 2);
+        if ($crStatus->eventStorePosition) {
+            $this->outputLine('  Position: %d', [$crStatus->eventStorePosition->value]);
+        } else {
+            $this->outputLine('  Position: <error>Loading failed!</error>');
+        }
+        $hasErrors |= $crStatus->eventStoreStatus->type === StatusType::ERROR;
+        if ($verbose && $crStatus->eventStoreStatus->details !== '') {
+            $this->outputFormatted($crStatus->eventStoreStatus->details, [], 2);
         }
         $this->outputLine();
         $this->outputLine('Subscriptions:');
-        $subscriptionStatuses = $subscriptionService->subscriptionEngine->subscriptionStatuses();
-        if ($subscriptionStatuses->isEmpty()) {
+        if ($crStatus->subscriptionStatus->isEmpty()) {
             $this->outputLine('<error>There are no registered subscriptions yet, please run <em>./flow cr:setup</em></error>');
             $this->quit(1);
         }
-        foreach ($subscriptionStatuses as $status) {
-            $this->outputLine('  <b>%s</b>:', [$status->subscriptionId->value]);
-            $this->output('    Subscription: ', [$status->subscriptionId->value]);
-            $this->output(match ($status->subscriptionStatus) {
-                SubscriptionStatus::NEW => '<comment>NEW</comment>',
-                SubscriptionStatus::BOOTING => '<comment>BOOTING</comment>',
-                SubscriptionStatus::ACTIVE => '<success>ACTIVE</success>',
-                SubscriptionStatus::DETACHED => '<comment>DETACHED</comment>',
-                SubscriptionStatus::ERROR => '<error>ERROR</error>',
-            });
-            $this->outputLine(' at position <b>%d</b>', [$status->subscriptionPosition->value]);
-            $hasErrors |= $status->subscriptionStatus === SubscriptionStatus::ERROR;
-            $bootingRequired |= $status->subscriptionStatus === SubscriptionStatus::BOOTING;
-            if ($verbose && $status->subscriptionError !== null) {
-                $lines = explode(chr(10), $status->subscriptionError->errorMessage ?: '<comment>No details available.</comment>');
-                foreach ($lines as $line) {
-                    $this->outputLine('<error>      %s</error>', [$line]);
-                }
+        foreach ($crStatus->subscriptionStatus as $status) {
+            if ($status instanceof DetachedSubscriptionStatus) {
+                $this->outputLine('  <b>%s</b>:', [$status->subscriptionId->value]);
+                $this->output('    Subscription: ');
+                $this->output('%s <comment>DETACHED</comment>', [$status->subscriptionId->value, $status->subscriptionStatus === SubscriptionStatus::DETACHED ? 'is' : 'will be']);
+                $this->outputLine(' at position <b>%d</b>', [$status->subscriptionPosition->value]);
             }
-            if ($status->projectionStatus !== null) {
-                $this->output('    Projection: ');
-                $this->outputLine(match ($status->projectionStatus->type) {
+            if ($status instanceof ProjectionSubscriptionStatus) {
+                $this->outputLine('  <b>%s</b>:', [$status->subscriptionId->value]);
+                $this->output('    Setup: ');
+                $this->outputLine(match ($status->setupStatus->type) {
                     ProjectionStatusType::OK => '<success>OK</success>',
-                    ProjectionStatusType::SETUP_REQUIRED => '<comment>Setup required!</comment>',
-                    ProjectionStatusType::REPLAY_REQUIRED => '<comment>Replay required!</comment>',
+                    ProjectionStatusType::SETUP_REQUIRED => '<comment>SETUP REQUIRED</comment>',
                     ProjectionStatusType::ERROR => '<error>ERROR</error>',
                 });
-                $hasErrors |= $status->projectionStatus->type === ProjectionStatusType::ERROR;
-                $setupRequired |= $status->projectionStatus->type === ProjectionStatusType::SETUP_REQUIRED;
-                $resetRequired |= $status->projectionStatus->type === ProjectionStatusType::REPLAY_REQUIRED;
-                if ($verbose && ($status->projectionStatus->type !== ProjectionStatusType::OK || $status->projectionStatus->details)) {
-                    $lines = explode(chr(10), $status->projectionStatus->details ?: '<comment>No details available.</comment>');
+                $hasErrors |= $status->setupStatus->type === ProjectionStatusType::ERROR;
+                $setupRequired |= $status->setupStatus->type === ProjectionStatusType::SETUP_REQUIRED;
+                if ($verbose && ($status->setupStatus->type !== ProjectionStatusType::OK || $status->setupStatus->details)) {
+                    $lines = explode(chr(10), $status->setupStatus->details ?: '<comment>No details available.</comment>');
                     foreach ($lines as $line) {
                         $this->outputLine('      ' . $line);
                     }
                     $this->outputLine();
+                }
+                $this->output('    Projection: ');
+                $this->output(match ($status->subscriptionStatus) {
+                    SubscriptionStatus::NEW => '<comment>NEW</comment>',
+                    SubscriptionStatus::BOOTING => '<comment>BOOTING</comment>',
+                    SubscriptionStatus::ACTIVE => '<success>ACTIVE</success>',
+                    SubscriptionStatus::DETACHED => '<comment>DETACHED</comment>',
+                    SubscriptionStatus::ERROR => '<error>ERROR</error>',
+                });
+                if ($crStatus->eventStorePosition?->value > $status->subscriptionPosition->value) {
+                    // projection is behind
+                    $this->outputLine(' at position <error>%d</error>', [$status->subscriptionPosition->value]);
+                } else {
+                    $this->outputLine(' at position <b>%d</b>', [$status->subscriptionPosition->value]);
+                }
+                $hasErrors |= $status->subscriptionStatus === SubscriptionStatus::ERROR;
+                $reactivationRequired |= $status->subscriptionStatus === SubscriptionStatus::ERROR;
+                $bootingRequired |= $status->subscriptionStatus === SubscriptionStatus::BOOTING;
+                $reactivationRequired |= $status->subscriptionStatus === SubscriptionStatus::DETACHED;
+                if ($verbose && $status->subscriptionError !== null) {
+                    $lines = explode(chr(10), $status->subscriptionError->errorMessage ?: '<comment>No details available.</comment>');
+                    foreach ($lines as $line) {
+                        $this->outputLine('<error>      %s</error>', [$line]);
+                    }
                 }
             }
         }
@@ -193,17 +165,67 @@ final class CrCommandController extends CommandController
                 $this->outputLine('<comment>Setup required, please run <em>./flow cr:setup</em></comment>');
             }
             if ($bootingRequired) {
-                $this->outputLine('<comment>Some subscriptions need to be booted, please run <em>./flow cr:subscriptionsboot</em></comment>');
+                $this->outputLine('<comment>Replay needed for <comment>BOOTING</comment> projections, please run <em>./flow subscription:replay [subscription-id]</em></comment>');
             }
-            if ($resetRequired) {
-                $this->outputLine('<comment>Some subscriptions need to be replayed, please run <em>./flow cr:subscriptionsreset</em></comment>');
-            }
-            if ($hasErrors) {
-                $this->outputLine('<error>Some subscriptions/projections have failed</error>');
+            if ($reactivationRequired) {
+                $this->outputLine('<comment>Reactivation of <comment>ERROR</comment> or <comment>DETACHED</comment> projection required, please run <em>./flow subscription:reactivate [subscription-id]</em></comment>');
             }
         }
         if ($hasErrors) {
             $this->quit(1);
         }
+    }
+
+    /**
+     * Replays the specified projection of a Content Repository by resetting its state and performing a full catchup.
+     *
+     * @param string $projection Identifier of the projection to replay
+     * @param string $contentRepository Identifier of the Content Repository instance to operate on
+     * @param bool $force Replay the projection without confirmation. This may take some time!
+     * @param bool $quiet If set only fatal errors are rendered to the output (must be used with --force flag to avoid user input)
+     * @internal
+     * @deprecated with Neos 9 Beta 17, please use ./flow subscription:replay instead
+     */
+    public function projectionReplayCommand(string $projection, string $contentRepository = 'default', bool $force = false, bool $quiet = false): void
+    {
+        $subscriptionId = match($projection) {
+            'doctrineDbalContentGraph',
+            'Neos\ContentGraph\DoctrineDbalAdapter\DoctrineDbalContentGraphProjection' => 'contentGraph',
+            'documentUriPathProjection' => 'Neos.Neos:DocumentUriPathProjection',
+            'change' => 'Neos.Neos:PendingChangesProjection',
+            default => null
+        };
+        if ($subscriptionId === null) {
+            $this->outputLine('<error>Invalid --projection specified. Please use <em>./flow subscription:replay [contentGraph|Neos.Neos:DocumentUriPathProjection|...]</em> directly.</error>');
+            $this->quit(1);
+        }
+        $this->outputLine('<comment>Please use <em>./flow subscription:replay %s</em> instead!</comment>', [$subscriptionId]);
+        $this->forward(
+            'replay',
+            SubscriptionCommandController::class,
+            array_merge(
+                ['subscription' => $subscriptionId],
+                compact('contentRepository', 'force', 'quiet')
+            )
+        );
+    }
+
+    /**
+     * Replays all projections of the specified Content Repository by resetting their states and performing a full catchup
+     *
+     * @param string $contentRepository Identifier of the Content Repository instance to operate on
+     * @param bool $force Replay the projection without confirmation. This may take some time!
+     * @param bool $quiet If set only fatal errors are rendered to the output (must be used with --force flag to avoid user input)
+     * @internal
+     * @deprecated with Neos 9 Beta 17, please use ./flow subscription:replayall instead
+     */
+    public function projectionReplayAllCommand(string $contentRepository = 'default', bool $force = false, bool $quiet = false): void
+    {
+        $this->outputLine('<comment>Please use <em>./flow subscription:replayall</em> instead!</comment>');
+        $this->forward(
+            'replayall',
+            SubscriptionCommandController::class,
+            compact('contentRepository', 'force', 'quiet')
+        );
     }
 }

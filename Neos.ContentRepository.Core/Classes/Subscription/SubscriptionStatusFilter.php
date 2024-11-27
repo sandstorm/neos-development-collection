@@ -6,7 +6,7 @@ namespace Neos\ContentRepository\Core\Subscription;
 
 /**
  * @implements \IteratorAggregate<SubscriptionStatus>
- * @api
+ * @internal implementation detail of the catchup
  */
 final class SubscriptionStatusFilter implements \IteratorAggregate
 {

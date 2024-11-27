@@ -8,26 +8,29 @@ use Neos\ContentRepository\Core\Projection\ProjectionStatus;
 use Neos\EventStore\Model\Event\SequenceNumber;
 
 /**
- * @api
+ * @api part of the subscription status
  */
-final readonly class SubscriptionAndProjectionStatus
+final readonly class ProjectionSubscriptionStatus
 {
     private function __construct(
         public SubscriptionId $subscriptionId,
         public SubscriptionStatus $subscriptionStatus,
         public SequenceNumber $subscriptionPosition,
         public SubscriptionError|null $subscriptionError,
-        public ProjectionStatus|null $projectionStatus,
+        public ProjectionStatus $setupStatus,
     ) {
     }
 
+    /**
+     * @internal implementation detail of the catchup
+     */
     public static function create(
         SubscriptionId $subscriptionId,
         SubscriptionStatus $subscriptionStatus,
         SequenceNumber $subscriptionPosition,
         SubscriptionError|null $subscriptionError,
-        ProjectionStatus|null $projectionStatus
+        ProjectionStatus $setupStatus
     ): self {
-        return new self($subscriptionId, $subscriptionStatus, $subscriptionPosition, $subscriptionError, $projectionStatus);
+        return new self($subscriptionId, $subscriptionStatus, $subscriptionPosition, $subscriptionError, $setupStatus);
     }
 }

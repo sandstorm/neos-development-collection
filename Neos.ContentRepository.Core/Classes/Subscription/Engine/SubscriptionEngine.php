@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Subscription\Engine;
 
 use Doctrine\DBAL\Exception\TableNotFoundException;
+use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
+use Neos\ContentRepository\Core\Service\ContentRepositoryMaintainer;
+use Neos\ContentRepository\Core\Subscription\DetachedSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\Exception\CatchUpFailed;
 use Neos\ContentRepository\Core\Subscription\Exception\SubscriptionEngineAlreadyProcessingException;
-use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatus;
-use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatuses;
+use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatusCollection;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatusFilter;
 use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Model\Event\SequenceNumber;
@@ -25,7 +28,12 @@ use Neos\ContentRepository\Core\Subscription\Subscription;
 use Neos\ContentRepository\Core\Subscription\Subscriptions;
 
 /**
- * @api
+ * This is the internal core for the catchup
+ *
+ * All functionality is low level and well encapsulated and abstracted by the {@see ContentRepositoryMaintainer}
+ * It presents the only API way to interact with catchup and offers more maintenance tasks.
+ *
+ * @internal implementation detail of the catchup. See {@see ContentRepository::handle()} and {@see ContentRepositoryMaintainer}
  */
 final class SubscriptionEngine
 {
@@ -103,26 +111,51 @@ final class SubscriptionEngine
         return $errors === [] ? Result::success() : Result::failed(Errors::fromArray($errors));
     }
 
-    public function subscriptionStatuses(SubscriptionCriteria|null $criteria = null): SubscriptionAndProjectionStatuses
+    public function subscriptionStatus(SubscriptionEngineCriteria|null $criteria = null): SubscriptionStatusCollection
     {
         $statuses = [];
         try {
-            $subscriptions = $this->subscriptionStore->findByCriteria($criteria ?? SubscriptionCriteria::noConstraints());
+            $subscriptions = $this->subscriptionStore->findByCriteria(SubscriptionCriteria::create(ids: $criteria?->ids));
         } catch (TableNotFoundException) {
             // the schema is not setup - thus there are no subscribers
-            return SubscriptionAndProjectionStatuses::createEmpty();
+            return SubscriptionStatusCollection::createEmpty();
         }
         foreach ($subscriptions as $subscription) {
-            $subscriber = $this->subscribers->contain($subscription->id) ? $this->subscribers->get($subscription->id) : null;
-            $statuses[] = SubscriptionAndProjectionStatus::create(
+            if (!$this->subscribers->contain($subscription->id)) {
+                $statuses[] = DetachedSubscriptionStatus::create(
+                    $subscription->id,
+                    $subscription->status,
+                    $subscription->position
+                );
+                continue;
+            }
+            $subscriber = $this->subscribers->get($subscription->id);
+            $statuses[] = ProjectionSubscriptionStatus::create(
                 subscriptionId: $subscription->id,
                 subscriptionStatus: $subscription->status,
                 subscriptionPosition: $subscription->position,
                 subscriptionError: $subscription->error,
-                projectionStatus: $subscriber?->projection->status(),
+                setupStatus: $subscriber->projection->status(),
             );
         }
-        return SubscriptionAndProjectionStatuses::fromArray($statuses);
+        foreach ($this->subscribers as $subscriber) {
+            if ($subscriptions->contain($subscriber->id)) {
+                continue;
+            }
+            if ($criteria?->ids?->contain($subscriber->id) === false) {
+                // this might be a NEW subscription but we dont return it as status is filtered.
+                continue;
+            }
+            // this NEW state is not persisted yet
+            $statuses[] = ProjectionSubscriptionStatus::create(
+                subscriptionId: $subscriber->id,
+                subscriptionStatus: SubscriptionStatus::NEW,
+                subscriptionPosition: SequenceNumber::none(),
+                subscriptionError: null,
+                setupStatus: $subscriber->projection->status(),
+            );
+        }
+        return SubscriptionStatusCollection::fromArray($statuses);
     }
 
     private function handleEvent(EventEnvelope $eventEnvelope, EventInterface $domainEvent, Subscription $subscription): Error|null
@@ -345,7 +378,7 @@ final class SubscriptionEngine
     private function processExclusively(\Closure $closure): mixed
     {
         if ($this->processing) {
-            throw new SubscriptionEngineAlreadyProcessingException();
+            throw new SubscriptionEngineAlreadyProcessingException('Subscription engine is already processing', 1732714075);
         }
         $this->processing = true;
         try {

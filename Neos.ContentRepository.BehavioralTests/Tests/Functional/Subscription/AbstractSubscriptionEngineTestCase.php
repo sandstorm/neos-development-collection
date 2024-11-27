@@ -15,13 +15,12 @@ use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStatus;
-use Neos\ContentRepository\Core\Service\SubscriptionService;
-use Neos\ContentRepository\Core\Service\SubscriptionServiceFactory;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
+use Neos\ContentRepository\Core\Subscription\DetachedSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
-use Neos\ContentRepository\Core\Subscription\Store\SubscriptionCriteria;
-use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatus;
+use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
+use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepository\TestSuite\Fakes\FakeCatchUpHookFactory;
@@ -37,11 +36,12 @@ use Neos\Flow\Core\Bootstrap;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * @internal, only for tests of the Neos.* namespace
+ */
 abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't use Flows functional test case as it would reset the database afterwards
 {
     protected ContentRepository $contentRepository;
-
-    protected SubscriptionService $subscriptionService;
 
     protected SubscriptionEngine $subscriptionEngine;
 
@@ -102,8 +102,6 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
             $contentRepositoryId
         );
 
-        $this->subscriptionService = $this->getObject(ContentRepositoryRegistry::class)->buildService($contentRepositoryId, new SubscriptionServiceFactory());
-
         $subscriptionEngineAndEventStoreAccessor = new class implements ContentRepositoryServiceFactoryInterface {
             public EventStoreInterface|null $eventStore;
             public SubscriptionEngine|null $subscriptionEngine;
@@ -140,9 +138,9 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
         $connection->prepare('SET FOREIGN_KEY_CHECKS = 1;')->executeStatement();
     }
 
-    final protected function subscriptionStatus(string $subscriptionId): ?SubscriptionAndProjectionStatus
+    final protected function subscriptionStatus(string $subscriptionId): ProjectionSubscriptionStatus|DetachedSubscriptionStatus|null
     {
-        return $this->subscriptionService->subscriptionEngine->subscriptionStatuses(SubscriptionCriteria::create(ids: [SubscriptionId::fromString($subscriptionId)]))->first();
+        return $this->subscriptionEngine->subscriptionStatus(SubscriptionEngineCriteria::create(ids: [SubscriptionId::fromString($subscriptionId)]))->first();
     }
 
     final protected function commitExampleContentStreamEvent(): void
@@ -162,12 +160,12 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
     {
         $actual = $this->subscriptionStatus($subscriptionId);
         self::assertEquals(
-            SubscriptionAndProjectionStatus::create(
+            ProjectionSubscriptionStatus::create(
                 subscriptionId: SubscriptionId::fromString($subscriptionId),
                 subscriptionStatus: $status,
                 subscriptionPosition: $sequenceNumber,
                 subscriptionError: null,
-                projectionStatus: ProjectionStatus::ok(),
+                setupStatus: ProjectionStatus::ok(),
             ),
             $actual
         );

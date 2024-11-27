@@ -23,20 +23,20 @@ final class SubscriptionBootingStatusTest extends AbstractSubscriptionEngineTest
         $this->commitExampleContentStreamEvent();
 
         $this->fakeProjection->expects(self::once())->method('setUp');
-        $this->subscriptionService->subscriptionEngine->setup();
+        $this->subscriptionEngine->setup();
         $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
 
         $this->expectOkayStatus('contentGraph', SubscriptionStatus::BOOTING, SequenceNumber::none());
         $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::none());
 
         $this->fakeProjection->expects(self::once())->method('apply')->with(self::isInstanceOf(ContentStreamWasCreated::class));
-        $this->subscriptionService->subscriptionEngine->boot();
+        $this->subscriptionEngine->boot();
 
         $this->expectOkayStatus('contentGraph', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
         $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
 
         // catchup is a noop because there are no unhandled events
-        $result = $this->subscriptionService->subscriptionEngine->catchUpActive();
+        $result = $this->subscriptionEngine->catchUpActive();
         self::assertEquals(ProcessedResult::success(0), $result);
     }
 
@@ -46,9 +46,9 @@ final class SubscriptionBootingStatusTest extends AbstractSubscriptionEngineTest
         $this->fakeProjection->expects(self::once())->method('setUp');
         $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
 
-        $this->subscriptionService->setupEventStore();
+        $this->eventStore->setup();
 
-        $result = $this->subscriptionService->subscriptionEngine->setup();
+        $result = $this->subscriptionEngine->setup();
         self::assertNull($result->errors);
 
 

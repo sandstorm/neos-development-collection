@@ -8,17 +8,17 @@ use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryDependenc
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryInterface;
 
 /**
- * @implements ContentRepositoryServiceFactoryInterface<SubscriptionService>
+ * @implements ContentRepositoryServiceFactoryInterface<ContentRepositoryMaintainer>
  * @api
  */
-class SubscriptionServiceFactory implements ContentRepositoryServiceFactoryInterface
+class ContentRepositoryMaintainerFactory implements ContentRepositoryServiceFactoryInterface
 {
     public function build(
         ContentRepositoryServiceFactoryDependencies $serviceFactoryDependencies
-    ): SubscriptionService {
-        return new SubscriptionService(
+    ): ContentRepositoryMaintainer {
+        return new ContentRepositoryMaintainer(
             $serviceFactoryDependencies->eventStore,
-            $serviceFactoryDependencies->subscriptionEngine,
+            $serviceFactoryDependencies->subscriptionEngine
         );
     }
 }

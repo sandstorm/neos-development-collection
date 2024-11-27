@@ -6,8 +6,8 @@ namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Subscription;
 
 use Neos\ContentRepository\Core\Projection\ProjectionStatus;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
-use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatus;
-use Neos\ContentRepository\Core\Subscription\SubscriptionAndProjectionStatuses;
+use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatusCollection;
 use Neos\ContentRepository\Core\Subscription\SubscriptionError;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
@@ -18,35 +18,35 @@ final class SubscriptionSetupTest extends AbstractSubscriptionEngineTestCase
     /** @test */
     public function setupOnEmptyDatabase()
     {
-        $this->subscriptionService->setupEventStore();
+        $this->eventStore->setup();
 
         $this->fakeProjection->expects(self::once())->method('setUp');
-        $this->subscriptionService->subscriptionEngine->setup();
+        $this->subscriptionEngine->setup();
 
         $this->fakeProjection->expects(self::exactly(2))->method('status')->willReturn(ProjectionStatus::ok());
-        $actualStatuses = $this->subscriptionService->subscriptionEngine->subscriptionStatuses();
+        $actualStatuses = $this->subscriptionEngine->subscriptionStatus();
 
-        $expected = SubscriptionAndProjectionStatuses::fromArray([
-            SubscriptionAndProjectionStatus::create(
+        $expected = SubscriptionStatusCollection::fromArray([
+            ProjectionSubscriptionStatus::create(
                 subscriptionId: SubscriptionId::fromString('contentGraph'),
                 subscriptionStatus: SubscriptionStatus::BOOTING,
                 subscriptionPosition: SequenceNumber::none(),
                 subscriptionError: null,
-                projectionStatus: ProjectionStatus::ok(),
+                setupStatus: ProjectionStatus::ok(),
             ),
-            SubscriptionAndProjectionStatus::create(
+            ProjectionSubscriptionStatus::create(
                 subscriptionId: SubscriptionId::fromString('Vendor.Package:FakeProjection'),
                 subscriptionStatus: SubscriptionStatus::BOOTING,
                 subscriptionPosition: SequenceNumber::none(),
                 subscriptionError: null,
-                projectionStatus: ProjectionStatus::ok(),
+                setupStatus: ProjectionStatus::ok(),
             ),
-            SubscriptionAndProjectionStatus::create(
+            ProjectionSubscriptionStatus::create(
                 subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
                 subscriptionStatus: SubscriptionStatus::BOOTING,
                 subscriptionPosition: SequenceNumber::none(),
                 subscriptionError: null,
-                projectionStatus: ProjectionStatus::ok(),
+                setupStatus: ProjectionStatus::ok(),
             ),
         ]);
 
@@ -67,22 +67,22 @@ final class SubscriptionSetupTest extends AbstractSubscriptionEngineTestCase
         $this->fakeProjection->expects(self::once())->method('setUp');
         $this->fakeProjection->expects(self::once())->method('status')->willReturn(ProjectionStatus::ok());
 
-        $this->subscriptionService->setupEventStore();
+        $this->eventStore->setup();
 
         $filter = SubscriptionEngineCriteria::create([SubscriptionId::fromString('Vendor.Package:FakeProjection')]);
 
-        $result = $this->subscriptionService->subscriptionEngine->setup($filter);
+        $result = $this->subscriptionEngine->setup($filter);
         self::assertNull($result->errors);
 
         $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::none());
 
         self::assertEquals(
-            SubscriptionAndProjectionStatus::create(
+            ProjectionSubscriptionStatus::create(
                 subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
                 subscriptionStatus: SubscriptionStatus::NEW,
                 subscriptionPosition: SequenceNumber::none(),
                 subscriptionError: null,
-                projectionStatus: ProjectionStatus::ok()
+                setupStatus: ProjectionStatus::ok()
             ),
             $this->subscriptionStatus('Vendor.Package:SecondFakeProjection')
         );
@@ -97,11 +97,11 @@ final class SubscriptionSetupTest extends AbstractSubscriptionEngineTestCase
         // hard reset, so that the tests actually need sql migrations
         $this->secondFakeProjection->dropTables();
 
-        $this->subscriptionService->setupEventStore();
+        $this->eventStore->setup();
 
         // initial setup for FakeProjection
 
-        $result = $this->subscriptionService->subscriptionEngine->setup();
+        $result = $this->subscriptionEngine->setup();
         self::assertNull($result->errors);
         $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::none());
 
@@ -110,17 +110,17 @@ final class SubscriptionSetupTest extends AbstractSubscriptionEngineTestCase
         $this->secondFakeProjection->schemaNeedsAdditionalColumn('column_after_update');
 
         self::assertEquals(
-            SubscriptionAndProjectionStatus::create(
+            ProjectionSubscriptionStatus::create(
                 subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
                 subscriptionStatus: SubscriptionStatus::BOOTING,
                 subscriptionPosition: SequenceNumber::none(),
                 subscriptionError: null,
-                projectionStatus: ProjectionStatus::setupRequired('Requires 1 SQL statements')
+                setupStatus: ProjectionStatus::setupRequired('Requires 1 SQL statements')
             ),
             $this->subscriptionStatus('Vendor.Package:SecondFakeProjection')
         );
 
-        $result = $this->subscriptionService->subscriptionEngine->setup();
+        $result = $this->subscriptionEngine->setup();
         self::assertNull($result->errors);
 
         $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::none());
@@ -138,35 +138,35 @@ final class SubscriptionSetupTest extends AbstractSubscriptionEngineTestCase
         // hard reset, so that the tests actually need sql migrations
         $this->secondFakeProjection->dropTables();
 
-        $this->subscriptionService->setupEventStore();
+        $this->eventStore->setup();
         // setup subscription tables
-        $result = $this->subscriptionService->subscriptionEngine->setup(SubscriptionEngineCriteria::create([SubscriptionId::fromString('contentGraph')]));
+        $result = $this->subscriptionEngine->setup(SubscriptionEngineCriteria::create([SubscriptionId::fromString('contentGraph')]));
         self::assertNull($result->errors);
 
         self::assertEquals(
-            SubscriptionAndProjectionStatus::create(
+            ProjectionSubscriptionStatus::create(
                 subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
                 subscriptionStatus: SubscriptionStatus::NEW,
                 subscriptionPosition: SequenceNumber::none(),
                 subscriptionError: null,
-                projectionStatus: ProjectionStatus::setupRequired('Requires 1 SQL statements')
+                setupStatus: ProjectionStatus::setupRequired('Requires 1 SQL statements')
             ),
             $this->subscriptionStatus('Vendor.Package:SecondFakeProjection')
         );
 
         // initial setup for FakeProjection
 
-        $result = $this->subscriptionService->subscriptionEngine->setup();
+        $result = $this->subscriptionEngine->setup();
         self::assertNull($result->errors);
         $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::none());
-        $result = $this->subscriptionService->subscriptionEngine->boot();
+        $result = $this->subscriptionEngine->boot();
         self::assertNull($result->errors);
         $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
 
         // regular work
 
         $this->commitExampleContentStreamEvent();
-        $result = $this->subscriptionService->subscriptionEngine->catchUpActive();
+        $result = $this->subscriptionEngine->catchUpActive();
         self::assertNull($result->errors);
 
         $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
@@ -176,17 +176,17 @@ final class SubscriptionSetupTest extends AbstractSubscriptionEngineTestCase
         $this->secondFakeProjection->schemaNeedsAdditionalColumn('column_after_update');
 
         self::assertEquals(
-            SubscriptionAndProjectionStatus::create(
+            ProjectionSubscriptionStatus::create(
                 subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
                 subscriptionStatus: SubscriptionStatus::ACTIVE,
                 subscriptionPosition: SequenceNumber::fromInteger(1),
                 subscriptionError: null,
-                projectionStatus: ProjectionStatus::setupRequired('Requires 1 SQL statements')
+                setupStatus: ProjectionStatus::setupRequired('Requires 1 SQL statements')
             ),
             $this->subscriptionStatus('Vendor.Package:SecondFakeProjection')
         );
 
-        $result = $this->subscriptionService->subscriptionEngine->setup();
+        $result = $this->subscriptionEngine->setup();
         self::assertNull($result->errors);
 
         $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
@@ -200,17 +200,17 @@ final class SubscriptionSetupTest extends AbstractSubscriptionEngineTestCase
         );
         $this->fakeProjection->expects(self::once())->method('status')->willReturn(ProjectionStatus::setupRequired('Needs setup'));
 
-        $this->subscriptionService->setupEventStore();
+        $this->eventStore->setup();
 
-        $result = $this->subscriptionService->subscriptionEngine->setup();
+        $result = $this->subscriptionEngine->setup();
         self::assertSame('Projection could not be setup', $result->errors?->first()->message);
 
-        $expectedFailure = SubscriptionAndProjectionStatus::create(
+        $expectedFailure = ProjectionSubscriptionStatus::create(
             subscriptionId: SubscriptionId::fromString('Vendor.Package:FakeProjection'),
             subscriptionStatus: SubscriptionStatus::ERROR,
             subscriptionPosition: SequenceNumber::none(),
             subscriptionError: SubscriptionError::fromPreviousStatusAndException(SubscriptionStatus::NEW, $exception),
-            projectionStatus: ProjectionStatus::setupRequired('Needs setup'),
+            setupStatus: ProjectionStatus::setupRequired('Needs setup'),
         );
 
         self::assertEquals(

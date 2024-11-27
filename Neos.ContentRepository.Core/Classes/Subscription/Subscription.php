@@ -11,7 +11,7 @@ use Neos\EventStore\Model\Event\SequenceNumber;
 /**
  * Note: This class is mutable by design!
  *
- * @internal
+ * @internal implementation detail of the catchup
  */
 final class Subscription
 {

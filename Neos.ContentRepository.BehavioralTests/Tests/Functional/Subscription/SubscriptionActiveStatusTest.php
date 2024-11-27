@@ -17,12 +17,12 @@ final class SubscriptionActiveStatusTest extends AbstractSubscriptionEngineTestC
     /** @test */
     public function setupProjectionsAndCatchup()
     {
-        $this->subscriptionService->setupEventStore();
+        $this->eventStore->setup();
 
         $this->fakeProjection->expects(self::once())->method('setUp');
-        $this->subscriptionService->subscriptionEngine->setup();
+        $this->subscriptionEngine->setup();
 
-        $result = $this->subscriptionService->subscriptionEngine->boot();
+        $result = $this->subscriptionEngine->boot();
         self::assertEquals(ProcessedResult::success(0), $result);
         $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
         $this->expectOkayStatus('contentGraph', SubscriptionStatus::ACTIVE, SequenceNumber::none());
@@ -33,7 +33,7 @@ final class SubscriptionActiveStatusTest extends AbstractSubscriptionEngineTestC
         $this->commitExampleContentStreamEvent();
 
         // subsequent catchup setup'd does not change the position
-        $result = $this->subscriptionService->subscriptionEngine->boot();
+        $result = $this->subscriptionEngine->boot();
         self::assertEquals(ProcessedResult::success(0), $result);
         $this->expectOkayStatus('contentGraph', SubscriptionStatus::ACTIVE, SequenceNumber::none());
         $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
@@ -41,7 +41,7 @@ final class SubscriptionActiveStatusTest extends AbstractSubscriptionEngineTestC
 
         // catchup active does apply the commited event
         $this->fakeProjection->expects(self::once())->method('apply')->with(self::isInstanceOf(ContentStreamWasCreated::class));
-        $result = $this->subscriptionService->subscriptionEngine->catchUpActive();
+        $result = $this->subscriptionEngine->catchUpActive();
         self::assertEquals(ProcessedResult::success(1), $result);
 
         $this->expectOkayStatus('contentGraph', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
@@ -55,9 +55,9 @@ final class SubscriptionActiveStatusTest extends AbstractSubscriptionEngineTestC
         $this->fakeProjection->expects(self::once())->method('setUp');
         $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
 
-        $this->subscriptionService->setupEventStore();
+        $this->eventStore->setup();
 
-        $result = $this->subscriptionService->subscriptionEngine->setup();
+        $result = $this->subscriptionEngine->setup();
         self::assertNull($result->errors);
         $result = $this->subscriptionEngine->boot();
         self::assertNull($result->errors);
@@ -85,13 +85,13 @@ final class SubscriptionActiveStatusTest extends AbstractSubscriptionEngineTestC
     /** @test */
     public function catchupWithNoEventsKeepsThePreviousPositionOfTheSubscribers()
     {
-        $this->subscriptionService->setupEventStore();
+        $this->eventStore->setup();
 
         $this->fakeProjection->expects(self::once())->method('setUp');
         $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
-        $this->subscriptionService->subscriptionEngine->setup();
+        $this->subscriptionEngine->setup();
 
-        $result = $this->subscriptionService->subscriptionEngine->boot();
+        $result = $this->subscriptionEngine->boot();
         self::assertEquals(ProcessedResult::success(0), $result);
         $this->expectOkayStatus('contentGraph', SubscriptionStatus::ACTIVE, SequenceNumber::none());
         $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
@@ -101,13 +101,13 @@ final class SubscriptionActiveStatusTest extends AbstractSubscriptionEngineTestC
 
         // catchup active does apply the commited event
         $this->fakeProjection->expects(self::once())->method('apply')->with(self::isInstanceOf(ContentStreamWasCreated::class));
-        $result = $this->subscriptionService->subscriptionEngine->catchUpActive();
+        $result = $this->subscriptionEngine->catchUpActive();
         self::assertEquals(ProcessedResult::success(1), $result);
 
         $this->expectOkayStatus('contentGraph', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
 
         // empty catchup must keep the sequence numbers of the projections okay
-        $result = $this->subscriptionService->subscriptionEngine->catchUpActive();
+        $result = $this->subscriptionEngine->catchUpActive();
         self::assertEquals(ProcessedResult::success(0), $result);
 
         $this->expectOkayStatus('contentGraph', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));

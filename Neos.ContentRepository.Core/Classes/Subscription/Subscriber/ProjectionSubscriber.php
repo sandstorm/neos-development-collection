@@ -13,7 +13,7 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\EventStore\Model\EventEnvelope;
 
 /**
- * @internal
+ * @internal implementation detail of the catchup
  */
 final class ProjectionSubscriber
 {
