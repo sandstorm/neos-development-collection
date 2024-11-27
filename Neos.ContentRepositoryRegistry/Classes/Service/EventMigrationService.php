@@ -771,8 +771,27 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
         $this->copyEventTable($backupEventTableName);
 
         $liveContentStreamName = ContentStreamEventStreamName::fromContentStreamId($liveWorkspaceContentStreamId)->getEventStreamName();
+
+        $duplicateNodeAggregateWasCreated = [];
+        $allNodeAggregateWasCreated = [];
+        foreach ($this->eventStore->load($liveContentStreamName, EventStreamFilter::create(EventTypes::create(EventType::fromString('NodeAggregateWithNodeWasCreated')))) as $eventEnvelope) {
+            $nodeAggregateWasCreated = self::decodeEventPayload($eventEnvelope);
+            if (isset($allNodeAggregateWasCreated[$nodeAggregateWasCreated['nodeAggregateId']])) {
+                $duplicateNodeAggregateWasCreated[] = $nodeAggregateWasCreated['nodeAggregateId'];
+            }
+            $allNodeAggregateWasCreated[$nodeAggregateWasCreated['nodeAggregateId']] = true;
+        }
+
+        $eventsToReorder = [];
         // get all NodeAggregateWasRemoved from the live content stream
-        $eventsToReorder = iterator_to_array($this->eventStore->load($liveContentStreamName, EventStreamFilter::create(EventTypes::create(EventType::fromString('NodeAggregateWasRemoved')))), false);
+        foreach ($this->eventStore->load($liveContentStreamName, EventStreamFilter::create(EventTypes::create(EventType::fromString('NodeAggregateWasRemoved')))) as $eventEnvelope) {
+            $nodeAggregateWasRemoved = self::decodeEventPayload($eventEnvelope);
+            if (in_array($nodeAggregateWasRemoved['nodeAggregateId'], $duplicateNodeAggregateWasCreated, true)) {
+                $outputFn(sprintf('Skipped reordering removal for %s because %s has multiple creation events.', $eventEnvelope->sequenceNumber->value, $nodeAggregateWasRemoved['nodeAggregateId']));
+                continue;
+            }
+            $eventsToReorder[] = $eventEnvelope;
+        }
 
         if (!count($eventsToReorder)) {
             $outputFn('Migration was not necessary.');
