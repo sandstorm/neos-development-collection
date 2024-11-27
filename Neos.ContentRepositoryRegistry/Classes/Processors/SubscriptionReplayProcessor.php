@@ -10,7 +10,7 @@ use Neos\ContentRepository\Export\ProcessorInterface;
 /**
  * @internal
  */
-final readonly class ProjectionReplayProcessor implements ProcessorInterface
+final readonly class SubscriptionReplayProcessor implements ProcessorInterface
 {
     public function __construct(
         private ContentRepositoryMaintainer $contentRepositoryMaintainer,
