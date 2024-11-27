@@ -21,7 +21,7 @@ final readonly class Errors implements \IteratorAggregate, \Countable
         if ($errors === []) {
             throw new \InvalidArgumentException('Errors must not be empty.', 1731612542);
         }
-        $this->errors = $errors;
+        $this->errors = array_values($errors);
     }
 
     /**

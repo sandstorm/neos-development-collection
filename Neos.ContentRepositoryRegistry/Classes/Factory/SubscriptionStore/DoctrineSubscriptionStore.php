@@ -64,7 +64,7 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
         }
     }
 
-    public function findByCriteria(SubscriptionCriteria $criteria): Subscriptions
+    public function findByCriteriaForUpdate(SubscriptionCriteria $criteria): Subscriptions
     {
         $queryBuilder = $this->dbal->createQueryBuilder()
             ->select('*')
@@ -107,15 +107,24 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
         );
     }
 
-    public function update(Subscription $subscription): void
-    {
-        $row = self::toDatabase($subscription);
+    public function update(
+        SubscriptionId $subscriptionId,
+        SubscriptionStatus $status,
+        SequenceNumber $position,
+        SubscriptionError|null $subscriptionError,
+    ): void {
+        $row = [];
         $row['last_saved_at'] = $this->clock->now()->format('Y-m-d H:i:s');
+        $row['status'] = $status->name;
+        $row['position'] = $position->value;
+        $row['error_message'] = $subscriptionError?->errorMessage;
+        $row['error_previous_status'] = $subscriptionError?->previousStatus?->name;
+        $row['error_trace'] = $subscriptionError?->errorTrace;
         $this->dbal->update(
             $this->tableName,
             $row,
             [
-                'id' => $subscription->id->value,
+                'id' => $subscriptionId->value,
             ]
         );
     }

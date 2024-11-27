@@ -35,8 +35,8 @@ use Doctrine\DBAL\Exception as DBALException;
  *
  * Resetting a content repository with {@see prune} method will purge the event stream and reset all subscription states.
  *
- * Staus information
- * -----------------
+ * Status information
+ * ------------------
  * The status of the content repository e.g. if a setup is required or if all subscriptions are active and their position
  * can be examined with {@see status}
  *
