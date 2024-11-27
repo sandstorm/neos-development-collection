@@ -184,7 +184,6 @@ final class CrCommandController extends CommandController
      */
     public function projectionReplayCommand(string $projection, string $contentRepository = 'default', bool $force = false, bool $quiet = false): void
     {
-        $this->outputLine('<comment>Please use <em>./flow subscription:replay</em> instead!</comment>');
         $subscriptionId = match($projection) {
             'doctrineDbalContentGraph',
             'Neos\ContentGraph\DoctrineDbalAdapter\DoctrineDbalContentGraphProjection' => 'contentGraph',
@@ -193,9 +192,10 @@ final class CrCommandController extends CommandController
             default => null
         };
         if ($subscriptionId === null) {
-            $this->outputLine('<error>Invalid --projection specified. Could not map legacy argument.</error>');
+            $this->outputLine('<error>Invalid --projection specified. Please use <em>./flow subscription:replay [contentGraph|Neos.Neos:DocumentUriPathProjection|...]</em> directly.</error>');
             $this->quit(1);
         }
+        $this->outputLine('<comment>Please use <em>./flow subscription:replay %s</em> instead!</comment>', [$subscriptionId]);
         $this->forward(
             'replay',
             SubscriptionCommandController::class,
