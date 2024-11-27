@@ -30,10 +30,10 @@ use Doctrine\DBAL\Exception as DBALException;
  *
  * Initialisation / Tear down
  * --------------------------
- * The method {@see setUp} sets up the content repository like event store and projection database tables.
+ * The method {@see setUp} sets up the content repository like event store and subscription database tables.
  * It is non-destructive.
  *
- * Resetting a content repository with {@see prune} method will purge the event stream and reset all projection states.
+ * Resetting a content repository with {@see prune} method will purge the event stream and reset all subscription states.
  *
  * Staus information
  * -----------------
@@ -43,28 +43,28 @@ use Doctrine\DBAL\Exception as DBALException;
  * The event store status is available via {@see ContentRepositoryStatus::$eventStoreStatus}, and the subscription status
  * via {@see ContentRepositoryStatus::$subscriptionStatus}. Further documentation in {@see SubscriptionStatusCollection}.
  *
- * Projection subscriptions
- * ------------------------
+ * Subscriptions (mainly projections)
+ * ----------------------------------
  *
- * This maintainer offers also the public API to interact with the projection catchup. In the happy path,
- * no interaction is necessary, as {@see ContentRepository::handle()} triggers the projections after applying the events.
+ * This maintainer offers also the public API to interact with the subscription catchup. In the happy path,
+ * no interaction is necessary, as {@see ContentRepository::handle()} triggers the subscriptions after applying the events.
  *
  * Special cases:
  *
  * *Replay*
  *
- * For initialising on a new database - which contains events already - a replay will make sure that the projections
- * are emptied and reapply the events. This can be triggered via {@see replayProjection} or {@see replayAllProjections}
+ * For initialising on a new database - which contains events already - a replay will make sure that the subscriptions
+ * are emptied and reapply the events. This can be triggered via {@see replaySubscription} or {@see replayAllSubscriptions}
  *
- * And after registering a new projection a setup as well as a replay of this projection is also required.
+ * And after registering a new subscription a setup as well as a replay of this subscription is also required.
  *
  * *Reactivate*
  *
- * In case a projection is detached but is reinstalled a reactivation is needed via {@see reactivateSubscription}
+ * In case a subscription is detached but is reinstalled a reactivation is needed via {@see reactivateSubscription}
  *
- * Also in case a projection runs into the error status, its code needs to be fixed, and it can also be attempted to be reactivated.
+ * Also in case a subscription runs into the error status, its code needs to be fixed, and it can also be attempted to be reactivated.
  *
- * Note that in both cases a projection replay would also work, but with the difference that the projection is reset as well.
+ * Note that in both cases a subscription replay would also work, but with the difference that the subscription is reset as well.
  *
  * @api
  */
@@ -113,7 +113,7 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
         );
     }
 
-    public function replayProjection(SubscriptionId $subscriptionId, \Closure|null $progressCallback = null): Error|null
+    public function replaySubscription(SubscriptionId $subscriptionId, \Closure|null $progressCallback = null): Error|null
     {
         $resetResult = $this->subscriptionEngine->reset(SubscriptionEngineCriteria::create([$subscriptionId]));
         if ($resetResult->errors !== null) {
@@ -126,7 +126,7 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
         return null;
     }
 
-    public function replayAllProjections(\Closure|null $progressCallback = null): Error|null
+    public function replayAllSubscriptions(\Closure|null $progressCallback = null): Error|null
     {
         $resetResult = $this->subscriptionEngine->reset();
         if ($resetResult->errors !== null) {
@@ -140,11 +140,11 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
     }
 
     /**
-     * Reactivate a projection
+     * Reactivate a subscription
      *
-     * The explicit catchup is only needed for projections in the error or detached status with an advanced position.
+     * The explicit catchup is only needed for subscriptions in the error or detached status with an advanced position.
      * Running a full replay would work but might be overkill, instead this reactivation will just attempt
-     * catchup the projection back to active from its current position.
+     * catchup the subscription back to active from its current position.
      */
     public function reactivateSubscription(SubscriptionId $subscriptionId, \Closure|null $progressCallback = null): Error|null
     {
@@ -159,7 +159,7 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
     }
 
     /**
-     * WARNING: Removes all events from the content repository and resets the projections
+     * WARNING: Removes all events from the content repository and resets the subscriptions
      * This operation cannot be undone.
      */
     public function prune(): Error|null

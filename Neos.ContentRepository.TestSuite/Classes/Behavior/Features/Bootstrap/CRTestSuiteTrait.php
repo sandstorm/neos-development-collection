@@ -257,7 +257,7 @@ trait CRTestSuiteTrait
     public function iReplayTheProjection(string $projectionName): void
     {
         $contentRepositoryMaintainer = $this->getContentRepositoryService(new ContentRepositoryMaintainerFactory());
-        $result = $contentRepositoryMaintainer->replayProjection(SubscriptionId::fromString($projectionName));
+        $result = $contentRepositoryMaintainer->replaySubscription(SubscriptionId::fromString($projectionName));
         Assert::assertNull($result);
     }
 

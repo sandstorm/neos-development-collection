@@ -8,7 +8,6 @@ use Neos\ContentRepository\Core\Service\ContentRepositoryMaintainerFactory;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\Subscription\DetachedSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
-use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\EventStore\Model\EventStore\StatusType;
@@ -16,6 +15,23 @@ use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Cli\CommandController;
 use Symfony\Component\Console\Output\Output;
 
+/**
+ * Set up a content repository
+ *
+ * *Initialisation*
+ *
+ * The command "./flow cr:setup" sets up the content repository like event store and subscription database tables.
+ * It is non-destructive.
+ *
+ * Note that a reset is not implemented here but for the Neos CMS use-case provided via "./flow site:pruneAll"
+ *
+ * *Staus information*
+ *
+ * The status of the content repository e.g. if a setup is required or if all subscriptions are active and their position
+ * can be examined with "./flow cr:status"
+ *
+ * See also {@see ContentRepositoryMaintainer} for more information.
+ */
 final class CrCommandController extends CommandController
 {
     #[Flow\Inject()]
@@ -145,10 +161,10 @@ final class CrCommandController extends CommandController
                 $this->outputLine('<comment>Setup required, please run <em>./flow cr:setup</em></comment>');
             }
             if ($bootingRequired) {
-                $this->outputLine('<comment>Replay needed for <comment>BOOTING</comment> projections, please run <em>./flow cr:projectionreplay [subscription-id]</em></comment>');
+                $this->outputLine('<comment>Replay needed for <comment>BOOTING</comment> projections, please run <em>./flow subscription:replay [subscription-id]</em></comment>');
             }
             if ($reactivationRequired) {
-                $this->outputLine('<comment>Reactivation of <comment>ERROR</comment> or <comment>DETACHED</comment> projection required, please run <em>./flow cr:reactivatesubscription [subscription-id]</em></comment>');
+                $this->outputLine('<comment>Reactivation of <comment>ERROR</comment> or <comment>DETACHED</comment> projection required, please run <em>./flow subscription:reactivate [subscription-id]</em></comment>');
             }
         }
         if ($hasErrors) {
@@ -159,51 +175,35 @@ final class CrCommandController extends CommandController
     /**
      * Replays the specified projection of a Content Repository by resetting its state and performing a full catchup.
      *
-     * @param string $projection Identifier of the projection to replay like it was configured (e.g. "contentGraph", "Vendor.Package:YourProjection")
+     * @param string $projection Identifier of the projection to replay
      * @param string $contentRepository Identifier of the Content Repository instance to operate on
      * @param bool $force Replay the projection without confirmation. This may take some time!
      * @param bool $quiet If set only fatal errors are rendered to the output (must be used with --force flag to avoid user input)
+     * @internal
+     * @deprecated with Neos 9 Beta 17, please use ./flow subscription:replay instead
      */
     public function projectionReplayCommand(string $projection, string $contentRepository = 'default', bool $force = false, bool $quiet = false): void
     {
-        if ($quiet) {
-            $this->output->getOutput()->setVerbosity(Output::VERBOSITY_QUIET);
-        }
-        if (!$force && $quiet) {
-            $this->outputLine('Cannot run in quiet mode without --force. Please acknowledge that this command will reset and replay this projection. This may take some time.');
+        $this->outputLine('<comment>Please use <em>./flow subscription:replay</em> instead!</comment>');
+        $subscriptionId = match($projection) {
+            'doctrineDbalContentGraph',
+            'Neos\ContentGraph\DoctrineDbalAdapter\DoctrineDbalContentGraphProjection' => 'contentGraph',
+            'documentUriPathProjection' => 'Neos.Neos:DocumentUriPathProjection',
+            'change' => 'Neos.Neos:PendingChangesProjection',
+            default => null
+        };
+        if ($subscriptionId === null) {
+            $this->outputLine('<error>Invalid --projection specified. Could not map legacy argument.</error>');
             $this->quit(1);
         }
-
-        if (!$force && !$this->output->askConfirmation(sprintf('> This will replay the projection "%s" in "%s", which may take some time. Are you sure to proceed? (y/n) ', $projection, $contentRepository), false)) {
-            $this->outputLine('<comment>Abort.</comment>');
-            return;
-        }
-
-        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
-        $contentRepositoryMaintainer = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new ContentRepositoryMaintainerFactory());
-
-        $progressCallback = null;
-        if (!$quiet) {
-            $this->outputLine('Replaying events for projection "%s" of Content Repository "%s" ...', [$projection, $contentRepositoryId->value]);
-            // render memory consumption and time remaining
-            $this->output->getProgressBar()->setFormat('debug');
-            $this->output->progressStart();
-            $progressCallback = fn () => $this->output->progressAdvance();
-        }
-
-        $result = $contentRepositoryMaintainer->replayProjection(SubscriptionId::fromString($projection), progressCallback: $progressCallback);
-
-        if (!$quiet) {
-            $this->output->progressFinish();
-            $this->outputLine();
-        }
-
-        if ($result !== null) {
-            $this->outputLine('<error>%s</error>', [$result->getMessage()]);
-            $this->quit(1);
-        } elseif (!$quiet) {
-            $this->outputLine('<success>Done.</success>');
-        }
+        $this->forward(
+            'replay',
+            SubscriptionCommandController::class,
+            array_merge(
+                ['subscription' => $subscriptionId],
+                compact('contentRepository', 'force', 'quiet')
+            )
+        );
     }
 
     /**
@@ -212,88 +212,16 @@ final class CrCommandController extends CommandController
      * @param string $contentRepository Identifier of the Content Repository instance to operate on
      * @param bool $force Replay the projection without confirmation. This may take some time!
      * @param bool $quiet If set only fatal errors are rendered to the output (must be used with --force flag to avoid user input)
+     * @internal
+     * @deprecated with Neos 9 Beta 17, please use ./flow subscription:replayall instead
      */
     public function projectionReplayAllCommand(string $contentRepository = 'default', bool $force = false, bool $quiet = false): void
     {
-        if ($quiet) {
-            $this->output->getOutput()->setVerbosity(Output::VERBOSITY_QUIET);
-        }
-
-        if (!$force && $quiet) {
-            $this->outputLine('Cannot run in quiet mode without --force. Please acknowledge that this command will reset and replay this projection. This may take some time.');
-            $this->quit(1);
-        }
-
-        if (!$force && !$this->output->askConfirmation(sprintf('> This will replay all projections in "%s", which may take some time. Are you sure to proceed? (y/n) ', $contentRepository), false)) {
-            $this->outputLine('<comment>Abort.</comment>');
-            return;
-        }
-
-        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
-        $contentRepositoryMaintainer = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new ContentRepositoryMaintainerFactory());
-
-        $progressCallback = null;
-        if (!$quiet) {
-            $this->outputLine('Replaying events for all projections of Content Repository "%s" ...', [$contentRepositoryId->value]);
-            // render memory consumption and time remaining
-            // todo maybe reintroduce pretty output: https://github.com/neos/neos-development-collection/pull/5010 but without using highestSequenceNumber
-            $this->output->getProgressBar()->setFormat('debug');
-            $this->output->progressStart();
-            $progressCallback = fn () => $this->output->progressAdvance();
-        }
-
-        $result = $contentRepositoryMaintainer->replayAllProjections(progressCallback: $progressCallback);
-
-        if (!$quiet) {
-            $this->output->progressFinish();
-            $this->outputLine();
-        }
-
-        if ($result !== null) {
-            $this->outputLine('<error>%s</error>', [$result->getMessage()]);
-            $this->quit(1);
-        } elseif (!$quiet) {
-            $this->outputLine('<success>Done.</success>');
-        }
-    }
-
-    /**
-     * Reactivate a projection
-     *
-     * The explicit catchup is only needed for projections in the error or detached status with an advanced position.
-     * Running a full replay would work but might be overkill, instead this reactivation will just attempt
-     * catchup the projection back to active from its current position.
-     *
-     * @param string $projection Identifier of the projection to reactivate like it was configured (e.g. "contentGraph", "Vendor.Package:YourProjection")
-     * @param string $contentRepository Identifier of the Content Repository instance to operate on
-     * @param bool $quiet If set only fatal errors are rendered to the output (must be used with --force flag to avoid user input)
-     */
-    public function reactivateSubscriptionCommand(string $projection, string $contentRepository = 'default', bool $quiet = false): void
-    {
-        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
-        $contentRepositoryMaintainer = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new ContentRepositoryMaintainerFactory());
-
-        $progressCallback = null;
-        if (!$quiet) {
-            $this->outputLine('Reactivate projection "%s" of Content Repository "%s" ...', [$projection, $contentRepositoryId->value]);
-            // render memory consumption and time remaining
-            $this->output->getProgressBar()->setFormat('debug');
-            $this->output->progressStart();
-            $progressCallback = fn () => $this->output->progressAdvance();
-        }
-
-        $result = $contentRepositoryMaintainer->reactivateSubscription(SubscriptionId::fromString($projection), progressCallback: $progressCallback);
-
-        if (!$quiet) {
-            $this->output->progressFinish();
-            $this->outputLine();
-        }
-
-        if ($result !== null) {
-            $this->outputLine('<error>%s</error>', [$result->getMessage()]);
-            $this->quit(1);
-        } elseif (!$quiet) {
-            $this->outputLine('<success>Done.</success>');
-        }
+        $this->outputLine('<comment>Please use <em>./flow subscription:replayall</em> instead!</comment>');
+        $this->forward(
+            'replayall',
+            SubscriptionCommandController::class,
+            compact('contentRepository', 'force', 'quiet')
+        );
     }
 }

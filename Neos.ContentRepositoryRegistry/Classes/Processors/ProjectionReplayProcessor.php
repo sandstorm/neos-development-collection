@@ -19,6 +19,6 @@ final readonly class ProjectionReplayProcessor implements ProcessorInterface
 
     public function run(ProcessingContext $context): void
     {
-        $this->contentRepositoryMaintainer->replayAllProjections();
+        $this->contentRepositoryMaintainer->replayAllSubscriptions();
     }
 }
