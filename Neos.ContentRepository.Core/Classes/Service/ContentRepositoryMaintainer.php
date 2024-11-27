@@ -88,7 +88,8 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
             return self::createErrorForReason('setup', $setupResult->errors);
         }
         if ($eventStoreIsEmpty) {
-            // todo reintroduce skipBooting flag, and also notify if the flag is not set, e.g. because there are events
+            // note: possibly introduce $skipBooting flag instead
+            // see https://github.com/patchlevel/event-sourcing/blob/b8591c56b21b049f46bead8e7ab424fd2afe9917/src/Subscription/Engine/DefaultSubscriptionEngine.php#L42
             $bootResult = $this->subscriptionEngine->boot();
             if ($bootResult->errors !== null) {
                 return self::createErrorForReason('initial catchup', $bootResult->errors);
@@ -184,7 +185,7 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
         if ($resetResult->errors !== null) {
             return self::createErrorForReason('reset', $resetResult->errors);
         }
-        // todo reintroduce skipBooting flag to reset
+        // note: possibly introduce $skipBooting flag like for setup
         $bootResult = $this->subscriptionEngine->boot();
         if ($bootResult->errors !== null) {
             return self::createErrorForReason('booting', $bootResult->errors);
@@ -194,7 +195,6 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
 
     private static function createErrorForReason(string $method, Errors $errors): Error
     {
-        // todo log throwable via flow???, but we are here in the CORE ...
         $message = [];
         $message[] = sprintf('%s produced the following error%s', $method, $errors->count() === 1 ? '' : 's');
         foreach ($errors as $error) {
