@@ -12,8 +12,8 @@ use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryS
 use Neos\ContentRepository\Core\Subscription\Engine\Errors;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
-use Neos\ContentRepository\Core\Subscription\Store\SubscriptionCriteria;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatusCollection;
 use Neos\Error\Messages\Error;
 use Neos\EventStore\EventStoreInterface;
@@ -115,6 +115,13 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
 
     public function replaySubscription(SubscriptionId $subscriptionId, \Closure|null $progressCallback = null): Error|null
     {
+        $subscriptionStatus = $this->subscriptionEngine->subscriptionStatus(SubscriptionEngineCriteria::create([$subscriptionId]))->first();
+        if ($subscriptionStatus === null) {
+            return new Error(sprintf('Subscription "%s" is not registered.', $subscriptionId->value));
+        }
+        if ($subscriptionStatus->subscriptionStatus === SubscriptionStatus::NEW) {
+            return new Error(sprintf('Subscription "%s" is not setup and cannot be replayed.', $subscriptionId->value));
+        }
         $resetResult = $this->subscriptionEngine->reset(SubscriptionEngineCriteria::create([$subscriptionId]));
         if ($resetResult->errors !== null) {
             return self::createErrorForReason('reset', $resetResult->errors);
@@ -148,10 +155,12 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
      */
     public function reactivateSubscription(SubscriptionId $subscriptionId, \Closure|null $progressCallback = null): Error|null
     {
-        $subscriptionStatus = $this->subscriptionEngine->subscriptionStatus(SubscriptionCriteria::create([$subscriptionId]))->first();
-
+        $subscriptionStatus = $this->subscriptionEngine->subscriptionStatus(SubscriptionEngineCriteria::create([$subscriptionId]))->first();
         if ($subscriptionStatus === null) {
             return new Error(sprintf('Subscription "%s" is not registered.', $subscriptionId->value));
+        }
+        if ($subscriptionStatus->subscriptionStatus === SubscriptionStatus::NEW) {
+            return new Error(sprintf('Subscription "%s" is not setup and cannot be reactivated.', $subscriptionId->value));
         }
 
         // todo implement https://github.com/patchlevel/event-sourcing/blob/b8591c56b21b049f46bead8e7ab424fd2afe9917/src/Subscription/Engine/DefaultSubscriptionEngine.php#L624

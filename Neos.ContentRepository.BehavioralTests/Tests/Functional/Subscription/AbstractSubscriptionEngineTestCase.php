@@ -19,7 +19,7 @@ use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryI
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\Subscription\DetachedSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
-use Neos\ContentRepository\Core\Subscription\Store\SubscriptionCriteria;
+use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
 use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
@@ -137,7 +137,7 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
 
     final protected function subscriptionStatus(string $subscriptionId): ProjectionSubscriptionStatus|DetachedSubscriptionStatus|null
     {
-        return $this->subscriptionEngine->subscriptionStatus(SubscriptionCriteria::create(ids: [SubscriptionId::fromString($subscriptionId)]))->first();
+        return $this->subscriptionEngine->subscriptionStatus(SubscriptionEngineCriteria::create(ids: [SubscriptionId::fromString($subscriptionId)]))->first();
     }
 
     final protected function commitExampleContentStreamEvent(): void

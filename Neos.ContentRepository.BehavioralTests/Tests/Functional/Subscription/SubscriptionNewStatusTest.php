@@ -43,7 +43,8 @@ final class SubscriptionNewStatusTest extends AbstractSubscriptionEngineTestCase
 
         $newFakeProjection = $this->getMockBuilder(ProjectionInterface::class)->disableAutoReturnValueGeneration()->getMock();
         $newFakeProjection->method('getState')->willReturn(new class implements ProjectionStateInterface {});
-        $newFakeProjection->expects(self::exactly(3))->method('status')->willReturnOnConsecutiveCalls(
+        $newFakeProjection->expects(self::exactly(4))->method('status')->willReturnOnConsecutiveCalls(
+            ProjectionStatus::setupRequired('Set me up'),
             ProjectionStatus::setupRequired('Set me up'),
             ProjectionStatus::ok(),
             ProjectionStatus::ok(),
@@ -65,21 +66,26 @@ final class SubscriptionNewStatusTest extends AbstractSubscriptionEngineTestCase
         $this->getObject(ContentRepositoryRegistry::class)->resetFactoryInstance($this->contentRepository->id);
         $this->setupContentRepositoryDependencies($this->contentRepository->id);
 
-        // todo status doesnt find this projection yet?
-        self::assertNull($this->subscriptionStatus('Vendor.Package:NewFakeProjection'));
+        $expectedNewState = ProjectionSubscriptionStatus::create(
+            subscriptionId: SubscriptionId::fromString('Vendor.Package:NewFakeProjection'),
+            subscriptionStatus: SubscriptionStatus::NEW,
+            subscriptionPosition: SequenceNumber::none(),
+            subscriptionError: null,
+            setupStatus: ProjectionStatus::setupRequired('Set me up')
+        );
+
+        // status predicts the NEW state already (without creating it in the db)
+        self::assertEquals(
+            $expectedNewState,
+            $this->subscriptionStatus('Vendor.Package:NewFakeProjection')
+        );
 
         // do something that finds new subscriptions, trigger a setup on a specific projection:
         $result = $this->subscriptionEngine->setup(SubscriptionEngineCriteria::create([SubscriptionId::fromString('contentGraph')]));
         self::assertNull($result->errors);
 
         self::assertEquals(
-            ProjectionSubscriptionStatus::create(
-                subscriptionId: SubscriptionId::fromString('Vendor.Package:NewFakeProjection'),
-                subscriptionStatus: SubscriptionStatus::NEW,
-                subscriptionPosition: SequenceNumber::none(),
-                subscriptionError: null,
-                setupStatus: ProjectionStatus::setupRequired('Set me up')
-            ),
+            $expectedNewState,
             $this->subscriptionStatus('Vendor.Package:NewFakeProjection')
         );
 

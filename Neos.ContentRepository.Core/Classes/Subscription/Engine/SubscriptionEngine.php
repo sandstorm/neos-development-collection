@@ -111,11 +111,11 @@ final class SubscriptionEngine
         return $errors === [] ? Result::success() : Result::failed(Errors::fromArray($errors));
     }
 
-    public function subscriptionStatus(SubscriptionCriteria|null $criteria = null): SubscriptionStatusCollection
+    public function subscriptionStatus(SubscriptionEngineCriteria|null $criteria = null): SubscriptionStatusCollection
     {
         $statuses = [];
         try {
-            $subscriptions = $this->subscriptionStore->findByCriteria($criteria ?? SubscriptionCriteria::noConstraints());
+            $subscriptions = $this->subscriptionStore->findByCriteria(SubscriptionCriteria::create(ids: $criteria?->ids));
         } catch (TableNotFoundException) {
             // the schema is not setup - thus there are no subscribers
             return SubscriptionStatusCollection::createEmpty();
@@ -135,6 +135,23 @@ final class SubscriptionEngine
                 subscriptionStatus: $subscription->status,
                 subscriptionPosition: $subscription->position,
                 subscriptionError: $subscription->error,
+                setupStatus: $subscriber->projection->status(),
+            );
+        }
+        foreach ($this->subscribers as $subscriber) {
+            if ($subscriptions->contain($subscriber->id)) {
+                continue;
+            }
+            if ($criteria?->ids?->contain($subscriber->id) === false) {
+                // this might be a NEW subscription but we dont return it as status is filtered.
+                continue;
+            }
+            // this NEW state is not persisted yet
+            $statuses[] = ProjectionSubscriptionStatus::create(
+                subscriptionId: $subscriber->id,
+                subscriptionStatus: SubscriptionStatus::NEW,
+                subscriptionPosition: SequenceNumber::none(),
+                subscriptionError: null,
                 setupStatus: $subscriber->projection->status(),
             );
         }
