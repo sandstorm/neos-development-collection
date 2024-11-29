@@ -76,6 +76,12 @@ class RebaseableCommands implements \IteratorAggregate
         NodeAggregateIds $nodeIdsToMatch,
     ): bool {
         foreach ($nodeIdsToMatch as $nodeId) {
+            /**
+             * This match must contain all commands which are working with individual nodes, such that they are
+             * filterable whether they are applying their action to a NodeIdToPublish.
+             *
+             * This is needed to publish and discard individual nodes.
+             */
             $matches = match($command::class) {
                 CreateNodeAggregateWithNodeAndSerializedProperties::class,
                 DisableNodeAggregate::class,

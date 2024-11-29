@@ -15,12 +15,10 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Feature\NodeCreation\Command;
 
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
-use Neos\ContentRepository\Core\Feature\Common\MatchableWithNodeIdToPublishOrDiscardInterface;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Dto\NodeAggregateIdsByNodePaths;
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\SerializedPropertyValues;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\SerializedNodeReferences;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Dto\NodeIdToPublishOrDiscard;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
@@ -34,7 +32,6 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
  */
 final readonly class CreateNodeAggregateWithNodeAndSerializedProperties implements
     \JsonSerializable,
-    MatchableWithNodeIdToPublishOrDiscardInterface,
     RebasableToOtherWorkspaceInterface
 {
     /**
@@ -153,14 +150,6 @@ final readonly class CreateNodeAggregateWithNodeAndSerializedProperties implemen
     public function jsonSerialize(): array
     {
         return get_object_vars($this);
-    }
-
-    public function matchesNodeId(NodeIdToPublishOrDiscard $nodeIdToPublish): bool
-    {
-        return (
-            $this->nodeAggregateId->equals($nodeIdToPublish->nodeAggregateId)
-                && $nodeIdToPublish->dimensionSpacePoint?->equals($this->originDimensionSpacePoint)
-        );
     }
 
     public function createCopyForWorkspace(
