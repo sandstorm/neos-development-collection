@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\CommandHandler;
 
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
+use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
 
 /**
  * Common interface for all Content Repository command handlers
@@ -15,7 +16,7 @@ use Neos\ContentRepository\Core\EventStore\EventsToPublish;
  */
 interface CommandHandlerInterface
 {
-    public function canHandle(CommandInterface $command): bool;
+    public function canHandle(CommandInterface|RebasableToOtherWorkspaceInterface $command): bool;
 
     /**
      * "simple" command handlers return EventsToPublish directly
@@ -25,5 +26,5 @@ interface CommandHandlerInterface
      *
      * @return EventsToPublish|\Generator<int, EventsToPublish>
      */
-    public function handle(CommandInterface $command, CommandHandlingDependencies $commandHandlingDependencies): EventsToPublish|\Generator;
+    public function handle(CommandInterface|RebasableToOtherWorkspaceInterface $command, CommandHandlingDependencies $commandHandlingDependencies): EventsToPublish|\Generator;
 }

@@ -39,7 +39,7 @@ class NodeMigrationServiceFactory implements ContentRepositoryServiceFactoryInte
         $filtersFactory->registerFilter('PropertyNotEmpty', new PropertyNotEmptyFilterFactory());
         $filtersFactory->registerFilter('PropertyValue', new PropertyValueFilterFactory());
 
-        $transformationsFactory = new TransformationsFactory($serviceFactoryDependencies->contentRepository);
+        $transformationsFactory = new TransformationsFactory($serviceFactoryDependencies->contentRepository, $serviceFactoryDependencies->propertyConverter);
         $transformationsFactory->registerTransformation('AddDimensionShineThrough', new AddDimensionShineThroughTransformationFactory());
         $transformationsFactory->registerTransformation('AddNewProperty', new AddNewPropertyTransformationFactory());
         $transformationsFactory->registerTransformation('ChangeNodeType', new ChangeNodeTypeTransformationFactory());

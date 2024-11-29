@@ -72,6 +72,7 @@ use Neos\Neos\FrontendRouting\SiteDetection\SiteDetectionResult;
 use Neos\Neos\PendingChangesProjection\ChangeFinder;
 use Neos\Neos\PendingChangesProjection\Changes;
 use Neos\Neos\Utility\NodeTypeWithFallbackProvider;
+use Neos\Neos\Security\Authorization\ContentRepositoryAuthorizationService;
 use Neos\Workspace\Ui\ViewModel\ConfirmDeleteWorkspaceRoleAssignmentFormData;
 use Neos\Workspace\Ui\ViewModel\CreateWorkspaceRoleAssignmentsFormData;
 use Neos\Workspace\Ui\ViewModel\ChangeItem;
@@ -135,6 +136,9 @@ class WorkspaceController extends AbstractModuleController
     #[Flow\Inject]
     protected Translator $translator;
 
+    #[Flow\Inject]
+    protected ContentRepositoryAuthorizationService $authorizationService;
+
     /**
      * Display a list of unpublished content
      */
@@ -192,7 +196,7 @@ class WorkspaceController extends AbstractModuleController
             $this->redirect('index');
         }
 
-        $workspacePermissions = $this->workspaceService->getWorkspacePermissionsForUser($contentRepositoryId, $workspace, $currentUser);
+        $workspacePermissions = $this->authorizationService->getWorkspacePermissions($contentRepositoryId, $workspace, $this->securityContext->getRoles(), $currentUser->getId());
         if(!$workspacePermissions->read){
             $this->addFlashMessage(
                 $this->getModuleLabel('workspaces.changes.noPermissionToReadWorkspace'),
@@ -208,7 +212,7 @@ class WorkspaceController extends AbstractModuleController
             $baseWorkspace = $contentRepository->findWorkspaceByName($workspaceObj->baseWorkspaceName);
             assert($baseWorkspace !== null);
             $baseWorkspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $baseWorkspace->workspaceName);
-            $baseWorkspacePermissions = $this->workspaceService->getWorkspacePermissionsForUser($contentRepositoryId, $baseWorkspace->workspaceName, $currentUser);
+            $baseWorkspacePermissions = $this->authorizationService->getWorkspacePermissions($contentRepositoryId, $baseWorkspace->workspaceName, $this->securityContext->getRoles(), $currentUser->getId());
         }
         $this->view->assignMultiple([
             'selectedWorkspaceName' => $workspaceObj->workspaceName->value,
@@ -346,7 +350,7 @@ class WorkspaceController extends AbstractModuleController
 
         $workspace = $contentRepository->findWorkspaceByName($workspaceName);
 
-        $userCanManageWorkspace = $this->workspaceService->getWorkspacePermissionsForUser($contentRepositoryId, $workspaceName, $this->userService->getCurrentUser())->manage;
+        $userCanManageWorkspace = $this->authorizationService->getWorkspacePermissions($contentRepositoryId, $workspaceName, $this->securityContext->getRoles(), $this->userService->getCurrentUser()?->getId())->manage;
         if (!$userCanManageWorkspace) {
             $this->throwStatus(403);
         }
@@ -1247,7 +1251,7 @@ class WorkspaceController extends AbstractModuleController
             if ($user === null) {
                 continue;
             }
-            $permissions = $this->workspaceService->getWorkspacePermissionsForUser($contentRepository->id, $workspace->workspaceName, $user);
+            $permissions = $this->authorizationService->getWorkspacePermissions($contentRepository->id, $workspace->workspaceName, $this->securityContext->getRoles(), $user->getId());
             if (!$permissions->manage) {
                 continue;
             }
@@ -1325,10 +1329,11 @@ class WorkspaceController extends AbstractModuleController
         ContentRepository $contentRepository
     ): WorkspaceListItems {
         $userWorkspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepository->id, $userWorkspace->workspaceName);
-        $userWorkspacesPermissions = $this->workspaceService->getWorkspacePermissionsForUser(
+        $userWorkspacesPermissions = $this->authorizationService->getWorkspacePermissions(
             $contentRepository->id,
             $userWorkspace->workspaceName,
-            $this->userService->getCurrentUser()
+            $this->securityContext->getRoles(),
+            $this->userService->getCurrentUser()->getId()
         );
 
         $allWorkspaces = $contentRepository->findWorkspaces();
@@ -1353,10 +1358,11 @@ class WorkspaceController extends AbstractModuleController
         // add other, accessible workspaces
         foreach ($allWorkspaces as $workspace) {
             $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepository->id, $workspace->workspaceName);
-            $workspacesPermissions = $this->workspaceService->getWorkspacePermissionsForUser(
+            $workspacesPermissions = $this->authorizationService->getWorkspacePermissions(
                 $contentRepository->id,
                 $workspace->workspaceName,
-                $this->userService->getCurrentUser()
+                $this->securityContext->getRoles(),
+                $this->userService->getCurrentUser()->getId()
             );
 
             // ignore root workspaces, because they will not be shown in the UI

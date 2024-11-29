@@ -14,7 +14,6 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Feature\NodeCreation\Command;
 
-use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\Common\MatchableWithNodeIdToPublishOrDiscardInterface;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
@@ -34,7 +33,6 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
  * @internal implementation detail, use {@see CreateNodeAggregateWithNode} instead.
  */
 final readonly class CreateNodeAggregateWithNodeAndSerializedProperties implements
-    CommandInterface,
     \JsonSerializable,
     MatchableWithNodeIdToPublishOrDiscardInterface,
     RebasableToOtherWorkspaceInterface
@@ -80,9 +78,6 @@ final readonly class CreateNodeAggregateWithNodeAndSerializedProperties implemen
         return new self($workspaceName, $nodeAggregateId, $nodeTypeName, $originDimensionSpacePoint, $parentNodeAggregateId, $initialPropertyValues ?? SerializedPropertyValues::createEmpty(), $succeedingSiblingNodeAggregateId, null, NodeAggregateIdsByNodePaths::createEmpty(), $references ?: SerializedNodeReferences::createEmpty());
     }
 
-    /**
-     * @param array<string,mixed> $array
-     */
     public static function fromArray(array $array): self
     {
         return new self(

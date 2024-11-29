@@ -15,17 +15,8 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Features;
 
 use Behat\Gherkin\Node\TableNode;
-use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
-use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
-use Neos\ContentRepository\Core\Feature\NodeReferencing\Command\SetNodeReferences;
-use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\NodeReferencesForName;
-use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\NodeReferencesToWrite;
-use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\NodeReferenceToWrite;
-use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
-use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
-use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\CRTestSuiteRuntimeVariables;
 use Neos\EventStore\Model\Event\StreamName;
 
@@ -38,49 +29,7 @@ trait NodeReferencing
 
     abstract protected function readPayloadTable(TableNode $payloadTable): array;
 
-    abstract protected function deserializeProperties(array $properties): PropertyValuesToWrite;
-
     abstract protected function publishEvent(string $eventType, StreamName $streamName, array $eventPayload): void;
-
-    /**
-     * @Given /^the command SetNodeReferences is executed with payload:$/
-     * @param TableNode $payloadTable
-     * @throws \Exception
-     */
-    public function theCommandSetNodeReferencesIsExecutedWithPayload(TableNode $payloadTable)
-    {
-        $commandArguments = $this->readPayloadTable($payloadTable);
-        $workspaceName = isset($commandArguments['workspaceName'])
-            ? WorkspaceName::fromString($commandArguments['workspaceName'])
-            : $this->currentWorkspaceName;
-        $sourceOriginDimensionSpacePoint = isset($commandArguments['sourceOriginDimensionSpacePoint'])
-            ? OriginDimensionSpacePoint::fromArray($commandArguments['sourceOriginDimensionSpacePoint'])
-            : OriginDimensionSpacePoint::fromDimensionSpacePoint($this->currentDimensionSpacePoint);
-
-        $references = $this->mapRawNodeReferencesToNodeReferencesToWrite($commandArguments['references']);
-        $command = SetNodeReferences::create(
-            $workspaceName,
-            NodeAggregateId::fromString($commandArguments['sourceNodeAggregateId']),
-            $sourceOriginDimensionSpacePoint,
-            $references,
-        );
-
-        $this->currentContentRepository->handle($command);
-    }
-
-    /**
-     * @Given /^the command SetNodeReferences is executed with payload and exceptions are caught:$/
-     * @param TableNode $payloadTable
-     * @throws \Exception
-     */
-    public function theCommandSetNodeReferencesIsExecutedWithPayloadAndExceptionsAreCaught(TableNode $payloadTable)
-    {
-        try {
-            $this->theCommandSetNodeReferencesIsExecutedWithPayload($payloadTable);
-        } catch (\Exception $exception) {
-            $this->lastCommandException = $exception;
-        }
-    }
 
     /**
      * @Given /^the event NodeReferencesWereSet was published with payload:$/
@@ -96,19 +45,5 @@ trait NodeReferencing
         );
 
         $this->publishEvent('NodeReferencesWereSet', $streamName->getEventStreamName(), $eventPayload);
-    }
-
-    protected function mapRawNodeReferencesToNodeReferencesToWrite(array $deserializedTableContent): NodeReferencesToWrite
-    {
-        $referencesForProperty = [];
-        foreach ($deserializedTableContent as $nodeReferencesForProperty) {
-            $references = [];
-            foreach ($nodeReferencesForProperty['references'] as $referenceData) {
-                $properties = isset($referenceData['properties']) ? $this->deserializeProperties($referenceData['properties']) : PropertyValuesToWrite::createEmpty();
-                $references[] = NodeReferenceToWrite::fromTargetAndProperties(NodeAggregateId::fromString($referenceData['target']), $properties);
-            }
-            $referencesForProperty[] = NodeReferencesForName::fromReferences(ReferenceName::fromString($nodeReferencesForProperty['referenceName']), $references);
-        }
-        return NodeReferencesToWrite::fromArray($referencesForProperty);
     }
 }

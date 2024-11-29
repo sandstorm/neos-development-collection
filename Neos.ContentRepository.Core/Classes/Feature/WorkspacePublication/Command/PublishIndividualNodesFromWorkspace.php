@@ -51,6 +51,15 @@ final readonly class PublishIndividualNodesFromWorkspace implements CommandInter
         );
     }
 
+    public static function fromArray(array $array): self
+    {
+        return new self(
+            WorkspaceName::fromString($array['workspaceName']),
+            NodeIdsToPublishOrDiscard::fromArray($array['nodesToPublish']),
+            isset($array['contentStreamIdForRemainingPart']) ? ContentStreamId::fromString($array['contentStreamIdForRemainingPart']) : ContentStreamId::create(),
+        );
+    }
+
     /**
      * The id of the new content stream that will contain all remaining events
      *

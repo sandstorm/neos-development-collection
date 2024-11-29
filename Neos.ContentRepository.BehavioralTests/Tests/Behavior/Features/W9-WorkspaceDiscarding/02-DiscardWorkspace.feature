@@ -139,8 +139,8 @@ Feature: Workspace discarding - basic functionality
       | workspaceName          | "user-ws-two"         |
       | rebasedContentStreamId | "user-cs-two-rebased" |
     Then the last command should have thrown the WorkspaceRebaseFailed exception with:
-      | SequenceNumber | Command                     | Exception                          |
-      | 13             | SetSerializedNodeProperties | NodeAggregateCurrentlyDoesNotExist |
+      | SequenceNumber | Event                 | Exception                          |
+      | 13             | NodePropertiesWereSet | NodeAggregateCurrentlyDoesNotExist |
 
     Then workspace user-ws-two has status OUTDATED
 

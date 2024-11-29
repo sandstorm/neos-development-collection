@@ -50,7 +50,7 @@ Feature: Disable a node aggregate
       | affectedOccupiedDimensionSpacePoints | [{}]               |
       | affectedCoveredDimensionSpacePoints  | [{}]               |
 
-    When the command CreateNodeAggregateWithNodeAndSerializedProperties is executed with payload:
+    When the command CreateNodeAggregateWithNode is executed with payload:
       | Key                       | Value                                     |
       | nodeAggregateId           | "nody-mc-nodeface"                        |
       | nodeTypeName              | "Neos.ContentRepository.Testing:Document" |
@@ -70,7 +70,7 @@ Feature: Disable a node aggregate
     And I expect this node aggregate to disable dimension space points []
 
     When I am in workspace "live" and dimension space point {}
-    And VisibilityConstraints are set to "frontend"
+    And VisibilityConstraints are set to "default"
     Then the subtree for node aggregate "lady-eleonode-rootford" with node types "" and 2 levels deep should be:
       | Level | nodeAggregateId         |
       | 0     | lady-eleonode-rootford  |

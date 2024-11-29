@@ -15,14 +15,18 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandBus;
+use Neos\ContentRepository\Core\CommandHandler\CommandHookInterface;
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
+use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\EventStore\EventPersister;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\EventStore\InitiatingEventMetadata;
-use Neos\ContentRepository\Core\Factory\ContentRepositoryFactory;
+use Neos\ContentRepository\Core\Feature\Security\AuthProviderInterface;
+use Neos\ContentRepository\Core\Feature\Security\Dto\UserId;
+use Neos\ContentRepository\Core\Feature\Security\Exception\AccessDenied;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\CatchUp;
 use Neos\ContentRepository\Core\Projection\CatchUpHookFactoryDependencies;
@@ -30,6 +34,7 @@ use Neos\ContentRepository\Core\Projection\CatchUpOptions;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionsAndCatchUpHooks;
 use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
@@ -38,7 +43,6 @@ use Neos\ContentRepository\Core\Projection\WithMarkStaleInterface;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryStatus;
 use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceDoesNotExist;
-use Neos\ContentRepository\Core\SharedModel\User\UserIdProviderInterface;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStream;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreams;
@@ -46,6 +50,7 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
 use Neos\EventStore\EventStoreInterface;
+use Neos\EventStore\Exception\ConcurrencyException;
 use Neos\EventStore\Model\EventEnvelope;
 use Neos\EventStore\Model\EventStream\VirtualStreamName;
 use Psr\Clock\ClockInterface;
@@ -81,9 +86,10 @@ final class ContentRepository
         private readonly NodeTypeManager $nodeTypeManager,
         private readonly InterDimensionalVariationGraph $variationGraph,
         private readonly ContentDimensionSourceInterface $contentDimensionSource,
-        private readonly UserIdProviderInterface $userIdProvider,
+        private readonly AuthProviderInterface $authProvider,
         private readonly ClockInterface $clock,
-        private readonly ContentGraphReadModelInterface $contentGraphReadModel
+        private readonly ContentGraphReadModelInterface $contentGraphReadModel,
+        private readonly CommandHookInterface $commandHook,
     ) {
     }
 
@@ -91,22 +97,52 @@ final class ContentRepository
      * The only API to send commands (mutation intentions) to the system.
      *
      * @param CommandInterface $command
+     * @throws AccessDenied
      */
     public function handle(CommandInterface $command): void
     {
-        // the commands only calculate which events they want to have published, but do not do the
-        // publishing themselves
-        $eventsToPublishOrGenerator = $this->commandBus->handle($command);
+        $command = $this->commandHook->onBeforeHandle($command);
+        $privilege = $this->authProvider->canExecuteCommand($command);
+        if (!$privilege->granted) {
+            throw AccessDenied::becauseCommandIsNotGranted($command, $privilege->getReason());
+        }
 
-        if ($eventsToPublishOrGenerator instanceof EventsToPublish) {
-            $eventsToPublish = $this->enrichEventsToPublishWithMetadata($eventsToPublishOrGenerator);
-            $this->eventPersister->publishEvents($this, $eventsToPublish);
-        } else {
-            foreach ($eventsToPublishOrGenerator as $eventsToPublish) {
-                assert($eventsToPublish instanceof EventsToPublish); // just for the ide
-                $eventsToPublish = $this->enrichEventsToPublishWithMetadata($eventsToPublish);
-                $this->eventPersister->publishEvents($this, $eventsToPublish);
+        $toPublish = $this->commandBus->handle($command);
+
+        // simple case
+        if ($toPublish instanceof EventsToPublish) {
+            $eventsToPublish = $this->enrichEventsToPublishWithMetadata($toPublish);
+            $this->eventPersister->publishWithoutCatchup($eventsToPublish);
+            $this->catchupProjections();
+            return;
+        }
+
+        // control-flow aware command handling via generator
+        try {
+            foreach ($toPublish as $yieldedEventsToPublish) {
+                $eventsToPublish = $this->enrichEventsToPublishWithMetadata($yieldedEventsToPublish);
+                try {
+                    $this->eventPersister->publishWithoutCatchup($eventsToPublish);
+                } catch (ConcurrencyException $concurrencyException) {
+                    // we pass the exception into the generator (->throw), so it could be try-caught and reacted upon:
+                    //
+                    //   try {
+                    //      yield EventsToPublish(...);
+                    //   } catch (ConcurrencyException $e) {
+                    //      yield $this->reopenContentStream();
+                    //      throw $e;
+                    //   }
+                    $yieldedErrorStrategy = $toPublish->throw($concurrencyException);
+                    if ($yieldedErrorStrategy instanceof EventsToPublish) {
+                        $this->eventPersister->publishWithoutCatchup($yieldedErrorStrategy);
+                    }
+                    throw $concurrencyException;
+                }
             }
+        } finally {
+            // We always NEED to catchup even if there was an unexpected ConcurrencyException to make sure previous commits are handled.
+            // Technically it would be acceptable for the catchup to fail here (due to hook errors) because all the events are already persisted.
+            $this->catchupProjections();
         }
     }
 
@@ -147,7 +183,7 @@ final class ContentRepository
         $projection = $this->projectionsAndCatchUpHooks->projections->get($projectionClassName);
 
         $catchUpHookFactory = $this->projectionsAndCatchUpHooks->getCatchUpHookFactoryForProjection($projection);
-        $catchUpHook = $catchUpHookFactory?->build(new CatchUpHookFactoryDependencies(
+        $catchUpHook = $catchUpHookFactory?->build(CatchUpHookFactoryDependencies::create(
             $this->id,
             $projection->getState(),
             $this->nodeTypeManager,
@@ -235,10 +271,29 @@ final class ContentRepository
 
     /**
      * @throws WorkspaceDoesNotExist if the workspace does not exist
+     * @throws AccessDenied if no read access is granted to the workspace ({@see AuthProviderInterface})
      */
     public function getContentGraph(WorkspaceName $workspaceName): ContentGraphInterface
     {
+        $privilege = $this->authProvider->canReadNodesFromWorkspace($workspaceName);
+        if (!$privilege->granted) {
+            throw AccessDenied::becauseWorkspaceCantBeRead($workspaceName, $privilege->getReason());
+        }
         return $this->contentGraphReadModel->getContentGraph($workspaceName);
+    }
+
+    /**
+     * Main API to retrieve a content subgraph, taking VisibilityConstraints of the current user
+     * into account ({@see AuthProviderInterface::getVisibilityConstraints()})
+     *
+     * @throws WorkspaceDoesNotExist if the workspace does not exist
+     * @throws AccessDenied if no read access is granted to the workspace ({@see AuthProviderInterface})
+     */
+    public function getContentSubgraph(WorkspaceName $workspaceName, DimensionSpacePoint $dimensionSpacePoint): ContentSubgraphInterface
+    {
+        $contentGraph = $this->getContentGraph($workspaceName);
+        $visibilityConstraints = $this->authProvider->getVisibilityConstraints($workspaceName);
+        return $contentGraph->getSubgraph($dimensionSpacePoint, $visibilityConstraints);
     }
 
     /**
@@ -285,7 +340,7 @@ final class ContentRepository
 
     private function enrichEventsToPublishWithMetadata(EventsToPublish $eventsToPublish): EventsToPublish
     {
-        $initiatingUserId = $this->userIdProvider->getUserId();
+        $initiatingUserId = $this->authProvider->getAuthenticatedUserId() ?? UserId::forSystemUser();
         $initiatingTimestamp = $this->clock->now();
 
         return new EventsToPublish(

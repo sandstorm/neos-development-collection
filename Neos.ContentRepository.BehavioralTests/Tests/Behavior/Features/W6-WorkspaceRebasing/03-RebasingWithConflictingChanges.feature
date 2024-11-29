@@ -101,8 +101,8 @@ Feature: Workspace rebasing - conflicting changes
     Then I expect the content stream "user-cs-two" to exist
     Then I expect the content stream "user-cs-two-rebased" to not exist
     Then the last command should have thrown the WorkspaceRebaseFailed exception with:
-      | SequenceNumber | Command                     | Exception                          |
-      | 13             | SetSerializedNodeProperties | NodeAggregateCurrentlyDoesNotExist |
+      | SequenceNumber | Event                 | Exception                          |
+      | 13             | NodePropertiesWereSet | NodeAggregateCurrentlyDoesNotExist |
 
     When the command RebaseWorkspace is executed with payload:
       | Key                         | Value                 |
@@ -169,9 +169,9 @@ Feature: Workspace rebasing - conflicting changes
     Then I expect the content stream "user-cs-identifier" to exist
     Then I expect the content stream "user-cs-identifier-rebased" to not exist
     Then the last command should have thrown the WorkspaceRebaseFailed exception with:
-      | SequenceNumber | Command                     | Exception                          |
-      | 12             | SetSerializedNodeProperties | NodeAggregateCurrentlyDoesNotExist |
-      | 14             | SetSerializedNodeProperties | NodeAggregateCurrentlyDoesNotExist |
+      | SequenceNumber | Event                 | Exception                          |
+      | 12             | NodePropertiesWereSet | NodeAggregateCurrentlyDoesNotExist |
+      | 14             | NodePropertiesWereSet | NodeAggregateCurrentlyDoesNotExist |
 
     When the command RebaseWorkspace is executed with payload:
       | Key                         | Value                        |

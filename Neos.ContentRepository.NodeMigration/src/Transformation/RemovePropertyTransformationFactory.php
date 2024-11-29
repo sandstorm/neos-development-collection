@@ -16,10 +16,10 @@ namespace Neos\ContentRepository\NodeMigration\Transformation;
 
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
-use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetSerializedNodeProperties;
-use Neos\ContentRepository\Core\Feature\NodeModification\Dto\SerializedPropertyValues;
+use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetNodeProperties;
+use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
+use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
-use Neos\ContentRepository\Core\SharedModel\Node\PropertyNames;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 
@@ -33,7 +33,8 @@ class RemovePropertyTransformationFactory implements TransformationFactoryInterf
      */
     public function build(
         array $settings,
-        ContentRepository $contentRepository
+        ContentRepository $contentRepository,
+        PropertyConverter $propertyConverter,
     ): GlobalTransformationInterface|NodeAggregateBasedTransformationInterface|NodeBasedTransformationInterface {
         $propertyName = $settings['property'];
         return new class (
@@ -56,12 +57,13 @@ class RemovePropertyTransformationFactory implements TransformationFactoryInterf
             ): void {
                 if ($node->hasProperty($this->propertyName)) {
                     $this->contentRepository->handle(
-                        SetSerializedNodeProperties::create(
+                        SetNodeProperties::create(
                             $workspaceNameForWriting,
                             $node->aggregateId,
                             $node->originDimensionSpacePoint,
-                            SerializedPropertyValues::createEmpty(),
-                            PropertyNames::fromArray([$this->propertyName])
+                            PropertyValuesToWrite::fromArray([
+                                $this->propertyName => null,
+                            ]),
                         )
                     );
                 }
