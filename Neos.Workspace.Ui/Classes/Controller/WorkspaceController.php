@@ -731,9 +731,8 @@ class WorkspaceController extends AbstractModuleController
      * @throws InvalidFormatPlaceholderException
      * @throws StopActionException
      */
-    public function publishOrDiscardNodesAction(array $nodes, string $action, string $selectedWorkspace): void
+    public function publishOrDiscardNodesAction(array $nodes, string $action, WorkspaceName $selectedWorkspace): void
     {
-        $selectedWorkspaceName = WorkspaceName::fromString($selectedWorkspace);
         $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())
             ->contentRepositoryId;
         $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
@@ -750,7 +749,7 @@ class WorkspaceController extends AbstractModuleController
         switch ($action) {
             case 'publish':
                 $command = PublishIndividualNodesFromWorkspace::create(
-                    $selectedWorkspaceName,
+                    $selectedWorkspace,
                     NodeIdsToPublishOrDiscard::create(...$nodesToPublishOrDiscard),
                 );
                 $contentRepository->handle($command);
@@ -760,7 +759,7 @@ class WorkspaceController extends AbstractModuleController
                 break;
             case 'discard':
                 $command = DiscardIndividualNodesFromWorkspace::create(
-                    $selectedWorkspaceName,
+                    $selectedWorkspace,
                     NodeIdsToPublishOrDiscard::create(...$nodesToPublishOrDiscard),
                 );
                 $contentRepository->handle($command);
@@ -792,18 +791,103 @@ class WorkspaceController extends AbstractModuleController
                 ],
             )
         );
+        //todo make redirect work
         $this->redirect('index');
+    }
+
+    public function confirmPublishAllChangesAction(WorkspaceName $workspaceName): void
+    {
+        $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
+        $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
+        $workspace = $contentRepository->findWorkspaceByName($workspaceName);
+        if ($workspace === null) {
+            $this->addFlashMessage(
+                $this->getModuleLabel('workspaces.workspaceDoesNotExist'),
+                '',
+                Message::SEVERITY_ERROR
+            );
+            $this->throwStatus(404, 'Workspace does not exist');
+        }
+
+        $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspace->workspaceName);
+        $this->view->assignMultiple([
+            'workspaceName' => $workspaceName->value,
+            'workspaceTitle' => $workspaceMetadata->title->value,
+        ]);
+    }
+    public function confirmDiscardAllChangesAction(WorkspaceName $workspaceName): void
+    {
+        $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
+        $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
+        $workspace = $contentRepository->findWorkspaceByName($workspaceName);
+        if ($workspace === null) {
+            $this->addFlashMessage(
+                $this->getModuleLabel('workspaces.workspaceDoesNotExist'),
+                '',
+                Message::SEVERITY_ERROR
+            );
+            $this->throwStatus(404, 'Workspace does not exist');
+        }
+
+        $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspace->workspaceName);
+        $this->view->assignMultiple([
+            'workspaceName' => $workspaceName->value,
+            'workspaceTitle' => $workspaceMetadata->title->value,
+        ]);
+    }
+
+    public function confirmPublishSelectedChangesAction(WorkspaceName $workspaceName): void
+    {
+        $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
+        $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
+        $workspace = $contentRepository->findWorkspaceByName($workspaceName);
+        if ($workspace === null) {
+            $this->addFlashMessage(
+                $this->getModuleLabel('workspaces.workspaceDoesNotExist'),
+                '',
+                Message::SEVERITY_ERROR
+            );
+            $this->throwStatus(404, 'Workspace does not exist');
+        }
+
+        $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspace->workspaceName);
+        $this->view->assignMultiple([
+            'workspaceName' => $workspaceName->value,
+            'workspaceTitle' => $workspaceMetadata->title->value,
+        ]);
+        $this->view->assign('workspaceName', $workspaceName);
+    }
+    public function confirmDiscardSelectedChangesAction(WorkspaceName $workspaceName): void
+    {
+        $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
+        $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
+        $workspace = $contentRepository->findWorkspaceByName($workspaceName);
+        if ($workspace === null) {
+            $this->addFlashMessage(
+                $this->getModuleLabel('workspaces.workspaceDoesNotExist'),
+                '',
+                Message::SEVERITY_ERROR
+            );
+            $this->throwStatus(404, 'Workspace does not exist');
+        }
+
+        $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspace->workspaceName);
+        $this->view->assignMultiple([
+            'workspaceName' => $workspaceName->value,
+            'workspaceTitle' => $workspaceMetadata->title->value,
+        ]);
+        $this->view->assign('workspaceName', $workspaceName);
     }
 
     /**
      * Discards content of the whole workspace
      *
-     * TODO: Adjust param to workspaceName
      * @param WorkspaceName $workspace
      */
     public function discardWorkspaceAction(WorkspaceName $workspace): void
     {
         $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
+
         $this->workspacePublishingService->discardAllWorkspaceChanges(
             $contentRepositoryId,
             $workspace,
@@ -814,7 +898,8 @@ class WorkspaceController extends AbstractModuleController
                 [htmlspecialchars($workspace->value)],
             )
         );
-        $this->redirect('index');
+        //todo make redirect to index work
+        $this->redirect('review', null, null, ['workspace' => $workspace->value]);
     }
 
     /**

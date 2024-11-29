@@ -56,6 +56,7 @@ Neos.Workspace.Ui.WorkspaceController.review = Neos.Fusion:Component {
           </div>
         </main>
       </section>
+      <div id="popover-container"></div>
     `
     htmx = afx`
       <Neos.Workspace.Ui:Component.FlashMessages flashMessages={props.flashMessages}/>

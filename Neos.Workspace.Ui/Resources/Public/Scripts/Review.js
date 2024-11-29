@@ -26,12 +26,15 @@ function initReviewFunctions(){
 				if(!checkbox.checked){
 					input.checked = false;
 				}
-				if(document.querySelectorAll('tbody input[type="checkbox"]:checked').length === 0){
+				if(document.querySelectorAll('tbody input[type="checkbox"]:checked').length === document.querySelectorAll('tbody input[type="checkbox"]').length){
 					document.getElementById('batch-actions').classList.add('neos-hidden');
 					document.getElementById('all-actions').classList.remove('neos-hidden');
+				} else {
+					document.getElementById('batch-actions').classList.remove('neos-hidden');
+					document.getElementById('all-actions').classList.add('neos-hidden');
 				}
 				const neosDocument = checkbox.closest('.neos-document');
-				console.log(neosDocument.dataset.documentpath);
+
 				if(neosDocument.hasAttribute('data-isNew') || neosDocument.hasAttribute('data-isMoved')){
 					if(checkbox.checked){
 						neosDocument.dataset.documentpath.split('/').forEach(function (parentDocumentId) {

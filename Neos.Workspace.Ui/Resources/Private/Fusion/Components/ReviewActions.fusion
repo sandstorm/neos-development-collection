@@ -14,32 +14,38 @@ prototype(Neos.Workspace.Ui:Component.ReviewActions) < prototype(Neos.Fusion:Com
       action = 'index'
 
     }
-    discardWorkspaceUri = Neos.Fusion:ActionUri {
-      action = 'discardWorkspace'
+    confirmDiscardAllChanges = Neos.Fusion:ActionUri {
+      action = 'confirmDiscardAllChanges'
+      format = 'htmx'
       arguments {
-        workspace = ${props.selectedWorkspaceName}
+        workspaceName = ${props.selectedWorkspaceName}
       }
     }
-    publishWorkspaceUri = Neos.Fusion:ActionUri {
-      action = 'publishWorkspace'
+    confirmPublishAllChanges = Neos.Fusion:ActionUri {
+      action = 'confirmPublishAllChanges'
+      format = 'htmx'
       arguments {
-        workspace = ${props.selectedWorkspaceName}
+        workspaceName = ${props.selectedWorkspaceName}
       }
     }
     discardSelectedChanges = Neos.Fusion:ActionUri {
-      action = 'PublishOrDiscardNodes'
+      action = 'confirmDiscardSelectedChanges'
       arguments {
-        action = 'discard'
-        workspace = ${props.selectedWorkspaceName}
+        workspaceName = ${props.selectedWorkspaceName}
       }
     }
-    publishSelectedChangesTo = Neos.Fusion:ActionUri {
-      action = 'PublishOrDiscardNodes'
+    confirmPublishSelectedChanges= Neos.Fusion:ActionUri {
+      action = 'confirmPublishSelectedChanges'
+      format = 'htmx'
       arguments {
-        action = 'publish'
-        workspace = ${props.selectedWorkspaceName}
+        workspaceName = ${props.selectedWorkspaceName}
       }
     }
+
+    discardAllChangesPopoverId = 'confirm-discard-all-changes-popover'
+    publishAllChangesPopoverId = 'confirm-publish-all-changes-popover'
+    publishSelectedChangesPopoverId = 'confirm-publish-selected-changes-popover'
+    discardSelectedChangesPopoverId = 'confirm-discard-selected-changes-popover'
   }
 
   renderer = afx`
@@ -59,16 +65,20 @@ prototype(Neos.Workspace.Ui:Component.ReviewActions) < prototype(Neos.Fusion:Com
               label={private.i18n.id('workspaces.discardAllChanges')}
               icon="fas fa-trash-alt icon-white"
               isDanger={true}
-              attributes.hx-get={private.discardWorkspaceUri}
-              attributes.hx-target="body"
+              attributes.hx-get={private.confirmDiscardAllChanges}
+              attributes.hx-target='#popover-container'
+              attributes.hx-swap='innerHTML'
+              attributes.hx-on--after-request={'document.getElementById("' + private.discardAllChangesPopoverId + '").showPopover()'}
               attributes.disabled={!props.canPublishToWorkspace}
             />
             <Neos.Workspace.Ui:Component.Button
               label={private.i18n.id('workspaces.publishAllChangesTo').arguments([props.baseWorkspaceLabel])}
               icon="fas fa-check-double icon-white"
               isPrimary={true}
-              attributes.hx-get={private.publishWorkspaceUri}
-              attributes.hx-target="body"
+              attributes.hx-get={private.confirmPublishAllChanges}
+              attributes.hx-target='#popover-container'
+              attributes.hx-swap='innerHTML'
+              attributes.hx-on--after-request={'document.getElementById("' + private.publishAllChangesPopoverId + '").showPopover()'}
               attributes.disabled={!props.canPublishToBaseWorkspace}
             />
           </div>
@@ -85,8 +95,10 @@ prototype(Neos.Workspace.Ui:Component.ReviewActions) < prototype(Neos.Fusion:Com
               label={private.i18n.id('workspaces.publishSelectedChangesTo').arguments([props.baseWorkspaceLabel])}
               icon="fas fa-check icon-white"
               isPrimary={true}
-              attributes.hx-get={private.publishSelectedChangesTo}
-              attributes.hx-target="body"
+              attributes.hx-get={private.confirmPublishSelectedChanges}
+              attributes.hx-target='#popover-container'
+              attributes.hx-swap='innerHTML'
+              attributes.hx-on--after-request={'document.getElementById("' + private.publishSelectedChangesPopoverId + '").showPopover()'}
               attributes.disabled={!props.canPublishToBaseWorkspace}
             />
           </div>

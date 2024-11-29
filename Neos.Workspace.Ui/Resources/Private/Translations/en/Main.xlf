@@ -249,6 +249,9 @@
       <trans-unit id="workspaces.discardAllChangesInWorkspaceConfirmation" xml:space="preserve">
 				<source>Do you really want to discard all changes in the "{0}" workspace?</source>
 			</trans-unit>
+      <trans-unit id="workspaces.publishAllChangesInWorkspaceConfirmation" xml:space="preserve">
+				<source>Do you really want to publish all changes in the "{0}" workspace?</source>
+			</trans-unit>
       <trans-unit id="workspaces.workspaceWithThisTitleAlreadyExists">
         <source>A workspace with this title already exists.</source>
       </trans-unit>
