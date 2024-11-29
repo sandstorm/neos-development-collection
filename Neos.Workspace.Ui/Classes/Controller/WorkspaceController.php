@@ -48,6 +48,7 @@ use Neos\Flow\Mvc\Routing\Exception\MissingActionNameException;
 use Neos\Flow\Package\PackageManager;
 use Neos\Flow\Property\PropertyMapper;
 use Neos\Flow\Security\Context;
+use Neos\Flow\Security\Policy\PolicyService;
 use Neos\Fusion\View\FusionView;
 use Neos\Media\Domain\Model\AssetInterface;
 use Neos\Media\Domain\Model\ImageInterface;
@@ -74,7 +75,7 @@ use Neos\Neos\PendingChangesProjection\Changes;
 use Neos\Neos\Utility\NodeTypeWithFallbackProvider;
 use Neos\Neos\Security\Authorization\ContentRepositoryAuthorizationService;
 use Neos\Workspace\Ui\ViewModel\ConfirmDeleteWorkspaceRoleAssignmentFormData;
-use Neos\Workspace\Ui\ViewModel\CreateWorkspaceRoleAssignmentsFormData;
+use Neos\Workspace\Ui\ViewModel\CreateWorkspaceRoleAssignmentFormData;
 use Neos\Workspace\Ui\ViewModel\ChangeItem;
 use Neos\Workspace\Ui\ViewModel\ContentChangeItem;
 use Neos\Workspace\Ui\ViewModel\ContentChangeItems;
@@ -135,6 +136,9 @@ class WorkspaceController extends AbstractModuleController
 
     #[Flow\Inject]
     protected Translator $translator;
+
+    #[Flow\Inject]
+    protected PolicyService $policyService;
 
     #[Flow\Inject]
     protected ContentRepositoryAuthorizationService $authorizationService;
@@ -544,26 +548,27 @@ class WorkspaceController extends AbstractModuleController
             $userOptions[$user->getId()->value] = $user->getLabel();
         }
 
-        // TODO: get a set of configured groups in the system
-        // \Neos\Flow\Security\Policy\PolicyService::getRoles
-        $groupOptions = [
-            'Neos.Neos:AbstractEditor',
-            'Neos.Neos:Editor',
-            'Neos.Neos:LimitedEditor',
-            'Neos.Neos:LivePublisher',
-        ];
+        $rolesInSystem = $this->policyService->getRoles();
+        $groupOptions = [];
+        foreach ($rolesInSystem as $role) {
+            $groupOptions[$role->getIdentifier()] = $role->getLabel();
+        }
 
-        $subjectTypeOptions = [
-            WorkspaceRoleSubjectType::USER->value => 'User',
-            WorkspaceRoleSubjectType::GROUP->value => 'Group',
-        ];
+        $workspaceRoleSubjectTypes = WorkspaceRoleSubjectType::cases();
+        /** @var array<string, string> $subjectTypeOptions where key is the Id and value is the translated label of the SubjectType */
+        $subjectTypeOptions = [];
+        foreach ($workspaceRoleSubjectTypes as $workspaceRoleSubjectType) {
+            $subjectTypeOptions[$workspaceRoleSubjectType->value] = $this->getModuleLabel("workspaces.workspace.workspaceRoleAssignment.subjectType.label.$workspaceRoleSubjectType->value");
+        }
 
-        $roleOptions = [
-            WorkspaceRole::MANAGER->value => 'Manager',
-            WorkspaceRole::COLLABORATOR->value => 'Collaborator',
-        ];
+        $workspaceRoles = WorkspaceRole::cases();
+        /** @var array<string, string> $roleOptions where key is the Id and value is the translated label of the Role */
+        $roleOptions = [];
+        foreach ($workspaceRoles as $workspaceRole) {
+            $roleOptions[$workspaceRole->value] = $this->getModuleLabel("workspaces.workspace.workspaceRoleAssignment.role.label.$workspaceRole->value");
+        }
 
-        $this->view->assign('createWorkspaceRoleAssignmentsFormData', new CreateWorkspaceRoleAssignmentsFormData(
+        $this->view->assign('createWorkspaceRoleAssignmentFormData', new CreateWorkspaceRoleAssignmentFormData(
             workspaceName: $workspaceName,
             workspaceTitle: $workspaceMetadata->title,
             userOptions: $userOptions,
@@ -573,9 +578,31 @@ class WorkspaceController extends AbstractModuleController
         ));
     }
 
-    public function addRoleAssignmentAction(WorkspaceName $workspaceName, EditWorkspaceRoleAssignmentsFormData $editWorkspaceRoleAssignmentData): void
+    public function addWorkspaceRoleAssignmentAction(
+        WorkspaceName $workspaceName,
+        string $subjectValue,
+        string $subjectTypeValue,
+        string $roleValue,
+    ): void
     {
-        // TODO: Add a new role assignment
+        // TODO: Validate if user can add role assignment to workspace
+
+        $subject = WorkspaceRoleSubject::fromString($subjectValue);
+        $subjectType = WorkspaceRoleSubjectType::from($subjectTypeValue);
+        $role = WorkspaceRole::from($roleValue);
+
+        if ($subjectType === WorkspaceRoleSubjectType::USER) {
+            $this->addUserRoleAssignment($workspaceName, $subject, $role);
+        } elseif ($subjectType === WorkspaceRoleSubjectType::GROUP) {
+            $this->addGroupRoleAssignment($workspaceName, $subject, $role);
+        } else {
+            $this->addFlashMessage(
+                $this->getModuleLabel('workspaces.roleAssignmentCouldNotBeAdded'),
+                '',
+                Message::SEVERITY_ERROR
+            );
+            $this->throwStatus(400, 'Invalid subject type');
+        }
     }
 
     public function confirmDeleteWorkspaceRoleAssignmentAction(WorkspaceName $workspaceName, string $subjectValue, string $subjectType): void
@@ -1485,5 +1512,33 @@ class WorkspaceController extends AbstractModuleController
             ->findByContentStreamId(
                 $selectedWorkspace->currentContentStreamId
             );
+    }
+
+    private function addUserRoleAssignment(WorkspaceName $workspaceName, WorkspaceRoleSubject $subject, WorkspaceRole $role): void
+    {
+        if ($this->userService->findUserById(UserId::fromString($subject->value)) === null) {
+            $this->addFlashMessage(
+                $this->getModuleLabel('workspaces.roleAssignmentCouldNotBeAdded'),
+                '',
+                Message::SEVERITY_ERROR
+            );
+            $this->throwStatus(400, 'Invalid user');
+        }
+
+        $this->workspaceService->assignWorkspaceRole(
+            SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId,
+            $workspaceName,
+            WorkspaceRoleAssignment::createForUser(UserId::fromString($subject->value), $role)
+        );
+    }
+
+    private function addGroupRoleAssignment(WorkspaceName $workspaceName, WorkspaceRoleSubject $subject, WorkspaceRole $role)
+    {
+        // TODO check if group exists?
+        $this->workspaceService->assignWorkspaceRole(
+            SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId,
+            $workspaceName,
+            WorkspaceRoleAssignment::createForGroup($subject->value, $role)
+        );
     }
 }
