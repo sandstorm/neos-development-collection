@@ -4,8 +4,21 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Feature;
 
-use Neos\ContentRepository\Core\Feature\Common\MatchableWithNodeIdToPublishOrDiscardInterface;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Dto\NodeIdsToPublishOrDiscard;
+use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
+use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNodeAndSerializedProperties;
+use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\DisableNodeAggregate;
+use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\EnableNodeAggregate;
+use Neos\ContentRepository\Core\Feature\NodeDuplication\Command\CopyNodesRecursively;
+use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetSerializedNodeProperties;
+use Neos\ContentRepository\Core\Feature\NodeMove\Command\MoveNodeAggregate;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Command\SetSerializedNodeReferences;
+use Neos\ContentRepository\Core\Feature\NodeRemoval\Command\RemoveNodeAggregate;
+use Neos\ContentRepository\Core\Feature\NodeRenaming\Command\ChangeNodeAggregateName;
+use Neos\ContentRepository\Core\Feature\NodeTypeChange\Command\ChangeNodeAggregateType;
+use Neos\ContentRepository\Core\Feature\NodeVariation\Command\CreateNodeVariant;
+use Neos\ContentRepository\Core\Feature\SubtreeTagging\Command\TagSubtree;
+use Neos\ContentRepository\Core\Feature\SubtreeTagging\Command\UntagSubtree;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\EventStore\Model\EventStream\EventStreamInterface;
 
 /**
@@ -41,20 +54,12 @@ class RebaseableCommands implements \IteratorAggregate
      * @return array{RebaseableCommands,RebaseableCommands}
      */
     public function separateMatchingAndRemainingCommands(
-        NodeIdsToPublishOrDiscard $nodeIdsToPublishOrDiscard
+        NodeAggregateIds $nodeIdsToMatch
     ): array {
         $matchingCommands = [];
         $remainingCommands = [];
         foreach ($this->items as $extractedCommand) {
-            $originalCommand = $extractedCommand->originalCommand;
-            if (!$originalCommand instanceof MatchableWithNodeIdToPublishOrDiscardInterface) {
-                throw new \Exception(
-                    'Command class ' . get_class($originalCommand) . ' does not implement '
-                    . MatchableWithNodeIdToPublishOrDiscardInterface::class,
-                    1645393655
-                );
-            }
-            if (self::commandMatchesAtLeastOneNode($originalCommand, $nodeIdsToPublishOrDiscard)) {
+            if (self::commandMatchesAtLeastOneNode($extractedCommand->originalCommand, $nodeIdsToMatch)) {
                 $matchingCommands[] = $extractedCommand;
             } else {
                 $remainingCommands[] = $extractedCommand;
@@ -67,11 +72,31 @@ class RebaseableCommands implements \IteratorAggregate
     }
 
     private static function commandMatchesAtLeastOneNode(
-        MatchableWithNodeIdToPublishOrDiscardInterface $command,
-        NodeIdsToPublishOrDiscard $nodeIds,
+        RebasableToOtherWorkspaceInterface $command,
+        NodeAggregateIds $nodeIdsToMatch,
     ): bool {
-        foreach ($nodeIds as $nodeId) {
-            if ($command->matchesNodeId($nodeId)) {
+        foreach ($nodeIdsToMatch as $nodeId) {
+            $matches = match($command::class) {
+                CreateNodeAggregateWithNodeAndSerializedProperties::class,
+                DisableNodeAggregate::class,
+                EnableNodeAggregate::class,
+                SetSerializedNodeProperties::class,
+                MoveNodeAggregate::class,
+                RemoveNodeAggregate::class,
+                ChangeNodeAggregateName::class,
+                ChangeNodeAggregateType::class,
+                CreateNodeVariant::class,
+                TagSubtree::class,
+                UntagSubtree::class
+                    => $command->nodeAggregateId->equals($nodeId),
+                CopyNodesRecursively::class => $command->nodeAggregateIdMapping->getNewNodeAggregateId(
+                    $command->nodeTreeToInsert->nodeAggregateId
+                )?->equals($nodeId),
+                SetSerializedNodeReferences::class => $command->sourceNodeAggregateId->equals($nodeId),
+                // todo return false instead to allow change to be still kept?
+                default => throw new \RuntimeException(sprintf('Command %s cannot be matched against a node aggregate id. Partial publish not possible.', $command::class), 1645393655)
+            };
+            if ($matches) {
                 return true;
             }
         }

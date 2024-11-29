@@ -54,7 +54,7 @@ Feature: Individual node publication
       | nody-mc-nodeface | Neos.ContentRepository.Testing:Content | $child2Id             | nody     | {}                                 |
     When the command PublishIndividualNodesFromWorkspace is executed with payload:
       | Key                             | Value                                                                                                    |
-      | nodesToPublish                  | [{"workspaceName": "user-test", "dimensionSpacePoint": {}, "nodeAggregateId": "sir-david-nodenborough"}] |
+      | nodesToPublish                  | ["sir-david-nodenborough"] |
       | contentStreamIdForRemainingPart | "user-cs-identifier-remaining"                                                                           |
 
     And I am in workspace "live"
@@ -79,7 +79,7 @@ Feature: Individual node publication
     When the command PublishIndividualNodesFromWorkspace is executed with payload:
       | Key                             | Value                                                            |
       | workspaceName                   | "user-test"                                                      |
-      | nodesToPublish                  | [{"dimensionSpacePoint": {}, "nodeAggregateId": "non-existing"}] |
+      | nodesToPublish                  | ["non-existing"] |
       | contentStreamIdForRemainingPart | "user-cs-new"                                                    |
     Then workspaces user-test has status OUTDATED
 

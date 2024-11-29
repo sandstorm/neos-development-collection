@@ -15,7 +15,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Feature\WorkspacePublication\Event;
 
 use Neos\ContentRepository\Core\EventStore\EventInterface;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Dto\NodeIdsToPublishOrDiscard;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 
@@ -41,18 +41,27 @@ final readonly class WorkspaceWasPartiallyPublished implements EventInterface
          * The old content stream, which contains ALL the data (discarded and non-discarded)
          */
         public ContentStreamId $previousSourceContentStreamId,
-        public NodeIdsToPublishOrDiscard $publishedNodes,
+        public NodeAggregateIds $publishedNodes,
     ) {
     }
 
     public static function fromArray(array $values): self
     {
+        $publishedNodes = [];
+        foreach ($values['publishedNodes'] as $publishedNode) {
+            if (is_array($publishedNode)) {
+                // legacy case:
+                $publishedNodes[] = $publishedNode['nodeAggregateId'];
+                continue;
+            }
+            $publishedNodes[] = $publishedNode;
+        }
         return new self(
             WorkspaceName::fromString($values['sourceWorkspaceName']),
             WorkspaceName::fromString($values['targetWorkspaceName']),
             ContentStreamId::fromString($values['newSourceContentStreamId']),
             ContentStreamId::fromString($values['previousSourceContentStreamId']),
-            NodeIdsToPublishOrDiscard::fromArray($values['publishedNodes']),
+            NodeAggregateIds::fromArray($publishedNodes),
         );
     }
 
