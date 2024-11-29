@@ -26,7 +26,7 @@ use Neos\Neos\Domain\Model\WorkspaceTitle;
  *   - role should be internationalized, maybe
  */
 #[Flow\Proxy(false)]
-final readonly class CreateWorkspaceRoleAssignmentsFormData
+final readonly class CreateWorkspaceRoleAssignmentFormData
 {
     public function __construct(
         public WorkspaceName  $workspaceName,
