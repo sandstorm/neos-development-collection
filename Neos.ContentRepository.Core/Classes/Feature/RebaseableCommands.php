@@ -82,7 +82,7 @@ class RebaseableCommands implements \IteratorAggregate
              *
              * This is needed to publish and discard individual nodes.
              */
-            $matches = match($command::class) {
+            $matches = match ($command::class) {
                 CreateNodeAggregateWithNodeAndSerializedProperties::class,
                 DisableNodeAggregate::class,
                 EnableNodeAggregate::class,
