@@ -47,8 +47,6 @@ use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\DiscardWork
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishIndividualNodesFromWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasDiscarded;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPartiallyDiscarded;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPartiallyPublished;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPublished;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Command\RebaseWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Dto\RebaseErrorHandlingStrategy;
@@ -539,7 +537,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             new EventsToPublish(
                 WorkspaceEventStreamName::fromWorkspaceName($command->workspaceName)->getEventStreamName(),
                 Events::fromArray([
-                    new WorkspaceWasPartiallyPublished(
+                    new WorkspaceWasPublished(
                         $command->workspaceName,
                         $baseWorkspace->workspaceName,
                         $command->contentStreamIdForRemainingPart,
@@ -639,7 +637,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             new EventsToPublish(
                 WorkspaceEventStreamName::fromWorkspaceName($command->workspaceName)->getEventStreamName(),
                 Events::with(
-                    new WorkspaceWasPartiallyDiscarded(
+                    new WorkspaceWasDiscarded(
                         $command->workspaceName,
                         $command->newContentStreamId,
                         $workspace->currentContentStreamId,
