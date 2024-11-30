@@ -544,7 +544,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                         $baseWorkspace->workspaceName,
                         $command->contentStreamIdForRemainingPart,
                         $workspace->currentContentStreamId,
-                        $command->nodesToPublish
                     )
                 ]),
                 ExpectedVersion::ANY()
@@ -644,7 +643,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                         $command->workspaceName,
                         $command->newContentStreamId,
                         $workspace->currentContentStreamId,
-                        $command->nodesToDiscard,
                     )
                 ),
                 ExpectedVersion::ANY()

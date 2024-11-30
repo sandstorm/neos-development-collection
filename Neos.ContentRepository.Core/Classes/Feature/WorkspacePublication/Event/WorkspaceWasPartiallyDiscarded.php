@@ -16,7 +16,6 @@ namespace Neos\ContentRepository\Core\Feature\WorkspacePublication\Event;
 
 use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\Feature\Common\EmbedsWorkspaceName;
-use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 
@@ -34,8 +33,7 @@ final readonly class WorkspaceWasPartiallyDiscarded implements EventInterface, E
         /**
          * The old content stream, which contains ALL the data (discarded and non-discarded)
          */
-        public ContentStreamId $previousContentStreamId,
-        public NodeAggregateIds $discardedNodes,
+        public ContentStreamId $previousContentStreamId
     ) {
     }
 
@@ -46,21 +44,10 @@ final readonly class WorkspaceWasPartiallyDiscarded implements EventInterface, E
 
     public static function fromArray(array $values): self
     {
-        $discardedNodes = [];
-        foreach ($values['discardedNodes'] as $discardedNode) {
-            if (is_array($discardedNode)) {
-                // legacy case:
-                $discardedNodes[] = $discardedNode['nodeAggregateId'];
-                continue;
-            }
-            $discardedNodes[] = $discardedNode;
-        }
-
         return new self(
             WorkspaceName::fromString($values['workspaceName']),
             ContentStreamId::fromString($values['newContentStreamId']),
-            ContentStreamId::fromString($values['previousContentStreamId']),
-            NodeAggregateIds::fromArray($discardedNodes),
+            ContentStreamId::fromString($values['previousContentStreamId'])
         );
     }
 
