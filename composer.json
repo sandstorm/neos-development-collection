@@ -96,7 +96,7 @@
     "scripts": {
         "lint:phpcs": "../../bin/phpcs --colors",
         "lint:phpcs:fix": "../../bin/phpcbf --colors",
-        "lint:phpstan": "../../bin/phpstan analyse -v",
+        "lint:phpstan": "../../bin/phpstan analyse",
         "lint:phpstan-generate-baseline": "../../bin/phpstan analyse --generate-baseline",
         "lint:distributionintegrity": "[ -d 'Neos.ContentRepository' ] && { echo 'Package Neos.ContentRepository should not exist.' 1>&2; exit 1; } || exit 0;",
         "lint": [
@@ -110,7 +110,7 @@
         ],
         "test:paratest-cli": "../../bin/paratest --debug -v --functional --processes 2 --colors --stop-on-failure -c ../../Build/BuildEssentials/PhpUnit/FunctionalTests.xml",
         "test:parallel": [
-            "for f in Neos.ContentRepository.BehavioralTests/Tests/Parallel/**/*Test.php; do composer test:paratest-cli $f; done"
+            "for f in Neos.ContentRepository.BehavioralTests/Tests/Parallel/**/*Test.php; do composer test:paratest-cli $f || exit 1; done"
         ],
         "test:behat-cli": "../../bin/behat -f progress --strict --no-interaction",
         "test:behavioral": [
@@ -292,19 +292,10 @@
     },
     "require-dev": {
         "roave/security-advisories": "dev-latest",
-        "phpstan/phpstan": "^1.11",
+        "phpstan/phpstan": "^1.8",
         "squizlabs/php_codesniffer": "^3.6",
         "phpunit/phpunit": "^9.0",
         "neos/behat": "*",
         "league/flysystem-memory": "^3"
-    },
-
-    "config": {
-        "_comment": "We need to insert a vendor dir (even though composer install MUST NOT be run here) but so autoloading works for composer scripts",
-        "vendor-dir": "../Libraries",
-        "allow-plugins": {
-            "neos/composer-plugin": false,
-            "cweagans/composer-patches": false
-        }
     }
 }

@@ -100,7 +100,7 @@ class MigrateEventsCommandController extends CommandController
      * Needed for feature "Stabilize WorkspaceName value object": https://github.com/neos/neos-development-collection/pull/5193
      *
      * Included in August 2024 - before final Neos 9.0 release
- *
+     *
      * @param string $contentRepository Identifier of the Content Repository to migrate
      */
     public function migratePayloadToValidWorkspaceNamesCommand(string $contentRepository = 'default'): void
@@ -115,5 +115,57 @@ class MigrateEventsCommandController extends CommandController
         $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
         $eventMigrationService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, $this->eventMigrationServiceFactory);
         $eventMigrationService->migrateReferencesToMultiFormat($this->outputLine(...));
+    }
+
+    /**
+     * Reorders all NodeAggregateWasMoved events to allow replaying in case orphaned nodes existed in previous betas
+     *
+     * Fixes these bugs to allow to migrate to Beta 15:
+     *
+     * - #5364 https://github.com/neos/neos-development-collection/issues/5364
+     * - #5352 https://github.com/neos/neos-development-collection/issues/5352
+     *
+     * Included in November 2024 - before final Neos 9.0 release
+     */
+    public function reorderNodeAggregateWasRemovedCommand(string $contentRepository = 'default'): void
+    {
+        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
+        $eventMigrationService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, $this->eventMigrationServiceFactory);
+        $eventMigrationService->reorderNodeAggregateWasRemoved($this->outputLine(...));
+    }
+
+    /**
+     * Migrates "nodeAggregateClassification":"tethered" to "regular", in case for copied tethered nodes.
+     *
+     * Needed for #5350: https://github.com/neos/neos-development-collection/issues/5350
+     *
+     * Included in November 2024 - before final Neos 9.0 release
+     *
+     * @param string $contentRepository Identifier of the Content Repository to migrate
+     */
+    public function migrateCopyTetheredNodeCommand(string $contentRepository = 'default'): void
+    {
+        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
+        $eventMigrationService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, $this->eventMigrationServiceFactory);
+        $eventMigrationService->migrateCopyTetheredNode($this->outputLine(...));
+    }
+
+    /**
+     * Status information if content streams still contain legacy copy node events
+     *
+     * Needed for #5371: https://github.com/neos/neos-development-collection/pull/5371
+     *
+     * Included in November 2024 - before final Neos 9.0 release
+     *
+     * NOTE: To reduce the number of matched content streams and to cleanup the event store run
+     * `./flow contentStream:removeDangling` and `./flow contentStream:pruneRemovedFromEventStream`
+     *
+     * @param string $contentRepository Identifier of the Content Repository to check
+     */
+    public function copyNodesStatusCommand(string $contentRepository = 'default'): void
+    {
+        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
+        $eventMigrationService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, $this->eventMigrationServiceFactory);
+        $eventMigrationService->copyNodesStatus($this->outputLine(...));
     }
 }

@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap;
 
+use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
@@ -28,7 +29,6 @@ use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\MoveDim
 use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNode;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\DisableNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\EnableNodeAggregate;
-use Neos\ContentRepository\Core\Feature\NodeDuplication\Command\CopyNodesRecursively;
 use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetNodeProperties;
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
 use Neos\ContentRepository\Core\Feature\NodeMove\Command\MoveNodeAggregate;
@@ -190,7 +190,9 @@ trait GenericCommandExecutionAndEventPublication
             }
         }
         if ($commandClassName === CreateNodeAggregateWithNode::class || $commandClassName === SetNodeReferences::class) {
-            if (is_array($commandArguments['references'] ?? null)) {
+            if (is_string($commandArguments['references'] ?? null)) {
+                $commandArguments['references'] = iterator_to_array($this->mapRawNodeReferencesToNodeReferencesToWrite(json_decode($commandArguments['references'], true, 512, JSON_THROW_ON_ERROR)));
+            } elseif (is_array($commandArguments['references'] ?? null)) {
                 $commandArguments['references'] = iterator_to_array($this->mapRawNodeReferencesToNodeReferencesToWrite($commandArguments['references']));
             }
         }
@@ -242,7 +244,6 @@ trait GenericCommandExecutionAndEventPublication
             ChangeBaseWorkspace::class,
             ChangeNodeAggregateName::class,
             ChangeNodeAggregateType::class,
-            CopyNodesRecursively::class,
             CreateNodeAggregateWithNode::class,
             CreateNodeVariant::class,
             CreateRootNodeAggregateWithNode::class,
@@ -302,9 +303,12 @@ trait GenericCommandExecutionAndEventPublication
     }
 
     /**
-     * @Then /^the last command should have thrown an exception of type "([^"]*)"(?: with code (\d*))?$/
+     * @Then the last command should have thrown an exception of type :shortExceptionName with code :expectedCode and message:
+     * @Then the last command should have thrown an exception of type :shortExceptionName with code :expectedCode
+     * @Then the last command should have thrown an exception of type :shortExceptionName with message:
+     * @Then the last command should have thrown an exception of type :shortExceptionName
      */
-    public function theLastCommandShouldHaveThrown(string $shortExceptionName, ?int $expectedCode = null): void
+    public function theLastCommandShouldHaveThrown(string $shortExceptionName, ?int $expectedCode = null, PyStringNode $expectedMessage = null): void
     {
         if ($shortExceptionName === 'WorkspaceRebaseFailed') {
             throw new \RuntimeException('Please use the assertion "the last command should have thrown the WorkspaceRebaseFailed exception with" instead.');
@@ -312,14 +316,17 @@ trait GenericCommandExecutionAndEventPublication
 
         Assert::assertNotNull($this->lastCommandException, 'Command did not throw exception');
         $lastCommandExceptionShortName = (new \ReflectionClass($this->lastCommandException))->getShortName();
-        Assert::assertSame($shortExceptionName, $lastCommandExceptionShortName, sprintf('Actual exception: %s (%s): %s', get_class($this->lastCommandException), $this->lastCommandException->getCode(), $this->lastCommandException->getMessage()));
-        if (!is_null($expectedCode)) {
+        Assert::assertSame($shortExceptionName, $lastCommandExceptionShortName, sprintf('Actual exception: %s (%s): %s', get_debug_type($this->lastCommandException), $this->lastCommandException->getCode(), $this->lastCommandException->getMessage()));
+        if ($expectedCode !== null) {
             Assert::assertSame($expectedCode, $this->lastCommandException->getCode(), sprintf(
                 'Expected exception code %s, got exception code %s instead; Message: %s',
                 $expectedCode,
                 $this->lastCommandException->getCode(),
                 $this->lastCommandException->getMessage()
             ));
+        }
+        if ($expectedMessage !== null) {
+            Assert::assertSame($expectedMessage->getRaw(), $this->lastCommandException->getMessage());
         }
         $this->lastCommandException = null;
     }

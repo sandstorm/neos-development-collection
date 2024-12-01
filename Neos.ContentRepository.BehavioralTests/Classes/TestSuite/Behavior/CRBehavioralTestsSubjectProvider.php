@@ -20,7 +20,10 @@ use Doctrine\DBAL\Connection;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Helpers\GherkinTableNodeBasedContentDimensionSource;
+use Neos\ContentRepository\TestSuite\Fakes\FakeContentDimensionSourceFactory;
+use Neos\ContentRepository\TestSuite\Fakes\FakeNodeTypeManagerFactory;
 use Neos\EventStore\EventStoreInterface;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * Subject provider for behavioral tests
@@ -57,7 +60,7 @@ trait CRBehavioralTestsSubjectProvider
      */
     public function usingNoContentDimensions(): void
     {
-        GherkinTableNodeBasedContentDimensionSourceFactory::$contentDimensionsToUse = GherkinTableNodeBasedContentDimensionSource::createEmpty();
+        FakeContentDimensionSourceFactory::setWithoutDimensions();
     }
 
     /**
@@ -65,7 +68,9 @@ trait CRBehavioralTestsSubjectProvider
      */
     public function usingTheFollowingContentDimensions(TableNode $contentDimensions): void
     {
-        GherkinTableNodeBasedContentDimensionSourceFactory::initializeFromTableNode($contentDimensions);
+        FakeContentDimensionSourceFactory::setContentDimensionSource(
+            GherkinTableNodeBasedContentDimensionSource::fromGherkinTableNode($contentDimensions)
+        );
     }
 
     /**
@@ -73,7 +78,7 @@ trait CRBehavioralTestsSubjectProvider
      */
     public function usingTheFollowingNodeTypes(PyStringNode $serializedNodeTypesConfiguration): void
     {
-        GherkinPyStringNodeBasedNodeTypeManagerFactory::initializeWithPyStringNode($serializedNodeTypesConfiguration);
+        FakeNodeTypeManagerFactory::setConfiguration(Yaml::parse($serializedNodeTypesConfiguration->getRaw()) ?? []);
     }
 
     /**
@@ -97,8 +102,11 @@ trait CRBehavioralTestsSubjectProvider
             throw new \DomainException('undeclared content repository ' . $contentRepositoryId);
         } else {
             $contentRepository = $this->contentRepositories[$contentRepositoryId];
-            GherkinPyStringNodeBasedNodeTypeManagerFactory::$nodeTypesToUse = $contentRepository->getNodeTypeManager();
-            GherkinTableNodeBasedContentDimensionSourceFactory::initializeFromTableNode($contentDimensions);
+            // ensure that the current node types of exactly THE content repository are preserved
+            FakeNodeTypeManagerFactory::setNodeTypeManager($contentRepository->getNodeTypeManager());
+            FakeContentDimensionSourceFactory::setContentDimensionSource(
+                GherkinTableNodeBasedContentDimensionSource::fromGherkinTableNode($contentDimensions)
+            );
             $this->contentRepositories[$contentRepositoryId] = $this->createContentRepository(ContentRepositoryId::fromString($contentRepositoryId));
             if ($this->currentContentRepository->id->value === $contentRepositoryId) {
                 $this->currentContentRepository = $this->contentRepositories[$contentRepositoryId];
@@ -117,8 +125,9 @@ trait CRBehavioralTestsSubjectProvider
             throw new \DomainException('undeclared content repository ' . $contentRepositoryId);
         } else {
             $contentRepository = $this->contentRepositories[$contentRepositoryId];
-            GherkinPyStringNodeBasedNodeTypeManagerFactory::initializeWithPyStringNode($serializedNodeTypesConfiguration);
-            GherkinTableNodeBasedContentDimensionSourceFactory::$contentDimensionsToUse = $contentRepository->getContentDimensionSource();
+            // ensure that the current node types of exactly THE content repository are preserved
+            FakeContentDimensionSourceFactory::setContentDimensionSource($contentRepository->getContentDimensionSource());
+            FakeNodeTypeManagerFactory::setConfiguration(Yaml::parse($serializedNodeTypesConfiguration->getRaw()) ?? []);
             $this->contentRepositories[$contentRepositoryId] = $this->createContentRepository(ContentRepositoryId::fromString($contentRepositoryId));
             if ($this->currentContentRepository->id->value === $contentRepositoryId) {
                 $this->currentContentRepository = $this->contentRepositories[$contentRepositoryId];

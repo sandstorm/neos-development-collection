@@ -61,7 +61,6 @@ trait CRTestSuiteTrait
     use ContentStreamClosing;
 
     use NodeCreation;
-    use NodeCopying;
     use SubtreeTagging;
     use NodeModification;
     use NodeMove;
@@ -81,7 +80,7 @@ trait CRTestSuiteTrait
             $this->contentRepositories = [];
         }
         $this->currentContentRepository = null;
-        $this->currentVisibilityConstraints = VisibilityConstraints::frontend();
+        $this->currentVisibilityConstraints = VisibilityConstraints::default();
         $this->currentDimensionSpacePoint = null;
         $this->currentRootNodeAggregateId = null;
         $this->currentWorkspaceName = null;
