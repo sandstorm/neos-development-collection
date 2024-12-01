@@ -1,15 +1,14 @@
 prototype(Neos.Workspace.Ui:Component.Modal.ConfirmPublishSelectedChanges) < prototype(Neos.Fusion:Component) {
-  workspaceName=''
-  workspaceTitle=''
+  baseWorkspaceTitle=''
+
   @private {
     i18n = ${I18n.id('').source('Main').package('Neos.Workspace.Ui')}
     popoverId = 'confirm-publish-selected-changes-popover'
 
-    confirmPublishSelectedChanges = Neos.Fusion:ActionUri {
-      action = 'publishOrDiscardNodesAction'
-      format = 'htmx'
+    publishSelectedChanges = Neos.Fusion:ActionUri {
+      action = 'publishOrDiscardNodes'
       arguments {
-        selectedWorkspace = ${props.workspaceName}
+        workspace = ${workspaceName}
         action = 'publish'
       }
     }
@@ -27,7 +26,7 @@ prototype(Neos.Workspace.Ui:Component.Modal.ConfirmPublishSelectedChanges) < pro
           <Neos.Workspace.Ui:Component.Icon icon="times"/>
         </button>
         <div class="neos-header">
-          {private.i18n.id('workspaces.createWorkspaceRoleAssignment').arguments([props.workspaceTitle])}
+          {private.i18n.id('workspaces.publishSelectedChangesTo').arguments([props.baseWorkspaceTitle])}
         </div>
       </header>
       <section>
@@ -36,14 +35,22 @@ prototype(Neos.Workspace.Ui:Component.Modal.ConfirmPublishSelectedChanges) < pro
           attributes.popovertarget={private.popoverId}
           attributes.popovertargetaction="close"
         />
-        <Neos.Workspace.Ui:Component.Button
-          isDanger
-          label={"delete"}
-          icon="trash-alt icon-white"
-          attributes.hx-target={'#popover-container'}
-          attributes.hx-swap='innerHTML'
-          attributes.hx-get={private.confirmPublishSelectedChanges}
-        />
+        <div class="neos-pull-right">
+          <Neos.Workspace.Ui:Component.Button
+            isSuccess
+            label={"publish"}
+            icon="fas fa-check-double icon-white"
+            attributes.form="publishOrDiscardNodes"
+            attributes.name="moduleArguments[action]"
+            attributes.value="publish"
+            attributes.type="submit"
+            attributes.hx-target='table'
+            attributes.hx-include="#publishOrDiscardNodesForm"
+            attributes.hx-swap='outerHTML'
+            attributes.hx-on--after-request={'document.getElementById("' + private.popoverId + '").hidePopover()'}
+            attributes.hx-post={private.publishSelectedChanges}
+          />
+        </div>
       </section>
     </div>
   `

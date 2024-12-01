@@ -19,10 +19,6 @@ use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionId;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Exception\WorkspaceAlreadyExists;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\DiscardIndividualNodesFromWorkspace;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishIndividualNodesFromWorkspace;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Dto\NodeIdsToPublishOrDiscard;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Dto\NodeIdToPublishOrDiscard;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\WorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindAncestorNodesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
@@ -758,45 +754,42 @@ class WorkspaceController extends AbstractModuleController
      * @throws InvalidFormatPlaceholderException
      * @throws StopActionException
      */
-    public function publishOrDiscardNodesAction(array $nodes, string $action, WorkspaceName $selectedWorkspace): void
+    public function publishOrDiscardNodesAction(array $nodes, string $action, WorkspaceName $workspace): void
     {
         $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())
             ->contentRepositoryId;
-        $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
-
-        $nodesToPublishOrDiscard = [];
-        foreach ($nodes as $node) {
-            $nodeAddress = NodeAddress::fromJsonString($node);
-            $nodesToPublishOrDiscard[] = new NodeIdToPublishOrDiscard(
-                $nodeAddress->aggregateId,
-                $nodeAddress->dimensionSpacePoint
-            );
-        }
 
         switch ($action) {
             case 'publish':
-                $command = PublishIndividualNodesFromWorkspace::create(
-                    $selectedWorkspace,
-                    NodeIdsToPublishOrDiscard::create(...$nodesToPublishOrDiscard),
-                );
-                $contentRepository->handle($command);
+                foreach ($nodes as $node) {
+                    $nodeAddress = NodeAddress::fromJsonString($node);
+                    $this->workspacePublishingService->publishChangesInDocument(
+                        $contentRepositoryId,
+                        $workspace,
+                        $nodeAddress->aggregateId
+                    );
+                }
+                //todo: make flashmessage work with htmx
                 $this->addFlashMessage(
                     $this->getModuleLabel('workspaces.selectedChangesHaveBeenPublished')
                 );
                 break;
             case 'discard':
-                $command = DiscardIndividualNodesFromWorkspace::create(
-                    $selectedWorkspace,
-                    NodeIdsToPublishOrDiscard::create(...$nodesToPublishOrDiscard),
-                );
-                $contentRepository->handle($command);
+                foreach ($nodes as $node) {
+                    $nodeAddress = NodeAddress::fromJsonString($node);
+                    $this->workspacePublishingService->discardChangesInDocument(
+                        $contentRepositoryId,
+                        $workspace,
+                        $nodeAddress->aggregateId
+                    );
+                }
                 $this->addFlashMessage($this->getModuleLabel('workspaces.selectedChangesHaveBeenDiscarded'));
                 break;
             default:
                 throw new \RuntimeException('Invalid action "' . htmlspecialchars($action) . '" given.', 1346167441);
         }
 
-        $this->redirect('review', null, null, ['workspace' => $selectedWorkspaceName->value]);
+        $this->redirect('review', null, null, ['workspace' => $workspace->value]);
     }
 
     /**
@@ -876,13 +869,13 @@ class WorkspaceController extends AbstractModuleController
             );
             $this->throwStatus(404, 'Workspace does not exist');
         }
+        $baseWorkspace = $this->getBaseWorkspaceWhenSureItExists($workspace, $contentRepository);
 
-        $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspace->workspaceName);
+        $baseWorkspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $baseWorkspace->workspaceName);
         $this->view->assignMultiple([
             'workspaceName' => $workspaceName->value,
-            'workspaceTitle' => $workspaceMetadata->title->value,
+            'baseWorkspaceTitle' => $baseWorkspaceMetadata->title->value,
         ]);
-        $this->view->assign('workspaceName', $workspaceName);
     }
     public function confirmDiscardSelectedChangesAction(WorkspaceName $workspaceName): void
     {
@@ -903,7 +896,6 @@ class WorkspaceController extends AbstractModuleController
             'workspaceName' => $workspaceName->value,
             'workspaceTitle' => $workspaceMetadata->title->value,
         ]);
-        $this->view->assign('workspaceName', $workspaceName);
     }
 
     /**

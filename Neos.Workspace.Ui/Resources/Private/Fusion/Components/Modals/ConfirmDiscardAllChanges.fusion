@@ -39,14 +39,17 @@ prototype(Neos.Workspace.Ui:Component.Modal.ConfirmDiscardAllChanges) < prototyp
           attributes.popovertarget={private.popoverId}
           attributes.popovertargetaction="close"
         />
-        <Neos.Workspace.Ui:Component.Button
-          isDanger
-          label={private.i18n.id('workspaces.discardAllChanges')}
-          icon="trash-alt icon-white"
-          attributes.hx-get={private.discardWorkspaceUri}
-          attributes.hx-target='body'
-          attributes.hx-swap='innerHTML'
-        />
+
+        <div class="neos-pull-right">
+          <Neos.Workspace.Ui:Component.Button
+            isDanger
+            label={private.i18n.id('workspaces.discardAllChanges')}
+            icon="trash-alt icon-white"
+            attributes.hx-get={private.discardWorkspaceUri}
+            attributes.hx-target='body'
+            attributes.hx-swap='innerHTML'
+          />
+        </div>
       </section>
     </div>
   `

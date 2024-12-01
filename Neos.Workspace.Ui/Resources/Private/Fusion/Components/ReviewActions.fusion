@@ -12,7 +12,6 @@ prototype(Neos.Workspace.Ui:Component.ReviewActions) < prototype(Neos.Fusion:Com
     i18n = ${I18n.id('').source('Main').package('Neos.Workspace.Ui')}
     indexWorkspaceUri = Neos.Fusion:ActionUri {
       action = 'index'
-
     }
     confirmDiscardAllChanges = Neos.Fusion:ActionUri {
       action = 'confirmDiscardAllChanges'
@@ -28,8 +27,9 @@ prototype(Neos.Workspace.Ui:Component.ReviewActions) < prototype(Neos.Fusion:Com
         workspaceName = ${props.selectedWorkspaceName}
       }
     }
-    discardSelectedChanges = Neos.Fusion:ActionUri {
+    confirmDiscardSelectedChanges = Neos.Fusion:ActionUri {
       action = 'confirmDiscardSelectedChanges'
+      format = 'htmx'
       arguments {
         workspaceName = ${props.selectedWorkspaceName}
       }
@@ -57,6 +57,7 @@ prototype(Neos.Workspace.Ui:Component.ReviewActions) < prototype(Neos.Fusion:Com
             attributes.hx-get={private.indexWorkspaceUri}
             attributes.hx-target="body"
             attributes.hx-swap="innerHTML"
+            attributes.hx-replace-url={private.indexWorkspaceUri}
           />
         </div>
         <div class="neos-pull-right workspace-action" @if={props.hasSiteChanges}>
@@ -87,17 +88,19 @@ prototype(Neos.Workspace.Ui:Component.ReviewActions) < prototype(Neos.Fusion:Com
               label={private.i18n.id('workspaces.discardSelectedChanges')}
               icon="fas fa-trash-alt icon-white"
               isDanger={true}
-              attributes.hx-get={private.discardSelectedChanges}
-              attributes.hx-target="body"
-              attributes.disabled={!props.canPublishToWorkspace}
+              attributes.hx-get={private.confirmDiscardSelectedChanges}
+              attributes.hx-target='#popover-container'
+              attributes.hx-swap='innerHTML'
+              attributes.hx-on--after-request={'document.getElementById("' + private.discardSelectedChangesPopoverId + '").showPopover()'}
+              attributes.disabled={!props.canPublishToBaseWorkspace}
             />
             <Neos.Workspace.Ui:Component.Button
               label={private.i18n.id('workspaces.publishSelectedChangesTo').arguments([props.baseWorkspaceLabel])}
               icon="fas fa-check icon-white"
               isPrimary={true}
-              attributes.hx-get={private.confirmPublishSelectedChanges}
-              attributes.hx-target='#popover-container'
+              attributes.hx-target={'#popover-container'}
               attributes.hx-swap='innerHTML'
+              attributes.hx-post={private.confirmPublishSelectedChanges}
               attributes.hx-on--after-request={'document.getElementById("' + private.publishSelectedChangesPopoverId + '").showPopover()'}
               attributes.disabled={!props.canPublishToBaseWorkspace}
             />

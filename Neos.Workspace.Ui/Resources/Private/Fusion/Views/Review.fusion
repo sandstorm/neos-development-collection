@@ -36,6 +36,15 @@ Neos.Workspace.Ui.WorkspaceController.review = Neos.Fusion:Component {
             <legend>
               {props.i18n.id('workspaces.unpublishedChanges').arguments([selectedWorkspaceLabel]).translate()}
             </legend>
+
+            <Neos.Fusion.Form:Form
+              form.target.action="publishOrDiscardNodes"
+              form.target.format="htmx"
+              form.target.arguments.workspaceName={props.selectedWorkspaceName}
+              attributes.class="neos-inline"
+              attributes.hx-post={form.getTarget()}
+              attributes.id="publishOrDiscardNodesForm"
+            >
             <Neos.Workspace.Ui:Component.ReviewTable
               @if.hasSiteChanges={props.siteChanges}
               siteChanges={props.siteChanges}
@@ -53,6 +62,7 @@ Neos.Workspace.Ui.WorkspaceController.review = Neos.Fusion:Component {
               selectedWorkspaceName={props.selectedWorkspaceName}
               baseWorkspaceLabel={props.baseWorkspaceLabel}
             />
+            </Neos.Fusion.Form:Form>
           </div>
         </main>
       </section>

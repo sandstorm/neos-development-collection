@@ -66,7 +66,7 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
       <td>
         <div class="neos-button">
           <label for={"check-document-" + document.document.aggregateId} class="neos-checkbox">
-            <input type="checkbox" class="check-document" id={"check-document-" + document.document.aggregateId} /><span></span>
+            <input type="checkbox" name="moduleArguments[nodes][]" class="check-document" id={"check-document-" + document.document.aggregateId} value={document.document.documentNodeAddress} /><span></span>
           </label>
         </div>
       </td>

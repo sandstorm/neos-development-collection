@@ -36,14 +36,17 @@ prototype(Neos.Workspace.Ui:Component.Modal.ConfirmPublishAllChanges) < prototyp
           attributes.popovertarget={private.popoverId}
           attributes.popovertargetaction="close"
         />
-        <Neos.Workspace.Ui:Component.Button
-          isSuccess
-          label={private.i18n.id('workspaces.publishAllChanges')}
-          icon="fas fa-check-double icon-white"
-          attributes.hx-target='body'
-          attributes.hx-swap='innerHTML'
-          attributes.hx-get={private.publishWorkspaceUri}
-        />
+
+        <div class="neos-pull-right">
+          <Neos.Workspace.Ui:Component.Button
+            isSuccess
+            label={private.i18n.id('workspaces.publishAllChanges')}
+            icon="fas fa-check-double icon-white"
+            attributes.hx-target='body'
+            attributes.hx-swap='innerHTML'
+            attributes.hx-get={private.publishWorkspaceUri}
+          />
+        </div>
       </section>
     </div>
   `

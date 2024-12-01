@@ -1,5 +1,4 @@
 prototype(Neos.Workspace.Ui:Component.Modal.ConfirmDiscardSelectedChanges) < prototype(Neos.Fusion:Component) {
-  workspaceName=''
   workspaceTitle=''
 
   @private {
@@ -7,10 +6,9 @@ prototype(Neos.Workspace.Ui:Component.Modal.ConfirmDiscardSelectedChanges) < pro
     popoverId = 'confirm-discard-selected-changes-popover'
 
     confirmDiscardSelectedChanges = Neos.Fusion:ActionUri {
-      action = 'publishOrDiscardNodesAction'
-      format = 'htmx'
+      action = 'publishOrDiscardNodes'
       arguments {
-        selectedWorkspace = ${props.workspaceName}
+        workspace = ${workspaceName}
         action = 'discard'
       }
     }
@@ -28,7 +26,7 @@ prototype(Neos.Workspace.Ui:Component.Modal.ConfirmDiscardSelectedChanges) < pro
           <Neos.Workspace.Ui:Component.Icon icon="times"/>
         </button>
         <div class="neos-header">
-          {private.i18n.id('workspaces.createWorkspaceRoleAssignment').arguments([props.workspaceTitle])}
+          {private.i18n.id('workspaces.discardSelectedChanges')}
         </div>
       </header>
       <section>
@@ -37,14 +35,22 @@ prototype(Neos.Workspace.Ui:Component.Modal.ConfirmDiscardSelectedChanges) < pro
           attributes.popovertarget={private.popoverId}
           attributes.popovertargetaction="close"
         />
-        <Neos.Workspace.Ui:Component.Button
-          isDanger
-          label={"delete"}
-          icon="trash-alt icon-white"
-          attributes.hx-target={'#popover-container'}
-          attributes.hx-swap='innerHTML'
-          attributes.hx-get={private.confirmDiscardSelectedChanges}
-        />
+        <div class="neos-pull-right">
+          <Neos.Workspace.Ui:Component.Button
+            isDanger
+            label={"discard"}
+            icon="trash-alt icon-white"
+            attributes.form="publishOrDiscardNodes"
+            attributes.name="moduleArguments[action]"
+            attributes.value="discard"
+            attributes.type="submit"
+            attributes.hx-target='table'
+            attributes.hx-include="#publishOrDiscardNodesForm"
+            attributes.hx-swap='outerHTML'
+            attributes.hx-on--after-request={'document.getElementById("' + private.popoverId + '").hidePopover()'}
+            attributes.hx-post={private.confirmDiscardSelectedChanges}
+          />
+        </div>
       </section>
     </div>
   `

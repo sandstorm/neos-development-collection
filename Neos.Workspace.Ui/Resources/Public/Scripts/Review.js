@@ -14,10 +14,16 @@ function initReviewFunctions(){
 	if (input) {
 		input.addEventListener(
 			'change', function (event) {
-				document.getElementById('batch-actions').classList.toggle('neos-hidden');
-				document.getElementById('all-actions').classList.toggle('neos-hidden');
 				for (const checkbox of document.querySelectorAll('tbody input[type="checkbox"]')) {
 					checkbox.checked = input.checked;
+				}
+				if(document.querySelectorAll('tbody input[type="checkbox"]:checked').length === document.querySelectorAll('tbody input[type="checkbox"]').length
+				|| document.querySelectorAll('tbody input[type="checkbox"]:checked').length === 0){
+					document.getElementById('batch-actions').classList.add('neos-hidden');
+					document.getElementById('all-actions').classList.remove('neos-hidden');
+				} else {
+					document.getElementById('batch-actions').classList.remove('neos-hidden');
+					document.getElementById('all-actions').classList.add('neos-hidden');
 				}
 			}
 		)
@@ -26,7 +32,8 @@ function initReviewFunctions(){
 				if(!checkbox.checked){
 					input.checked = false;
 				}
-				if(document.querySelectorAll('tbody input[type="checkbox"]:checked').length === document.querySelectorAll('tbody input[type="checkbox"]').length){
+				if(document.querySelectorAll('tbody input[type="checkbox"]:checked').length === document.querySelectorAll('tbody input[type="checkbox"]').length
+					|| document.querySelectorAll('tbody input[type="checkbox"]:checked').length === 0){
 					document.getElementById('batch-actions').classList.add('neos-hidden');
 					document.getElementById('all-actions').classList.remove('neos-hidden');
 				} else {
