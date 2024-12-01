@@ -341,7 +341,7 @@ trait GenericCommandExecutionAndEventPublication
         $exception = $this->lastCommandException;
         Assert::assertNotNull($exception, 'Command did not throw exception');
 
-        match($shortExceptionName) {
+        match ($shortExceptionName) {
             'WorkspaceRebaseFailed' => Assert::assertInstanceOf(WorkspaceRebaseFailed::class, $exception, sprintf('Actual exception: %s (%s): %s', get_class($exception), $exception->getCode(), $exception->getMessage())),
             'PartialWorkspaceRebaseFailed' => Assert::assertInstanceOf(PartialWorkspaceRebaseFailed::class, $exception, sprintf('Actual exception: %s (%s): %s', get_class($exception), $exception->getCode(), $exception->getMessage())),
         };

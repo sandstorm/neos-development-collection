@@ -508,7 +508,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             yield $this->reopenContentStreamWithoutConstraintChecks(
                 $workspace->currentContentStreamId
             );
-            match($workspace->status) {
+            match ($workspace->status) {
                 // If the workspace is up-to-date it must be a problem regarding that the order of events cannot be changed
                 WorkspaceStatus::UP_TO_DATE =>
                     throw PartialWorkspaceRebaseFailed::duringPartialPublish($commandSimulator->getConflictingEvents()),
@@ -636,7 +636,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             yield $this->reopenContentStreamWithoutConstraintChecks(
                 $workspace->currentContentStreamId
             );
-            match($workspace->status) {
+            match ($workspace->status) {
                 // If the workspace is up-to-date it must be a problem regarding that the order of events cannot be changed
                 WorkspaceStatus::UP_TO_DATE =>
                     throw PartialWorkspaceRebaseFailed::duringPartialDiscard($commandSimulator->getConflictingEvents()),
