@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Subscription;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
+use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
+use Doctrine\DBAL\Platforms\SqlitePlatform;
 use Neos\ContentRepository\BehavioralTests\TestSuite\DebugEventProjection;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryDependencies;
@@ -122,21 +125,36 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
 
     final protected function resetDatabase(Connection $connection, ContentRepositoryId $contentRepositoryId, bool $keepSchema): void
     {
-        $connection->prepare('SET FOREIGN_KEY_CHECKS = 0;')->executeStatement();
-        foreach ($connection->createSchemaManager()->listTableNames() as $tableNames) {
-            if (!str_starts_with($tableNames, sprintf('cr_%s_', $contentRepositoryId->value))) {
+        $preDeleteStatement = match (true) {
+            $connection->getDatabasePlatform() instanceof AbstractMySQLPlatform => 'SET FOREIGN_KEY_CHECKS = 0;',
+            default => '',
+        };
+
+        if ($preDeleteStatement !== '') {
+            $connection->prepare($preDeleteStatement)->executeStatement();
+        }
+
+        $truncateDropStatement = match (true) {
+            $connection->getDatabasePlatform() instanceof PostgreSQLPlatform => '%s TABLE `%s` CASCADE',
+            default => '%s TABLE `%s`',
+        };
+
+        foreach ($connection->createSchemaManager()->listTableNames() as $tableName) {
+            if (!str_starts_with($tableName, sprintf('cr_%s_', $contentRepositoryId->value))) {
                 // speedup deletion, only delete current cr
                 continue;
             }
-            if ($keepSchema) {
-                // truncate is faster
-                $sql = 'TRUNCATE TABLE ' . $tableNames;
-            } else {
-                $sql = 'DROP TABLE ' . $tableNames;
-            }
+            // truncate is faster
+            $sql = sprintf($truncateDropStatement, $keepSchema ? 'TRUNCATE' : 'DROP', $tableName);
             $connection->prepare($sql)->executeStatement();
         }
-        $connection->prepare('SET FOREIGN_KEY_CHECKS = 1;')->executeStatement();
+
+        $postDeleteStatement = match (true) {
+            $connection->getDatabasePlatform() instanceof AbstractMySQLPlatform => 'SET FOREIGN_KEY_CHECKS = 1;',
+            default => '',
+        };
+
+        $connection->prepare($postDeleteStatement)->executeStatement();
     }
 
     final protected function subscriptionStatus(string $subscriptionId): ProjectionSubscriptionStatus|DetachedSubscriptionStatus|null
