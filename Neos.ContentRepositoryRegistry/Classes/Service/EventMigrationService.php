@@ -922,6 +922,72 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
         $outputFn('<comment>NOTE: To reduce the number of matched content streams and to cleanup the event store run `./flow contentStream:removeDangling` and `./flow contentStream:pruneRemovedFromEventStream`</comment>');
     }
 
+    /**
+     * Renames partial publish and discard events to a publish or discard
+     *
+     * Needed for BUGFIX: Simplify PartialPublish & Discard: https://github.com/neos/neos-development-collection/pull/5385
+     *
+     * Both events share the same properties their counter, parts have.
+     * Well keep the $publishedNodes and $discardedNodes fields in the database as they don't do harm.
+     *
+     * WorkspaceWasPartiallyPublished -> WorkspaceWasPublished
+     *
+     * - WorkspaceName $sourceWorkspaceName
+     * - WorkspaceName $targetWorkspaceName
+     * - ContentStreamId $newSourceContentStreamId
+     * - ContentStreamId $previousSourceContentStreamId
+     * - NodeIdsToPublishOrDiscard $publishedNodes
+     *
+     * WorkspaceWasPartiallyDiscarded -> WorkspaceWasDiscarded
+     *
+     * - WorkspaceName $workspaceName
+     * - ContentStreamId $newContentStreamId
+     * - ContentStreamId $previousContentStreamId
+     * - NodeIdsToPublishOrDiscard $discardedNodes
+     *
+     *
+     * Included in November 2024 - before final Neos 9.0 release
+     *
+     * This migration is only required in case you want to replay. It does not fix anything.
+     *
+     * @param \Closure $outputFn
+     * @return void
+     */
+    public function migratePartialPublishAndPartialDiscardEvents(\Closure $outputFn): void
+    {
+        $backupEventTableName = DoctrineEventStoreFactory::databaseTableName($this->contentRepositoryId) . '_bkp_' . date('Y_m_d_H_i_s');
+        $outputFn('Backup: copying events table to %s', [$backupEventTableName]);
+        $this->copyEventTable($backupEventTableName);
+
+        $numberOfMigratedEvents = 0;
+
+        $eventTableName = DoctrineEventStoreFactory::databaseTableName($this->contentRepositoryId);
+        $this->connection->beginTransaction();
+        $numberOfMigratedEvents += $this->connection->executeStatement(
+            'UPDATE ' . $eventTableName . ' SET type=:updateType WHERE type=:currentType',
+            [
+                'currentType' => 'WorkspaceWasPartiallyPublished',
+                'updateType' => 'WorkspaceWasPublished'
+            ]
+        );
+        $numberOfMigratedEvents += $this->connection->executeStatement(
+            'UPDATE ' . $eventTableName . ' SET type=:updateType WHERE type=:currentType',
+            [
+                'currentType' => 'WorkspaceWasPartiallyDiscarded',
+                'updateType' => 'WorkspaceWasDiscarded'
+            ]
+        );
+        $this->connection->commit();
+
+        if ($numberOfMigratedEvents === 0) {
+            $outputFn('Migration was not necessary.');
+            return;
+        }
+
+        $outputFn();
+        $outputFn(sprintf('Migration applied to %s events.', $numberOfMigratedEvents));
+    }
+
     /** ------------------------ */
 
     /**
@@ -966,6 +1032,21 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
             [
                 'sequenceNumber' => $sequenceNumber->value,
                 'metadata' => json_encode($eventMetaData),
+            ]
+        );
+        $this->connection->commit();
+        $this->eventsModified[$sequenceNumber->value] = true;
+    }
+
+    private function updateEventType(SequenceNumber $sequenceNumber, EventType $type): void
+    {
+        $eventTableName = DoctrineEventStoreFactory::databaseTableName($this->contentRepositoryId);
+        $this->connection->beginTransaction();
+        $this->connection->executeStatement(
+            'UPDATE ' . $eventTableName . ' SET type=:type WHERE sequencenumber=:sequenceNumber',
+            [
+                'sequenceNumber' => $sequenceNumber->value,
+                'type' => $type->value
             ]
         );
         $this->connection->commit();

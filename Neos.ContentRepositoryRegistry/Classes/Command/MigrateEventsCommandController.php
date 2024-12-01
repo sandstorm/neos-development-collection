@@ -168,4 +168,25 @@ class MigrateEventsCommandController extends CommandController
         $eventMigrationService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, $this->eventMigrationServiceFactory);
         $eventMigrationService->copyNodesStatus($this->outputLine(...));
     }
+
+    /**
+     * Renames partial publish and discard events to a publish or discard
+     *
+     * Needed for BUGFIX: Simplify PartialPublish & Discard: https://github.com/neos/neos-development-collection/pull/5385
+     *
+     * Both events share the same properties their counter, parts have.
+     * Well keep the $publishedNodes and $discardedNodes fields in the database as they don't do harm.
+     *
+     * Included in November 2024 - before final Neos 9.0 release
+     *
+     * This migration is only required in case you want to replay. It does not fix anything.
+     *
+     * @param string $contentRepository Identifier of the Content Repository to migrate
+     */
+    public function migratePartialPublishAndPartialDiscardEventsCommand(string $contentRepository = 'default'): void
+    {
+        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
+        $eventMigrationService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, $this->eventMigrationServiceFactory);
+        $eventMigrationService->migratePartialPublishAndPartialDiscardEvents($this->outputLine(...));
+    }
 }
