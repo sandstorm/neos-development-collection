@@ -53,6 +53,7 @@ use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasP
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Command\RebaseWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Dto\RebaseErrorHandlingStrategy;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Event\WorkspaceWasRebased;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\PartialWorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\WorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamAlreadyExists;
 use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamDoesNotExistYet;
@@ -507,12 +508,14 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             yield $this->reopenContentStreamWithoutConstraintChecks(
                 $workspace->currentContentStreamId
             );
-            if ($workspace->status === WorkspaceStatus::UP_TO_DATE) {
-                throw new \RuntimeException('TODO cannot publish changeset as the leftover changes would not be applicable.');
-            }
-            // todo either its a conflict with not applicable changes because the one change belongs to another OR the base workspace contains changes and we need to rebase first.
-            // we assume the latter and let the user up date the workspace first!
-            throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getConflictingEvents());
+            match($workspace->status) {
+                // If the workspace is up-to-date it must be a problem regarding that the order of events cannot be changed
+                WorkspaceStatus::UP_TO_DATE =>
+                    throw PartialWorkspaceRebaseFailed::duringPartialPublish($commandSimulator->getConflictingEvents()),
+                // If the workspace is outdated we cannot know for sure but suspect that the conflict arose due to changes in the base workspace.
+                WorkspaceStatus::OUTDATED =>
+                    throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getConflictingEvents())
+            };
         }
 
         // this could empty and a no-op for the rare case when a command returns empty events e.g. the node was already tagged with this subtree tag
@@ -633,12 +636,14 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             yield $this->reopenContentStreamWithoutConstraintChecks(
                 $workspace->currentContentStreamId
             );
-            if ($workspace->status === WorkspaceStatus::UP_TO_DATE) {
-                throw new \RuntimeException('TODO cannot discard changeset as the leftover changes would not be applicable.');
-            }
-            // todo either its a conflict with not applicable changes because the one change belongs to another OR the base workspace contains changes and we need to rebase first.
-            // we assume the latter and let the user up date the workspace first!
-            throw WorkspaceRebaseFailed::duringDiscard($commandSimulator->getConflictingEvents());
+            match($workspace->status) {
+                // If the workspace is up-to-date it must be a problem regarding that the order of events cannot be changed
+                WorkspaceStatus::UP_TO_DATE =>
+                    throw PartialWorkspaceRebaseFailed::duringPartialDiscard($commandSimulator->getConflictingEvents()),
+                // If the workspace is outdated we cannot know for sure but suspect that the conflict arose due to changes in the base workspace.
+                WorkspaceStatus::OUTDATED =>
+                    throw WorkspaceRebaseFailed::duringDiscard($commandSimulator->getConflictingEvents())
+            };
         }
 
         yield from $this->forkNewContentStreamAndApplyEvents(
