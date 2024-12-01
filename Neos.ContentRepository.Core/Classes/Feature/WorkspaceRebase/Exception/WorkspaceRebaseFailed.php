@@ -19,7 +19,7 @@ use Neos\ContentRepository\Core\Feature\WorkspaceRebase\ConflictingEvents;
 /**
  * @api this exception contains information about what exactly went wrong during rebase
  */
-final class WorkspaceRebaseFailed extends \Exception
+final class WorkspaceRebaseFailed extends \RuntimeException
 {
     private function __construct(
         public readonly ConflictingEvents $conflictingEvents,

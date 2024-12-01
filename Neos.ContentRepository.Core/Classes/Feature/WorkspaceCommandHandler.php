@@ -53,6 +53,7 @@ use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasP
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Command\RebaseWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Dto\RebaseErrorHandlingStrategy;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Event\WorkspaceWasRebased;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\PartialWorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\WorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamAlreadyExists;
 use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamDoesNotExistYet;
@@ -507,8 +508,14 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             yield $this->reopenContentStreamWithoutConstraintChecks(
                 $workspace->currentContentStreamId
             );
-
-            throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getConflictingEvents());
+            match ($workspace->status) {
+                // If the workspace is up-to-date it must be a problem regarding that the order of events cannot be changed
+                WorkspaceStatus::UP_TO_DATE =>
+                    throw PartialWorkspaceRebaseFailed::duringPartialPublish($commandSimulator->getConflictingEvents()),
+                // If the workspace is outdated we cannot know for sure but suspect that the conflict arose due to changes in the base workspace.
+                WorkspaceStatus::OUTDATED =>
+                    throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getConflictingEvents())
+            };
         }
 
         // this could empty and a no-op for the rare case when a command returns empty events e.g. the node was already tagged with this subtree tag
@@ -608,7 +615,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             // quick path everything was discarded
             yield from $this->discardWorkspace(
                 $workspace,
-                $workspaceContentStreamVersion,
                 $baseWorkspace,
                 $baseWorkspaceContentStreamVersion,
                 $command->newContentStreamId
@@ -630,7 +636,14 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             yield $this->reopenContentStreamWithoutConstraintChecks(
                 $workspace->currentContentStreamId
             );
-            throw WorkspaceRebaseFailed::duringDiscard($commandSimulator->getConflictingEvents());
+            match ($workspace->status) {
+                // If the workspace is up-to-date it must be a problem regarding that the order of events cannot be changed
+                WorkspaceStatus::UP_TO_DATE =>
+                    throw PartialWorkspaceRebaseFailed::duringPartialDiscard($commandSimulator->getConflictingEvents()),
+                // If the workspace is outdated we cannot know for sure but suspect that the conflict arose due to changes in the base workspace.
+                WorkspaceStatus::OUTDATED =>
+                    throw WorkspaceRebaseFailed::duringDiscard($commandSimulator->getConflictingEvents())
+            };
         }
 
         yield from $this->forkNewContentStreamAndApplyEvents(
@@ -675,12 +688,11 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             return;
         }
 
-        $workspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($workspace, $commandHandlingDependencies);
+        $this->requireContentStreamToNotBeClosed($workspace->currentContentStreamId, $commandHandlingDependencies);
         $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($baseWorkspace, $commandHandlingDependencies);
 
         yield from $this->discardWorkspace(
             $workspace,
-            $workspaceContentStreamVersion,
             $baseWorkspace,
             $baseWorkspaceContentStreamVersion,
             $command->newContentStreamId
@@ -692,7 +704,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
      */
     private function discardWorkspace(
         Workspace $workspace,
-        Version $workspaceContentStreamVersion,
         Workspace $baseWorkspace,
         Version $baseWorkspaceContentStreamVersion,
         ContentStreamId $newContentStream
