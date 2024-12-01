@@ -134,7 +134,7 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
             $connection->prepare($preDeleteStatement)->executeStatement();
         }
 
-        $truncateDropStatement = match (true) {
+        $truncateOrDropStatement = match (true) {
             $connection->getDatabasePlatform() instanceof PostgreSQLPlatform => '%s TABLE `%s` CASCADE',
             default => '%s TABLE `%s`',
         };
@@ -145,7 +145,7 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
                 continue;
             }
             // truncate is faster
-            $sql = sprintf($truncateDropStatement, $keepSchema ? 'TRUNCATE' : 'DROP', $tableName);
+            $sql = sprintf($truncateOrDropStatement, $keepSchema ? 'TRUNCATE' : 'DROP', $tableName);
             $connection->prepare($sql)->executeStatement();
         }
 
@@ -154,7 +154,9 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
             default => '',
         };
 
-        $connection->prepare($postDeleteStatement)->executeStatement();
+        if ($postDeleteStatement !== '') {
+            $connection->prepare($postDeleteStatement)->executeStatement();
+        }
     }
 
     final protected function subscriptionStatus(string $subscriptionId): ProjectionSubscriptionStatus|DetachedSubscriptionStatus|null
