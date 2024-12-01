@@ -53,6 +53,7 @@ use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\DiscardWork
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishIndividualNodesFromWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Command\RebaseWorkspace;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\PartialWorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\WorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
@@ -310,7 +311,7 @@ trait GenericCommandExecutionAndEventPublication
      */
     public function theLastCommandShouldHaveThrown(string $shortExceptionName, ?int $expectedCode = null, PyStringNode $expectedMessage = null): void
     {
-        if ($shortExceptionName === 'WorkspaceRebaseFailed') {
+        if ($shortExceptionName === 'WorkspaceRebaseFailed' || $shortExceptionName === 'PartialWorkspaceRebaseFailed') {
             throw new \RuntimeException('Please use the assertion "the last command should have thrown the WorkspaceRebaseFailed exception with" instead.');
         }
 
@@ -332,14 +333,18 @@ trait GenericCommandExecutionAndEventPublication
     }
 
     /**
-     * @Then the last command should have thrown the WorkspaceRebaseFailed exception with:
+     * @Then /^the last command should have thrown the (WorkspaceRebaseFailed|PartialWorkspaceRebaseFailed) exception with:$/
      */
-    public function theLastCommandShouldHaveThrownTheWorkspaceRebaseFailedWith(TableNode $payloadTable)
+    public function theLastCommandShouldHaveThrownTheWorkspaceRebaseFailedWith(string $shortExceptionName, TableNode $payloadTable)
     {
-        /** @var WorkspaceRebaseFailed $exception */
+        /** @var WorkspaceRebaseFailed|PartialWorkspaceRebaseFailed $exception */
         $exception = $this->lastCommandException;
         Assert::assertNotNull($exception, 'Command did not throw exception');
-        Assert::assertInstanceOf(WorkspaceRebaseFailed::class, $exception, sprintf('Actual exception: %s (%s): %s', get_class($exception), $exception->getCode(), $exception->getMessage()));
+
+        match($shortExceptionName) {
+            'WorkspaceRebaseFailed' => Assert::assertInstanceOf(WorkspaceRebaseFailed::class, $exception, sprintf('Actual exception: %s (%s): %s', get_class($exception), $exception->getCode(), $exception->getMessage())),
+            'PartialWorkspaceRebaseFailed' => Assert::assertInstanceOf(PartialWorkspaceRebaseFailed::class, $exception, sprintf('Actual exception: %s (%s): %s', get_class($exception), $exception->getCode(), $exception->getMessage())),
+        };
 
         $actualComparableHash = [];
         foreach ($exception->conflictingEvents as $conflictingEvent) {
