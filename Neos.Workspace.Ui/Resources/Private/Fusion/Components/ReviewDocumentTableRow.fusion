@@ -85,7 +85,6 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
         </Neos.Fusion:Loop>
       </td>
       <td class="document-actions">
-            <!-- TODO: Does currently not work because of broken change projection -->
         <Neos.Workspace.Ui:Component.Button
                 title={props.canPublishToWorkspace ? private.i18n.id('workspaces.discardAllChangesInThisDocument'): private.i18n.id('workspaces.changes.noPermissionToPublishToWorkspace')}
                 icon="fas fa-trash-alt icon-white"

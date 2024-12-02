@@ -415,3 +415,7 @@ tr.neos-change + tr.neos-change td.neos-content-change {
 #workspaceReview .node-icons {
   margin-right: 7px;
 }
+
+#workspaceReview #publishOrDiscardNodesForm {
+  min-width: 100%;
+}

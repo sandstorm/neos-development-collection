@@ -1064,7 +1064,8 @@ class WorkspaceController extends AbstractModuleController
                         $contentDimension = new ContentDimensionId($id);
                         $dimensions[] = $contentRepository->getContentDimensionSource()->getDimension($contentDimension)->getValue($coordinate)->configuration['label'];
                     }
-                    $siteChanges[$siteNodeName]['documents'][$documentPath]['changes'][$relativePath] = new ChangeItem (
+                    $dimensionString = implode('_', $dimensions);
+                    $siteChanges[$siteNodeName]['documents'][$documentPath]['changes'][$dimensionString][$relativePath] = new ChangeItem (
                         serializedNodeAddress: $nodeAddress->toJson(),
                         hidden: $node->tags->contain(SubtreeTag::disabled()),
                         isRemoved: $change->deleted,

@@ -42,11 +42,14 @@ prototype(Neos.Workspace.Ui:Component.ReviewTable) < prototype(Neos.Fusion:Compo
               documentPath={documentPath}
               canPublishToBaseWorkspace={props.canPublishToBaseWorkspace}
               canPublishToWorkspace={props.canPublishToWorkspace}/>
-            <Neos.Fusion:Loop items={document.changes} itemKey="relativePath" itemName="change">
-              <Neos.Workspace.Ui:Component.ReviewChangeTableRow
-                change={change}
-                relativePath={relativePath}
-                document={document}/>
+            <Neos.Fusion:Loop items={document.changes} itemKey="relativePath" itemName="dimensions">
+              <Neos.Fusion:Loop items={dimensions} itemKey="relativePath" itemName="change">
+                <Neos.Workspace.Ui:Component.ReviewChangeTableRow
+                  change={change}
+                  relativePath={relativePath}
+                  document={document}/>
+
+              </Neos.Fusion:Loop>
             </Neos.Fusion:Loop>
           </Neos.Fusion:Loop>
         </Neos.Fusion:Loop>
