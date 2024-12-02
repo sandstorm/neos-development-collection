@@ -963,14 +963,14 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
 
         $eventTableName = DoctrineEventStoreFactory::databaseTableName($this->contentRepositoryId);
         $this->connection->beginTransaction();
-        $numberOfMigratedEvents += $this->connection->executeStatement(
+        $numberOfMigratedEvents += (int)$this->connection->executeStatement(
             'UPDATE ' . $eventTableName . ' SET type=:updateType WHERE type=:currentType',
             [
                 'currentType' => 'WorkspaceWasPartiallyPublished',
                 'updateType' => 'WorkspaceWasPublished'
             ]
         );
-        $numberOfMigratedEvents += $this->connection->executeStatement(
+        $numberOfMigratedEvents += (int)$this->connection->executeStatement(
             'UPDATE ' . $eventTableName . ' SET type=:updateType WHERE type=:currentType',
             [
                 'currentType' => 'WorkspaceWasPartiallyDiscarded',
@@ -1032,21 +1032,6 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
             [
                 'sequenceNumber' => $sequenceNumber->value,
                 'metadata' => json_encode($eventMetaData),
-            ]
-        );
-        $this->connection->commit();
-        $this->eventsModified[$sequenceNumber->value] = true;
-    }
-
-    private function updateEventType(SequenceNumber $sequenceNumber, EventType $type): void
-    {
-        $eventTableName = DoctrineEventStoreFactory::databaseTableName($this->contentRepositoryId);
-        $this->connection->beginTransaction();
-        $this->connection->executeStatement(
-            'UPDATE ' . $eventTableName . ' SET type=:type WHERE sequencenumber=:sequenceNumber',
-            [
-                'sequenceNumber' => $sequenceNumber->value,
-                'type' => $type->value
             ]
         );
         $this->connection->commit();
