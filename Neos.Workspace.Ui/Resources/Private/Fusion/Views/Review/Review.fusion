@@ -26,12 +26,12 @@ Neos.Workspace.Ui.WorkspaceController.review = Neos.Fusion:Component {
       <section
         hx-indicator="#indicator"
         hx-boost="true"
-        id='workspaceReview'
+        id="workspace-module-content"
       >
         <Neos.Workspace.Ui:Component.HTMXConfig/>
         <Neos.Workspace.Ui:Component.FlashMessages flashMessages={props.flashMessages}/>
         <Neos.Workspace.Ui:Component.Indicator/>
-        <main class="neos-content neos-container-fluid">
+        <main id='workspaceReview' class="neos-content neos-container-fluid">
           <div class="neos-row-fluid">
             <legend>
               {props.i18n.id('workspaces.unpublishedChanges').arguments([selectedWorkspaceLabel]).translate()}
