@@ -156,7 +156,7 @@ final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTes
                 subscriptionStatus: SubscriptionStatus::DETACHED,
                 subscriptionPosition: SequenceNumber::fromInteger(1),
                 subscriptionError: null,
-                setupStatus: ProjectionStatus::ok() // state _IS_ calculate-able at this point, todo better reflect meaning: is detached, but re-attachable!
+                setupStatus: ProjectionStatus::ok()
             ),
             $this->subscriptionStatus('Vendor.Package:FakeProjection')
         );
