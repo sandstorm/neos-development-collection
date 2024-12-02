@@ -132,13 +132,9 @@ trait CrImportExportTrait
         $eventsWithoutRandomIds = [];
 
         foreach ($exportedEvents as $exportedEvent) {
-            // we have to remove the event id and initiatingTimestamp to make the events diff able
+            // we have to remove the event ids to make the events diff-able
             $eventsWithoutRandomIds[] = $exportedEvent
-                ->withIdentifier('random-event-uuid')
-                ->processMetadata(function (array $metadata) {
-                    $metadata[InitiatingEventMetadata::INITIATING_TIMESTAMP] = 'random-time';
-                    return $metadata;
-                });
+                ->withIdentifier('random-event-uuid');
         }
 
         Assert::assertSame($string->getRaw(), ExportedEvents::fromIterable($eventsWithoutRandomIds)->toJsonl());

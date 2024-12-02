@@ -26,8 +26,7 @@ final readonly class EventStoreImportProcessorFactory implements ContentReposito
             $this->targetWorkspaceName,
             $this->keepEventIds,
             $serviceFactoryDependencies->eventStore,
-            $serviceFactoryDependencies->eventNormalizer,
-            $serviceFactoryDependencies->contentRepository,
+            $serviceFactoryDependencies->eventNormalizer
         );
     }
 }
