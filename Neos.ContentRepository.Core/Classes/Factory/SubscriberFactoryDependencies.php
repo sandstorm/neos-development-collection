@@ -30,7 +30,7 @@ final readonly class SubscriberFactoryDependencies
         public NodeTypeManager $nodeTypeManager,
         public ContentDimensionSourceInterface $contentDimensionSource,
         public InterDimensionalVariationGraph $interDimensionalVariationGraph,
-        public PropertyConverter $propertyConverter,
+        private PropertyConverter $propertyConverter,
     ) {
     }
 
@@ -51,5 +51,13 @@ final readonly class SubscriberFactoryDependencies
             $interDimensionalVariationGraph,
             $propertyConverter
         );
+    }
+
+    /**
+     * @internal only to be used for custom content graph integrations to build a node property collection
+     */
+    public function getPropertyConverter(): PropertyConverter
+    {
+        return $this->propertyConverter;
     }
 }
