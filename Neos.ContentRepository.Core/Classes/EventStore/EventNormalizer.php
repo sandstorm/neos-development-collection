@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\EventStore;
 
-use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\EventStore\Events as DomainEvents;
 use Neos\ContentRepository\Core\Feature\ContentStreamClosing\Event\ContentStreamWasClosed;
 use Neos\ContentRepository\Core\Feature\ContentStreamClosing\Event\ContentStreamWasReopened;
@@ -42,7 +41,6 @@ use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasP
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPublished;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Event\WorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Event\WorkspaceWasRebased;
-use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 use Neos\EventStore\Model\Event;
 use Neos\EventStore\Model\Event\EventData;
 use Neos\EventStore\Model\Event\EventId;
@@ -52,28 +50,29 @@ use Neos\EventStore\Model\Events;
 /**
  * Central authority to convert Content Repository domain events to Event Store EventData and EventType, vice versa.
  *
- * For normalizing (from classes to event store), this is called from {@see ContentRepository::normalizeEvent()}.
+ * - For normalizing (from classes to event store)
+ * - For denormalizing (from event store to classes)
  *
- * For denormalizing (from event store to classes), this is called in the individual projections; f.e.
- * {@see ProjectionInterface::apply()}.
- *
- * @api because inside projections, you get an instance of EventNormalizer to handle events.
+ * @internal inside projections the event will already be denormalized
  */
-final class EventNormalizer
+final readonly class EventNormalizer
 {
-    /**
-     * @var array<class-string<EventInterface>,EventType>
-     */
-    private array $fullClassNameToShortEventType = [];
-    /**
-     * @var array<string,class-string<EventInterface>>
-     */
-    private array $shortEventTypeToFullClassName = [];
+    private function __construct(
+        /**
+         * @var array<class-string<EventInterface>,EventType>
+         */
+        private array $fullClassNameToShortEventType,
+        /**
+         * @var array<string,class-string<EventInterface>>
+         */
+        private array $shortEventTypeToFullClassName,
+    ) {
+    }
 
     /**
-     * @internal never instanciate this object yourself
+     * @internal never instantiate this object yourself
      */
-    public function __construct()
+    public static function create(): self
     {
         $supportedEventClassNames = [
             ContentStreamWasClosed::class,
@@ -113,12 +112,20 @@ final class EventNormalizer
             WorkspaceBaseWorkspaceWasChanged::class,
         ];
 
+        $fullClassNameToShortEventType = [];
+        $shortEventTypeToFullClassName = [];
+
         foreach ($supportedEventClassNames as $fullEventClassName) {
             $shortEventClassName = substr($fullEventClassName, strrpos($fullEventClassName, '\\') + 1);
 
-            $this->fullClassNameToShortEventType[$fullEventClassName] = EventType::fromString($shortEventClassName);
-            $this->shortEventTypeToFullClassName[$shortEventClassName] = $fullEventClassName;
+            $fullClassNameToShortEventType[$fullEventClassName] = EventType::fromString($shortEventClassName);
+            $shortEventTypeToFullClassName[$shortEventClassName] = $fullEventClassName;
         }
+
+        return new self(
+            fullClassNameToShortEventType: $fullClassNameToShortEventType,
+            shortEventTypeToFullClassName: $shortEventTypeToFullClassName
+        );
     }
 
     /**

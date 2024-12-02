@@ -57,11 +57,12 @@ final class ContentRepositoryFactory
     private SubscriptionEngine $subscriptionEngine;
     private ContentGraphProjectionInterface $contentGraphProjection;
     private ProjectionStates $additionalProjectionStates;
+    private EventNormalizer $eventNormalizer;
 
     // guards against recursion and memory overflow
     private bool $isBuilding = false;
 
-    // The following properties store "singleton" references of objects for this content repository
+    // The "singleton" reference for this content repository
     private ?ContentRepository $contentRepositoryRuntimeCache = null;
 
     /**
@@ -89,6 +90,7 @@ final class ContentRepositoryFactory
         );
         $eventNormalizer = new EventNormalizer();
         $this->subscriberFactoryDependencies = new SubscriberFactoryDependencies(
+        $this->eventNormalizer = EventNormalizer::create();
             $contentRepositoryId,
             $eventNormalizer,
             $nodeTypeManager,
@@ -107,7 +109,7 @@ final class ContentRepositoryFactory
         $this->additionalProjectionStates = ProjectionStates::fromArray($additionalProjectionStates);
         $this->contentGraphProjection = $contentGraphProjectionFactory->build($this->subscriberFactoryDependencies);
         $subscribers[] = $this->buildContentGraphSubscriber();
-        $this->subscriptionEngine = new SubscriptionEngine($this->eventStore, $subscriptionStore, Subscribers::fromArray($subscribers), $eventNormalizer, $logger);
+        $this->subscriptionEngine = new SubscriptionEngine($this->eventStore, $subscriptionStore, Subscribers::fromArray($subscribers), $this->eventNormalizer, $logger);
     }
 
     private function buildContentGraphSubscriber(): ProjectionSubscriber
@@ -166,7 +168,7 @@ final class ContentRepositoryFactory
 
         $commandSimulatorFactory = new CommandSimulatorFactory(
             $this->contentGraphProjection,
-            $this->subscriberFactoryDependencies->eventNormalizer,
+            $this->eventNormalizer,
             $commandBusForRebaseableCommands
         );
 
@@ -174,7 +176,7 @@ final class ContentRepositoryFactory
             new WorkspaceCommandHandler(
                 $commandSimulatorFactory,
                 $this->eventStore,
-                $this->subscriberFactoryDependencies->eventNormalizer,
+                $this->eventNormalizer,
             )
         );
         $authProvider = $this->authProviderFactory->build($this->contentRepositoryId, $contentGraphReadModel);
@@ -189,7 +191,7 @@ final class ContentRepositoryFactory
             $this->contentRepositoryId,
             $publicCommandBus,
             $this->eventStore,
-            $this->subscriberFactoryDependencies->eventNormalizer,
+            $this->eventNormalizer,
             $this->subscriptionEngine,
             $this->subscriberFactoryDependencies->nodeTypeManager,
             $this->subscriberFactoryDependencies->interDimensionalVariationGraph,
