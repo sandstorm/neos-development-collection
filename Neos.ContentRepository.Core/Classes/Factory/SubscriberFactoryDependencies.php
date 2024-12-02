@@ -15,27 +15,41 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Factory;
 
 use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
-use Neos\ContentRepository\Core\DimensionSpace\ContentDimensionZookeeper;
 use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
-use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
-use Neos\EventStore\EventStoreInterface;
 
 /**
  * @api because it is used inside the ProjectionsFactory
  */
 final readonly class SubscriberFactoryDependencies
 {
-    public function __construct(
+    private function __construct(
         public ContentRepositoryId $contentRepositoryId,
-        public EventNormalizer $eventNormalizer,
         public NodeTypeManager $nodeTypeManager,
         public ContentDimensionSourceInterface $contentDimensionSource,
-        public ContentDimensionZookeeper $contentDimensionZookeeper,
         public InterDimensionalVariationGraph $interDimensionalVariationGraph,
         public PropertyConverter $propertyConverter,
     ) {
+    }
+
+    /**
+     * @internal
+     */
+    public static function create(
+        ContentRepositoryId $contentRepositoryId,
+        NodeTypeManager $nodeTypeManager,
+        ContentDimensionSourceInterface $contentDimensionSource,
+        InterDimensionalVariationGraph $interDimensionalVariationGraph,
+        PropertyConverter $propertyConverter
+    ): self {
+        return new self(
+            $contentRepositoryId,
+            $nodeTypeManager,
+            $contentDimensionSource,
+            $interDimensionalVariationGraph,
+            $propertyConverter
+        );
     }
 }

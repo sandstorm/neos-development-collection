@@ -34,7 +34,6 @@ use Neos\EventStore\EventStoreInterface;
 final readonly class ContentRepositoryServiceFactoryDependencies
 {
     private function __construct(
-        // These properties are from ProjectionFactoryDependencies
         public ContentRepositoryId $contentRepositoryId,
         public EventStoreInterface $eventStore,
         public EventNormalizer $eventNormalizer,
@@ -45,7 +44,6 @@ final readonly class ContentRepositoryServiceFactoryDependencies
         public PropertyConverter $propertyConverter,
         public ContentRepository $contentRepository,
         public ContentGraphReadModelInterface $contentGraphReadModel,
-        // we don't need CommandBus, because this is included in ContentRepository->handle()
         public SubscriptionEngine $subscriptionEngine,
     ) {
     }
@@ -54,21 +52,27 @@ final readonly class ContentRepositoryServiceFactoryDependencies
      * @internal
      */
     public static function create(
-        SubscriberFactoryDependencies $projectionFactoryDependencies,
+        ContentRepositoryId $contentRepositoryId,
         EventStoreInterface $eventStore,
+        EventNormalizer $eventNormalizer,
+        NodeTypeManager $nodeTypeManager,
+        ContentDimensionSourceInterface $contentDimensionSource,
+        ContentDimensionZookeeper $contentDimensionZookeeper,
+        InterDimensionalVariationGraph $interDimensionalVariationGraph,
+        PropertyConverter $propertyConverter,
         ContentRepository $contentRepository,
         ContentGraphReadModelInterface $contentGraphReadModel,
         SubscriptionEngine $subscriptionEngine,
     ): self {
         return new self(
-            $projectionFactoryDependencies->contentRepositoryId,
+            $contentRepositoryId,
             $eventStore,
-            $projectionFactoryDependencies->eventNormalizer,
-            $projectionFactoryDependencies->nodeTypeManager,
-            $projectionFactoryDependencies->contentDimensionSource,
-            $projectionFactoryDependencies->contentDimensionZookeeper,
-            $projectionFactoryDependencies->interDimensionalVariationGraph,
-            $projectionFactoryDependencies->propertyConverter,
+            $eventNormalizer,
+            $nodeTypeManager,
+            $contentDimensionSource,
+            $contentDimensionZookeeper,
+            $interDimensionalVariationGraph,
+            $propertyConverter,
             $contentRepository,
             $contentGraphReadModel,
             $subscriptionEngine,

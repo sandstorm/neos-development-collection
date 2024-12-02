@@ -53,11 +53,13 @@ use Symfony\Component\Serializer\Serializer;
  */
 final class ContentRepositoryFactory
 {
-    private SubscriberFactoryDependencies $subscriberFactoryDependencies;
     private SubscriptionEngine $subscriptionEngine;
     private ContentGraphProjectionInterface $contentGraphProjection;
     private ProjectionStates $additionalProjectionStates;
     private EventNormalizer $eventNormalizer;
+    private ContentDimensionZookeeper $contentDimensionZookeeper;
+    private InterDimensionalVariationGraph $interDimensionalVariationGraph;
+    private PropertyConverter $propertyConverter;
 
     // guards against recursion and memory overflow
     private bool $isBuilding = false;
@@ -71,8 +73,8 @@ final class ContentRepositoryFactory
     public function __construct(
         private readonly ContentRepositoryId $contentRepositoryId,
         private readonly EventStoreInterface $eventStore,
-        NodeTypeManager $nodeTypeManager,
-        ContentDimensionSourceInterface $contentDimensionSource,
+        private readonly NodeTypeManager $nodeTypeManager,
+        private readonly ContentDimensionSourceInterface $contentDimensionSource,
         Serializer $propertySerializer,
         private readonly AuthProviderFactoryInterface $authProviderFactory,
         private readonly ClockInterface $clock,
@@ -83,31 +85,29 @@ final class ContentRepositoryFactory
         private readonly ContentRepositorySubscriberFactories $additionalSubscriberFactories,
         LoggerInterface|null $logger = null,
     ) {
-        $contentDimensionZookeeper = new ContentDimensionZookeeper($contentDimensionSource);
-        $interDimensionalVariationGraph = new InterDimensionalVariationGraph(
+        $this->contentDimensionZookeeper = new ContentDimensionZookeeper($contentDimensionSource);
+        $this->interDimensionalVariationGraph = new InterDimensionalVariationGraph(
             $contentDimensionSource,
-            $contentDimensionZookeeper
+            $this->contentDimensionZookeeper
         );
-        $eventNormalizer = new EventNormalizer();
-        $this->subscriberFactoryDependencies = new SubscriberFactoryDependencies(
         $this->eventNormalizer = EventNormalizer::create();
+        $this->propertyConverter = new PropertyConverter($propertySerializer);
+        $subscriberFactoryDependencies = SubscriberFactoryDependencies::create(
             $contentRepositoryId,
-            $eventNormalizer,
             $nodeTypeManager,
             $contentDimensionSource,
-            $contentDimensionZookeeper,
-            $interDimensionalVariationGraph,
-            new PropertyConverter($propertySerializer),
+            $this->interDimensionalVariationGraph,
+            $this->propertyConverter,
         );
         $subscribers = [];
         $additionalProjectionStates = [];
         foreach ($this->additionalSubscriberFactories as $additionalSubscriberFactory) {
-            $subscriber = $additionalSubscriberFactory->build($this->subscriberFactoryDependencies);
+            $subscriber = $additionalSubscriberFactory->build($subscriberFactoryDependencies);
             $additionalProjectionStates[] = $subscriber->projection->getState();
             $subscribers[] = $subscriber;
         }
         $this->additionalProjectionStates = ProjectionStates::fromArray($additionalProjectionStates);
-        $this->contentGraphProjection = $contentGraphProjectionFactory->build($this->subscriberFactoryDependencies);
+        $this->contentGraphProjection = $contentGraphProjectionFactory->build($subscriberFactoryDependencies);
         $subscribers[] = $this->buildContentGraphSubscriber();
         $this->subscriptionEngine = new SubscriptionEngine($this->eventStore, $subscriptionStore, Subscribers::fromArray($subscribers), $this->eventNormalizer, $logger);
     }
@@ -120,9 +120,9 @@ final class ContentRepositoryFactory
             $this->contentGraphCatchUpHookFactory?->build(CatchUpHookFactoryDependencies::create(
                 $this->contentRepositoryId,
                 $this->contentGraphProjection->getState(),
-                $this->subscriberFactoryDependencies->nodeTypeManager,
-                $this->subscriberFactoryDependencies->contentDimensionSource,
-                $this->subscriberFactoryDependencies->interDimensionalVariationGraph,
+                $this->nodeTypeManager,
+                $this->contentDimensionSource,
+                $this->interDimensionalVariationGraph,
             )),
         );
     }
@@ -150,19 +150,19 @@ final class ContentRepositoryFactory
         $commandBusForRebaseableCommands = new CommandBus(
             $commandHandlingDependencies,
             new NodeAggregateCommandHandler(
-                $this->subscriberFactoryDependencies->nodeTypeManager,
-                $this->subscriberFactoryDependencies->contentDimensionZookeeper,
-                $this->subscriberFactoryDependencies->interDimensionalVariationGraph,
-                $this->subscriberFactoryDependencies->propertyConverter,
+                $this->nodeTypeManager,
+                $this->contentDimensionZookeeper,
+                $this->interDimensionalVariationGraph,
+                $this->propertyConverter,
             ),
             new DimensionSpaceCommandHandler(
-                $this->subscriberFactoryDependencies->contentDimensionZookeeper,
-                $this->subscriberFactoryDependencies->interDimensionalVariationGraph,
+                $this->contentDimensionZookeeper,
+                $this->interDimensionalVariationGraph,
             ),
             new NodeDuplicationCommandHandler(
-                $this->subscriberFactoryDependencies->nodeTypeManager,
-                $this->subscriberFactoryDependencies->contentDimensionZookeeper,
-                $this->subscriberFactoryDependencies->interDimensionalVariationGraph,
+                $this->nodeTypeManager,
+                $this->contentDimensionZookeeper,
+                $this->interDimensionalVariationGraph,
             )
         );
 
@@ -183,9 +183,9 @@ final class ContentRepositoryFactory
         $commandHooks = $this->commandHooksFactory->build(CommandHooksFactoryDependencies::create(
             $this->contentRepositoryId,
             $this->contentGraphProjection->getState(),
-            $this->subscriberFactoryDependencies->nodeTypeManager,
-            $this->subscriberFactoryDependencies->contentDimensionSource,
-            $this->subscriberFactoryDependencies->interDimensionalVariationGraph,
+            $this->nodeTypeManager,
+            $this->contentDimensionSource,
+            $this->interDimensionalVariationGraph,
         ));
         $this->contentRepositoryRuntimeCache = new ContentRepository(
             $this->contentRepositoryId,
@@ -193,9 +193,9 @@ final class ContentRepositoryFactory
             $this->eventStore,
             $this->eventNormalizer,
             $this->subscriptionEngine,
-            $this->subscriberFactoryDependencies->nodeTypeManager,
-            $this->subscriberFactoryDependencies->interDimensionalVariationGraph,
-            $this->subscriberFactoryDependencies->contentDimensionSource,
+            $this->nodeTypeManager,
+            $this->interDimensionalVariationGraph,
+            $this->contentDimensionSource,
             $authProvider,
             $this->clock,
             $contentGraphReadModel,
@@ -220,10 +220,15 @@ final class ContentRepositoryFactory
     public function buildService(
         ContentRepositoryServiceFactoryInterface $serviceFactory
     ): ContentRepositoryServiceInterface {
-
         $serviceFactoryDependencies = ContentRepositoryServiceFactoryDependencies::create(
-            $this->subscriberFactoryDependencies,
+            $this->contentRepositoryId,
             $this->eventStore,
+            $this->eventNormalizer,
+            $this->nodeTypeManager,
+            $this->contentDimensionSource,
+            $this->contentDimensionZookeeper,
+            $this->interDimensionalVariationGraph,
+            $this->propertyConverter,
             $this->getOrBuild(),
             $this->contentGraphProjection->getState(),
             $this->subscriptionEngine,
