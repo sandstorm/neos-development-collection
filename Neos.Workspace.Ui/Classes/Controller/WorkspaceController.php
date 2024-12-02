@@ -1288,7 +1288,28 @@ class WorkspaceController extends AbstractModuleController
         ) {
             return $propertyName;
         }
-        return $properties[$propertyName]['ui']['label'];
+        $packageKey = 'Neos.Neos';
+        $source = 'Main';
+        $idParts = explode(':', $properties[$propertyName]['ui']['label'], 3);
+        switch (count($idParts)) {
+            case 2:
+                $packageKey = $idParts[0];
+                $id = $idParts[1];
+                break;
+            case 3:
+                $packageKey = $idParts[0];
+                $source = str_replace('.', '/', $idParts[1]);
+                $id = $idParts[2];
+                break;
+        }
+        return $this->translator->translateById(
+            $id,
+            [],
+            null,
+            null,
+            $source,
+            $packageKey
+        ) ?: $properties[$propertyName]['ui']['label'];
     }
 
     /**
