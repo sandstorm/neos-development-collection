@@ -53,6 +53,14 @@ final class Subscriptions implements \IteratorAggregate, \Countable, \JsonSerial
         return $this->subscriptionsById === [];
     }
 
+    public function first(): ?Subscription
+    {
+        foreach ($this->subscriptionsById as $subscription) {
+            return $subscription;
+        }
+        return null;
+    }
+
     public function count(): int
     {
         return count($this->subscriptionsById);
