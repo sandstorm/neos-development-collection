@@ -34,11 +34,9 @@ final class ProjectionSubscriber
 
     public function handle(EventInterface $event, EventEnvelope $eventEnvelope): void
     {
-        $this->projection->transactional(function () use ($event, $eventEnvelope) {
-            $this->catchUpHook?->onBeforeEvent($event, $eventEnvelope);
-            $this->projection->apply($event, $eventEnvelope);
-            $this->catchUpHook?->onAfterEvent($event, $eventEnvelope);
-        });
+        $this->catchUpHook?->onBeforeEvent($event, $eventEnvelope);
+        $this->projection->apply($event, $eventEnvelope);
+        $this->catchUpHook?->onAfterEvent($event, $eventEnvelope);
     }
 
     public function onAfterCatchUp(): void

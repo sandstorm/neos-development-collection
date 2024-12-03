@@ -12,7 +12,6 @@ use Doctrine\DBAL\Types\Types;
 use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\Infrastructure\DbalSchemaDiff;
 use Neos\ContentRepository\Core\Infrastructure\DbalSchemaFactory;
-use Neos\ContentRepository\Core\Infrastructure\ProjectionTransactionTrait;
 use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStatus;
@@ -30,8 +29,6 @@ use Neos\Flow\Annotations as Flow;
  */
 final class DebugEventProjection implements ProjectionInterface
 {
-    use ProjectionTransactionTrait;
-
     private DebugEventProjectionState $state;
 
     private \Closure|null $saboteur = null;

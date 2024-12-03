@@ -77,7 +77,6 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
 
         $this->fakeProjection = $this->getMockBuilder(ProjectionInterface::class)->disableAutoReturnValueGeneration()->getMock();
         $this->fakeProjection->method('getState')->willReturn(new class implements ProjectionStateInterface {});
-        $this->fakeProjection->expects(self::any())->method('transactional')->willReturnCallback(fn ($fn) => $fn())->willReturnCallback(fn ($fn) => $fn());
 
         FakeProjectionFactory::setProjection(
             'default',
