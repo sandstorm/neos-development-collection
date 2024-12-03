@@ -168,19 +168,6 @@ final class SubscriptionEngine
         return SubscriptionStatusCollection::fromArray($statuses);
     }
 
-    private function handleEvent(EventEnvelope $eventEnvelope, EventInterface $domainEvent, SubscriptionId $subscriptionId): Error|null
-    {
-        $subscriber = $this->subscribers->get($subscriptionId);
-        try {
-            $subscriber->handle($domainEvent, $eventEnvelope);
-        } catch (\Throwable $e) {
-            $this->logger?->error(sprintf('Subscription Engine: Subscriber "%s" for "%s" could not process the event "%s" (sequence number: %d): %s', $subscriber::class, $subscriptionId->value, $eventEnvelope->event->type->value, $eventEnvelope->sequenceNumber->value, $e->getMessage()));
-            return Error::fromSubscriptionIdAndException($subscriptionId, $e);
-        }
-        $this->logger?->debug(sprintf('Subscription Engine: Subscriber "%s" for "%s" processed the event "%s" (sequence number: %d).', substr(strrchr($subscriber::class, '\\') ?: '', 1), $subscriptionId->value, $eventEnvelope->event->type->value, $eventEnvelope->sequenceNumber->value));
-        return null;
-    }
-
     /**
      * Find all subscribers that don't have a corresponding subscription.
      * For each match a subscription is added
@@ -304,7 +291,7 @@ final class SubscriptionEngine
             $subscriptionsToInvokeBeforeAndAfterCatchUpHooks = $subscriptionsToCatchup;
             foreach ($subscriptionsToInvokeBeforeAndAfterCatchUpHooks as $subscription) {
                 try {
-                    $this->subscribers->get($subscription->id)->onBeforeCatchUp($subscription->status);
+                    $this->subscribers->get($subscription->id)->catchUpHook?->onBeforeCatchUp($subscription->status);
                 } catch (\Throwable $e) {
                     // analog to onAfterCatchUp, we tolerate no exceptions here and consider it a critical developer error.
                     $message = sprintf('Subscriber "%s" failed onBeforeCatchUp: %s', $subscription->id->value, $e->getMessage());
@@ -337,11 +324,17 @@ final class SubscriptionEngine
                         $this->logger?->debug(sprintf('Subscription Engine: Subscription "%s" is farther than the current position (%d >= %d), continue catch up.', $subscription->id->value, $subscription->position->value, $sequenceNumber->value));
                         continue;
                     }
+                    $subscriber = $this->subscribers->get($subscription->id);
 
+                    $subscriber->catchUpHook?->onBeforeEvent($domainEvent, $eventEnvelope);
                     $this->subscriptionStore->createSavepoint();
-                    $error = $this->handleEvent($eventEnvelope, $domainEvent, $subscription->id);
-                    if ($error !== null) {
+                    try {
+                        $subscriber->projection->apply($domainEvent, $eventEnvelope);
+                    } catch (\Throwable $e) {
                         // ERROR Case:
+                        $this->logger?->error(sprintf('Subscription Engine: Subscriber "%s" for "%s" could not process the event "%s" (sequence number: %d): %s', $subscriber::class, $subscription->id->value, $eventEnvelope->event->type->value, $eventEnvelope->sequenceNumber->value, $e->getMessage()));
+                        $error = Error::fromSubscriptionIdAndException($subscription->id, $e);
+
                         // 1.) roll back the partially applied event on the subscriber
                         $this->subscriptionStore->rollbackSavepoint();
                         // 2.) for the leftover events we are not including this failed subscription for catchup
@@ -360,8 +353,11 @@ final class SubscriptionEngine
                         continue;
                     }
                     // HAPPY Case:
+                    $this->logger?->debug(sprintf('Subscription Engine: Subscriber "%s" for "%s" processed the event "%s" (sequence number: %d).', substr(strrchr($subscriber::class, '\\') ?: '', 1), $subscription->id->value, $eventEnvelope->event->type->value, $eventEnvelope->sequenceNumber->value));
                     $this->subscriptionStore->releaseSavepoint();
                     $highestSequenceNumberForSubscriber[$subscription->id->value] = $eventEnvelope->sequenceNumber;
+
+                    $subscriber->catchUpHook?->onAfterEvent($domainEvent, $eventEnvelope);
                 }
                 $numberOfProcessedEvents++;
             }
@@ -383,9 +379,10 @@ final class SubscriptionEngine
         });
 
         // todo do we need want to invoke for failed projections onAfterCatchUp, as onBeforeCatchUp was invoked already and to be consistent to "shutdown" this catchup iteration?
+        // note that a catchup error in onAfterEvent would bubble up directly and never invoke onAfterCatchUp
         foreach ($subscriptionsToInvokeBeforeAndAfterCatchUpHooks as $subscription) {
             try {
-                $this->subscribers->get($subscription->id)->onAfterCatchUp();
+                $this->subscribers->get($subscription->id)->catchUpHook?->onAfterCatchUp();
             } catch (\Throwable $e) {
                 // analog to onBeforeCatchUp, we tolerate no exceptions here and consider it a critical developer error.
                 $message = sprintf('Subscriber "%s" failed onAfterCatchUp: %s', $subscription->id->value, $e->getMessage());

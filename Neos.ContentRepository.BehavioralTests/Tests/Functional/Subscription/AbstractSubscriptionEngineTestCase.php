@@ -187,7 +187,7 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
         );
     }
 
-    final protected function expectOkayStatus($subscriptionId, SubscriptionStatus $status, SequenceNumber $sequenceNumber): void
+    final protected function expectOkayStatus(string $subscriptionId, SubscriptionStatus $status, SequenceNumber $sequenceNumber): void
     {
         $actual = $this->subscriptionStatus($subscriptionId);
         self::assertEquals(

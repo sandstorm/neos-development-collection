@@ -6,7 +6,6 @@ namespace Neos\ContentRepository\Core\Projection\CatchUpHook;
 
 use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionInterface;
-use Neos\ContentRepository\Core\Subscription\Exception\CatchUpFailed;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\EventStore\Model\EventEnvelope;
 
@@ -22,9 +21,10 @@ interface CatchUpHookInterface
 {
     /**
      * This hook is called at the beginning of a catch-up run;
-     * AFTER the Database Lock is acquired, BEFORE any projection was opened.
+     * AFTER the Database Lock is acquired, BEFORE any projection was called.
      *
-     * Its important that no errors are thrown, as they will cause the catchup to directly halt with a {@see CatchUpFailed} exception.
+     * Note that any errors thrown will cause the catchup to directly halt,
+     * and no projections or their subscriber state are updated.
      */
     public function onBeforeCatchUp(SubscriptionStatus $subscriptionStatus): void;
 
@@ -32,7 +32,8 @@ interface CatchUpHookInterface
      * This hook is called for every event during the catchup process, **before** the projection
      * is updated but in the same transaction: {@see ProjectionInterface::transactional()}.
      *
-     * Any errors will cause the transaction being rolled back, and the projection goes into {@see SubscriptionStatus::ERROR} state.
+     * Note that any errors thrown will cause the catchup to directly halt,
+     * and no projections or their subscriber state are updated, as the transaction is rolled back.
      */
     public function onBeforeEvent(EventInterface $eventInstance, EventEnvelope $eventEnvelope): void;
 
@@ -40,7 +41,8 @@ interface CatchUpHookInterface
      * This hook is called for every event during the catchup process, **after** the projection
      * is updated but in the same transaction: {@see ProjectionInterface::transactional()}.
      *
-     * Any errors will cause the transaction being rolled back, and the projection goes into {@see SubscriptionStatus::ERROR} state.
+     * Note that any errors thrown will cause the catchup to directly halt,
+     * and no projections or their subscriber state are updated, as the transaction is rolled back.
      */
     public function onAfterEvent(EventInterface $eventInstance, EventEnvelope $eventEnvelope): void;
 
@@ -48,8 +50,8 @@ interface CatchUpHookInterface
      * This hook is called at the END of a catch-up run
      * BEFORE the Database Lock is released, but AFTER the transaction is commited.
      *
-     * Its important that no errors are thrown, as they will cause the catchup to directly halt with a {@see CatchUpFailed} exception.
-     * The projections and their new position will already be persisted and there is no rollback.
+     * Note that any errors thrown will bubble up and do not implicate the projection.
+     * The projection and their new status and position will already be persisted without rollback.
      */
     public function onAfterCatchUp(): void;
 }
