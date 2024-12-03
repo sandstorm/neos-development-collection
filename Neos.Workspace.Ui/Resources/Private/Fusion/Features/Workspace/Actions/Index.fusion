@@ -3,8 +3,6 @@ Neos.Workspace.Ui.WorkspaceController.index = Neos.Fusion:Component {
   userWorkspaceName = ${userWorkspaceName}
   /// Neos\Workspace\Ui\ViewModel\WorkspaceListItems
   workspaceListItems = ${workspaceListItems}
-  /// array
-  flashMessages = ${flashMessages}
 
   newAction = Neos.Fusion:UriBuilder {
     action = 'new'
@@ -18,15 +16,10 @@ Neos.Workspace.Ui.WorkspaceController.index = Neos.Fusion:Component {
   renderer = Neos.Fusion:Match {
     @subject = ${request.format}
     @default = afx`
-      <section
-        id="workspace-module-content"
-        hx-indicator="#indicator"
-        hx-boost="true"
+      <Neos.Workspace.Ui:Component.ModuleWrapper
+        flashMessages={props.flashMessages}
       >
-        <Neos.Workspace.Ui:Component.HTMXConfig/>
-        <Neos.Workspace.Ui:Component.FlashMessages flashMessages={props.flashMessages}/>
-        <Neos.Workspace.Ui:Component.Indicator/>
-        <main class="neos-content neos-container-fluid" id="workspace-module-swap-me">
+        <main class="neos-content neos-container-fluid">
           <div class="neos-row-fluid">
             <Neos.Workspace.Ui:Component.WorkspaceTable
               userWorkspaceName={props.userWorkspaceName}
@@ -51,8 +44,7 @@ Neos.Workspace.Ui.WorkspaceController.index = Neos.Fusion:Component {
             workspaceCount={Array.length(props.workspaceListItems)}
           />
         </Neos.Workspace.Ui:Component.Footer>
-      </section>
-      <div id="popover-container"></div>
+      </Neos.Workspace.Ui:Component.ModuleWrapper>
     `
 
     htmx = afx`

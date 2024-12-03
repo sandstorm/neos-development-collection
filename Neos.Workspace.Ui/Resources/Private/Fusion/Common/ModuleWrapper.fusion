@@ -2,6 +2,9 @@
 # Wrapper to be used for each "full" view like "index" or "review"
 #
 prototype(Neos.Workspace.Ui:Component.ModuleWrapper) < prototype(Neos.Fusion:Component) {
+  /// array
+  flashMessages = ${[]}
+
   /// string
   content = ''
 
@@ -16,5 +19,6 @@ prototype(Neos.Workspace.Ui:Component.ModuleWrapper) < prototype(Neos.Fusion:Com
     >
       {props.content}
     </section>
+    <div @if.isNotHTMX={request.format != 'htmx'} id="popover-container"></div>
   `
 }

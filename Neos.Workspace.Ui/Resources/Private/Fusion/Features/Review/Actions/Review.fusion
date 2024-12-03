@@ -1,11 +1,11 @@
 Neos.Workspace.Ui.WorkspaceController.review = Neos.Fusion:Component {
-  ///todo  Neos\ContentRepository\Core\Projection\Workspace\Workspace
+  /// string
   selectedWorkspaceName = ${selectedWorkspaceName}
   /// string
   selectedWorkspaceLabel = ${selectedWorkspaceLabel}
-
+  /// \Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName
   baseWorkspaceName = ${baseWorkspaceName}
-
+  /// string
   baseWorkspaceLabel = ${baseWorkspaceLabel}
   /// bool
   canPublishToBaseWorkspace = ${canPublishToBaseWorkspace}
@@ -21,28 +21,23 @@ Neos.Workspace.Ui.WorkspaceController.review = Neos.Fusion:Component {
   i18n = ${I18n.id('').source('Main').package('Neos.Workspace.Ui')}
 
   renderer = afx`
-      <section
-        id='workspaceReview'
-        hx-indicator="#indicator"
-        hx-boost="true"
-      >
-        <Neos.Workspace.Ui:Component.HTMXConfig/>
-        <Neos.Workspace.Ui:Component.FlashMessages flashMessages={props.flashMessages}/>
-        <Neos.Workspace.Ui:Component.Indicator/>
-        <main class="neos-content neos-container-fluid">
-          <div class="neos-row-fluid">
-            <legend>
-              {props.i18n.id('workspaces.unpublishedChanges').arguments([selectedWorkspaceLabel]).translate()}
-            </legend>
+    <Neos.Workspace.Ui:Component.ModuleWrapper
+      flashMessages={props.flashMessages}
+    >
+      <main id="workspaceReview" class="neos-content neos-container-fluid">
+        <div class="neos-row-fluid">
+          <legend>
+            {props.i18n.id('workspaces.unpublishedChanges').arguments([selectedWorkspaceLabel]).translate()}
+          </legend>
 
-            <Neos.Fusion.Form:Form
-              form.target.action="publishOrDiscardNodes"
-              form.target.format="htmx"
-              form.target.arguments.workspaceName={props.selectedWorkspaceName}
-              attributes.class="neos-inline"
-              attributes.hx-post={form.getTarget()}
-              attributes.id="publishOrDiscardNodesForm"
-            >
+          <Neos.Fusion.Form:Form
+            form.target.action="publishOrDiscardNodes"
+            form.target.format="htmx"
+            form.target.arguments.workspaceName={props.selectedWorkspaceName}
+            attributes.class="neos-inline"
+            attributes.hx-post={form.getTarget()}
+            attributes.id="publishOrDiscardNodesForm"
+          >
             <Neos.Workspace.Ui:Component.ReviewTable
               @if.hasSiteChanges={props.siteChanges}
               siteChanges={props.siteChanges}
@@ -53,17 +48,16 @@ Neos.Workspace.Ui.WorkspaceController.review = Neos.Fusion:Component {
             <div @if.hasNoSiteChange={!props.siteChanges} class="no-unpublished-changes">
               {props.i18n.id('workspaces.reviewWorkspace.disabled').arguments([selectedWorkspaceLabel]).translate()}
             </div>
-            <Neos.Workspace.Ui:Component.ReviewActions
-              hasSiteChanges={!!props.siteChanges}
-              canPublishToBaseWorkspace={props.canPublishToBaseWorkspace}
-              canPublishToWorkspace={props.canPublishToWorkspace}
-              selectedWorkspaceName={props.selectedWorkspaceName}
-              baseWorkspaceLabel={props.baseWorkspaceLabel}
-            />
-            </Neos.Fusion.Form:Form>
-          </div>
-        </main>
-      </section>
-      <div @if.isNotHTMX={request.format != 'htmx'} id="popover-container"></div>
-    `
+          </Neos.Fusion.Form:Form>
+        </div>
+      </main>
+      <Neos.Workspace.Ui:Component.ReviewActions
+        hasSiteChanges={!!props.siteChanges}
+        canPublishToBaseWorkspace={props.canPublishToBaseWorkspace}
+        canPublishToWorkspace={props.canPublishToWorkspace}
+        selectedWorkspaceName={props.selectedWorkspaceName}
+        baseWorkspaceLabel={props.baseWorkspaceLabel}
+      />
+    </Neos.Workspace.Ui:Component.ModuleWrapper>
+  `
 }

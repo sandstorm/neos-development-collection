@@ -55,13 +55,7 @@ prototype(Neos.Workspace.Ui:Component.WorkspaceTableRow) < prototype(Neos.Fusion
     }
     reviewWorkspaceUri = Neos.Fusion:ActionUri {
       action = 'review'
-      format = 'htmx'
-      arguments {
-        workspace = ${props.workspaceListItem.name}
-      }
-    }
-    reviewWorkspaceFullUri = Neos.Fusion:ActionUri {
-      action = 'review'
+      format = 'html'
       arguments {
         workspace = ${props.workspaceListItem.name}
       }
@@ -137,8 +131,9 @@ prototype(Neos.Workspace.Ui:Component.WorkspaceTableRow) < prototype(Neos.Fusion
           title={private.i18n.id(props.workspaceListItem.pendingChanges.total ? 'workspaces.reviewWorkspace' : 'workspaces.reviewWorkspace.noChanges').arguments([props.workspaceListItem.title])}
           attributes.disabled={props.workspaceListItem.pendingChanges.total == 0}
           attributes.hx-get={private.reviewWorkspaceUri}
-          attributes.hx-replace-url={private.reviewWorkspaceFullUri}
+          attributes.hx-replace-url={private.reviewWorkspaceUri}
           attributes.hx-target="#workspace-module-content"
+          attributes.hx-select="#workspace-module-content"
           attributes.hx-swap="outerHTML"
         />
         <Neos.Workspace.Ui:Component.Button

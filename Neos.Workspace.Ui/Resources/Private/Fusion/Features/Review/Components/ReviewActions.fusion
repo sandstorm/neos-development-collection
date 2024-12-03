@@ -58,7 +58,7 @@ prototype(Neos.Workspace.Ui:Component.ReviewActions) < prototype(Neos.Fusion:Com
             attributes.hx-get={private.indexWorkspaceUri}
             attributes.hx-replace-url={private.indexWorkspaceUri}
             attributes.hx-select="#workspace-module-content"
-            attributes.hx-target="#workspaceReview"
+            attributes.hx-target="#workspace-module-content"
             attributes.hx-swap="outerHTML"
           />
         </div>
