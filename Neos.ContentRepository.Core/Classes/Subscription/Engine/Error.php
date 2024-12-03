@@ -9,16 +9,16 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 /**
  * @internal implementation detail of the catchup
  */
-final class Error
+final readonly class Error
 {
     private function __construct(
-        public readonly SubscriptionId $subscriptionId,
-        public readonly string $message,
-        public readonly \Throwable $throwable,
+        public SubscriptionId $subscriptionId,
+        public string $message,
+        public \Throwable $throwable,
     ) {
     }
 
-    public static function fromSubscriptionIdAndException(SubscriptionId $subscriptionId, \Throwable $exception): self
+    public static function forSubscription(SubscriptionId $subscriptionId, \Throwable $exception): self
     {
         return new self(
             $subscriptionId,

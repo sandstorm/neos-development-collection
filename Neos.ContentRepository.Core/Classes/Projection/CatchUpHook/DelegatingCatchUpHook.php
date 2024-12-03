@@ -14,7 +14,7 @@ use Neos\EventStore\Model\EventEnvelope;
  *
  * @internal
  */
-final class DelegatingCatchUpHook implements CatchUpHookInterface
+final readonly class DelegatingCatchUpHook implements CatchUpHookInterface
 {
     /**
      * @var CatchUpHookInterface[]
@@ -29,29 +29,62 @@ final class DelegatingCatchUpHook implements CatchUpHookInterface
 
     public function onBeforeCatchUp(SubscriptionStatus $subscriptionStatus): void
     {
-        foreach ($this->catchUpHooks as $catchUpHook) {
-            $catchUpHook->onBeforeCatchUp($subscriptionStatus);
-        }
+        $this->delegateHooks(
+            fn (CatchUpHookInterface $catchUpHook) => $catchUpHook->onBeforeCatchUp($subscriptionStatus),
+            'onBeforeCatchUp'
+        );
     }
 
     public function onBeforeEvent(EventInterface $eventInstance, EventEnvelope $eventEnvelope): void
     {
-        foreach ($this->catchUpHooks as $catchUpHook) {
-            $catchUpHook->onBeforeEvent($eventInstance, $eventEnvelope);
-        }
+        $this->delegateHooks(
+            fn (CatchUpHookInterface $catchUpHook) => $catchUpHook->onBeforeEvent($eventInstance, $eventEnvelope),
+            'onBeforeEvent'
+        );
     }
 
     public function onAfterEvent(EventInterface $eventInstance, EventEnvelope $eventEnvelope): void
     {
-        foreach ($this->catchUpHooks as $catchUpHook) {
-            $catchUpHook->onAfterEvent($eventInstance, $eventEnvelope);
-        }
+        $this->delegateHooks(
+            fn (CatchUpHookInterface $catchUpHook) => $catchUpHook->onAfterEvent($eventInstance, $eventEnvelope),
+            'onAfterEvent'
+        );
     }
 
     public function onAfterCatchUp(): void
     {
+        $this->delegateHooks(
+            fn (CatchUpHookInterface $catchUpHook) => $catchUpHook->onAfterCatchUp(),
+            'onAfterCatchUp'
+        );
+    }
+
+    /**
+     * @param \Closure(CatchUpHookInterface): void $closure
+     * @return void
+     */
+    private function delegateHooks(\Closure $closure, string $hookName): void
+    {
+        /** @var array<\Throwable> $errors */
+        $errors = [];
+        $firstFailedCatchupHook = null;
         foreach ($this->catchUpHooks as $catchUpHook) {
-            $catchUpHook->onAfterCatchUp();
+            try {
+                $closure($catchUpHook);
+            } catch (\Throwable $e) {
+                $firstFailedCatchupHook ??= substr(strrchr($catchUpHook::class, '\\') ?: '', 1);
+                $errors[] = $e;
+            }
+        }
+        if ($errors !== []) {
+            $firstError = array_shift($errors);
+            $additionalMessage = $errors !== [] ? sprintf(' (and %d other)', count($errors)) : '';
+            throw new CatchUpHookFailed(
+                sprintf('Hook "%s"%s failed "%s": %s', $firstFailedCatchupHook, $additionalMessage, $hookName, $firstError->getMessage()),
+                1733243960,
+                $firstError,
+                $errors
+            );
         }
     }
 }

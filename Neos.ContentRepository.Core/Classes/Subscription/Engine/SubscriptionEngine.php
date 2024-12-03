@@ -6,11 +6,9 @@ namespace Neos\ContentRepository\Core\Subscription\Engine;
 
 use Doctrine\DBAL\Exception\TableNotFoundException;
 use Neos\ContentRepository\Core\ContentRepository;
-use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\Service\ContentRepositoryMaintainer;
 use Neos\ContentRepository\Core\Subscription\DetachedSubscriptionStatus;
-use Neos\ContentRepository\Core\Subscription\Exception\CatchUpFailed;
 use Neos\ContentRepository\Core\Subscription\Exception\SubscriptionEngineAlreadyProcessingException;
 use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionCriteria;
@@ -18,14 +16,12 @@ use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
 use Neos\ContentRepository\Core\Subscription\Subscriber\Subscribers;
 use Neos\ContentRepository\Core\Subscription\Subscription;
 use Neos\ContentRepository\Core\Subscription\SubscriptionError;
-use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\Subscriptions;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatusCollection;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatusFilter;
 use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Model\Event\SequenceNumber;
-use Neos\EventStore\Model\EventEnvelope;
 use Neos\EventStore\Model\EventStream\VirtualStreamName;
 use Psr\Log\LoggerInterface;
 
@@ -223,7 +219,7 @@ final class SubscriptionEngine
                 $subscription->position,
                 SubscriptionError::fromPreviousStatusAndException($subscription->status, $e)
             );
-            return Error::fromSubscriptionIdAndException($subscription->id, $e);
+            return Error::forSubscription($subscription->id, $e);
         }
 
         if ($subscription->status === SubscriptionStatus::ACTIVE) {
@@ -248,7 +244,7 @@ final class SubscriptionEngine
             $subscriber->projection->resetState();
         } catch (\Throwable $e) {
             $this->logger?->error(sprintf('Subscription Engine: Subscriber "%s" for "%s" has an error in the resetState method: %s', $subscriber::class, $subscription->id->value, $e->getMessage()));
-            return Error::fromSubscriptionIdAndException($subscription->id, $e);
+            return Error::forSubscription($subscription->id, $e);
         }
         $this->subscriptionStore->update(
             $subscription->id,
@@ -267,7 +263,11 @@ final class SubscriptionEngine
 
         $subscriptionCriteria = SubscriptionCriteria::forEngineCriteriaAndStatus($criteria, $status);
 
-        $result = $this->subscriptionStore->transactional(function () use ($subscriptionCriteria, $progressClosure, &$subscriptionsToInvokeBeforeAndAfterCatchUpHooks) {
+        $numberOfProcessedEvents = 0;
+        /** @var array<Error> $errors */
+        $errors = [];
+
+        $this->subscriptionStore->transactional(function () use ($subscriptionCriteria, $progressClosure, &$subscriptionsToInvokeBeforeAndAfterCatchUpHooks, &$numberOfProcessedEvents, &$errors) {
             $subscriptionsToCatchup = $this->subscriptionStore->findByCriteriaForUpdate($subscriptionCriteria);
             foreach ($subscriptionsToCatchup as $subscription) {
                 if (!$this->subscribers->contain($subscription->id)) {
@@ -285,7 +285,7 @@ final class SubscriptionEngine
 
             if ($subscriptionsToCatchup->isEmpty()) {
                 $this->logger?->info('Subscription Engine: No subscriptions matched criteria. Finishing catch up.');
-                return ProcessedResult::success(0);
+                return;
             }
 
             $subscriptionsToInvokeBeforeAndAfterCatchUpHooks = $subscriptionsToCatchup;
@@ -293,19 +293,13 @@ final class SubscriptionEngine
                 try {
                     $this->subscribers->get($subscription->id)->catchUpHook?->onBeforeCatchUp($subscription->status);
                 } catch (\Throwable $e) {
-                    // analog to onAfterCatchUp, we tolerate no exceptions here and consider it a critical developer error.
-                    $message = sprintf('Subscriber "%s" failed onBeforeCatchUp: %s', $subscription->id->value, $e->getMessage());
-                    $this->logger?->critical($message);
-                    throw new CatchUpFailed($message, 1732374000, $e); // todo throw here or in delegating hook?
+                    $errors[] = Error::forSubscription($subscription->id, $e);
                 }
             }
 
             $startSequenceNumber = $subscriptionsToCatchup->lowestPosition()?->next() ?? SequenceNumber::none();
             $this->logger?->debug(sprintf('Subscription Engine: Event stream is processed from position %s.', $startSequenceNumber->value));
 
-            /** @var array<Error> $errors */
-            $errors = [];
-            $numberOfProcessedEvents = 0;
             /** @var array<string,SequenceNumber> $highestSequenceNumberForSubscriber */
             $highestSequenceNumberForSubscriber = [];
 
@@ -326,14 +320,19 @@ final class SubscriptionEngine
                     }
                     $subscriber = $this->subscribers->get($subscription->id);
 
-                    $subscriber->catchUpHook?->onBeforeEvent($domainEvent, $eventEnvelope);
+                    try {
+                        $subscriber->catchUpHook?->onBeforeEvent($domainEvent, $eventEnvelope);
+                    } catch (\Throwable $e) {
+                        $errors[] = Error::forSubscription($subscription->id, $e);
+                    }
+
                     $this->subscriptionStore->createSavepoint();
                     try {
                         $subscriber->projection->apply($domainEvent, $eventEnvelope);
                     } catch (\Throwable $e) {
                         // ERROR Case:
                         $this->logger?->error(sprintf('Subscription Engine: Subscriber "%s" for "%s" could not process the event "%s" (sequence number: %d): %s', $subscriber::class, $subscription->id->value, $eventEnvelope->event->type->value, $eventEnvelope->sequenceNumber->value, $e->getMessage()));
-                        $error = Error::fromSubscriptionIdAndException($subscription->id, $e);
+                        $error = Error::forSubscription($subscription->id, $e);
 
                         // 1.) roll back the partially applied event on the subscriber
                         $this->subscriptionStore->rollbackSavepoint();
@@ -357,7 +356,11 @@ final class SubscriptionEngine
                     $this->subscriptionStore->releaseSavepoint();
                     $highestSequenceNumberForSubscriber[$subscription->id->value] = $eventEnvelope->sequenceNumber;
 
-                    $subscriber->catchUpHook?->onAfterEvent($domainEvent, $eventEnvelope);
+                    try {
+                        $subscriber->catchUpHook?->onAfterEvent($domainEvent, $eventEnvelope);
+                    } catch (\Throwable $e) {
+                        $errors[] = Error::forSubscription($subscription->id, $e);
+                    }
                 }
                 $numberOfProcessedEvents++;
             }
@@ -375,7 +378,6 @@ final class SubscriptionEngine
                 }
             }
             $this->logger?->info(sprintf('Subscription Engine: Finish catch up. %d processed events %d errors.', $numberOfProcessedEvents, count($errors)));
-            return $errors === [] ? ProcessedResult::success($numberOfProcessedEvents) : ProcessedResult::failed($numberOfProcessedEvents, Errors::fromArray($errors));
         });
 
         // todo do we need want to invoke for failed projections onAfterCatchUp, as onBeforeCatchUp was invoked already and to be consistent to "shutdown" this catchup iteration?
@@ -384,14 +386,11 @@ final class SubscriptionEngine
             try {
                 $this->subscribers->get($subscription->id)->catchUpHook?->onAfterCatchUp();
             } catch (\Throwable $e) {
-                // analog to onBeforeCatchUp, we tolerate no exceptions here and consider it a critical developer error.
-                $message = sprintf('Subscriber "%s" failed onAfterCatchUp: %s', $subscription->id->value, $e->getMessage());
-                $this->logger?->critical($message);
-                throw new CatchUpFailed($message, 1732374000, $e);
+                $errors[] = Error::forSubscription($subscription->id, $e);
             }
         }
 
-        return $result;
+        return $errors === [] ? ProcessedResult::success($numberOfProcessedEvents) : ProcessedResult::failed($numberOfProcessedEvents, Errors::fromArray($errors));
     }
 
     /**
