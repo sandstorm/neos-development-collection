@@ -19,14 +19,14 @@ Neos.Workspace.Ui.WorkspaceController.index = Neos.Fusion:Component {
     @subject = ${request.format}
     @default = afx`
       <section
+        id="workspace-module-content"
         hx-indicator="#indicator"
         hx-boost="true"
-        id="workspace-module-content"
       >
         <Neos.Workspace.Ui:Component.HTMXConfig/>
         <Neos.Workspace.Ui:Component.FlashMessages flashMessages={props.flashMessages}/>
         <Neos.Workspace.Ui:Component.Indicator/>
-        <main class="neos-content neos-container-fluid">
+        <main class="neos-content neos-container-fluid" id="workspace-module-swap-me">
           <div class="neos-row-fluid">
             <Neos.Workspace.Ui:Component.WorkspaceTable
               userWorkspaceName={props.userWorkspaceName}
@@ -54,7 +54,7 @@ Neos.Workspace.Ui.WorkspaceController.index = Neos.Fusion:Component {
       </section>
       <div id="popover-container"></div>
     `
-    // TODO: we should put the count into the htmx rendered content as well
+
     htmx = afx`
       <Neos.Workspace.Ui:Component.FlashMessages flashMessages={props.flashMessages}/>
       <Neos.Workspace.Ui:Component.WorkspaceCount

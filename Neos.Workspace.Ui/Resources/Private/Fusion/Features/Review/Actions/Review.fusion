@@ -22,9 +22,9 @@ Neos.Workspace.Ui.WorkspaceController.review = Neos.Fusion:Component {
 
   renderer = afx`
       <section
+        id='workspaceReview'
         hx-indicator="#indicator"
         hx-boost="true"
-        id='workspaceReview'
       >
         <Neos.Workspace.Ui:Component.HTMXConfig/>
         <Neos.Workspace.Ui:Component.FlashMessages flashMessages={props.flashMessages}/>
