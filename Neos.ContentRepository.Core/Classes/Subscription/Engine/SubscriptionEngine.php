@@ -87,8 +87,8 @@ final class SubscriptionEngine
                     SubscriptionCriteria::forEngineCriteriaAndStatus($criteria, SubscriptionStatus::BOOTING)
                 );
                 return $this->catchUpSubscriptions($subscriptionsToCatchup, $progressCallback);
-            })
-        );
+            }
+        ));
     }
 
     public function catchUpActive(SubscriptionEngineCriteria|null $criteria = null, \Closure $progressCallback = null): ProcessedResult
@@ -101,8 +101,8 @@ final class SubscriptionEngine
                     SubscriptionCriteria::forEngineCriteriaAndStatus($criteria, SubscriptionStatus::ACTIVE)
                 );
                 return $this->catchUpSubscriptions($subscriptionsToCatchup, $progressCallback);
-            })
-        );
+            }
+        ));
     }
 
     public function reactivate(SubscriptionEngineCriteria|null $criteria = null, \Closure $progressCallback = null): ProcessedResult
@@ -118,8 +118,8 @@ final class SubscriptionEngine
                     ]))
                 );
                 return $this->catchUpSubscriptions($subscriptionsToCatchup, $progressCallback);
-            })
-        );
+            }
+        ));
     }
 
     public function reset(SubscriptionEngineCriteria|null $criteria = null): Result
