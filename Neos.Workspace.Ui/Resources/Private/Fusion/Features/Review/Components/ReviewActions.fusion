@@ -12,6 +12,7 @@ prototype(Neos.Workspace.Ui:Component.ReviewActions) < prototype(Neos.Fusion:Com
     i18n = ${I18n.id('').source('Main').package('Neos.Workspace.Ui')}
     indexWorkspaceUri = Neos.Fusion:ActionUri {
       action = 'index'
+      format = 'html'
     }
     confirmDiscardAllChanges = Neos.Fusion:ActionUri {
       action = 'confirmDiscardAllChanges'
@@ -55,9 +56,10 @@ prototype(Neos.Workspace.Ui:Component.ReviewActions) < prototype(Neos.Fusion:Com
             icon="fas fa-chevron-left"
             label={props.i18n.id('back')}
             attributes.hx-get={private.indexWorkspaceUri}
-            attributes.hx-target="body"
-            attributes.hx-swap="innerHTML"
             attributes.hx-replace-url={private.indexWorkspaceUri}
+            attributes.hx-select="#workspace-module-content"
+            attributes.hx-target="#workspaceReview"
+            attributes.hx-swap="outerHTML"
           />
         </div>
         <div class="neos-pull-right workspace-action" @if={props.hasSiteChanges}>
