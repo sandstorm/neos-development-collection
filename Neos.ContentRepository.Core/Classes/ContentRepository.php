@@ -41,6 +41,7 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
+use Neos\ContentRepository\Core\Subscription\Exception\CatchUpHadErrors;
 use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Exception\ConcurrencyException;
 use Psr\Clock\ClockInterface;
@@ -98,7 +99,9 @@ final class ContentRepository
             $eventsToPublish = $this->enrichEventsToPublishWithMetadata($toPublish);
             $this->eventStore->commit($eventsToPublish->streamName, $this->eventNormalizer->normalizeEvents($eventsToPublish->events), $eventsToPublish->expectedVersion);
             $catchUpResult = $this->subscriptionEngine->catchUpActive();
-            $catchUpResult->throwOnFailure();
+            if ($catchUpResult->hadErrors()) {
+                throw CatchUpHadErrors::createFromErrors($catchUpResult->errors);
+            }
             return;
         }
 
@@ -128,7 +131,9 @@ final class ContentRepository
             // We always NEED to catchup even if there was an unexpected ConcurrencyException to make sure previous commits are handled.
             // Technically it would be acceptable for the catchup to fail here (due to hook errors) because all the events are already persisted.
             $catchUpResult = $this->subscriptionEngine->catchUpActive();
-            $catchUpResult->throwOnFailure();
+            if ($catchUpResult->hadErrors()) {
+                throw CatchUpHadErrors::createFromErrors($catchUpResult->errors);
+            }
         }
     }
 

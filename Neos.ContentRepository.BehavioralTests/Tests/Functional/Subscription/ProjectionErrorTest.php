@@ -14,6 +14,7 @@ use Neos\ContentRepository\Core\Subscription\Engine\Errors;
 use Neos\ContentRepository\Core\Subscription\Engine\ProcessedResult;
 use Neos\ContentRepository\Core\Subscription\Engine\Result;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
+use Neos\ContentRepository\Core\Subscription\Exception\CatchUpHadErrors;
 use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionError;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
@@ -107,7 +108,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
         );
 
         $result = $this->subscriptionEngine->catchUpActive();
-        self::assertTrue($result->hasFailed());
+        self::assertTrue($result->hadErrors());
 
         self::assertEquals(
             $expectedFailure,
@@ -161,7 +162,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
         // catchup active tries to apply the commited event
         $result = $this->subscriptionEngine->catchUpActive();
         // but fails
-        self::assertTrue($result->hasFailed());
+        self::assertTrue($result->hadErrors());
         self::assertEquals($expectedFailure, $this->subscriptionStatus('Vendor.Package:SecondFakeProjection'));
 
         // a second catchup active does not change anything
@@ -207,7 +208,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
 
         // but booting will rethrow that error :D
         $result = $this->subscriptionEngine->boot();
-        self::assertTrue($result->hasFailed());
+        self::assertTrue($result->hadErrors());
         self::assertEquals(
             ProjectionSubscriptionStatus::create(
                 subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
@@ -309,7 +310,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
         );
 
         $result = $this->subscriptionEngine->catchUpActive();
-        self::assertTrue($result->hasFailed());
+        self::assertTrue($result->hadErrors());
 
         $expectedFailure = ProjectionSubscriptionStatus::create(
             subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
@@ -367,7 +368,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
         } catch (\RuntimeException $exception) {
             $handleException = $exception;
         }
-        self::assertNotNull($handleException);
+        self::assertInstanceOf(CatchUpHadErrors::class, $exception);
         self::assertEquals('Exception in subscriber "Vendor.Package:FakeProjection" while catching up: This projection is kaputt.', $handleException->getMessage());
         self::assertSame($originalException, $handleException->getPrevious());
 
