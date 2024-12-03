@@ -233,7 +233,7 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
         }
         self::assertInstanceOf(CatchUpFailed::class, $expectedFailure);
 
-        self::assertSame($expectedFailure->getMessage(), 'Subscriber "Vendor.Package:SecondFakeProjection" had an error and also failed onAfterCatchUp: This catchup hook is kaputt.');
+        self::assertSame($expectedFailure->getMessage(), 'Subscriber "Vendor.Package:SecondFakeProjection" failed onAfterCatchUp: This catchup hook is kaputt.');
 
         $expectedFailure = ProjectionSubscriptionStatus::create(
             subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
