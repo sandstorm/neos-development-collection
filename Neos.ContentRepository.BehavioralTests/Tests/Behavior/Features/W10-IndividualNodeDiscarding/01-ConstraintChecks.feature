@@ -72,7 +72,7 @@ Feature: Workspace discarding - complex chained functionality
       | workspaceName      | "user-ws"                                                                                                                                                                                                                                    |
       | nodesToDiscard     | ["sir-david-nodenborough", "sir-david-nodenborough"] |
       | newContentStreamId | "user-cs-id-rebased"                                                                                                                                                                                                                         |
-    Then the last command should have thrown the WorkspaceRebaseFailed exception with:
+    Then the last command should have thrown the PartialWorkspaceRebaseFailed exception with:
       | SequenceNumber | Event                               | Exception                                             |
       | 11             | NodeGeneralizationVariantWasCreated | NodeAggregateDoesCurrentlyNotCoverDimensionSpacePoint |
 
