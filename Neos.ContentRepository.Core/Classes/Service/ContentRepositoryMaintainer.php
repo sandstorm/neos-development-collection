@@ -70,6 +70,8 @@ use Doctrine\DBAL\Exception as DBALException;
  */
 final readonly class ContentRepositoryMaintainer implements ContentRepositoryServiceInterface
 {
+    private const REPLAY_BATCH_SIZE = 500;
+
     /**
      * @internal please use the {@see ContentRepositoryMaintainerFactory} instead!
      */
@@ -127,7 +129,7 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
         if ($resetResult->errors !== null) {
             return self::createErrorForReason('Reset failed:', $resetResult->errors);
         }
-        $bootResult = $this->subscriptionEngine->boot(SubscriptionEngineCriteria::create([$subscriptionId]), $progressCallback);
+        $bootResult = $this->subscriptionEngine->boot(SubscriptionEngineCriteria::create([$subscriptionId]), progressCallback: $progressCallback, batchSize: self::REPLAY_BATCH_SIZE);
         if ($bootResult->errors !== null) {
             return self::createErrorForReason('Catchup failed:', $bootResult->errors);
         }
@@ -140,7 +142,7 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
         if ($resetResult->errors !== null) {
             return self::createErrorForReason('Reset failed:', $resetResult->errors);
         }
-        $bootResult = $this->subscriptionEngine->boot(progressCallback: $progressCallback);
+        $bootResult = $this->subscriptionEngine->boot(progressCallback: $progressCallback, batchSize: self::REPLAY_BATCH_SIZE);
         if ($bootResult->errors !== null) {
             return self::createErrorForReason('Catchup failed:', $bootResult->errors);
         }
@@ -163,7 +165,7 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
         if ($subscriptionStatus->subscriptionStatus === SubscriptionStatus::NEW) {
             return new Error(sprintf('Subscription "%s" is not setup and cannot be reactivated.', $subscriptionId->value));
         }
-        $reactivateResult = $this->subscriptionEngine->reactivate(SubscriptionEngineCriteria::create([$subscriptionId]), $progressCallback);
+        $reactivateResult = $this->subscriptionEngine->reactivate(SubscriptionEngineCriteria::create([$subscriptionId]), progressCallback: $progressCallback, batchSize: self::REPLAY_BATCH_SIZE);
         if ($reactivateResult->errors !== null) {
             return self::createErrorForReason('Could not reactivate subscriber:', $reactivateResult->errors);
         }

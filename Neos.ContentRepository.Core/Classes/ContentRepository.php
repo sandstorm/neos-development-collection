@@ -98,9 +98,9 @@ final class ContentRepository
         if ($toPublish instanceof EventsToPublish) {
             $eventsToPublish = $this->enrichEventsToPublishWithMetadata($toPublish);
             $this->eventStore->commit($eventsToPublish->streamName, $this->eventNormalizer->normalizeEvents($eventsToPublish->events), $eventsToPublish->expectedVersion);
-            $catchUpResult = $this->subscriptionEngine->catchUpActive();
-            if ($catchUpResult->hadErrors()) {
-                throw CatchUpHadErrors::createFromErrors($catchUpResult->errors);
+            $fullCatchUpResult = $this->subscriptionEngine->catchUpActive(); // NOTE: we don't batch here, to ensure the catchup is run completely and any errors don't stop it.
+            if ($fullCatchUpResult->hadErrors()) {
+                throw CatchUpHadErrors::createFromErrors($fullCatchUpResult->errors);
             }
             return;
         }
@@ -115,7 +115,7 @@ final class ContentRepository
                     // we pass the exception into the generator (->throw), so it could be try-caught and reacted upon:
                     //
                     //   try {
-                    //      yield EventsToPublish(...);
+                    //      yield new EventsToPublish(...);
                     //   } catch (ConcurrencyException $e) {
                     //      yield $this->reopenContentStream();
                     //      throw $e;
@@ -130,9 +130,9 @@ final class ContentRepository
         } finally {
             // We always NEED to catchup even if there was an unexpected ConcurrencyException to make sure previous commits are handled.
             // Technically it would be acceptable for the catchup to fail here (due to hook errors) because all the events are already persisted.
-            $catchUpResult = $this->subscriptionEngine->catchUpActive();
-            if ($catchUpResult->hadErrors()) {
-                throw CatchUpHadErrors::createFromErrors($catchUpResult->errors);
+            $fullCatchUpResult = $this->subscriptionEngine->catchUpActive(); // NOTE: we don't batch here, to ensure the catchup is run completely and any errors don't stop it.
+            if ($fullCatchUpResult->hadErrors()) {
+                throw CatchUpHadErrors::createFromErrors($fullCatchUpResult->errors);
             }
         }
     }

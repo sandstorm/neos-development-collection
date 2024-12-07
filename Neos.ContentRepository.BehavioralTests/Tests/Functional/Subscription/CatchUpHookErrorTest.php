@@ -307,4 +307,57 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
             $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
         );
     }
+
+    /** @test */
+    public function error_onAfterEvent_stopsEngineAfterFirstBatch()
+    {
+        $this->eventStore->setup();
+        $this->fakeProjection->expects(self::once())->method('setUp');
+        $this->fakeProjection->expects(self::once())->method('apply');
+        $this->subscriptionEngine->setup();
+
+        // commit two events. we expect that the hook will throw the first event and due to the batching its halted
+        $this->commitExampleContentStreamEvent();
+        $this->commitExampleContentStreamEvent();
+
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::BOOTING);
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class));
+        $exception = new \RuntimeException('This catchup hook is kaputt.');
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterEvent')->willThrowException(
+            $exception
+        );
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp');
+
+        self::assertEmpty(
+            $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
+        );
+
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::fromInteger(0));
+
+        $expectedWrappedException = new CatchUpHookFailed(
+            'Hook "" failed "onAfterEvent": This catchup hook is kaputt.',
+            1733243960,
+            $exception,
+            []
+        );
+
+        // one error
+        $result = $this->subscriptionEngine->boot(batchSize: 1);
+        self::assertEquals(
+            ProcessedResult::failed(
+                1,
+                Errors::fromArray([
+                    Error::forSubscription(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $expectedWrappedException),
+                ])
+            ),
+            $result
+        );
+
+        // only one event is applied
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::fromInteger(1));
+        self::assertEquals(
+            [SequenceNumber::fromInteger(1)],
+            $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
+        );
+    }
 }
