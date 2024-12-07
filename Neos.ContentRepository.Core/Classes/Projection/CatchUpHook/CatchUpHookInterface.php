@@ -53,6 +53,17 @@ interface CatchUpHookInterface
     public function onAfterEvent(EventInterface $eventInstance, EventEnvelope $eventEnvelope): void;
 
     /**
+     * This hook is called for each batch of processed events during the catchup process, **after** the projection
+     * is updated and the transaction is commited.
+     *
+     * It can happen that this method is called even without having seen Events in the meantime.
+     *
+     * If there exist more events which need to be processed, the database lock
+     * is directly acquired again after it is released.
+     */
+    public function onAfterBatchCompleted(): void;
+
+    /**
      * This hook is called at the END of a catch-up run
      * BEFORE the Database Lock is released, but AFTER the transaction is commited.
      *

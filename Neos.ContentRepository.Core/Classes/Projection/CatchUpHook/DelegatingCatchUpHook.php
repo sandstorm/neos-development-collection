@@ -51,6 +51,14 @@ final readonly class DelegatingCatchUpHook implements CatchUpHookInterface
         );
     }
 
+    public function onAfterBatchCompleted(): void
+    {
+        $this->delegateHooks(
+            fn (CatchUpHookInterface $catchUpHook) => $catchUpHook->onAfterBatchCompleted(),
+            'onAfterBatchCompleted'
+        );
+    }
+
     public function onAfterCatchUp(): void
     {
         $this->delegateHooks(

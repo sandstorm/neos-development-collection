@@ -37,6 +37,10 @@ final class FlushSubgraphCachePoolCatchUpHook implements CatchUpHookInterface
         $this->subgraphCachePool->reset();
     }
 
+    public function onAfterBatchCompleted(): void
+    {
+    }
+
     public function onAfterCatchUp(): void
     {
         $this->subgraphCachePool->reset();

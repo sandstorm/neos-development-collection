@@ -43,6 +43,7 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
             throw $exception;
         });
         $this->catchupHookForFakeProjection->expects(self::exactly(2))->method('onAfterEvent');
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterBatchCompleted');
         $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp');
 
         self::assertEmpty(
@@ -100,7 +101,8 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
             };
             throw $exception;
         });
-        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp'); // todo asset no parameters!
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterBatchCompleted');
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp'); // todo assert no parameters?!
 
         self::assertEmpty(
             $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
@@ -154,6 +156,7 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
         );
         $this->catchupHookForFakeProjection->expects(self::exactly(2))->method('onBeforeEvent');
         $this->catchupHookForFakeProjection->expects(self::exactly(2))->method('onAfterEvent');
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterBatchCompleted');
         $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp');
 
         self::assertEmpty(
@@ -162,6 +165,59 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
 
         $expectedWrappedException = new CatchUpHookFailed(
             'Hook "" failed "onBeforeCatchUp": This catchup hook is kaputt.',
+            1733243960,
+            $exception,
+            []
+        );
+
+        $result = $this->subscriptionEngine->catchUpActive();
+        self::assertEquals(
+            ProcessedResult::failed(
+                2,
+                Errors::fromArray([
+                    Error::forSubscription(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $expectedWrappedException),
+                ])
+            ),
+            $result
+        );
+
+        // both events are applied still
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(2));
+        self::assertEquals(
+            [SequenceNumber::fromInteger(1), SequenceNumber::fromInteger(2)],
+            $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
+        );
+    }
+
+    /** @test */
+    public function error_onAfterBatchCompleted_isIgnoredAndCollected()
+    {
+        $this->eventStore->setup();
+        $this->fakeProjection->expects(self::once())->method('setUp');
+        $this->fakeProjection->expects(self::exactly(2))->method('apply');
+        $this->subscriptionEngine->setup();
+        $this->subscriptionEngine->boot();
+
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+
+        // commit two events. we expect that the hook will throw for both events but the catchup is NOT halted
+        $this->commitExampleContentStreamEvent();
+        $this->commitExampleContentStreamEvent();
+
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeCatchUp');
+        $this->catchupHookForFakeProjection->expects(self::exactly(2))->method('onBeforeEvent');
+        $this->catchupHookForFakeProjection->expects(self::exactly(2))->method('onAfterEvent');
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterBatchCompleted')->willThrowException(
+            $exception = new \RuntimeException('This catchup hook is kaputt.')
+        );
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp');
+
+        self::assertEmpty(
+            $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
+        );
+
+        $expectedWrappedException = new CatchUpHookFailed(
+            'Hook "" failed "onAfterBatchCompleted": This catchup hook is kaputt.',
             1733243960,
             $exception,
             []
@@ -204,6 +260,7 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
         $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeCatchUp');
         $this->catchupHookForFakeProjection->expects(self::exactly(2))->method('onBeforeEvent');
         $this->catchupHookForFakeProjection->expects(self::exactly(2))->method('onAfterEvent');
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterBatchCompleted');
         // todo test that other catchup hooks are still run and all errors are collected!
         $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp')->willThrowException(
             $exception = new \RuntimeException('This catchup hook is kaputt.')
@@ -258,6 +315,7 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
         // only the onBeforeEvent hook will be invoked as afterward the projection errored
         $this->catchupHookForFakeProjection->expects(self::exactly(1))->method('onBeforeEvent');
         $this->catchupHookForFakeProjection->expects(self::never())->method('onAfterEvent');
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterBatchCompleted');
         $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp')->willThrowException(
             $exception = new \RuntimeException('This catchup hook is kaputt.')
         );
@@ -326,6 +384,7 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
         $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterEvent')->willThrowException(
             $exception
         );
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterBatchCompleted');
         $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp');
 
         self::assertEmpty(

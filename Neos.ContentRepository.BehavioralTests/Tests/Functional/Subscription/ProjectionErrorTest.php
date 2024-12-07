@@ -393,4 +393,39 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
             $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
         );
     }
+
+    /** @test */
+    public function projectionError_stopsEngineAfterFirstBatch()
+    {
+        $this->eventStore->setup();
+        $this->fakeProjection->expects(self::once())->method('setUp');
+        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
+        $this->subscriptionEngine->setup();
+        $this->expectOkayStatus('contentGraph', SubscriptionStatus::BOOTING, SequenceNumber::none());
+        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::none());
+
+        // commit two events
+        $this->commitExampleContentStreamEvent();
+        $this->commitExampleContentStreamEvent();
+
+        $this->fakeProjection->expects(self::once())->method('apply')->with(self::isInstanceOf(ContentStreamWasCreated::class))->willThrowException(
+            $exception = new \RuntimeException('This projection is kaputt.')
+        );
+        $expectedStatusForFailedProjection = ProjectionSubscriptionStatus::create(
+            subscriptionId: SubscriptionId::fromString('Vendor.Package:FakeProjection'),
+            subscriptionStatus: SubscriptionStatus::ERROR,
+            subscriptionPosition: SequenceNumber::none(),
+            subscriptionError: SubscriptionError::fromPreviousStatusAndException(SubscriptionStatus::BOOTING, $exception),
+            setupStatus: ProjectionStatus::ok(),
+        );
+
+        $result = $this->subscriptionEngine->boot(batchSize: 1);
+        self::assertEquals(ProcessedResult::failed(1, Errors::fromArray([Error::forSubscription(SubscriptionId::fromString('Vendor.Package:FakeProjection'), $exception)])), $result);
+
+        self::assertEquals(
+            $expectedStatusForFailedProjection,
+            $this->subscriptionStatus('Vendor.Package:FakeProjection')
+        );
+        $this->expectOkayStatus('contentGraph', SubscriptionStatus::BOOTING, SequenceNumber::fromInteger(1));
+    }
 }

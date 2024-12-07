@@ -37,6 +37,7 @@ final class CatchUpHookTest extends AbstractSubscriptionEngineTestCase
         $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::ACTIVE)->willReturnCallback($expectNoHandledEvents);
         $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class))->willReturnCallback($expectNoHandledEvents);
         $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class))->willReturnCallback($expectOneHandledEvent);
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterBatchCompleted')->willReturnCallback($expectOneHandledEvent);
         $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp')->willReturnCallback($expectOneHandledEvent);
 
         $expectNoHandledEvents();
@@ -60,6 +61,7 @@ final class CatchUpHookTest extends AbstractSubscriptionEngineTestCase
         $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::BOOTING);
         $this->catchupHookForFakeProjection->expects(self::never())->method('onBeforeEvent');
         $this->catchupHookForFakeProjection->expects(self::never())->method('onAfterEvent');
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterBatchCompleted');
         $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp');
 
         $result = $this->subscriptionEngine->boot();
@@ -80,6 +82,7 @@ final class CatchUpHookTest extends AbstractSubscriptionEngineTestCase
         $this->catchupHookForFakeProjection->expects(self::never())->method('onBeforeCatchUp');
         $this->catchupHookForFakeProjection->expects(self::never())->method('onBeforeEvent');
         $this->catchupHookForFakeProjection->expects(self::never())->method('onAfterEvent');
+        $this->catchupHookForFakeProjection->expects(self::never())->method('onAfterBatchCompleted');
         $this->catchupHookForFakeProjection->expects(self::never())->method('onAfterCatchUp');
 
         $result = $this->subscriptionEngine->catchUpActive();
@@ -92,18 +95,51 @@ final class CatchUpHookTest extends AbstractSubscriptionEngineTestCase
 
     public function provideValidBatchSizes(): iterable
     {
-        yield 'none' => [null];
-        yield 'one' => [1];
-        yield 'two' => [2];
-        yield 'four' => [4];
-        yield 'ten' => [10];
+        yield 'none' => [
+            'batchSize' => null,
+            'onAfterBatchCompletedInvocations' => [
+                [1,2,3,4]
+            ],
+        ];
+        yield 'one' => [
+            'batchSize' => 1,
+            'onAfterBatchCompletedInvocations' =>  [
+                [1],
+                [1,2],
+                [1,2,3],
+                [1,2,3,4],
+                [1,2,3,4],
+            ],
+        ];
+        yield 'two' => [
+            'batchSize' => 2,
+            'onAfterBatchCompletedInvocations' => [
+                [1,2],
+                [1,2,3,4],
+                [1,2,3,4],
+            ],
+        ];
+        yield 'four' => [
+            'batchSize' => 4,
+            // we have two calls as the batch size exactly matches the events and we are running again to see if we handled everything.
+            'onAfterBatchCompletedInvocations' => [
+                [1,2,3,4],
+                [1,2,3,4],
+            ],
+        ];
+        yield 'ten' => [
+            'batchSize' => 10,
+            'onAfterBatchCompletedInvocations' => [
+                [1,2,3,4],
+            ],
+        ];
     }
 
     /**
      * @dataProvider provideValidBatchSizes
      * @test
      */
-    public function catchUpHooksWithBatching(int|null $batchSize)
+    public function catchUpHooksWithBatching(int|null $batchSize, array $onAfterBatchCompletedInvocations)
     {
         $this->eventStore->setup();
         $this->fakeProjection->expects(self::once())->method('setUp');
@@ -156,6 +192,9 @@ final class CatchUpHookTest extends AbstractSubscriptionEngineTestCase
                     self::assertEquals([1,2,3,4], $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues())
                 ],
             };
+        });
+        $this->catchupHookForFakeProjection->expects($i = self::exactly(\count($onAfterBatchCompletedInvocations)))->method('onAfterBatchCompleted')->willReturnCallback(function () use ($i, $onAfterBatchCompletedInvocations) {
+            self::assertEquals($onAfterBatchCompletedInvocations[$i->getInvocationCount() - 1], $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues());
         });
         $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp');
 

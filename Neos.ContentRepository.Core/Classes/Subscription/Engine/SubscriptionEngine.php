@@ -267,7 +267,7 @@ final class SubscriptionEngine
         }
 
         $this->logger?->info(sprintf('Subscription Engine: Start catching up subscriptions in states %s.', join(',', $status->toStringArray())));
-        $subscriptionsToInvokeBeforeAndAfterCatchUpHooks = Subscriptions::none();
+        $subscriptionsToInvokeAroundCatchUpHooks = Subscriptions::none();
 
         $subscriptionCriteria = SubscriptionCriteria::forEngineCriteriaAndStatus($criteria, $status);
 
@@ -280,7 +280,7 @@ final class SubscriptionEngine
              * If batching is enabled, the {@see $continueBatching} flag will indicate that the last run was stopped and continuation is necessary to handle the rest of the events.
              * It's possible that batching stops at the last event, in that case the transaction is still reopened to set the active state correctly.
              */
-            $continueBatching = $this->subscriptionStore->transactional(function () use ($subscriptionCriteria, $progressCallback, $batchSize, &$subscriptionsToInvokeBeforeAndAfterCatchUpHooks, &$numberOfProcessedEvents, &$errors) {
+            $continueBatching = $this->subscriptionStore->transactional(function () use ($subscriptionCriteria, $progressCallback, $batchSize, &$subscriptionsToInvokeAroundCatchUpHooks, &$numberOfProcessedEvents, &$errors) {
                 $subscriptionsToCatchup = $this->subscriptionStore->findByCriteriaForUpdate($subscriptionCriteria);
                 if ($numberOfProcessedEvents === 0) {
                     // first batch
@@ -303,8 +303,8 @@ final class SubscriptionEngine
                         return false;
                     }
 
-                    $subscriptionsToInvokeBeforeAndAfterCatchUpHooks = $subscriptionsToCatchup;
-                    foreach ($subscriptionsToInvokeBeforeAndAfterCatchUpHooks as $subscription) {
+                    $subscriptionsToInvokeAroundCatchUpHooks = $subscriptionsToCatchup;
+                    foreach ($subscriptionsToInvokeAroundCatchUpHooks as $subscription) {
                         try {
                             $this->subscribers->get($subscription->id)->catchUpHook?->onBeforeCatchUp($subscription->status);
                         } catch (\Throwable $e) {
@@ -402,6 +402,13 @@ final class SubscriptionEngine
                 $this->logger?->info(sprintf('Subscription Engine: Finish catch up. %d processed events %d errors.', $numberOfProcessedEvents, count($errors)));
                 return $continueBatching;
             });
+            foreach ($subscriptionsToInvokeAroundCatchUpHooks as $subscription) {
+                try {
+                    $this->subscribers->get($subscription->id)->catchUpHook?->onAfterBatchCompleted();
+                } catch (\Throwable $e) {
+                    $errors[] = Error::forSubscription($subscription->id, $e);
+                }
+            }
             if ($errors !== []) {
                 break;
             }
@@ -409,7 +416,7 @@ final class SubscriptionEngine
 
         // todo do we need want to invoke for failed projections onAfterCatchUp, as onBeforeCatchUp was invoked already and to be consistent to "shutdown" this catchup iteration?
         // note that a catchup error in onAfterEvent would bubble up directly and never invoke onAfterCatchUp
-        foreach ($subscriptionsToInvokeBeforeAndAfterCatchUpHooks as $subscription) {
+        foreach ($subscriptionsToInvokeAroundCatchUpHooks as $subscription) {
             try {
                 $this->subscribers->get($subscription->id)->catchUpHook?->onAfterCatchUp();
             } catch (\Throwable $e) {
