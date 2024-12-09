@@ -209,26 +209,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             $workspaceContentStreamVersion
         );
 
-        yield from $this->publishWorkspace(
-            $workspace,
-            $baseWorkspace,
-            $baseWorkspaceContentStreamVersion,
-            $command->newContentStreamId,
-            $rebaseableCommands
-        );
-    }
-
-    /**
-     * Note that the workspaces content stream must be closed beforehand.
-     * It will be reopened here in case of error.
-     */
-    private function publishWorkspace(
-        Workspace $workspace,
-        Workspace $baseWorkspace,
-        Version $baseWorkspaceContentStreamVersion,
-        ContentStreamId $newContentStreamId,
-        RebaseableCommands $rebaseableCommands
-    ): \Generator {
         $commandSimulator = $this->commandSimulatorFactory->createSimulatorForWorkspace($baseWorkspace->workspaceName);
 
         $commandSimulator->run(
@@ -267,7 +247,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         }
 
         yield $this->forkContentStream(
-            $newContentStreamId,
+            $command->newContentStreamId,
             $baseWorkspace->currentContentStreamId,
             Version::fromInteger($baseWorkspaceContentStreamVersion->value + $eventsOfWorkspaceToPublish->count())
         );
@@ -278,7 +258,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                 new WorkspaceWasPublished(
                     $workspace->workspaceName,
                     $baseWorkspace->workspaceName,
-                    $newContentStreamId,
+                    $command->newContentStreamId,
                     $workspace->currentContentStreamId,
                 )
             ),
@@ -474,18 +454,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             $workspace->currentContentStreamId,
             $workspaceContentStreamVersion
         );
-
-        if ($remainingCommands->isEmpty()) {
-            // do a full publish, this is simpler for the projections to handle
-            yield from $this->publishWorkspace(
-                $workspace,
-                $baseWorkspace,
-                $baseWorkspaceContentStreamVersion,
-                $command->contentStreamIdForRemainingPart,
-                $matchingCommands
-            );
-            return;
-        }
 
         $commandSimulator = $this->commandSimulatorFactory->createSimulatorForWorkspace($baseWorkspace->workspaceName);
 

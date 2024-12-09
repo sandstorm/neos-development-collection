@@ -100,6 +100,13 @@ Feature: Discard individual nodes (basics)
       | newContentStreamId | "user-cs-identifier-new"                                                                                     |
     Then I expect the content stream "user-cs-identifier" to not exist
 
+    Then I expect exactly 2 events to be published on stream with prefix "Workspace:user-test"
+    And event at index 1 is of type "WorkspaceWasDiscarded" with payload:
+      | Key                     | Expected                 |
+      | workspaceName           | "user-test"              |
+      | newContentStreamId      | "user-cs-identifier-new" |
+      | previousContentStreamId | "user-cs-identifier"     |
+
     When I am in workspace "user-test" and dimension space point {}
     Then I expect node aggregate identifier "sir-david-nodenborough" to lead to node user-cs-identifier-new;sir-david-nodenborough;{}
     And I expect this node to have the following properties:
@@ -159,7 +166,6 @@ Feature: Discard individual nodes (basics)
       | nodesToDiscard     | ["sir-david-nodenborough", "nody-mc-nodeface", "sir-nodeward-nodington-iii"] |
       | newContentStreamId | "user-cs-identifier-new"                                                                                                                                                                                                                                                                                               |
 
-    # when discarding all nodes we expect a full discard via WorkspaceWasDiscarded
     Then I expect exactly 2 events to be published on stream with prefix "Workspace:user-test"
     And event at index 1 is of type "WorkspaceWasDiscarded" with payload:
       | Key                     | Expected                 |

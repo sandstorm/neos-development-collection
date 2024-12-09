@@ -57,6 +57,14 @@ Feature: Individual node publication
       | nodesToPublish                  | ["sir-david-nodenborough"] |
       | contentStreamIdForRemainingPart | "user-cs-identifier-remaining"                                                                           |
 
+    Then I expect exactly 2 events to be published on stream with prefix "Workspace:user-test"
+    And event at index 1 is of type "WorkspaceWasPublished" with payload:
+      | Key                           | Expected                       |
+      | sourceWorkspaceName           | "user-test"                    |
+      | targetWorkspaceName           | "live"                         |
+      | newSourceContentStreamId      | "user-cs-identifier-remaining" |
+      | previousSourceContentStreamId | "user-cs-identifier"           |
+
     And I am in workspace "live"
 
     Then I expect a node identified by cs-identifier;sir-david-nodenborough;{} to exist in the content graph

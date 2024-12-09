@@ -211,7 +211,6 @@ Feature: Publishing individual nodes (basics)
       | nodesToPublish                  | ["sir-david-nodenborough", "nody-mc-nodeface", "sir-nodeward-nodington-iii"] |
       | contentStreamIdForRemainingPart | "user-cs-identifier-remaining"                                                                                                                                                                                                                                                                                         |
 
-    # when publishing all nodes we expect a full discard via WorkspaceWasPublished
     Then I expect exactly 2 events to be published on stream with prefix "Workspace:user-test"
     And event at index 1 is of type "WorkspaceWasPublished" with payload:
       | Key                           | Expected                       |
