@@ -223,15 +223,8 @@ class WorkspaceController extends AbstractModuleController
                 $title,
                 $description,
                 $baseWorkspace,
-                WorkspaceRoleAssignments::create(
-                    WorkspaceRoleAssignment::createForUser(
-                        $currentUser->getId(),
-                        WorkspaceRole::MANAGER,
-                    ),
-                    WorkspaceRoleAssignment::createForGroup(
-                        'Neos.Neos:AbstractEditor',
-                        WorkspaceRole::COLLABORATOR,
-                    )
+                WorkspaceRoleAssignments::createForSharedWorkspace(
+                    $currentUser->getId()
                 )
             );
         } catch (WorkspaceAlreadyExists $exception) {
