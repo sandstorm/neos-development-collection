@@ -55,6 +55,7 @@ use Neos\Neos\Domain\Model\WorkspaceClassification;
 use Neos\Neos\Domain\Model\WorkspaceDescription;
 use Neos\Neos\Domain\Model\WorkspaceRole;
 use Neos\Neos\Domain\Model\WorkspaceRoleAssignment;
+use Neos\Neos\Domain\Model\WorkspaceRoleAssignments;
 use Neos\Neos\Domain\Model\WorkspaceTitle;
 use Neos\Neos\Domain\Repository\SiteRepository;
 use Neos\Neos\Domain\Service\NodeTypeNameFactory;
@@ -222,6 +223,16 @@ class WorkspaceController extends AbstractModuleController
                 $title,
                 $description,
                 $baseWorkspace,
+                WorkspaceRoleAssignments::create(
+                    WorkspaceRoleAssignment::createForUser(
+                        $currentUser->getId(),
+                        WorkspaceRole::MANAGER,
+                    ),
+                    WorkspaceRoleAssignment::createForGroup(
+                        'Neos.Neos:AbstractEditor',
+                        WorkspaceRole::COLLABORATOR,
+                    )
+                )
             );
         } catch (WorkspaceAlreadyExists $exception) {
             $this->addFlashMessage(
@@ -231,22 +242,6 @@ class WorkspaceController extends AbstractModuleController
             );
             $this->redirect('new');
         }
-        $this->workspaceService->assignWorkspaceRole(
-            $contentRepositoryId,
-            $workspaceName,
-            WorkspaceRoleAssignment::createForUser(
-                $currentUser->getId(),
-                WorkspaceRole::MANAGER,
-            )
-        );
-        $this->workspaceService->assignWorkspaceRole(
-            $contentRepositoryId,
-            $workspaceName,
-            WorkspaceRoleAssignment::createForGroup(
-                'Neos.Neos:AbstractEditor',
-                WorkspaceRole::COLLABORATOR,
-            )
-        );
         $this->addFlashMessage($this->getModuleLabel('workspaces.workspaceHasBeenCreated', [$title->value]));
         $this->redirect('index');
     }
@@ -1029,7 +1024,7 @@ class WorkspaceController extends AbstractModuleController
                 continue;
             }
             $permissions = $this->contentRepositoryAuthorizationService->getWorkspacePermissions($contentRepository->id, $workspace->workspaceName, $this->securityContext->getRoles(), $currentUser?->getId());
-            if (!$permissions->manage) {
+            if (!$permissions->read) {
                 continue;
             }
             $baseWorkspaceOptions[$workspace->workspaceName->value] = $workspaceMetadata->title->value;
