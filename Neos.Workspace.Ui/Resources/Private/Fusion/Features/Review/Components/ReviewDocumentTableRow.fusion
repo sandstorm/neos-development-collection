@@ -32,7 +32,6 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
     }
     discardDocumentAction = Neos.Fusion:ActionUri {
       action = 'discardDocument'
-      format = 'json'
       arguments {
         nodeAddress = ${document.document.documentNodeAddress}
         selectedWorkspace = ${selectedWorkspaceName}
@@ -40,7 +39,6 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
     }
     publishDocumentAction = Neos.Fusion:ActionUri {
       action = 'publishDocument'
-      format = 'json'
       arguments {
         nodeAddress = ${document.document.documentNodeAddress}
         selectedWorkspace = ${selectedWorkspaceName}
@@ -90,9 +88,9 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
                 icon="fas fa-trash-alt icon-white"
                 isDanger={true}
                 attributes.hx-get={private.discardDocumentAction}
-                attributes.hx-swap='innerHTML'
-                attributes.hx-target="#workspaceReview"
-                attributes.hx-swap="innerHTML"
+                attributes.hx-select="#workspace-module-content"
+                attributes.hx-target="#workspace-module-content"
+                attributes.hx-swap="outerHTML"
                 attributes.disabled={!props.canPublishToWorkspace }
         />
         <Neos.Workspace.Ui:Component.Button
@@ -100,9 +98,9 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
                 icon="fas fa-check icon-white"
                 isSuccess={true}
                 attributes.hx-get={private.publishDocumentAction}
-                attributes.hx-swap='innerHTML'
-                attributes.hx-target="#workspaceReview"
-                attributes.hx-swap="innerHTML"
+                attributes.hx-select="#workspace-module-content"
+                attributes.hx-target="#workspace-module-content"
+                attributes.hx-swap="outerHTML"
                 attributes.disabled={!props.canPublishToBaseWorkspace}
         />
 
