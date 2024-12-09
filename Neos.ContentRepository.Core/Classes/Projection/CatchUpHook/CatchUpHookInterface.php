@@ -20,10 +20,10 @@ use Neos\EventStore\Model\EventEnvelope;
 interface CatchUpHookInterface
 {
     /**
-     * This hook is called at the beginning of a catch-up run;
-     * AFTER the Database Lock is acquired, BEFORE any projection was called.
+     * This hook is called at the beginning of a catch-up run, **after** the database lock is acquired,
+     * but **before** any projection was called.
      *
-     * Note that any errors thrown will be ignored and the catchup will start as normal.
+     * Note that any errors thrown will be collected and the current catchup batch will be finished as normal.
      * The collect errors will be returned and rethrown by the content repository.
      *
      * @throws CatchUpHookFailed
@@ -32,9 +32,9 @@ interface CatchUpHookInterface
 
     /**
      * This hook is called for every event during the catchup process, **before** the projection
-     * is updated but in the same transaction: {@see ProjectionInterface::transactional()}.
+     * is updated but in the same transaction.
      *
-     * Note that any errors thrown will be ignored and the catchup will continue as normal.
+     * Note that any errors thrown will be collected and the current catchup batch will be finished as normal.
      * The collect errors will be returned and rethrown by the content repository.
      *
      * @throws CatchUpHookFailed
@@ -43,9 +43,9 @@ interface CatchUpHookInterface
 
     /**
      * This hook is called for every event during the catchup process, **after** the projection
-     * is updated but in the same transaction: {@see ProjectionInterface::transactional()}.
+     * is updated but in the same transaction,
      *
-     * Note that any errors thrown will be ignored and the catchup will continue as normal.
+     * Note that any errors thrown will be collected and the current catchup batch will be finished as normal.
      * The collect errors will be returned and rethrown by the content repository.
      *
      * @throws CatchUpHookFailed
@@ -54,22 +54,23 @@ interface CatchUpHookInterface
 
     /**
      * This hook is called for each batch of processed events during the catchup process, **after** the projection
-     * is updated and the transaction is commited.
+     * and their new position is updated and the transaction is commited.
      *
-     * It can happen that this method is called even without having seen Events in the meantime.
+     * The database lock is directly acquired again after it is released if the batching needs to continue.
+     * It can happen that this method is called even without having seen events in the meantime.
      *
-     * If there exist more events which need to be processed, the database lock
-     * is directly acquired again after it is released.
+     * Note that any errors thrown will be collected but no further batch is started.
+     * The collect errors will be returned and rethrown by the content repository.
+     *
+     * @throws CatchUpHookFailed
      */
     public function onAfterBatchCompleted(): void;
 
     /**
-     * This hook is called at the END of a catch-up run
-     * BEFORE the Database Lock is released, but AFTER the transaction is commited.
+     * This hook is called at the END of a catch-up run, **after** the projection
+     * and their new position is updated and the transaction is commited.
      *
-     * The projection and their new status and position are already persisted.
-     *
-     * Note that any errors thrown will be ignored and the catchup will finish as normal.
+     * Note that any errors thrown will be collected and the catchup will finish as normal.
      * The collect errors will be returned and rethrown by the content repository.
      *
      * @throws CatchUpHookFailed
