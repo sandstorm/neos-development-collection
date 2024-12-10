@@ -20,7 +20,7 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 /**
  * @api because exception is thrown during invariant checks on command execution or when attempting to query a non-existing workspace
  */
-final class WorkspaceDoesNotExist extends \RuntimeException
+final class WorkspaceDoesNotExist extends \DomainException
 {
     public static function butWasSupposedTo(WorkspaceName $name): self
     {
