@@ -50,6 +50,9 @@ final class DebugEventProjection implements ProjectionInterface
         foreach ($this->determineRequiredSqlStatements() as $statement) {
             $this->dbal->executeStatement($statement);
         }
+        if ($this->saboteur) {
+            ($this->saboteur)();
+        }
     }
 
     public function status(): ProjectionStatus

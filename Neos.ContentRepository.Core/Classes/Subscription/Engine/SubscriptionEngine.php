@@ -60,7 +60,8 @@ final class SubscriptionEngine
             SubscriptionStatus::ACTIVE
         ])));
         if ($subscriptions->isEmpty()) {
-            $this->logger?->info('Subscription Engine: No subscriptions found.'); // todo not happy? Because there must be at least the content graph?!!
+            // should not happen as this means the contentGraph is unavailable, see status information.
+            $this->logger?->info('Subscription Engine: No subscriptions found.');
             return Result::success();
         }
         $errors = [];
@@ -211,7 +212,6 @@ final class SubscriptionEngine
         try {
             $subscriber->projection->setUp();
         } catch (\Throwable $e) {
-            // todo wrap in savepoint to ensure error do not mess up the projection?
             $this->logger?->error(sprintf('Subscription Engine: Subscriber "%s" for "%s" has an error in the setup method: %s', $subscriber::class, $subscription->id->value, $e->getMessage()));
             $this->subscriptionStore->update(
                 $subscription->id,
