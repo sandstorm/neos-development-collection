@@ -361,8 +361,10 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
             $expectedFailure,
             $this->subscriptionStatus('Vendor.Package:SecondFakeProjection')
         );
-        self::assertEmpty(
-            $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
+        // partially applied event because the error is thrown at the end and the projection is not rolled back
+        self::assertEquals(
+            [1],
+            $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues()
         );
     }
 

@@ -343,7 +343,6 @@ final class SubscriptionEngine
                             $errors[] = Error::forSubscription($subscription->id, $e);
                         }
 
-                        $this->subscriptionStore->createSavepoint();
                         try {
                             $subscriber->projection->apply($domainEvent, $eventEnvelope);
                         } catch (\Throwable $e) {
@@ -351,11 +350,10 @@ final class SubscriptionEngine
                             $this->logger?->error(sprintf('Subscription Engine: Subscriber "%s" for "%s" could not process the event "%s" (sequence number: %d): %s', $subscriber::class, $subscription->id->value, $eventEnvelope->event->type->value, $eventEnvelope->sequenceNumber->value, $e->getMessage()));
                             $error = Error::forSubscription($subscription->id, $e);
 
-                            // 1.) roll back the partially applied event on the subscriber
-                            $this->subscriptionStore->rollbackSavepoint();
-                            // 2.) for the leftover events we are not including this failed subscription for catchup
+                            // for the leftover events we are not including this failed subscription for catchup
                             $subscriptionsToCatchup = $subscriptionsToCatchup->without($subscription->id);
-                            // 3.) update the subscription error state on either its unchanged or new position (if some events worked)
+                            // update the subscription error state on either its unchanged or new position (if some events worked)
+                            // note that the possibly partially applied event will not be rolled back.
                             $this->subscriptionStore->update(
                                 $subscription->id,
                                 status: SubscriptionStatus::ERROR,
@@ -370,7 +368,6 @@ final class SubscriptionEngine
                         }
                         // HAPPY Case:
                         $this->logger?->debug(sprintf('Subscription Engine: Subscriber "%s" for "%s" processed the event "%s" (sequence number: %d).', substr(strrchr($subscriber::class, '\\') ?: '', 1), $subscription->id->value, $eventEnvelope->event->type->value, $eventEnvelope->sequenceNumber->value));
-                        $this->subscriptionStore->releaseSavepoint();
                         $highestSequenceNumberForSubscriber[$subscription->id->value] = $eventEnvelope->sequenceNumber;
 
                         try {

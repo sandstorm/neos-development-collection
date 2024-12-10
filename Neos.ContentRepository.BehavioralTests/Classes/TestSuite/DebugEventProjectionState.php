@@ -21,9 +21,9 @@ final class DebugEventProjectionState implements ProjectionStateInterface
     }
 
     /**
-     * @return iterable<SequenceNumber>
+     * @return array<SequenceNumber>
      */
-    public function findAppliedSequenceNumbers(): iterable
+    public function findAppliedSequenceNumbers(): array
     {
         return array_map(
             fn (int $value) => SequenceNumber::fromInteger($value),
@@ -32,9 +32,9 @@ final class DebugEventProjectionState implements ProjectionStateInterface
     }
 
     /**
-     * @return iterable<int>
+     * @return array<int>
      */
-    public function findAppliedSequenceNumberValues(): iterable
+    public function findAppliedSequenceNumberValues(): array
     {
         return array_map(
             fn ($value) => (int)$value['sequenceNumber'],
