@@ -321,6 +321,9 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
                     EventType::fromString('RootWorkspaceWasCreated'),
                     EventType::fromString('WorkspaceWasCreated'),
                     EventType::fromString('WorkspaceWasDiscarded'),
+                    // we must include these two legacy events in the query for they exist and will be upcasted at runtime
+                    EventType::fromString('WorkspaceWasPartiallyDiscarded'),
+                    EventType::fromString('WorkspaceWasPartiallyPublished'),
                     EventType::fromString('WorkspaceWasPublished'),
                     EventType::fromString('WorkspaceWasRebased'),
                     EventType::fromString('WorkspaceRebaseFailed'),
