@@ -95,7 +95,18 @@ Feature: Workspace based content publishing
     When the command PublishWorkspace is executed with payload:
       | Key           | Value       |
       | workspaceName | "user-test" |
+      | newContentStreamId | "user-cs-new" |
+
     Then I expect the content stream "user-cs-identifier" to not exist
+
+    Then I expect exactly 2 events to be published on stream with prefix "Workspace:user-test"
+    And event at index 1 is of type "WorkspaceWasPublished" with payload:
+      | Key                           | Expected             |
+      | sourceWorkspaceName           | "user-test"          |
+      | targetWorkspaceName           | "live"               |
+      | newSourceContentStreamId      | "user-cs-new"        |
+      | previousSourceContentStreamId | "user-cs-identifier" |
+      | partial                       | false                |
 
     When I am in workspace "live" and dimension space point {}
     Then I expect node aggregate identifier "nody-mc-nodeface" to lead to node cs-identifier;nody-mc-nodeface;{}

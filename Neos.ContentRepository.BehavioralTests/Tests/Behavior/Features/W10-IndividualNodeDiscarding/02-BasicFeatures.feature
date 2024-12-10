@@ -106,6 +106,7 @@ Feature: Discard individual nodes (basics)
       | workspaceName           | "user-test"              |
       | newContentStreamId      | "user-cs-identifier-new" |
       | previousContentStreamId | "user-cs-identifier"     |
+      | partial                 | true                     |
 
     When I am in workspace "user-test" and dimension space point {}
     Then I expect node aggregate identifier "sir-david-nodenborough" to lead to node user-cs-identifier-new;sir-david-nodenborough;{}
@@ -172,6 +173,7 @@ Feature: Discard individual nodes (basics)
       | workspaceName           | "user-test"              |
       | newContentStreamId      | "user-cs-identifier-new" |
       | previousContentStreamId | "user-cs-identifier"     |
+      | partial                 | false                    |
 
     When I am in workspace "user-test" and dimension space point {}
     Then I expect node aggregate identifier "sir-david-nodenborough" to lead to node user-cs-identifier-new;sir-david-nodenborough;{}

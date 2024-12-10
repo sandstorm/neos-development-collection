@@ -64,6 +64,7 @@ Feature: Individual node publication
       | targetWorkspaceName           | "live"                         |
       | newSourceContentStreamId      | "user-cs-identifier-remaining" |
       | previousSourceContentStreamId | "user-cs-identifier"           |
+      | partial                       | true                           |
 
     And I am in workspace "live"
 

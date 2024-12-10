@@ -218,6 +218,7 @@ Feature: Publishing individual nodes (basics)
       | targetWorkspaceName           | "live"                         |
       | newSourceContentStreamId      | "user-cs-identifier-remaining" |
       | previousSourceContentStreamId | "user-cs-identifier"           |
+      | partial                       | false                          |
 
     When I am in workspace "live" and dimension space point {}
     Then I expect node aggregate identifier "sir-david-nodenborough" to lead to node cs-identifier;sir-david-nodenborough;{}

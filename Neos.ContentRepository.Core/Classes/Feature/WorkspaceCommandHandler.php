@@ -260,6 +260,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                     $baseWorkspace->workspaceName,
                     $command->newContentStreamId,
                     $workspace->currentContentStreamId,
+                    partial: false
                 )
             ),
             ExpectedVersion::ANY()
@@ -517,6 +518,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                         $baseWorkspace->workspaceName,
                         $command->contentStreamIdForRemainingPart,
                         $workspace->currentContentStreamId,
+                        partial: !$remainingCommands->isEmpty()
                     )
                 ]),
                 ExpectedVersion::ANY()
@@ -622,6 +624,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                         $command->workspaceName,
                         $command->newContentStreamId,
                         $workspace->currentContentStreamId,
+                        partial: true
                     )
                 ),
                 ExpectedVersion::ANY()
@@ -685,6 +688,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                     $workspace->workspaceName,
                     $newContentStream,
                     $workspace->currentContentStreamId,
+                    partial: false
                 )
             ),
             ExpectedVersion::ANY()

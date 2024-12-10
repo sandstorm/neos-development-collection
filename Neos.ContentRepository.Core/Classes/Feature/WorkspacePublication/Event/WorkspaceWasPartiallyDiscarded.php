@@ -35,6 +35,7 @@ final readonly class WorkspaceWasPartiallyDiscarded implements EventInterface
             WorkspaceName::fromString($values['workspaceName']),
             ContentStreamId::fromString($values['newContentStreamId']),
             ContentStreamId::fromString($values['previousContentStreamId']),
+            partial: true
         );
     }
 

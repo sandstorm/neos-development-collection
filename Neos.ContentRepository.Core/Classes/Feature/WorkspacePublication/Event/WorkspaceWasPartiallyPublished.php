@@ -36,6 +36,7 @@ final readonly class WorkspaceWasPartiallyPublished implements EventInterface
             WorkspaceName::fromString($values['targetWorkspaceName']),
             ContentStreamId::fromString($values['newSourceContentStreamId']),
             ContentStreamId::fromString($values['previousSourceContentStreamId']),
+            partial: true
         );
     }
 
