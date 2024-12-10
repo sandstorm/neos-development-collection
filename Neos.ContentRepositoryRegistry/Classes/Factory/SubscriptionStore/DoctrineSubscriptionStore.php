@@ -7,6 +7,7 @@ namespace Neos\ContentRepositoryRegistry\Factory\SubscriptionStore;
 use DateTimeImmutable;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Platforms\SqlitePlatform;
 use Doctrine\DBAL\Result;
 use Doctrine\DBAL\Schema\Column;
 use Doctrine\DBAL\Schema\Schema;
@@ -44,11 +45,11 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
             'charset' => 'utf8mb4'
         ]);
         $tableSchema = new Table($this->tableName, [
-            (new Column('id', Type::getType(Types::STRING)))->setNotnull(true)->setLength(SubscriptionId::MAX_LENGTH)->setPlatformOption('charset', 'ascii')->setPlatformOption('collation', 'ascii_general_ci'),
+            (new Column('id', Type::getType(Types::STRING)))->setNotnull(true)->setLength(SubscriptionId::MAX_LENGTH),
             (new Column('position', Type::getType(Types::INTEGER)))->setNotnull(true),
-            (new Column('status', Type::getType(Types::STRING)))->setNotnull(true)->setLength(32)->setPlatformOption('charset', 'ascii')->setPlatformOption('collation', 'ascii_general_ci'),
+            (new Column('status', Type::getType(Types::STRING)))->setNotnull(true)->setLength(32),
             (new Column('error_message', Type::getType(Types::TEXT)))->setNotnull(false),
-            (new Column('error_previous_status', Type::getType(Types::STRING)))->setNotnull(false)->setLength(32)->setPlatformOption('charset', 'ascii')->setPlatformOption('collation', 'ascii_general_ci'),
+            (new Column('error_previous_status', Type::getType(Types::STRING)))->setNotnull(false)->setLength(32),
             (new Column('error_trace', Type::getType(Types::TEXT)))->setNotnull(false),
             (new Column('last_saved_at', Type::getType(Types::DATETIME_IMMUTABLE)))->setNotnull(true),
         ]);
@@ -70,7 +71,9 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
             ->select('*')
             ->from($this->tableName)
             ->orderBy('id');
-        $queryBuilder->forUpdate();
+        if (!$this->dbal->getDatabasePlatform() instanceof SqlitePlatform) {
+            $queryBuilder->forUpdate();
+        }
         if ($criteria->ids !== null) {
             $queryBuilder->andWhere('id IN (:ids)')
                 ->setParameter(
