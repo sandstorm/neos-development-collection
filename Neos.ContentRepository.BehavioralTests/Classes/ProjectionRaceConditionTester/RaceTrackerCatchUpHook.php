@@ -127,6 +127,10 @@ final class RaceTrackerCatchUpHook implements CatchUpHookInterface
     {
     }
 
+    public function onAfterBatchCompleted(): void
+    {
+    }
+
     public function onAfterCatchUp(): void
     {
         // we only want to track relevant lock release calls (i.e. if we were in the event processing loop before)

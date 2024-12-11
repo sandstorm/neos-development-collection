@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Subscription;
 
 use Neos\ContentRepository\Core\Projection\ProjectionStatus;
+use Neos\ContentRepository\Core\Subscription\Engine\Error;
+use Neos\ContentRepository\Core\Subscription\Engine\Errors;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
 use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatusCollection;
@@ -216,6 +218,71 @@ final class SubscriptionSetupTest extends AbstractSubscriptionEngineTestCase
         self::assertEquals(
             $expectedFailure,
             $this->subscriptionStatus('Vendor.Package:FakeProjection')
+        );
+    }
+
+    /** @test */
+    public function failingSetupWillNotRollbackProjection()
+    {
+        // we cannot wrap the schema creation in transactions as CREATE TABLE would for example lead to an implicit commit
+        // and cannot be rolled back: https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html
+
+        $this->fakeProjection->expects(self::exactly(2))->method('setUp');
+        $this->fakeProjection->expects(self::once())->method('apply');
+        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
+
+        // hard reset, so that the tests actually need sql migrations
+        $this->secondFakeProjection->dropTables();
+        $this->eventStore->setup();
+
+        // initial setup for FakeProjection
+        $result = $this->subscriptionEngine->setup();
+        self::assertNull($result->errors);
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::none());
+        $result = $this->subscriptionEngine->boot();
+        self::assertNull($result->errors);
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+
+        // regular work
+        $this->commitExampleContentStreamEvent();
+        $result = $this->subscriptionEngine->catchUpActive();
+        self::assertNull($result->errors);
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
+
+        // then an update is fetched - but the migration contains an error:
+        $this->secondFakeProjection->schemaNeedsAdditionalColumn('column_after_update');
+
+        $exception = new \RuntimeException('Setup failed after it did some sql queries!');
+        $this->secondFakeProjection->injectSaboteur(fn () => throw $exception);
+
+        self::assertEquals(
+            ProjectionSubscriptionStatus::create(
+                subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
+                subscriptionStatus: SubscriptionStatus::ACTIVE,
+                subscriptionPosition: SequenceNumber::fromInteger(1),
+                subscriptionError: null,
+                setupStatus: ProjectionStatus::setupRequired('Requires 1 SQL statements')
+            ),
+            $this->subscriptionStatus('Vendor.Package:SecondFakeProjection')
+        );
+
+        self::assertNull($result->errors);
+
+        $expectedStatusForFailedProjection = ProjectionSubscriptionStatus::create(
+            subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
+            subscriptionStatus: SubscriptionStatus::ERROR,
+            subscriptionPosition: SequenceNumber::fromInteger(1),
+            subscriptionError: SubscriptionError::fromPreviousStatusAndException(SubscriptionStatus::ACTIVE, $exception),
+            // as we cant roll back, the migration was (possibly partially) made:
+            setupStatus: ProjectionStatus::ok()
+        );
+
+        $result = $this->subscriptionEngine->setup();
+        self::assertEquals(Errors::fromArray([Error::forSubscription(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $exception)]), $result->errors);
+
+        self::assertEquals(
+            $expectedStatusForFailedProjection,
+            $this->subscriptionStatus('Vendor.Package:SecondFakeProjection')
         );
     }
 }

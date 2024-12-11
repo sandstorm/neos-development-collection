@@ -18,6 +18,9 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\EventStore\Model\Event\Version;
 use Neos\EventStore\Model\EventStream\ExpectedVersion;
 
+/**
+ * @internal
+ */
 trait ContentStreamHandling
 {
     /**

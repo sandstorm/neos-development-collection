@@ -44,6 +44,8 @@ use PHPUnit\Framework\TestCase;
  */
 abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't use Flows functional test case as it would reset the database afterwards
 {
+    protected static ContentRepositoryId $contentRepositoryId;
+
     protected ContentRepository $contentRepository;
 
     protected SubscriptionEngine $subscriptionEngine;
@@ -56,32 +58,37 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
 
     protected CatchUpHookInterface&MockObject $catchupHookForFakeProjection;
 
+    public static function setUpBeforeClass(): void
+    {
+        static::$contentRepositoryId = ContentRepositoryId::fromString('t_subscription');
+    }
+
     public function setUp(): void
     {
         if ($this->getObject(Connection::class)->getDatabasePlatform() instanceof PostgreSQLPlatform) {
             $this->markTestSkipped('TODO: The content graph is not available in postgres currently: https://github.com/neos/neos-development-collection/issues/3855');
         }
-        $contentRepositoryId = ContentRepositoryId::fromString('t_subscription');
 
         $this->resetDatabase(
             $this->getObject(Connection::class),
-            $contentRepositoryId,
+            self::$contentRepositoryId,
             keepSchema: true
         );
 
         $this->fakeProjection = $this->getMockBuilder(ProjectionInterface::class)->disableAutoReturnValueGeneration()->getMock();
         $this->fakeProjection->method('getState')->willReturn(new class implements ProjectionStateInterface {});
-        $this->fakeProjection->expects(self::any())->method('transactional')->willReturnCallback(fn ($fn) => $fn())->willReturnCallback(fn ($fn) => $fn());
 
         FakeProjectionFactory::setProjection(
             'default',
             $this->fakeProjection
         );
 
-        $this->secondFakeProjection = new DebugEventProjection(
-            sprintf('cr_%s_debug_projection', $contentRepositoryId->value),
-            $this->getObject(Connection::class)
-        );
+        if (!isset($this->secondFakeProjection)) {
+            $this->secondFakeProjection = new DebugEventProjection(
+                sprintf('cr_%s_debug_projection', self::$contentRepositoryId->value),
+                $this->getObject(Connection::class)
+            );
+        }
 
         FakeProjectionFactory::setProjection(
             'second',
@@ -98,9 +105,9 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
         FakeNodeTypeManagerFactory::setConfiguration([]);
         FakeContentDimensionSourceFactory::setWithoutDimensions();
 
-        $this->getObject(ContentRepositoryRegistry::class)->resetFactoryInstance($contentRepositoryId);
+        $this->getObject(ContentRepositoryRegistry::class)->resetFactoryInstance(self::$contentRepositoryId);
 
-        $this->setupContentRepositoryDependencies($contentRepositoryId);
+        $this->setupContentRepositoryDependencies(self::$contentRepositoryId);
     }
 
     final protected function setupContentRepositoryDependencies(ContentRepositoryId $contentRepositoryId)
@@ -180,7 +187,7 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
         );
     }
 
-    final protected function expectOkayStatus($subscriptionId, SubscriptionStatus $status, SequenceNumber $sequenceNumber): void
+    final protected function expectOkayStatus(string $subscriptionId, SubscriptionStatus $status, SequenceNumber $sequenceNumber): void
     {
         $actual = $this->subscriptionStatus($subscriptionId);
         self::assertEquals(

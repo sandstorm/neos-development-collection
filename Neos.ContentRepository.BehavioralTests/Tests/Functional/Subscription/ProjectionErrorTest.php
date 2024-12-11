@@ -14,6 +14,7 @@ use Neos\ContentRepository\Core\Subscription\Engine\Errors;
 use Neos\ContentRepository\Core\Subscription\Engine\ProcessedResult;
 use Neos\ContentRepository\Core\Subscription\Engine\Result;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
+use Neos\ContentRepository\Core\Subscription\Exception\CatchUpHadErrors;
 use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionError;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
@@ -24,7 +25,7 @@ use Neos\EventStore\Model\EventEnvelope;
 final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
 {
     /** @test */
-    public function projectionWithError()
+    public function projectionWithErrorCanBeReactivated()
     {
         $this->eventStore->setup();
         $this->fakeProjection->expects(self::once())->method('setUp');
@@ -39,9 +40,19 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
         $this->commitExampleContentStreamEvent();
 
         // catchup active tries to apply the commited event
-        $this->fakeProjection->expects(self::once())->method('apply')->with(self::isInstanceOf(ContentStreamWasCreated::class))->willThrowException(
-            $exception = new \RuntimeException('This projection is kaputt.')
-        );
+        $exception = new \RuntimeException('This projection is kaputt.');
+        $this->fakeProjection->expects($i = self::exactly(2))->method('apply')->willReturnCallback(function ($_, EventEnvelope $eventEnvelope) use ($i, $exception) {
+            match($i->getInvocationCount()) {
+                1 => [
+                    self::assertEquals(1, $eventEnvelope->sequenceNumber->value),
+                    throw $exception
+                ],
+                2 => [
+                    // on second call is repaired:
+                    self::assertEquals(1, $eventEnvelope->sequenceNumber->value),
+                ]
+            };
+        });
         $expectedStatusForFailedProjection = ProjectionSubscriptionStatus::create(
             subscriptionId: SubscriptionId::fromString('Vendor.Package:FakeProjection'),
             subscriptionStatus: SubscriptionStatus::ERROR,
@@ -51,7 +62,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
         );
 
         $result = $this->subscriptionEngine->catchUpActive();
-        self::assertEquals(ProcessedResult::failed(1, Errors::fromArray([Error::fromSubscriptionIdAndException(SubscriptionId::fromString('Vendor.Package:FakeProjection'), $exception)])), $result);
+        self::assertEquals(ProcessedResult::failed(1, Errors::fromArray([Error::forSubscription(SubscriptionId::fromString('Vendor.Package:FakeProjection'), $exception)])), $result);
 
         self::assertEquals(
             $expectedStatusForFailedProjection,
@@ -59,21 +70,15 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
         );
         $this->expectOkayStatus('contentGraph', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
 
-        // todo test retry if reimplemented: https://github.com/patchlevel/event-sourcing/blob/6826d533fd4762220f0397bc7afc589abb8c901b/src/Subscription/RetryStrategy/RetryStrategy.php
-        // // CatchUp 2 with retry
-        // $result = $this->subscriptionEngine->catchUpActive();
-        // self::assertTrue($result->hasFailed());
-        // self::assertEquals($result->errors->first()->message, 'Something really wrong.');
-        // self::assertEquals($this->subscriptionStatus('Vendor.Package:FakeProjection')->subscriptionError->errorMessage, 'Something really wrong.');
+        //
+        // fix projection and catchup
+        //
 
-        // no retry, nothing to do.
-        $result = $this->subscriptionEngine->catchUpActive();
-        self::assertEquals(ProcessedResult::success(0), $result);
-        self::assertEquals($this->subscriptionStatus('Vendor.Package:FakeProjection')->subscriptionError->errorMessage, 'This projection is kaputt.');
-        self::assertEquals(
-            $expectedStatusForFailedProjection,
-            $this->subscriptionStatus('Vendor.Package:FakeProjection')
-        );
+        // reactivate and catchup
+        $result = $this->subscriptionEngine->reactivate(SubscriptionEngineCriteria::create([SubscriptionId::fromString('Vendor.Package:FakeProjection')]));
+        self::assertNull($result->errors);
+
+        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
     }
 
     /** @test */
@@ -107,7 +112,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
         );
 
         $result = $this->subscriptionEngine->catchUpActive();
-        self::assertTrue($result->hasFailed());
+        self::assertTrue($result->hadErrors());
 
         self::assertEquals(
             $expectedFailure,
@@ -161,7 +166,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
         // catchup active tries to apply the commited event
         $result = $this->subscriptionEngine->catchUpActive();
         // but fails
-        self::assertTrue($result->hasFailed());
+        self::assertTrue($result->hadErrors());
         self::assertEquals($expectedFailure, $this->subscriptionStatus('Vendor.Package:SecondFakeProjection'));
 
         // a second catchup active does not change anything
@@ -181,12 +186,8 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
 
         // reactivation will attempt to retry fix this, but can only work if the projection is repaired and will lead to an error otherwise:
         $result = $this->subscriptionEngine->reactivate();
-        self::assertEquals(
-            ProcessedResult::failed(1, Errors::fromArray([
-                Error::fromSubscriptionIdAndException(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $exception)
-            ])),
-            $result
-        );
+        self::assertEquals(1, $result->numberOfProcessedEvents);
+        self::assertEquals('Must not happen! Debug projection detected duplicate event 1 of type ContentStreamWasCreated', $result->errors->first()?->message);
 
         self::assertEquals(
             ProjectionSubscriptionStatus::create(
@@ -194,7 +195,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
                 subscriptionStatus: SubscriptionStatus::ERROR,
                 subscriptionPosition: SequenceNumber::none(),
                 // previous state is now an error too also error:
-                subscriptionError: SubscriptionError::fromPreviousStatusAndException(SubscriptionStatus::ERROR, $exception),
+                subscriptionError: SubscriptionError::fromPreviousStatusAndException(SubscriptionStatus::ERROR, $result->errors->first()->throwable),
                 setupStatus: ProjectionStatus::ok(),
             ),
             $this->subscriptionStatus('Vendor.Package:SecondFakeProjection')
@@ -207,7 +208,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
 
         // but booting will rethrow that error :D
         $result = $this->subscriptionEngine->boot();
-        self::assertTrue($result->hasFailed());
+        self::assertTrue($result->hadErrors());
         self::assertEquals(
             ProjectionSubscriptionStatus::create(
                 subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
@@ -222,7 +223,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
     }
 
     /** @test */
-    public function projectionIsRolledBackAfterError()
+    public function projectionWithError()
     {
         $this->eventStore->setup();
         $this->fakeProjection->expects(self::once())->method('setUp');
@@ -259,30 +260,15 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
             $this->subscriptionStatus('Vendor.Package:SecondFakeProjection')
         );
 
-        // should be empty as we need an exact once delivery
-        self::assertEmpty(
-            $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
-        );
-
-        //
-        // fix projection and catchup
-        //
-
-        $this->secondFakeProjection->killSaboteur();
-
-        // reactivate and catchup
-        $result = $this->subscriptionEngine->reactivate(SubscriptionEngineCriteria::create([SubscriptionId::fromString('Vendor.Package:SecondFakeProjection')]));
-        self::assertNull($result->errors);
-
-        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
+        // because the error is thrown after the even the state is commited
         self::assertEquals(
-            [SequenceNumber::fromInteger(1)],
-            $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
+            [1],
+            $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues()
         );
     }
 
     /** @test */
-    public function projectionIsRolledBackAfterErrorButKeepsSuccessFullEvents()
+    public function projectionWithErrorAfterSecondEvent()
     {
         $this->eventStore->setup();
         $this->fakeProjection->expects(self::once())->method('setUp');
@@ -309,7 +295,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
         );
 
         $result = $this->subscriptionEngine->catchUpActive();
-        self::assertTrue($result->hasFailed());
+        self::assertTrue($result->hadErrors());
 
         $expectedFailure = ProjectionSubscriptionStatus::create(
             subscriptionId: SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
@@ -324,24 +310,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
             $this->subscriptionStatus('Vendor.Package:SecondFakeProjection')
         );
 
-        // the first successful event is applied and committet:
-        self::assertEquals(
-            [SequenceNumber::fromInteger(1)],
-            $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
-        );
-
-        //
-        // fix projection and catchup
-        //
-
-        $this->secondFakeProjection->killSaboteur();
-
-        // catchup after fix
-        $result = $this->subscriptionEngine->reactivate(SubscriptionEngineCriteria::create([SubscriptionId::fromString('Vendor.Package:SecondFakeProjection')]));
-        self::assertNull($result->errors);
-
-        // subscriptionError is reset, and the position is advanced if there were events
-        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(2));
+        // the first successful event is applied and committet, but the second partially applied event is also applied:
         self::assertEquals(
             [SequenceNumber::fromInteger(1), SequenceNumber::fromInteger(2)],
             $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
@@ -367,7 +336,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
         } catch (\RuntimeException $exception) {
             $handleException = $exception;
         }
-        self::assertNotNull($handleException);
+        self::assertInstanceOf(CatchUpHadErrors::class, $exception);
         self::assertEquals('Exception in subscriber "Vendor.Package:FakeProjection" while catching up: This projection is kaputt.', $handleException->getMessage());
         self::assertSame($originalException, $handleException->getPrevious());
 
@@ -391,5 +360,40 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
             [SequenceNumber::fromInteger(1), SequenceNumber::fromInteger(2), SequenceNumber::fromInteger(3), SequenceNumber::fromInteger(4)],
             $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
         );
+    }
+
+    /** @test */
+    public function projectionError_stopsEngineAfterFirstBatch()
+    {
+        $this->eventStore->setup();
+        $this->fakeProjection->expects(self::once())->method('setUp');
+        $this->fakeProjection->expects(self::any())->method('status')->willReturn(ProjectionStatus::ok());
+        $this->subscriptionEngine->setup();
+        $this->expectOkayStatus('contentGraph', SubscriptionStatus::BOOTING, SequenceNumber::none());
+        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::none());
+
+        // commit two events
+        $this->commitExampleContentStreamEvent();
+        $this->commitExampleContentStreamEvent();
+
+        $this->fakeProjection->expects(self::once())->method('apply')->with(self::isInstanceOf(ContentStreamWasCreated::class))->willThrowException(
+            $exception = new \RuntimeException('This projection is kaputt.')
+        );
+        $expectedStatusForFailedProjection = ProjectionSubscriptionStatus::create(
+            subscriptionId: SubscriptionId::fromString('Vendor.Package:FakeProjection'),
+            subscriptionStatus: SubscriptionStatus::ERROR,
+            subscriptionPosition: SequenceNumber::none(),
+            subscriptionError: SubscriptionError::fromPreviousStatusAndException(SubscriptionStatus::BOOTING, $exception),
+            setupStatus: ProjectionStatus::ok(),
+        );
+
+        $result = $this->subscriptionEngine->boot(batchSize: 1);
+        self::assertEquals(ProcessedResult::failed(1, Errors::fromArray([Error::forSubscription(SubscriptionId::fromString('Vendor.Package:FakeProjection'), $exception)])), $result);
+
+        self::assertEquals(
+            $expectedStatusForFailedProjection,
+            $this->subscriptionStatus('Vendor.Package:FakeProjection')
+        );
+        $this->expectOkayStatus('contentGraph', SubscriptionStatus::BOOTING, SequenceNumber::fromInteger(1));
     }
 }

@@ -157,7 +157,9 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
             $subscriptionError = null;
         }
         $lastSavedAt = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $row['last_saved_at']);
-        assert($lastSavedAt instanceof DateTimeImmutable);
+        if ($lastSavedAt === false) {
+            throw new \RuntimeException(sprintf('last_saved_at %s is not a valid date', $row['last_saved_at']), 1733602968);
+        }
 
         return new Subscription(
             SubscriptionId::fromString($row['id']),

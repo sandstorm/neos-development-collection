@@ -30,16 +30,6 @@ interface ProjectionInterface
      */
     public function status(): ProjectionStatus;
 
-    /**
-     * Must invoke the closure which will update the catchup hooks and {@see apply}.
-     * Additionally, to guarantee exactly once delivery and also to behave correct during exceptions (even fatal ones),
-     * a database transaction should be started, or if a transaction is already active on the same connection save points
-     * must be used and rolled back on error.
-     *
-     * @param-immediately-invoked-callable $closure
-     */
-    public function transactional(\Closure $closure): void;
-
     public function apply(EventInterface $event, EventEnvelope $eventEnvelope): void;
 
     /**
