@@ -213,9 +213,10 @@ class WorkspaceController extends AbstractModuleController
         $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspace);
         $baseWorkspaceMetadata = null;
         $baseWorkspacePermissions = null;
-        if ($workspaceObj->baseWorkspaceName !== null) {
-            $baseWorkspace = $contentRepository->findWorkspaceByName($workspaceObj->baseWorkspaceName);
-            assert($baseWorkspace !== null);
+        $baseWorkspace = $workspaceObj->baseWorkspaceName !== null
+            ? $contentRepository->findWorkspaceByName($workspaceObj->baseWorkspaceName)
+            : null;
+        if ($baseWorkspace !== null) {
             $baseWorkspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $baseWorkspace->workspaceName);
             $baseWorkspacePermissions = $this->authorizationService->getWorkspacePermissions($contentRepositoryId, $baseWorkspace->workspaceName, $this->securityContext->getRoles(), $currentUser->getId());
         }
@@ -225,7 +226,7 @@ class WorkspaceController extends AbstractModuleController
             'baseWorkspaceName' => $workspaceObj->baseWorkspaceName,
             'baseWorkspaceLabel' => $baseWorkspaceMetadata?->title->value,
             'canPublishToBaseWorkspace' => $baseWorkspacePermissions?->write ?? false,
-            'canPublishToWorkspace' => $workspacePermissions?->write ?? false,
+            'canPublishToWorkspace' => $workspacePermissions->write,
             'siteChanges' => $this->computeSiteChanges($workspaceObj, $contentRepository),
             'contentDimensions' => $contentRepository->getContentDimensionSource()->getContentDimensionsOrderedByPriority()
         ]);
@@ -369,10 +370,10 @@ class WorkspaceController extends AbstractModuleController
         );
 
         // Update Base Workspace
-        $this->workspaceService->setBaseWorkspace(
+        $this->workspacePublishingService->changeBaseWorkspace(
             $contentRepositoryId,
             $workspaceName,
-            $baseWorkspace,
+            $baseWorkspace
         );
 
         $this->addFlashMessage(
@@ -495,9 +496,9 @@ class WorkspaceController extends AbstractModuleController
         $workspaceRoleAssignments = [];
 
         foreach ($this->workspaceService->getWorkspaceRoleAssignments($contentRepositoryId, $workspaceName) as $workspaceRoleAssignment) {
-            $subjectLabel = match ($workspaceRoleAssignment->subjectType) {
+            $subjectLabel = match ($workspaceRoleAssignment->subject->type) {
                 WorkspaceRoleSubjectType::USER => $this->userService->findUserById(UserId::fromString($workspaceRoleAssignment->subject->value))?->getLabel(),
-                default => $workspaceRoleAssignment->subject->value,
+                WorkspaceRoleSubjectType::GROUP => $workspaceRoleAssignment->subject->value,
             };
 
             $roleLabel = $workspaceRoleAssignment->role->value;
@@ -505,9 +506,9 @@ class WorkspaceController extends AbstractModuleController
             $workspaceRoleAssignments[] = new RoleAssignmentListItem(
                 subjectValue: $workspaceRoleAssignment->subject->value,
                 subjectLabel: $subjectLabel,
-                subjectTypeValue: $workspaceRoleAssignment->subjectType->value,
+                subjectTypeValue: $workspaceRoleAssignment->subject->type->value,
                 roleLabel: $roleLabel,
-                subjectType: $workspaceRoleAssignment->subjectType->value,
+                subjectType: $workspaceRoleAssignment->subject->type->value,
             );
         }
 
@@ -572,8 +573,8 @@ class WorkspaceController extends AbstractModuleController
     {
         // TODO: Validate if user can add role assignment to workspace
 
-        $subject = WorkspaceRoleSubject::fromString($subjectValue);
         $subjectType = WorkspaceRoleSubjectType::from($subjectTypeValue);
+        $subject = WorkspaceRoleSubject::create($subjectType, $subjectValue);
         $role = WorkspaceRole::from($roleValue);
 
         if ($subjectType === WorkspaceRoleSubjectType::USER) {
@@ -612,8 +613,10 @@ class WorkspaceController extends AbstractModuleController
             $this->workspaceService->unassignWorkspaceRole(
                 $contentRepositoryId,
                 $workspaceName,
-                WorkspaceRoleSubjectType::from($subjectType),
-                WorkspaceRoleSubject::fromString($subjectValue),
+                WorkspaceRoleSubject::create(
+                    WorkspaceRoleSubjectType::from($subjectType),
+                    $subjectValue
+                )
             );
         } catch (\Exception $e) {
             // TODO: error handling
@@ -1535,7 +1538,7 @@ class WorkspaceController extends AbstractModuleController
         );
     }
 
-    private function addGroupRoleAssignment(WorkspaceName $workspaceName, WorkspaceRoleSubject $subject, WorkspaceRole $role)
+    private function addGroupRoleAssignment(WorkspaceName $workspaceName, WorkspaceRoleSubject $subject, WorkspaceRole $role): void
     {
         // TODO check if group exists?
         $this->workspaceService->assignWorkspaceRole(
