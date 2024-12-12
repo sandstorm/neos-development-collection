@@ -19,6 +19,7 @@ use Neos\Flow\Annotations as Flow;
 #[Flow\Proxy(false)]
 readonly class DocumentItem
 {
+    /** @param list<string> $documentBreadCrumb */
     public function __construct(
         public array $documentBreadCrumb,
         public string $aggregateId,

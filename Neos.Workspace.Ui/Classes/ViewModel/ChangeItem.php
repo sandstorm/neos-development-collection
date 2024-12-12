@@ -19,6 +19,7 @@ use Neos\Flow\Annotations as Flow;
 #[Flow\Proxy(false)]
 final readonly class ChangeItem
 {
+    /** @param list<string> $dimensions */
     public function __construct(
         public string $serializedNodeAddress,
         public bool $hidden,
@@ -29,7 +30,7 @@ final readonly class ChangeItem
         public ?string $lastModificationDateTime,
         public ?string $createdDateTime,
         public string $label,
-        public string $icon,
+        public ?string $icon,
         public ContentChangeItems $contentChanges,
     ) {
     }

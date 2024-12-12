@@ -19,6 +19,10 @@ use Neos\Flow\Annotations as Flow;
 #[Flow\Proxy(false)]
 final readonly class TagContentChange extends ContentChange
 {
+    /**
+     * @param list<string> $addedTags
+     * @param list<string> $removedTags
+     */
     public function __construct(
         public array $addedTags,
         public array $removedTags,

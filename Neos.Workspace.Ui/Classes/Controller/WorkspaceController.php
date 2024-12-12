@@ -497,7 +497,7 @@ class WorkspaceController extends AbstractModuleController
 
         foreach ($this->workspaceService->getWorkspaceRoleAssignments($contentRepositoryId, $workspaceName) as $workspaceRoleAssignment) {
             $subjectLabel = match ($workspaceRoleAssignment->subject->type) {
-                WorkspaceRoleSubjectType::USER => $this->userService->findUserById(UserId::fromString($workspaceRoleAssignment->subject->value))?->getLabel(),
+                WorkspaceRoleSubjectType::USER => $this->userService->findUserById(UserId::fromString($workspaceRoleAssignment->subject->value))?->getLabel() ?? $workspaceRoleAssignment->subject->value,
                 WorkspaceRoleSubjectType::GROUP => $workspaceRoleAssignment->subject->value,
             };
 
@@ -1057,7 +1057,7 @@ class WorkspaceController extends AbstractModuleController
                         $dimensions[] = $contentRepository->getContentDimensionSource()->getDimension($contentDimension)->getValue($coordinate)->configuration['label'];
                     }
                     $dimensionString = implode('_', $dimensions);
-                    $siteChanges[$siteNodeName]['documents'][$documentPath]['changes'][$dimensionString][$relativePath] = new ChangeItem (
+                    $siteChanges[$siteNodeName]['documents'][$documentPath]['changes'][$dimensionString][$relativePath] = new ChangeItem(
                         serializedNodeAddress: $nodeAddress->toJson(),
                         hidden: $node->tags->contain(SubtreeTag::disabled()),
                         isRemoved: $change->deleted,
@@ -1065,9 +1065,9 @@ class WorkspaceController extends AbstractModuleController
                         isMoved: $change->moved,
                         dimensions: $dimensions,
                         lastModificationDateTime: $node->timestamps->lastModified?->format('Y-m-d H:i'),
-                        createdDateTime: $node->timestamps->created?->format('Y-m-d H:i'),
+                        createdDateTime: $node->timestamps->created->format('Y-m-d H:i'),
                         label: $this->nodeLabelGenerator->getLabel($node),
-                        icon: $nodeType->getFullConfiguration()['ui']['icon'],
+                        icon: $nodeType?->getFullConfiguration()['ui']['icon'],
                         contentChanges: $this->renderContentChanges(
                             $node,
                             $change->contentStreamId,
@@ -1107,9 +1107,7 @@ class WorkspaceController extends AbstractModuleController
 
     /**
      * Renders the difference between the original and the changed content of the given node and returns it, along
-     * with meta information, in an array.
-     *
-     * @return array<string,mixed>
+     * with meta information
      */
     protected function renderContentChanges(
         Node $changedNode,
@@ -1286,7 +1284,8 @@ class WorkspaceController extends AbstractModuleController
         }
         $packageKey = 'Neos.Neos';
         $source = 'Main';
-        $idParts = explode(':', $properties[$propertyName]['ui']['label'], 3);
+        $id = $properties[$propertyName]['ui']['label'];
+        $idParts = explode(':', $id, 3);
         switch (count($idParts)) {
             case 2:
                 $packageKey = $idParts[0];
@@ -1455,7 +1454,7 @@ class WorkspaceController extends AbstractModuleController
             $contentRepository->id,
             $userWorkspace->workspaceName,
             $this->securityContext->getRoles(),
-            $this->userService->getCurrentUser()->getId()
+            $this->userService->getCurrentUser()?->getId()
         );
 
         $allWorkspaces = $contentRepository->findWorkspaces();
@@ -1484,7 +1483,7 @@ class WorkspaceController extends AbstractModuleController
                 $contentRepository->id,
                 $workspace->workspaceName,
                 $this->securityContext->getRoles(),
-                $this->userService->getCurrentUser()->getId()
+                $this->userService->getCurrentUser()?->getId()
             );
 
             // ignore root workspaces, because they will not be shown in the UI

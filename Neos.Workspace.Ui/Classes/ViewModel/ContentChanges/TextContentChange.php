@@ -19,6 +19,7 @@ use Neos\Flow\Annotations as Flow;
 #[Flow\Proxy(false)]
 final readonly class TextContentChange extends ContentChange
 {
+    /** @param array<int|string,mixed> $diff */
     public function __construct(
         public array $diff,
     ) {
