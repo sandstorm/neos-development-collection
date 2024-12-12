@@ -1130,15 +1130,19 @@ class WorkspaceController extends AbstractModuleController
         $changeNodePropertiesDefaults = $this->getNodeType($changedNode)->getDefaultValuesForProperties();
 
         $renderer = new HtmlArrayRenderer();
-        if($originalNode?->tags->toStringArray() != $changedNode?->tags->toStringArray()) {
+
+        $actualOriginalTags = $originalNode?->tags->withoutInherited()->all();
+        $actualChangedTags = $changedNode->tags->withoutInherited()->all();
+
+        if ($actualOriginalTags?->equals($actualChangedTags)) {
             $contentChanges['tags'] = new ContentChangeItem(
                 properties: new ContentChangeProperties(
                     type: 'tags',
                     propertyLabel: $this->getModuleLabel('workspaces.changedTags'),
                 ),
                 changes: new TagContentChange(
-                    addedTags: array_diff($changedNode->tags->toStringArray(), $originalNode->tags->toStringArray()),
-                    removedTags: array_diff($originalNode->tags->toStringArray(), $changedNode->tags->toStringArray()),
+                    addedTags: $actualChangedTags->difference($actualOriginalTags)->toStringArray(),
+                    removedTags: $actualOriginalTags->difference($actualChangedTags)->toStringArray(),
                 )
             );
         }
