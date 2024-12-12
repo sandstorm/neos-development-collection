@@ -34,6 +34,10 @@ final readonly class WorkspaceWasDiscarded implements EventInterface, EmbedsWork
          * The old content stream (which contains the discarded data)
          */
         public ContentStreamId $previousContentStreamId,
+        /**
+         * Indicates if all events in the workspace have been discarded or if remaining changes are reapplied
+         */
+        public bool $partial
     ) {
     }
 
@@ -48,15 +52,12 @@ final readonly class WorkspaceWasDiscarded implements EventInterface, EmbedsWork
             WorkspaceName::fromString($values['workspaceName']),
             ContentStreamId::fromString($values['newContentStreamId']),
             ContentStreamId::fromString($values['previousContentStreamId']),
+            $values['partial'] ?? false
         );
     }
 
     public function jsonSerialize(): array
     {
-        return [
-            'workspaceName' => $this->workspaceName,
-            'newContentStreamId' => $this->newContentStreamId,
-            'previousContentStreamId' => $this->previousContentStreamId,
-        ];
+        return get_object_vars($this);
     }
 }

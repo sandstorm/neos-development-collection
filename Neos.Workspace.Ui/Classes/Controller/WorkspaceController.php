@@ -21,14 +21,13 @@ use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Exception\WorkspaceAlr
 use Neos\ContentRepository\Core\Feature\WorkspaceModification\Command\DeleteWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\DiscardIndividualNodesFromWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishIndividualNodesFromWorkspace;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Dto\NodeIdsToPublishOrDiscard;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Dto\NodeIdToPublishOrDiscard;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindAncestorNodesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Nodes;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAddress;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
@@ -478,12 +477,7 @@ class WorkspaceController extends AbstractModuleController
 
         $command = PublishIndividualNodesFromWorkspace::create(
             $selectedWorkspace,
-            NodeIdsToPublishOrDiscard::create(
-                new NodeIdToPublishOrDiscard(
-                    $nodeAddress->aggregateId,
-                    $nodeAddress->dimensionSpacePoint
-                )
-            ),
+            NodeAggregateIds::create($nodeAddress->aggregateId),
         );
         $contentRepository->handle($command);
 
@@ -512,11 +506,8 @@ class WorkspaceController extends AbstractModuleController
 
         $command = DiscardIndividualNodesFromWorkspace::create(
             $selectedWorkspace,
-            NodeIdsToPublishOrDiscard::create(
-                new NodeIdToPublishOrDiscard(
-                    $nodeAddress->aggregateId,
-                    $nodeAddress->dimensionSpacePoint
-                )
+            NodeAggregateIds::create(
+                $nodeAddress->aggregateId
             ),
         );
         $contentRepository->handle($command);
@@ -548,17 +539,14 @@ class WorkspaceController extends AbstractModuleController
         $nodesToPublishOrDiscard = [];
         foreach ($nodes as $node) {
             $nodeAddress = NodeAddress::fromJsonString($node);
-            $nodesToPublishOrDiscard[] = new NodeIdToPublishOrDiscard(
-                $nodeAddress->aggregateId,
-                $nodeAddress->dimensionSpacePoint
-            );
+            $nodesToPublishOrDiscard[] = $nodeAddress->aggregateId;
         }
 
         switch ($action) {
             case 'publish':
                 $command = PublishIndividualNodesFromWorkspace::create(
                     $selectedWorkspaceName,
-                    NodeIdsToPublishOrDiscard::create(...$nodesToPublishOrDiscard),
+                    NodeAggregateIds::create(...$nodesToPublishOrDiscard),
                 );
                 $contentRepository->handle($command);
                 $this->addFlashMessage($this->translator->translateById(
@@ -573,7 +561,7 @@ class WorkspaceController extends AbstractModuleController
             case 'discard':
                 $command = DiscardIndividualNodesFromWorkspace::create(
                     $selectedWorkspaceName,
-                    NodeIdsToPublishOrDiscard::create(...$nodesToPublishOrDiscard),
+                    NodeAggregateIds::create(...$nodesToPublishOrDiscard),
                 );
                 $contentRepository->handle($command);
                 $this->addFlashMessage($this->translator->translateById(

@@ -97,7 +97,7 @@ Feature: Publishing individual nodes (basics)
     When the command PublishIndividualNodesFromWorkspace is executed with payload:
       | Key                             | Value                                                                                                        |
       | workspaceName                   | "user-test"                                                                                                  |
-      | nodesToPublish                  | [{"workspaceName": "user-test", "dimensionSpacePoint": {}, "nodeAggregateId": "sir-nodeward-nodington-iii"}] |
+      | nodesToPublish                  | ["sir-nodeward-nodington-iii"] |
       | contentStreamIdForRemainingPart | "user-cs-identifier-remaining"                                                                               |
     Then I expect the content stream "user-cs-identifier" to not exist
 
@@ -142,7 +142,7 @@ Feature: Publishing individual nodes (basics)
     When the command PublishIndividualNodesFromWorkspace is executed with payload:
       | Key                             | Value                                                                                                                                  |
       | workspaceName                   | "user-test"                                                                                                                            |
-      | nodesToPublish                  | [{"dimensionSpacePoint": {}, "nodeAggregateId": "non-existing-node"}, {"dimensionSpacePoint": {}, "nodeAggregateId": "sir-unchanged"}] |
+      | nodesToPublish                  | ["non-existing-node", "sir-unchanged"] |
       | contentStreamIdForRemainingPart | "user-cs-identifier-remaining-two"                                                                                                     |
 
     When I am in workspace "live" and dimension space point {}
@@ -198,7 +198,7 @@ Feature: Publishing individual nodes (basics)
     When the command PublishIndividualNodesFromWorkspace is executed with payload and exceptions are caught:
       | Key                             | Value                                                             |
       | workspaceName                   | "user-test"                                                       |
-      | nodesToPublish                  | [{"dimensionSpacePoint": {}, "nodeAggregateId": "sir-unchanged"}] |
+      | nodesToPublish                  | ["sir-unchanged"] |
       | contentStreamIdForRemainingPart | "user-cs-identifier-remaining"                                    |
     Then the last command should have thrown the WorkspaceRebaseFailed exception with:
       | SequenceNumber | Event            | Exception              |
@@ -208,10 +208,9 @@ Feature: Publishing individual nodes (basics)
     When the command PublishIndividualNodesFromWorkspace is executed with payload:
       | Key                             | Value                                                                                                                                                                                                                                                                                                                  |
       | workspaceName                   | "user-test"                                                                                                                                                                                                                                                                                                            |
-      | nodesToPublish                  | [{"workspaceName": "user-test", "dimensionSpacePoint": {}, "nodeAggregateId": "sir-david-nodenborough"}, {"workspaceName": "user-test", "dimensionSpacePoint": {}, "nodeAggregateId": "nody-mc-nodeface"}, {"workspaceName": "user-test", "dimensionSpacePoint": {}, "nodeAggregateId": "sir-nodeward-nodington-iii"}] |
+      | nodesToPublish                  | ["sir-david-nodenborough", "nody-mc-nodeface", "sir-nodeward-nodington-iii"] |
       | contentStreamIdForRemainingPart | "user-cs-identifier-remaining"                                                                                                                                                                                                                                                                                         |
 
-    # when publishing all nodes we expect a full discard via WorkspaceWasPublished
     Then I expect exactly 2 events to be published on stream with prefix "Workspace:user-test"
     And event at index 1 is of type "WorkspaceWasPublished" with payload:
       | Key                           | Expected                       |
@@ -219,6 +218,7 @@ Feature: Publishing individual nodes (basics)
       | targetWorkspaceName           | "live"                         |
       | newSourceContentStreamId      | "user-cs-identifier-remaining" |
       | previousSourceContentStreamId | "user-cs-identifier"           |
+      | partial                       | false                          |
 
     When I am in workspace "live" and dimension space point {}
     Then I expect node aggregate identifier "sir-david-nodenborough" to lead to node cs-identifier;sir-david-nodenborough;{}
@@ -252,7 +252,7 @@ Feature: Publishing individual nodes (basics)
     When the command PublishIndividualNodesFromWorkspace is executed with payload:
       | Key                             | Value                                                                                                        |
       | workspaceName                   | "user-test"                                                                                                  |
-      | nodesToPublish                  | [{"dimensionSpacePoint": {}, "nodeAggregateId": "sir-nodeward-nodington-iii"}, {"dimensionSpacePoint": {}, "nodeAggregateId": "sir-david-nodenborough"}] |
+      | nodesToPublish                  | ["sir-nodeward-nodington-iii", "sir-david-nodenborough"] |
       | contentStreamIdForRemainingPart | "user-cs-identifier-remaining"                                                                               |
 
     Then I expect exactly 8 events to be published on stream "ContentStream:cs-identifier"
@@ -291,7 +291,7 @@ Feature: Publishing individual nodes (basics)
     When the command PublishIndividualNodesFromWorkspace is executed with payload:
       | Key                             | Value                                                            |
       | workspaceName                   | "user-test"                                                      |
-      | nodesToPublish                  | [{"dimensionSpacePoint": {}, "nodeAggregateId": "non-existing"}] |
+      | nodesToPublish                  | ["non-existing"] |
       | contentStreamIdForRemainingPart | "user-cs-new"                                                    |
     Then workspaces user-test has status OUTDATED
 
