@@ -19,6 +19,9 @@ use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionId;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Exception\WorkspaceAlreadyExists;
+use Neos\ContentRepository\Core\Feature\WorkspaceModification\Command\DeleteWorkspace;
+use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\DiscardIndividualNodesFromWorkspace;
+use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishIndividualNodesFromWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\WorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindAncestorNodesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
@@ -26,6 +29,7 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\Nodes;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAddress;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
@@ -57,6 +61,7 @@ use Neos\Neos\Domain\Model\WorkspaceRole;
 use Neos\Neos\Domain\Model\WorkspaceRoleAssignment;
 use Neos\Neos\Domain\Model\WorkspaceRoleSubject;
 use Neos\Neos\Domain\Model\WorkspaceRoleSubjectType;
+use Neos\Neos\Domain\Model\WorkspaceRoleAssignments;
 use Neos\Neos\Domain\Model\WorkspaceTitle;
 use Neos\Neos\Domain\NodeLabel\NodeLabelGeneratorInterface;
 use Neos\Neos\Domain\Repository\SiteRepository;
@@ -254,6 +259,9 @@ class WorkspaceController extends AbstractModuleController
                 $title,
                 $description,
                 $baseWorkspace,
+                WorkspaceRoleAssignments::createForSharedWorkspace(
+                    $currentUser->getId()
+                )
             );
         } catch (WorkspaceAlreadyExists $exception) {
             $this->addFlashMessage(
@@ -270,22 +278,6 @@ class WorkspaceController extends AbstractModuleController
             );
             $this->throwStatus(500, 'Workspace could not be created');
         }
-        $this->workspaceService->assignWorkspaceRole(
-            $contentRepositoryId,
-            $workspaceName,
-            WorkspaceRoleAssignment::createForUser(
-                $currentUser->getId(),
-                WorkspaceRole::MANAGER,
-            )
-        );
-        $this->workspaceService->assignWorkspaceRole(
-            $contentRepositoryId,
-            $workspaceName,
-            WorkspaceRoleAssignment::createForGroup(
-                'Neos.Neos:AbstractEditor',
-                WorkspaceRole::COLLABORATOR,
-            )
-        );
         $this->addFlashMessage($this->getModuleLabel('workspaces.workspaceHasBeenCreated', [$title->value]));
         $this->redirect('index');
     }
@@ -1375,7 +1367,7 @@ class WorkspaceController extends AbstractModuleController
                 continue;
             }
             $permissions = $this->authorizationService->getWorkspacePermissions($contentRepository->id, $workspace->workspaceName, $this->securityContext->getRoles(), $user->getId());
-            if (!$permissions->manage) {
+            if (!$permissions->read) {
                 continue;
             }
             $baseWorkspaceOptions[$workspace->workspaceName->value] = $workspaceMetadata->title->value;

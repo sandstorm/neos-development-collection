@@ -16,10 +16,8 @@ namespace Neos\ContentRepository\Core\Feature\SubtreeTagging\Command;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
-use Neos\ContentRepository\Core\Feature\Common\MatchableWithNodeIdToPublishOrDiscardInterface;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Dto\NodeIdToPublishOrDiscard;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeVariantSelectionStrategy;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
@@ -32,8 +30,7 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 final readonly class TagSubtree implements
     CommandInterface,
     \JsonSerializable,
-    RebasableToOtherWorkspaceInterface,
-    MatchableWithNodeIdToPublishOrDiscardInterface
+    RebasableToOtherWorkspaceInterface
 {
     /**
      * @param WorkspaceName $workspaceName The workspace in which the tagging operation is to be performed
@@ -83,12 +80,6 @@ final readonly class TagSubtree implements
             $this->nodeVariantSelectionStrategy,
             $this->tag,
         );
-    }
-
-    public function matchesNodeId(NodeIdToPublishOrDiscard $nodeIdToPublish): bool
-    {
-        return $this->nodeAggregateId->equals($nodeIdToPublish->nodeAggregateId)
-            && $nodeIdToPublish->dimensionSpacePoint === $this->coveredDimensionSpacePoint;
     }
 
     /**
