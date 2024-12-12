@@ -20,17 +20,17 @@ use Neos\Flow\Annotations as Flow;
 final readonly class ChangeItem
 {
     public function __construct(
-        public string                  $serializedNodeAddress,
-        public bool                    $hidden,
-        public bool                    $isRemoved,
-        public bool                    $isNew,
-        public bool                    $isMoved,
-        public array                   $dimensions,
-        public ?string                 $lastModificationDateTime,
-        public ?string                 $createdDateTime,
-        public string                  $label,
-        public string                  $icon,
-        public ContentChangeItems      $contentChanges,
+        public string $serializedNodeAddress,
+        public bool $hidden,
+        public bool $isRemoved,
+        public bool $isNew,
+        public bool $isMoved,
+        public array $dimensions,
+        public ?string $lastModificationDateTime,
+        public ?string $createdDateTime,
+        public string $label,
+        public string $icon,
+        public ContentChangeItems $contentChanges,
     ) {
     }
 }

@@ -28,15 +28,14 @@ use Neos\Neos\Domain\Model\WorkspaceTitle;
 #[Flow\Proxy(false)]
 final readonly class EditWorkspaceRoleAssignmentsFormData
 {
+    /**
+     * @param array<RoleAssignmentListItem> $roleAssignments
+     */
     public function __construct(
-        public WorkspaceName  $workspaceName,
+        public WorkspaceName $workspaceName,
         public WorkspaceTitle $workspaceTitle,
-        public bool           $roleAssignmentsEditable,
-        /**
-         * @var array<RoleAssignmentListItem>
-         */
-        public array          $roleAssignments,
-    )
-    {
+        public bool $roleAssignmentsEditable,
+        public array $roleAssignments,
+    ) {
     }
 }

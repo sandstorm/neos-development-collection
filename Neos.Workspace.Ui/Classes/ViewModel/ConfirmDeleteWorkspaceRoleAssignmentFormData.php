@@ -22,11 +22,10 @@ use Neos\Neos\Domain\Model\WorkspaceTitle;
 final readonly class ConfirmDeleteWorkspaceRoleAssignmentFormData
 {
     public function __construct(
-        public WorkspaceName  $workspaceName,
+        public WorkspaceName $workspaceName,
         public WorkspaceTitle $workspaceTitle,
-        public string         $subjectValue,
-        public string         $subjectType,
-    )
-    {
+        public string $subjectValue,
+        public string $subjectType,
+    ) {
     }
 }
