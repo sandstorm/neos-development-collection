@@ -19,9 +19,6 @@ use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionId;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Exception\WorkspaceAlreadyExists;
-use Neos\ContentRepository\Core\Feature\WorkspaceModification\Command\DeleteWorkspace;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\DiscardIndividualNodesFromWorkspace;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishIndividualNodesFromWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\WorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindAncestorNodesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
@@ -29,7 +26,6 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\Nodes;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAddress;
-use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
@@ -59,9 +55,9 @@ use Neos\Neos\Domain\Model\WorkspaceClassification;
 use Neos\Neos\Domain\Model\WorkspaceDescription;
 use Neos\Neos\Domain\Model\WorkspaceRole;
 use Neos\Neos\Domain\Model\WorkspaceRoleAssignment;
+use Neos\Neos\Domain\Model\WorkspaceRoleAssignments;
 use Neos\Neos\Domain\Model\WorkspaceRoleSubject;
 use Neos\Neos\Domain\Model\WorkspaceRoleSubjectType;
-use Neos\Neos\Domain\Model\WorkspaceRoleAssignments;
 use Neos\Neos\Domain\Model\WorkspaceTitle;
 use Neos\Neos\Domain\NodeLabel\NodeLabelGeneratorInterface;
 use Neos\Neos\Domain\Repository\SiteRepository;
@@ -73,19 +69,19 @@ use Neos\Neos\FrontendRouting\NodeUriBuilderFactory;
 use Neos\Neos\FrontendRouting\SiteDetection\SiteDetectionResult;
 use Neos\Neos\PendingChangesProjection\ChangeFinder;
 use Neos\Neos\PendingChangesProjection\Changes;
-use Neos\Neos\Utility\NodeTypeWithFallbackProvider;
 use Neos\Neos\Security\Authorization\ContentRepositoryAuthorizationService;
-use Neos\Workspace\Ui\ViewModel\ConfirmDeleteWorkspaceRoleAssignmentFormData;
-use Neos\Workspace\Ui\ViewModel\CreateWorkspaceRoleAssignmentFormData;
+use Neos\Neos\Utility\NodeTypeWithFallbackProvider;
 use Neos\Workspace\Ui\ViewModel\ChangeItem;
+use Neos\Workspace\Ui\ViewModel\ConfirmDeleteWorkspaceRoleAssignmentFormData;
 use Neos\Workspace\Ui\ViewModel\ContentChangeItem;
 use Neos\Workspace\Ui\ViewModel\ContentChangeItems;
 use Neos\Workspace\Ui\ViewModel\ContentChangeProperties;
-use Neos\Workspace\Ui\ViewModel\ContentChanges\ImageContentChange;
-use Neos\Workspace\Ui\ViewModel\ContentChanges\TextContentChange;
 use Neos\Workspace\Ui\ViewModel\ContentChanges\AssetContentChange;
 use Neos\Workspace\Ui\ViewModel\ContentChanges\DateTimeContentChange;
+use Neos\Workspace\Ui\ViewModel\ContentChanges\ImageContentChange;
 use Neos\Workspace\Ui\ViewModel\ContentChanges\TagContentChange;
+use Neos\Workspace\Ui\ViewModel\ContentChanges\TextContentChange;
+use Neos\Workspace\Ui\ViewModel\CreateWorkspaceRoleAssignmentFormData;
 use Neos\Workspace\Ui\ViewModel\DocumentChangeItem;
 use Neos\Workspace\Ui\ViewModel\DocumentItem;
 use Neos\Workspace\Ui\ViewModel\EditWorkspaceFormData;
@@ -171,11 +167,10 @@ class WorkspaceController extends AbstractModuleController
         $this->view->assign('displayContentRepositorySelector', $numberOfContentRepositories > 1);
 
         $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
-        $userWorkspace = $this->getUserWorkspace($contentRepository);
-        $workspaceListItems = $this->getWorkspaceListItems($userWorkspace, $contentRepository);
+        $workspaceListItems = $this->getWorkspaceListItems($contentRepository, $currentUser);
 
         $this->view->assignMultiple([
-            'userWorkspaceName' => $userWorkspace->workspaceName->value,
+            'userWorkspaceName' => $this->workspaceService->getPersonalWorkspaceForUser($contentRepositoryId, $currentUser->getId())->workspaceName,
             'workspaceListItems' => $workspaceListItems,
             'flashMessages' => $this->controllerContext->getFlashMessageContainer()->getMessagesAndFlush(),
         ]);
@@ -334,6 +329,11 @@ class WorkspaceController extends AbstractModuleController
         WorkspaceDescription $description,
         WorkspaceName $baseWorkspace,
     ): void {
+        $currentUser = $this->userService->getCurrentUser();
+        if ($currentUser === null) {
+            throw new \RuntimeException('No user is authenticated', 1729505338);
+        }
+
         $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
         $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
 
@@ -383,11 +383,10 @@ class WorkspaceController extends AbstractModuleController
             )
         );
 
-        $userWorkspace = $this->getUserWorkspace($contentRepository);
-        $workspaceListItems = $this->getWorkspaceListItems($userWorkspace, $contentRepository);
+        $workspaceListItems = $this->getWorkspaceListItems($contentRepository, $currentUser);
 
         $this->view->assignMultiple([
-            'userWorkspaceName' => $userWorkspace->workspaceName->value,
+            'userWorkspaceName' => $this->workspaceService->getPersonalWorkspaceForUser($contentRepositoryId, $currentUser->getId())->workspaceName,
             'workspaceListItems' => $workspaceListItems,
         ]);
     }
@@ -1344,7 +1343,7 @@ class WorkspaceController extends AbstractModuleController
      *
      * @param ContentRepository $contentRepository
      * @param WorkspaceName|null $excludedWorkspace
-     * @return array<string,?string>
+     * @return array<string,string>
      */
     protected function prepareBaseWorkspaceOptions(
         ContentRepository $contentRepository,
@@ -1436,33 +1435,23 @@ class WorkspaceController extends AbstractModuleController
         ) ?: $id;
     }
 
-    protected function getUserWorkspace(ContentRepository $contentRepository): Workspace
-    {
-        $currentUser = $this->userService->getCurrentUser();
-        if ($currentUser === null) {
-            throw new \RuntimeException('No user is authenticated', 1729505338);
-        }
-        return $this->workspaceService->getPersonalWorkspaceForUser($contentRepository->id, $currentUser->getId());
-    }
-
     protected function getWorkspaceListItems(
-        Workspace $userWorkspace,
-        ContentRepository $contentRepository
+        ContentRepository $contentRepository,
+        User $userWorkspaceOwner,
     ): WorkspaceListItems {
+        $workspaceListItems = [];
+        $allWorkspaces = $contentRepository->findWorkspaces();
+        // todo this throws "No workspace is assigned to the user with id" for the case user logs first into workspace module before workspace exists!!!
+        $userWorkspace = $this->workspaceService->getPersonalWorkspaceForUser($contentRepository->id, $userWorkspaceOwner->getId());
         $userWorkspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepository->id, $userWorkspace->workspaceName);
         $userWorkspacesPermissions = $this->authorizationService->getWorkspacePermissions(
             $contentRepository->id,
             $userWorkspace->workspaceName,
             $this->securityContext->getRoles(),
-            $this->userService->getCurrentUser()?->getId()
+            $userWorkspaceOwner->getId()
         );
 
-        $allWorkspaces = $contentRepository->findWorkspaces();
-
-        $userWorkspaceOwner = $this->userService->findUserById($userWorkspaceMetadata->ownerUserId);
-
         // add user workspace first
-        $workspaceListItems = [];
         $workspaceListItems[$userWorkspace->workspaceName->value] = new WorkspaceListItem(
             $userWorkspace->workspaceName->value,
             $userWorkspaceMetadata->classification->value,
@@ -1472,7 +1461,7 @@ class WorkspaceController extends AbstractModuleController
             $userWorkspace->baseWorkspaceName?->value,
             $this->computePendingChanges($userWorkspace, $contentRepository),
             !$allWorkspaces->getDependantWorkspaces($userWorkspace->workspaceName)->isEmpty(),
-            $userWorkspaceOwner?->getLabel(),
+            $userWorkspaceOwner->getLabel(),
             $userWorkspacesPermissions,
         );
 
@@ -1487,7 +1476,7 @@ class WorkspaceController extends AbstractModuleController
             );
 
             // ignore root workspaces, because they will not be shown in the UI
-            if ($workspaceMetadata->classification === WorkspaceClassification::ROOT) {
+            if ($workspace->isRootWorkspace()) {
                 continue;
             }
 
@@ -1507,7 +1496,7 @@ class WorkspaceController extends AbstractModuleController
                 $workspace->status->value,
                 $workspaceMetadata->title->value,
                 $workspaceMetadata->description->value,
-                $workspace->baseWorkspaceName?->value,
+                $workspace->baseWorkspaceName->value,
                 $this->computePendingChanges($workspace, $contentRepository),
                 !$allWorkspaces->getDependantWorkspaces($workspace->workspaceName)->isEmpty(),
                 $workspaceOwner?->getLabel(),
