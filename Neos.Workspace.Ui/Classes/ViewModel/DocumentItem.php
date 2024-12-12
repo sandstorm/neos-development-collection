@@ -24,7 +24,7 @@ readonly class DocumentItem
         public array $documentBreadCrumb,
         public string $aggregateId,
         public string $documentNodeAddress,
-        public string $documentIcon
+        public ?string $documentIcon
     ) {
     }
 }

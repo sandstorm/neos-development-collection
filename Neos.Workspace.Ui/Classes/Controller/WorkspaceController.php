@@ -170,7 +170,8 @@ class WorkspaceController extends AbstractModuleController
         $workspaceListItems = $this->getWorkspaceListItems($contentRepository, $currentUser);
 
         $this->view->assignMultiple([
-            'userWorkspaceName' => $this->workspaceService->getPersonalWorkspaceForUser($contentRepositoryId, $currentUser->getId())->workspaceName,
+            // todo remove userWorkspaceName field and add distinction to $workspaceListItems as $workspaceListItems->userWorkspace and $workspaceListItems->otherWorkspaces or something.
+            'userWorkspaceName' => $this->workspaceService->getPersonalWorkspaceForUser($contentRepositoryId, $currentUser->getId())->workspaceName->value,
             'workspaceListItems' => $workspaceListItems,
             'flashMessages' => $this->controllerContext->getFlashMessageContainer()->getMessagesAndFlush(),
         ]);
@@ -300,6 +301,10 @@ class WorkspaceController extends AbstractModuleController
             $this->throwStatus(404, 'Workspace does not exist');
         }
 
+        if ($workspace->isRootWorkspace()) {
+            throw new \RuntimeException(sprintf('Workspace %s does not have a base-workspace.', $workspace->workspaceName->value), 1734019485);
+        }
+
         $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspace->workspaceName);
 
         $editWorkspaceDto = new EditWorkspaceFormData(
@@ -386,7 +391,7 @@ class WorkspaceController extends AbstractModuleController
         $workspaceListItems = $this->getWorkspaceListItems($contentRepository, $currentUser);
 
         $this->view->assignMultiple([
-            'userWorkspaceName' => $this->workspaceService->getPersonalWorkspaceForUser($contentRepositoryId, $currentUser->getId())->workspaceName,
+            'userWorkspaceName' => $this->workspaceService->getPersonalWorkspaceForUser($contentRepositoryId, $currentUser->getId())->workspaceName->value,
             'workspaceListItems' => $workspaceListItems,
         ]);
     }
@@ -463,7 +468,7 @@ class WorkspaceController extends AbstractModuleController
             );
             $this->addFlashMessage($message, '', Message::SEVERITY_WARNING);
             $this->throwStatus(403, 'Workspace has unpublished nodes');
-        // delete workspace on POST
+        // delete workspace on POST -> todo make this more FLOW-ig by possibly having a DeleteController with post() and get() _or_ by having deleteAction_post and deleteAction_get?? Or a separate action?
         } elseif ($this->request->getHttpRequest()->getMethod() === 'POST') {
             $this->workspaceService->deleteWorkspace($contentRepositoryId, $workspaceName);
 
@@ -860,7 +865,7 @@ class WorkspaceController extends AbstractModuleController
             );
             $this->throwStatus(404, 'Workspace does not exist');
         }
-        $baseWorkspace = $this->getBaseWorkspaceWhenSureItExists($workspace, $contentRepository);
+        $baseWorkspace = $this->requireBaseWorkspace($workspace, $contentRepository);
 
         $baseWorkspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $baseWorkspace->workspaceName);
         $this->view->assignMultiple([
@@ -939,6 +944,10 @@ class WorkspaceController extends AbstractModuleController
         $siteChanges = [];
         $changes = $this->getChangesFromWorkspace($selectedWorkspace, $contentRepository);
         foreach ($changes as $change) {
+            if ($change->originDimensionSpacePoint === null) {
+                // todo implement support for change node type!!! Because originDimensionSpacePoint is null currently for that case.
+                continue;
+            }
             $workspaceName = $selectedWorkspace->workspaceName;
             if ($change->deleted) {
                 // If we deleted a node, there is no way for us to anymore find the deleted node in the ContentStream
@@ -946,7 +955,7 @@ class WorkspaceController extends AbstractModuleController
                 // Thus, to figure out the rootline for display, we check the *base workspace* Content Stream.
                 //
                 // This is safe because the UI basically shows what would be removed once the deletion is published.
-                $baseWorkspace = $this->getBaseWorkspaceWhenSureItExists($selectedWorkspace, $contentRepository);
+                $baseWorkspace = $this->requireBaseWorkspace($selectedWorkspace, $contentRepository);
                 $workspaceName = $baseWorkspace->workspaceName;
             }
             $subgraph = $contentRepository->getContentGraph($workspaceName)->getSubgraph(
@@ -1027,7 +1036,7 @@ class WorkspaceController extends AbstractModuleController
                             documentBreadCrumb: array_reverse($documentPathSegmentsNames),
                             aggregateId: $documentNodeAddress->aggregateId->value,
                             documentNodeAddress: $documentNodeAddress->toJson(),
-                            documentIcon: $documentType->getFullConfiguration()['ui']['icon']
+                            documentIcon: $documentType?->getFullConfiguration()['ui']['icon'] ?? null
                         );
                     }
 
@@ -1053,10 +1062,12 @@ class WorkspaceController extends AbstractModuleController
                     $dimensions = [];
                     foreach ($node->dimensionSpacePoint->coordinates as $id => $coordinate) {
                         $contentDimension = new ContentDimensionId($id);
-                        $dimensions[] = $contentRepository->getContentDimensionSource()->getDimension($contentDimension)->getValue($coordinate)->configuration['label'];
+                        $dimensions[] = $contentRepository->getContentDimensionSource()
+                            ->getDimension($contentDimension)
+                            ?->getValue($coordinate)
+                            ?->configuration['label'] ?? $coordinate;
                     }
-                    $dimensionString = implode('_', $dimensions);
-                    $siteChanges[$siteNodeName]['documents'][$documentPath]['changes'][$dimensionString][$relativePath] = new ChangeItem(
+                    $siteChanges[$siteNodeName]['documents'][$documentPath]['changes'][$node->dimensionSpacePoint->hash][$relativePath] = new ChangeItem(
                         serializedNodeAddress: $nodeAddress->toJson(),
                         hidden: $node->tags->contain(SubtreeTag::disabled()),
                         isRemoved: $change->deleted,
@@ -1118,7 +1129,7 @@ class WorkspaceController extends AbstractModuleController
         );
         $originalNode = null;
         if ($currentWorkspace !== null) {
-            $baseWorkspace = $this->getBaseWorkspaceWhenSureItExists($currentWorkspace, $contentRepository);
+            $baseWorkspace = $this->requireBaseWorkspace($currentWorkspace, $contentRepository);
             $originalNode = $this->getOriginalNode($changedNode, $baseWorkspace->workspaceName, $contentRepository);
         }
 
@@ -1393,6 +1404,7 @@ class WorkspaceController extends AbstractModuleController
     }
 
     /**
+     * Todo remove?
      * Creates an array of user names and their respective labels which are possible owners for a workspace.
      *
      * @return array<int|string,string>
@@ -1408,15 +1420,17 @@ class WorkspaceController extends AbstractModuleController
         return $ownerOptions;
     }
 
-    private function getBaseWorkspaceWhenSureItExists(
+    private function requireBaseWorkspace(
         Workspace $workspace,
         ContentRepository $contentRepository,
     ): Workspace {
-        /** @var WorkspaceName $baseWorkspaceName We expect this to exist */
-        $baseWorkspaceName = $workspace->baseWorkspaceName;
-        /** @var Workspace $baseWorkspace We expect this to exist */
-        $baseWorkspace = $contentRepository->findWorkspaceByName($baseWorkspaceName);
-
+        if ($workspace->isRootWorkspace()) {
+            throw new \RuntimeException(sprintf('Workspace %s does not have a base-workspace.', $workspace->workspaceName->value), 1734019485);
+        }
+        $baseWorkspace = $contentRepository->findWorkspaceByName($workspace->baseWorkspaceName);
+        if ($baseWorkspace === null) {
+            throw new \RuntimeException(sprintf('Base-workspace %s of %s does not exist.', $workspace->baseWorkspaceName->value, $workspace->workspaceName->value), 1734019720);
+        }
         return $baseWorkspace;
     }
 
