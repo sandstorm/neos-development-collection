@@ -716,7 +716,7 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
                 ];
                 $roleAssignments[] = [
                     'subject_type' => WorkspaceRoleSubjectType::GROUP->value,
-                    'subject' => 'Neos.Neos:Everybody',
+                    'subject' => 'Neos.Flow:Everybody',
                     'role' => WorkspaceRole::VIEWER->value,
                 ];
             } elseif ($isInternalWorkspace) {
