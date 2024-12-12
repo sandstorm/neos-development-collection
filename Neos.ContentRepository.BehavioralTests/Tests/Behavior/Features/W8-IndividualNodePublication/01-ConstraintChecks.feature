@@ -82,7 +82,7 @@ Feature: Workspace publication - complex chained functionality
     When the command PublishIndividualNodesFromWorkspace is executed with payload and exceptions are caught:
       | Key                | Value                                                                             |
       | workspaceName      | "user-ws"                                                                         |
-      | nodesToPublish     | [{"dimensionSpacePoint": {"language": "de"}, "nodeAggregateId": "sir-nodebelig"}] |
+      | nodesToPublish     | ["sir-nodebelig"] |
       | newContentStreamId | "user-cs-id-rebased"                                                              |
     Then the last command should have thrown the WorkspaceRebaseFailed exception with:
       | SequenceNumber | Event                 | Exception                          |
@@ -108,7 +108,7 @@ Feature: Workspace publication - complex chained functionality
     When the command PublishIndividualNodesFromWorkspace is executed with payload and exceptions are caught:
       | Key                | Value                                                                                                            |
       | workspaceName      | "user-ws"                                                                                                        |
-      | nodesToPublish     | [{"workspaceName": "user-ws", "dimensionSpacePoint": {"language": "en"}, "nodeAggregateId": "nody-mc-nodeface"}] |
+      | nodesToPublish     | ["nody-mc-nodeface"] |
       | newContentStreamId | "user-cs-id-rebased"                                                                                             |
     Then the last command should have thrown the PartialWorkspaceRebaseFailed exception with:
       | SequenceNumber | Event                               | Exception                                             |
@@ -144,7 +144,7 @@ Feature: Workspace publication - complex chained functionality
      When the command PublishIndividualNodesFromWorkspace is executed with payload and exceptions are caught:
        | Key                | Value                                                                                      |
        | workspaceName      | "user-ws"                                                                                  |
-       | nodesToPublish     | [{"dimensionSpacePoint": {"language": "de"}, "nodeAggregateId": "sir-david-nodenborough"}] |
+       | nodesToPublish     | ["sir-david-nodenborough"] |
        | newContentStreamId | "user-cs-id-rebased"                                                                       |
      Then the last command should have thrown the PartialWorkspaceRebaseFailed exception with:
        | SequenceNumber | Event                 | Exception                          |

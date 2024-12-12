@@ -128,4 +128,9 @@ final class NodeAggregateIds implements \IteratorAggregate, \Countable, \JsonSer
     {
         return count($this->nodeAggregateIds);
     }
+
+    public function isEmpty(): bool
+    {
+        return $this->nodeAggregateIds === [];
+    }
 }
