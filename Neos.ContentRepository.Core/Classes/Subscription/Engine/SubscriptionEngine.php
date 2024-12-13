@@ -30,6 +30,9 @@ use Psr\Log\LoggerInterface;
  * All functionality is low level and well encapsulated and abstracted by the {@see ContentRepositoryMaintainer}
  * It presents the only API way to interact with catchup and offers more maintenance tasks.
  *
+ * This implementation is heavily inspired and adjusted from the event-sourcing package of "patchlevel":
+ * {@link https://github.com/patchlevel/event-sourcing/}
+ *
  * @internal implementation detail of the catchup. See {@see ContentRepository::handle()} and {@see ContentRepositoryMaintainer}
  */
 final class SubscriptionEngine
