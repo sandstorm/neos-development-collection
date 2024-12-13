@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Subscription;
 
+use Doctrine\DBAL\Connection;
 use Neos\ContentRepository\Core\Feature\ContentStreamCreation\Event\ContentStreamWasCreated;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
@@ -36,12 +37,20 @@ final class CatchUpHookTest extends AbstractSubscriptionEngineTestCase
             $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
         );
 
+        $expectNoTransactionActive = fn () => self::assertFalse(
+            $this->getObject(Connection::class)->isTransactionActive(), 'Expected no transaction to be active'
+        );
+
+        $expectTransactionActive = fn () => self::assertTrue(
+            $this->getObject(Connection::class)->isTransactionActive(), 'Expected transaction to be active'
+        );
+
         // first projection hooks
-        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::ACTIVE);
-        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class));
-        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class));
-        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterBatchCompleted');
-        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp');
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::ACTIVE)->willReturnCallback($expectTransactionActive);
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class))->willReturnCallback($expectTransactionActive);
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class))->willReturnCallback($expectTransactionActive);
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterBatchCompleted')->willReturnCallback($expectNoTransactionActive);
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp')->willReturnCallback($expectNoTransactionActive);
 
         // second projection hooks
         $this->catchupHookForSecondFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::ACTIVE)->willReturnCallback($expectNoHandledEvents);

@@ -401,7 +401,6 @@ final class SubscriptionEngine
             }
             $this->logger?->info(sprintf('Subscription Engine: Finish catch up. %d processed events %d errors.', $numberOfProcessedEvents, count($errors)));
 
-            // todo test that this is done before onAfterBatchCompleted
             $this->subscriptionStore->commit();
 
             foreach ($subscriptionIdsToInvokeAroundCatchUpHooks as $subscriptionId) {
