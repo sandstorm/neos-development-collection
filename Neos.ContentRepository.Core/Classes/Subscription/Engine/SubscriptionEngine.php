@@ -218,7 +218,7 @@ final class SubscriptionEngine
                 $subscription->position,
                 SubscriptionError::fromPreviousStatusAndException($subscription->status, $e)
             );
-            return Error::forSubscription($subscription->id, $e);
+            return Error::create($subscription->id, $e->getMessage(), $e);
         }
 
         if ($subscription->status === SubscriptionStatus::ACTIVE) {
@@ -243,7 +243,7 @@ final class SubscriptionEngine
             $subscriber->projection->resetState();
         } catch (\Throwable $e) {
             $this->logger?->error(sprintf('Subscription Engine: Subscriber "%s" for "%s" has an error in the resetState method: %s', $subscriber::class, $subscription->id->value, $e->getMessage()));
-            return Error::forSubscription($subscription->id, $e);
+            return Error::create($subscription->id, $e->getMessage(), $e);
         }
         $this->subscriptionStore->update(
             $subscription->id,
@@ -302,7 +302,7 @@ final class SubscriptionEngine
             try {
                 $subscriber->catchUpHook?->onBeforeCatchUp($subscription->status);
             } catch (\Throwable $e) {
-                $errors[] = Error::forSubscription($subscription->id, $e);
+                $errors[] = Error::create($subscription->id, $e->getMessage(), $errors === [] ? $e : null);
             }
         }
 
@@ -343,7 +343,7 @@ final class SubscriptionEngine
                     try {
                         $subscriber->catchUpHook?->onBeforeEvent($domainEvent, $eventEnvelope);
                     } catch (\Throwable $e) {
-                        $errors[] = Error::forSubscription($subscription->id, $e);
+                        $errors[] = Error::create($subscription->id, $e->getMessage(), $errors === [] ? $e : null);
                     }
 
                     try {
@@ -351,7 +351,6 @@ final class SubscriptionEngine
                     } catch (\Throwable $e) {
                         // ERROR Case:
                         $this->logger?->error(sprintf('Subscription Engine: Subscriber "%s" for "%s" could not process the event "%s" (sequence number: %d): %s', $subscriber::class, $subscription->id->value, $eventEnvelope->event->type->value, $eventEnvelope->sequenceNumber->value, $e->getMessage()));
-                        $error = Error::forSubscription($subscription->id, $e);
 
                         // for the leftover events we are not including this failed subscription for catchup
                         $subscriptionsToCatchup = $subscriptionsToCatchup->without($subscription->id);
@@ -363,10 +362,10 @@ final class SubscriptionEngine
                             position: $highestSequenceNumberForSubscriber[$subscription->id->value] ?? $subscription->position,
                             subscriptionError: SubscriptionError::fromPreviousStatusAndException(
                                 $subscription->status,
-                                $error->throwable
+                                $e
                             ),
                         );
-                        $errors[] = $error;
+                        $errors[] = Error::create($subscription->id, $e->getMessage(), $errors === [] ? $e : null);
                         continue;
                     }
                     // HAPPY Case:
@@ -376,7 +375,7 @@ final class SubscriptionEngine
                     try {
                         $subscriber->catchUpHook?->onAfterEvent($domainEvent, $eventEnvelope);
                     } catch (\Throwable $e) {
-                        $errors[] = Error::forSubscription($subscription->id, $e);
+                        $errors[] = Error::create($subscription->id, $e->getMessage(), $errors === [] ? $e : null);
                     }
                 }
                 $numberOfProcessedEvents++;
@@ -407,7 +406,7 @@ final class SubscriptionEngine
                 try {
                     $this->subscribers->get($subscriptionId)->catchUpHook?->onAfterBatchCompleted();
                 } catch (\Throwable $e) {
-                    $errors[] = Error::forSubscription($subscriptionId, $e);
+                    $errors[] = Error::create($subscriptionId, $e->getMessage(), $errors === [] ? $e : null);
                 }
             }
 
@@ -424,7 +423,7 @@ final class SubscriptionEngine
             try {
                 $this->subscribers->get($subscriptionId)->catchUpHook?->onAfterCatchUp();
             } catch (\Throwable $e) {
-                $errors[] = Error::forSubscription($subscriptionId, $e);
+                $errors[] = Error::create($subscriptionId, $e->getMessage(), $errors === [] ? $e : null);
             }
         }
 

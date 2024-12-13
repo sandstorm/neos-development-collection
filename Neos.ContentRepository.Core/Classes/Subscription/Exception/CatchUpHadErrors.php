@@ -20,26 +20,12 @@ use Neos\ContentRepository\Core\Subscription\Engine\Errors;
  *   projection again, as it has to be fixed and reactivated first.
  *
  * - A catchup hook contains an error. In this case the projections is further updated and also all further catchup errors
- *   collected. This results in a {@see CatchUpHookFailed} exception in this exception collection.
+ *   collected. This results in a {@see CatchUpHookFailed} exception.
  *
- * @implements \IteratorAggregate<\Throwable>
  * @api
  */
-final class CatchUpHadErrors extends \RuntimeException implements \IteratorAggregate
+final class CatchUpHadErrors extends \RuntimeException
 {
-    /**
-     * @internal
-     * @param array<\Throwable> $additionalExceptions
-     */
-    private function __construct(
-        string $message,
-        int $code,
-        \Throwable $exception,
-        private readonly array $additionalExceptions
-    ) {
-        parent::__construct($message, $code, $exception);
-    }
-
     /**
      * @internal
      */
@@ -54,15 +40,6 @@ final class CatchUpHadErrors extends \RuntimeException implements \IteratorAggre
         $additionalErrors = $additionalFailedSubscribers === [] ? '' : sprintf(' | And subscribers %s with additional errors.', join(', ', $additionalFailedSubscribers));
         $exceptionMessage = sprintf('Exception in subscriber "%s" while catching up: %s%s', $firstError->subscriptionId->value, $firstError->message, $additionalErrors);
 
-        throw new self($exceptionMessage, 1732132930, $firstError->throwable, array_map(fn (Error $error) => $error->throwable, $errors));
-    }
-
-    public function getIterator(): \Traversable
-    {
-        $previous = $this->getPrevious();
-        if ($previous !== null) {
-            yield $previous;
-        }
-        yield from $this->additionalExceptions;
+        throw new self($exceptionMessage, 1732132930, $firstError->throwable);
     }
 }

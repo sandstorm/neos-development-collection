@@ -62,8 +62,8 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
             ProcessedResult::failed(
                 2,
                 Errors::fromArray([
-                    Error::forSubscription(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $expectedWrappedException),
-                    Error::forSubscription(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $expectedWrappedException),
+                    Error::create(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $expectedWrappedException->getMessage(), $expectedWrappedException),
+                    Error::create(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $expectedWrappedException->getMessage(), null),
                 ])
             ),
             $result
@@ -119,8 +119,8 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
             ProcessedResult::failed(
                 2,
                 Errors::fromArray([
-                    Error::forSubscription(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $expectedWrappedException),
-                    Error::forSubscription(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $expectedWrappedException),
+                    Error::create(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $expectedWrappedException->getMessage(), $expectedWrappedException),
+                    Error::create(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $expectedWrappedException->getMessage(), null),
                 ])
             ),
             $result
@@ -172,7 +172,7 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
             ProcessedResult::failed(
                 2,
                 Errors::fromArray([
-                    Error::forSubscription(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $expectedWrappedException),
+                    Error::create(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $expectedWrappedException->getMessage(), $expectedWrappedException),
                 ])
             ),
             $result
@@ -224,7 +224,7 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
             ProcessedResult::failed(
                 2,
                 Errors::fromArray([
-                    Error::forSubscription(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $expectedWrappedException),
+                    Error::create(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $expectedWrappedException->getMessage(), $expectedWrappedException),
                 ])
             ),
             $result
@@ -276,7 +276,7 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
             ProcessedResult::failed(
                 2,
                 Errors::fromArray([
-                    Error::forSubscription(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $expectedWrappedException),
+                    Error::create(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $expectedWrappedException->getMessage(), $expectedWrappedException),
                 ])
             ),
             $result
@@ -334,8 +334,8 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
             ProcessedResult::failed(
                 2,
                 Errors::fromArray([
-                    Error::forSubscription(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $innerException),
-                    Error::forSubscription(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $expectedWrappedException),
+                    Error::create(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $innerException->getMessage(), $innerException),
+                    Error::create(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $expectedWrappedException->getMessage(), null),
                 ])
             ),
             $result
@@ -400,7 +400,7 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
             ProcessedResult::failed(
                 1,
                 Errors::fromArray([
-                    Error::forSubscription(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $expectedWrappedException),
+                    Error::create(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $expectedWrappedException->getMessage(), $expectedWrappedException),
                 ])
             ),
             $result
@@ -455,16 +455,20 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
             ProcessedResult::failed(
                 1,
                 Errors::fromArray([
-                    Error::forSubscription(SubscriptionId::fromString('Vendor.Package:FakeProjection'), new CatchUpHookFailed(
+                    Error::create(
+                        SubscriptionId::fromString('Vendor.Package:FakeProjection'),
                         'Hook "onAfterEvent" failed: "": First catchup hook is kaputt.',
-                        1733243960,
-                        $firstException
-                    )),
-                    Error::forSubscription(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), new CatchUpHookFailed(
+                        new CatchUpHookFailed(
+                            'Hook "onAfterEvent" failed: "": First catchup hook is kaputt.',
+                            1733243960,
+                            $firstException
+                        )
+                    ),
+                    Error::create(
+                        SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
                         'Hook "onAfterEvent" failed: "": Second catchup hook is kaputt.',
-                        1733243960,
-                        $secondException
-                    )),
+                        null
+                    ),
                 ])
             ),
             $result
@@ -519,12 +523,15 @@ final class CatchUpHookErrorTest extends AbstractSubscriptionEngineTestCase
             ProcessedResult::failed(
                 1,
                 Errors::fromArray([
-                    Error::forSubscription(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), new CatchUpHookFailed(
-                        'Hook "onAfterEvent" failed: "": First catchup hook is kaputt.;' . PHP_EOL .
+                    Error::create(
+                        SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
+                        $message = 'Hook "onAfterEvent" failed: "": First catchup hook is kaputt.;' . PHP_EOL .
                         '"": Second catchup hook is kaputt.',
-                        1733243960,
-                        $firstException
-                    )),
+                        new CatchUpHookFailed(
+                            $message,
+                            1733243960,
+                            $firstException
+                        )),
                 ])
             ),
             $result

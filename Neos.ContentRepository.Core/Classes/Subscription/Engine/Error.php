@@ -14,16 +14,19 @@ final readonly class Error
     private function __construct(
         public SubscriptionId $subscriptionId,
         public string $message,
-        public \Throwable $throwable,
+        public \Throwable|null $throwable,
     ) {
     }
 
-    public static function forSubscription(SubscriptionId $subscriptionId, \Throwable $exception): self
-    {
+    public static function create(
+        SubscriptionId $subscriptionId,
+        string $message,
+        \Throwable|null $throwable,
+    ): self {
         return new self(
             $subscriptionId,
-            $exception->getMessage(),
-            $exception,
+            $message,
+            $throwable
         );
     }
 }

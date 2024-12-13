@@ -62,7 +62,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
         );
 
         $result = $this->subscriptionEngine->catchUpActive();
-        self::assertEquals(ProcessedResult::failed(1, Errors::fromArray([Error::forSubscription(SubscriptionId::fromString('Vendor.Package:FakeProjection'), $exception)])), $result);
+        self::assertEquals(ProcessedResult::failed(1, Errors::fromArray([Error::create(SubscriptionId::fromString('Vendor.Package:FakeProjection'), $exception->getMessage(), $exception)])), $result);
 
         self::assertEquals(
             $expectedStatusForFailedProjection,
@@ -388,7 +388,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
         );
 
         $result = $this->subscriptionEngine->boot(batchSize: 1);
-        self::assertEquals(ProcessedResult::failed(1, Errors::fromArray([Error::forSubscription(SubscriptionId::fromString('Vendor.Package:FakeProjection'), $exception)])), $result);
+        self::assertEquals(ProcessedResult::failed(1, Errors::fromArray([Error::create(SubscriptionId::fromString('Vendor.Package:FakeProjection'), $exception->getMessage(), $exception)])), $result);
 
         self::assertEquals(
             $expectedStatusForFailedProjection,
