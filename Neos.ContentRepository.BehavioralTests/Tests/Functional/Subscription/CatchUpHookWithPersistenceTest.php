@@ -51,17 +51,21 @@ final class CatchUpHookWithPersistenceTest extends AbstractSubscriptionEngineTes
 
         $actualException = null;
         try {
-            $this->subscriptionEngine->catchUpActive();
+            $this->subscriptionEngine->catchUpActive(batchSize: 1);
         } catch (\Throwable $e) {
             $actualException = $e;
         }
+        // To solve this we would need to use an own connection for all CORE cr parts.
         self::assertInstanceOf(\Doctrine\DBAL\ConnectionException::class, $actualException);
+        self::assertEquals('There is no active transaction.', $actualException->getMessage());
 
-        // todo invalid state, use own connection for cr?!
-        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::none());
+        self::assertFalse($this->getObject(Connection::class)->isTransactionActive());
+
+        // partially applied event because the error is thrown at the end and the projection is not rolled back
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
         self::assertEquals(
-            [SequenceNumber::fromInteger(1)],
-            $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
+            [1],
+            $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues()
         );
     }
 
