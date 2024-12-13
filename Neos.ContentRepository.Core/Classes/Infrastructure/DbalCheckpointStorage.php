@@ -149,7 +149,6 @@ final class DbalCheckpointStorage implements CheckpointStorageInterface
      */
     private function determineRequiredSqlStatements(): array
     {
-        $schemaManager = $this->connection->createSchemaManager();
         $tableSchema = new Table(
             $this->tableName,
             [
@@ -158,7 +157,7 @@ final class DbalCheckpointStorage implements CheckpointStorageInterface
             ]
         );
         $tableSchema->setPrimaryKey(['subscriberid']);
-        $schema = DbalSchemaFactory::createSchemaWithTables($schemaManager, [$tableSchema]);
+        $schema = DbalSchemaFactory::createSchemaWithTables($this->connection, [$tableSchema]);
         return DbalSchemaDiff::determineRequiredSqlStatements($this->connection, $schema);
     }
 }
