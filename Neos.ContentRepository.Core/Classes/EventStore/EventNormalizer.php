@@ -176,13 +176,7 @@ final readonly class EventNormalizer
             throw new \RuntimeException(sprintf('Expected array got %s', $eventDataAsArray));
         }
         /** {@see EventInterface::fromArray()} */
-        $eventInstance = $eventClassName::fromArray($eventDataAsArray);
-        return match ($eventInstance::class) {
-            // upcast disabled / enabled events to the corresponding SubtreeTag events
-            NodeAggregateWasDisabled::class => new SubtreeWasTagged($eventInstance->workspaceName, $eventInstance->contentStreamId, $eventInstance->nodeAggregateId, $eventInstance->affectedDimensionSpacePoints, SubtreeTag::disabled()),
-            NodeAggregateWasEnabled::class => new SubtreeWasUntagged($eventInstance->workspaceName, $eventInstance->contentStreamId, $eventInstance->nodeAggregateId, $eventInstance->affectedDimensionSpacePoints, SubtreeTag::disabled()),
-            default => $eventInstance,
-        };
+        return $eventClassName::fromArray($eventDataAsArray);
     }
 
     private function getEventData(EventInterface $event): EventData

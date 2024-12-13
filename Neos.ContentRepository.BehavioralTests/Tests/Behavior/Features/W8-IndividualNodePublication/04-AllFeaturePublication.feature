@@ -100,7 +100,7 @@ Feature: Publishing hide/show scenario of nodes
     When the command PublishIndividualNodesFromWorkspace is executed with payload:
       | Key                             | Value                                                                                                    |
       | workspaceName                   | "user-test"                                                                                              |
-      | nodesToPublish                  | [{"nodeAggregateId": "sir-david-nodenborough", "workspaceName": "user-test", "dimensionSpacePoint": {}}] |
+      | nodesToPublish                  | ["sir-david-nodenborough"] |
       | contentStreamIdForRemainingPart | "remaining-cs-id"                                                                                        |
 
     When I am in workspace "live"
@@ -151,7 +151,7 @@ Feature: Publishing hide/show scenario of nodes
     When the command PublishIndividualNodesFromWorkspace is executed with payload:
       | Key                             | Value                                                                                                    |
       | workspaceName                   | "user-test"                                                                                              |
-      | nodesToPublish                  | [{"nodeAggregateId": "sir-david-nodenborough", "workspaceName": "user-test", "dimensionSpacePoint": {}}] |
+      | nodesToPublish                  | ["sir-david-nodenborough"] |
       | contentStreamIdForRemainingPart | "user-cs-identifier-modified"                                                                            |
 
     When I am in workspace "live" and dimension space point {}
@@ -191,7 +191,7 @@ Feature: Publishing hide/show scenario of nodes
    # When the command PublishIndividualNodesFromWorkspace is executed with payload:
    #   | Key           | Value                                                                                                                               |
    #   | workspaceName | "user-test"                                                                                                                         |
-    #  | nodesToPublish | [{"nodeAggregateId": "sir-david-nodenborough", "contentStreamId": "user-cs-identifier", "dimensionSpacePoint": {}}] |
+    #  | nodesToPublish | ["sir-david-nodenborough"] |
     #And the graph projection is fully up to date
 
    # When I am in workspace "live" and dimension space point {}
@@ -232,7 +232,7 @@ Feature: Publishing hide/show scenario of nodes
     When the command PublishIndividualNodesFromWorkspace is executed with payload:
       | Key                             | Value                                                                                                    |
       | workspaceName                   | "user-test"                                                                                              |
-      | nodesToPublish                  | [{"nodeAggregateId": "sir-david-nodenborough", "workspaceName": "user-test", "dimensionSpacePoint": {}}] |
+      | nodesToPublish                  | ["sir-david-nodenborough"] |
       | contentStreamIdForRemainingPart | "user-cs-identifier-modified"                                                                            |
 
     When I am in workspace "live" and dimension space point {}
@@ -270,7 +270,7 @@ Feature: Publishing hide/show scenario of nodes
     When the command PublishIndividualNodesFromWorkspace is executed with payload:
       | Key            | Value                                                                                                    |
       | workspaceName  | "user-test"                                                                                              |
-      | nodesToPublish | [{"nodeAggregateId": "sir-david-nodenborough", "workspaceName": "user-test", "dimensionSpacePoint": {}}] |
+      | nodesToPublish | ["sir-david-nodenborough"] |
 
     When I am in workspace "live" and dimension space point {}
     Then I expect node aggregate identifier "sir-david-nodenborough" to lead to no node
@@ -307,7 +307,7 @@ Feature: Publishing hide/show scenario of nodes
     When the command PublishIndividualNodesFromWorkspace is executed with payload:
       | Key                             | Value                                                                                                    |
       | workspaceName                   | "user-test"                                                                                              |
-      | nodesToPublish                  | [{"nodeAggregateId": "sir-david-nodenborough", "workspaceName": "user-test", "dimensionSpacePoint": {}}] |
+      | nodesToPublish                  | ["sir-david-nodenborough"] |
       | contentStreamIdForRemainingPart | "user-cs-identifier-modified"                                                                            |
 
     When I am in workspace "live" and dimension space point {}
@@ -366,7 +366,7 @@ Feature: Publishing hide/show scenario of nodes
     When the command PublishIndividualNodesFromWorkspace is executed with payload:
       | Key                             | Value                                                                                      |
       | workspaceName                   | "user-test"                                                                                |
-      | nodesToPublish                  | [{"nodeAggregateId": "new1-agg", "workspaceName": "user-test", "dimensionSpacePoint": {}}] |
+      | nodesToPublish                  | ["new1-agg"] |
       | contentStreamIdForRemainingPart | "user-cs-identifier-modified"                                                              |
 
     When I am in workspace "live" and dimension space point {}

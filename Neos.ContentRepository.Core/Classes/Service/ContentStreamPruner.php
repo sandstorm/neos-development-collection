@@ -14,8 +14,6 @@ use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Event\RootWorkspaceWas
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Event\WorkspaceWasCreated;
 use Neos\ContentRepository\Core\Feature\WorkspaceEventStreamName;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasDiscarded;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPartiallyDiscarded;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPartiallyPublished;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPublished;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Event\WorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Event\WorkspaceWasRebased;
@@ -312,6 +310,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
                     EventType::fromString('RootWorkspaceWasCreated'),
                     EventType::fromString('WorkspaceWasCreated'),
                     EventType::fromString('WorkspaceWasDiscarded'),
+                    // we must include these two legacy events in the query for they exist and will be upcasted at runtime
                     EventType::fromString('WorkspaceWasPartiallyDiscarded'),
                     EventType::fromString('WorkspaceWasPartiallyPublished'),
                     EventType::fromString('WorkspaceWasPublished'),
@@ -344,26 +343,6 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
                     }
                     if (isset($cs[$domainEvent->previousContentStreamId->value])) {
                         $cs[$domainEvent->previousContentStreamId->value] = $cs[$domainEvent->previousContentStreamId->value]
-                            ->withStatus(ContentStreamStatus::NO_LONGER_IN_USE);
-                    }
-                    break;
-                case WorkspaceWasPartiallyDiscarded::class:
-                    if (isset($cs[$domainEvent->newContentStreamId->value])) {
-                        $cs[$domainEvent->newContentStreamId->value] = $cs[$domainEvent->newContentStreamId->value]
-                            ->withStatus(ContentStreamStatus::IN_USE_BY_WORKSPACE);
-                    }
-                    if (isset($cs[$domainEvent->previousContentStreamId->value])) {
-                        $cs[$domainEvent->previousContentStreamId->value] = $cs[$domainEvent->previousContentStreamId->value]
-                            ->withStatus(ContentStreamStatus::NO_LONGER_IN_USE);
-                    }
-                    break;
-                case WorkspaceWasPartiallyPublished::class:
-                    if (isset($cs[$domainEvent->newSourceContentStreamId->value])) {
-                        $cs[$domainEvent->newSourceContentStreamId->value] = $cs[$domainEvent->newSourceContentStreamId->value]
-                            ->withStatus(ContentStreamStatus::IN_USE_BY_WORKSPACE);
-                    }
-                    if (isset($cs[$domainEvent->previousSourceContentStreamId->value])) {
-                        $cs[$domainEvent->previousSourceContentStreamId->value] = $cs[$domainEvent->previousSourceContentStreamId->value]
                             ->withStatus(ContentStreamStatus::NO_LONGER_IN_USE);
                     }
                     break;

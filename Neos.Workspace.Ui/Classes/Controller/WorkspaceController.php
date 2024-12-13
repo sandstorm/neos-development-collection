@@ -21,14 +21,13 @@ use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Exception\WorkspaceAlr
 use Neos\ContentRepository\Core\Feature\WorkspaceModification\Command\DeleteWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\DiscardIndividualNodesFromWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishIndividualNodesFromWorkspace;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Dto\NodeIdsToPublishOrDiscard;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Dto\NodeIdToPublishOrDiscard;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindAncestorNodesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Nodes;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAddress;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
@@ -55,6 +54,7 @@ use Neos\Neos\Domain\Model\WorkspaceClassification;
 use Neos\Neos\Domain\Model\WorkspaceDescription;
 use Neos\Neos\Domain\Model\WorkspaceRole;
 use Neos\Neos\Domain\Model\WorkspaceRoleAssignment;
+use Neos\Neos\Domain\Model\WorkspaceRoleAssignments;
 use Neos\Neos\Domain\Model\WorkspaceTitle;
 use Neos\Neos\Domain\Repository\SiteRepository;
 use Neos\Neos\Domain\Service\NodeTypeNameFactory;
@@ -222,6 +222,9 @@ class WorkspaceController extends AbstractModuleController
                 $title,
                 $description,
                 $baseWorkspace,
+                WorkspaceRoleAssignments::createForSharedWorkspace(
+                    $currentUser->getId()
+                )
             );
         } catch (WorkspaceAlreadyExists $exception) {
             $this->addFlashMessage(
@@ -231,22 +234,6 @@ class WorkspaceController extends AbstractModuleController
             );
             $this->redirect('new');
         }
-        $this->workspaceService->assignWorkspaceRole(
-            $contentRepositoryId,
-            $workspaceName,
-            WorkspaceRoleAssignment::createForUser(
-                $currentUser->getId(),
-                WorkspaceRole::MANAGER,
-            )
-        );
-        $this->workspaceService->assignWorkspaceRole(
-            $contentRepositoryId,
-            $workspaceName,
-            WorkspaceRoleAssignment::createForGroup(
-                'Neos.Neos:AbstractEditor',
-                WorkspaceRole::COLLABORATOR,
-            )
-        );
         $this->addFlashMessage($this->getModuleLabel('workspaces.workspaceHasBeenCreated', [$title->value]));
         $this->redirect('index');
     }
@@ -490,12 +477,7 @@ class WorkspaceController extends AbstractModuleController
 
         $command = PublishIndividualNodesFromWorkspace::create(
             $selectedWorkspace,
-            NodeIdsToPublishOrDiscard::create(
-                new NodeIdToPublishOrDiscard(
-                    $nodeAddress->aggregateId,
-                    $nodeAddress->dimensionSpacePoint
-                )
-            ),
+            NodeAggregateIds::create($nodeAddress->aggregateId),
         );
         $contentRepository->handle($command);
 
@@ -524,11 +506,8 @@ class WorkspaceController extends AbstractModuleController
 
         $command = DiscardIndividualNodesFromWorkspace::create(
             $selectedWorkspace,
-            NodeIdsToPublishOrDiscard::create(
-                new NodeIdToPublishOrDiscard(
-                    $nodeAddress->aggregateId,
-                    $nodeAddress->dimensionSpacePoint
-                )
+            NodeAggregateIds::create(
+                $nodeAddress->aggregateId
             ),
         );
         $contentRepository->handle($command);
@@ -560,17 +539,14 @@ class WorkspaceController extends AbstractModuleController
         $nodesToPublishOrDiscard = [];
         foreach ($nodes as $node) {
             $nodeAddress = NodeAddress::fromJsonString($node);
-            $nodesToPublishOrDiscard[] = new NodeIdToPublishOrDiscard(
-                $nodeAddress->aggregateId,
-                $nodeAddress->dimensionSpacePoint
-            );
+            $nodesToPublishOrDiscard[] = $nodeAddress->aggregateId;
         }
 
         switch ($action) {
             case 'publish':
                 $command = PublishIndividualNodesFromWorkspace::create(
                     $selectedWorkspaceName,
-                    NodeIdsToPublishOrDiscard::create(...$nodesToPublishOrDiscard),
+                    NodeAggregateIds::create(...$nodesToPublishOrDiscard),
                 );
                 $contentRepository->handle($command);
                 $this->addFlashMessage($this->translator->translateById(
@@ -585,7 +561,7 @@ class WorkspaceController extends AbstractModuleController
             case 'discard':
                 $command = DiscardIndividualNodesFromWorkspace::create(
                     $selectedWorkspaceName,
-                    NodeIdsToPublishOrDiscard::create(...$nodesToPublishOrDiscard),
+                    NodeAggregateIds::create(...$nodesToPublishOrDiscard),
                 );
                 $contentRepository->handle($command);
                 $this->addFlashMessage($this->translator->translateById(
@@ -1029,7 +1005,7 @@ class WorkspaceController extends AbstractModuleController
                 continue;
             }
             $permissions = $this->contentRepositoryAuthorizationService->getWorkspacePermissions($contentRepository->id, $workspace->workspaceName, $this->securityContext->getRoles(), $currentUser?->getId());
-            if (!$permissions->manage) {
+            if (!$permissions->read) {
                 continue;
             }
             $baseWorkspaceOptions[$workspace->workspaceName->value] = $workspaceMetadata->title->value;

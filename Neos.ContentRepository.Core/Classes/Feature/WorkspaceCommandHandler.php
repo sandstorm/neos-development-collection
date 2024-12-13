@@ -47,8 +47,6 @@ use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\DiscardWork
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishIndividualNodesFromWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasDiscarded;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPartiallyDiscarded;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPartiallyPublished;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPublished;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Command\RebaseWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Dto\RebaseErrorHandlingStrategy;
@@ -211,26 +209,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             $workspaceContentStreamVersion
         );
 
-        yield from $this->publishWorkspace(
-            $workspace,
-            $baseWorkspace,
-            $baseWorkspaceContentStreamVersion,
-            $command->newContentStreamId,
-            $rebaseableCommands
-        );
-    }
-
-    /**
-     * Note that the workspaces content stream must be closed beforehand.
-     * It will be reopened here in case of error.
-     */
-    private function publishWorkspace(
-        Workspace $workspace,
-        Workspace $baseWorkspace,
-        Version $baseWorkspaceContentStreamVersion,
-        ContentStreamId $newContentStreamId,
-        RebaseableCommands $rebaseableCommands
-    ): \Generator {
         $commandSimulator = $this->commandSimulatorFactory->createSimulatorForWorkspace($baseWorkspace->workspaceName);
 
         $commandSimulator->run(
@@ -269,7 +247,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         }
 
         yield $this->forkContentStream(
-            $newContentStreamId,
+            $command->newContentStreamId,
             $baseWorkspace->currentContentStreamId,
             Version::fromInteger($baseWorkspaceContentStreamVersion->value + $eventsOfWorkspaceToPublish->count())
         );
@@ -280,8 +258,9 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                 new WorkspaceWasPublished(
                     $workspace->workspaceName,
                     $baseWorkspace->workspaceName,
-                    $newContentStreamId,
+                    $command->newContentStreamId,
                     $workspace->currentContentStreamId,
+                    partial: false
                 )
             ),
             ExpectedVersion::ANY()
@@ -477,18 +456,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             $workspaceContentStreamVersion
         );
 
-        if ($remainingCommands->isEmpty()) {
-            // do a full publish, this is simpler for the projections to handle
-            yield from $this->publishWorkspace(
-                $workspace,
-                $baseWorkspace,
-                $baseWorkspaceContentStreamVersion,
-                $command->contentStreamIdForRemainingPart,
-                $matchingCommands
-            );
-            return;
-        }
-
         $commandSimulator = $this->commandSimulatorFactory->createSimulatorForWorkspace($baseWorkspace->workspaceName);
 
         $highestSequenceNumberForMatching = $commandSimulator->run(
@@ -546,12 +513,12 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             new EventsToPublish(
                 WorkspaceEventStreamName::fromWorkspaceName($command->workspaceName)->getEventStreamName(),
                 Events::fromArray([
-                    new WorkspaceWasPartiallyPublished(
+                    new WorkspaceWasPublished(
                         $command->workspaceName,
                         $baseWorkspace->workspaceName,
                         $command->contentStreamIdForRemainingPart,
                         $workspace->currentContentStreamId,
-                        $command->nodesToPublish
+                        partial: !$remainingCommands->isEmpty()
                     )
                 ]),
                 ExpectedVersion::ANY()
@@ -653,11 +620,11 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             new EventsToPublish(
                 WorkspaceEventStreamName::fromWorkspaceName($command->workspaceName)->getEventStreamName(),
                 Events::with(
-                    new WorkspaceWasPartiallyDiscarded(
+                    new WorkspaceWasDiscarded(
                         $command->workspaceName,
                         $command->newContentStreamId,
                         $workspace->currentContentStreamId,
-                        $command->nodesToDiscard,
+                        partial: true
                     )
                 ),
                 ExpectedVersion::ANY()
@@ -721,6 +688,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                     $workspace->workspaceName,
                     $newContentStream,
                     $workspace->currentContentStreamId,
+                    partial: false
                 )
             ),
             ExpectedVersion::ANY()

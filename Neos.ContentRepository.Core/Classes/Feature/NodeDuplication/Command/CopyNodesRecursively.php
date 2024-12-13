@@ -15,10 +15,8 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Feature\NodeDuplication\Command;
 
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
-use Neos\ContentRepository\Core\Feature\Common\MatchableWithNodeIdToPublishOrDiscardInterface;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
 use Neos\ContentRepository\Core\Feature\NodeDuplication\Dto\NodeSubtreeSnapshot;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Dto\NodeIdToPublishOrDiscard;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
@@ -38,7 +36,6 @@ use Neos\Neos\Domain\Service\NodeDuplication\NodeAggregateIdMapping;
  */
 final readonly class CopyNodesRecursively implements
     \JsonSerializable,
-    MatchableWithNodeIdToPublishOrDiscardInterface,
     RebasableToOtherWorkspaceInterface
 {
     /**
@@ -119,18 +116,6 @@ final readonly class CopyNodesRecursively implements
     public function jsonSerialize(): array
     {
         return get_object_vars($this);
-    }
-
-    public function matchesNodeId(NodeIdToPublishOrDiscard $nodeIdToPublish): bool
-    {
-        $targetNodeAggregateId = $this->nodeAggregateIdMapping->getNewNodeAggregateId(
-            $this->nodeTreeToInsert->nodeAggregateId
-        );
-        return (
-            !is_null($targetNodeAggregateId)
-                && $nodeIdToPublish->dimensionSpacePoint?->equals($this->targetDimensionSpacePoint)
-                && $targetNodeAggregateId->equals($nodeIdToPublish->nodeAggregateId)
-        );
     }
 
     public function withNodeAggregateIdMapping(
