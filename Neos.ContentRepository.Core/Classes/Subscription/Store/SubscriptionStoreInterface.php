@@ -29,10 +29,7 @@ interface SubscriptionStoreInterface
         SubscriptionError|null $subscriptionError,
     ): void;
 
-    /**
-     * @template T
-     * @param \Closure():T $closure
-     * @return T
-     */
-    public function transactional(\Closure $closure): mixed;
+    public function beginTransaction(): void;
+
+    public function commit(): void;
 }

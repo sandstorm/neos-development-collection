@@ -170,8 +170,13 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
         );
     }
 
-    public function transactional(\Closure $closure): mixed
+    public function beginTransaction(): void
     {
-        return $this->dbal->transactional($closure);
+        $this->dbal->beginTransaction();
+    }
+
+    public function commit(): void
+    {
+        $this->dbal->commit();
     }
 }
