@@ -118,10 +118,10 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
     ): void {
         $row = [];
         $row['last_saved_at'] = $this->clock->now()->format('Y-m-d H:i:s');
-        $row['status'] = $status->name;
+        $row['status'] = $status->value;
         $row['position'] = $position->value;
         $row['error_message'] = $subscriptionError?->errorMessage;
-        $row['error_previous_status'] = $subscriptionError?->previousStatus?->name;
+        $row['error_previous_status'] = $subscriptionError?->previousStatus?->value;
         $row['error_trace'] = $subscriptionError?->errorTrace;
         $this->dbal->update(
             $this->tableName,
@@ -138,10 +138,10 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
     private static function toDatabase(Subscription $subscription): array
     {
         return [
-            'status' => $subscription->status->name,
+            'status' => $subscription->status->value,
             'position' => $subscription->position->value,
             'error_message' => $subscription->error?->errorMessage,
-            'error_previous_status' => $subscription->error?->previousStatus?->name,
+            'error_previous_status' => $subscription->error?->previousStatus?->value,
             'error_trace' => $subscription->error?->errorTrace,
         ];
     }
