@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Subscription\Engine;
 
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
+use Neos\EventStore\Model\Event\SequenceNumber;
 
 /**
  * @internal implementation detail of the catchup
@@ -15,6 +16,7 @@ final readonly class Error
         public SubscriptionId $subscriptionId,
         public string $message,
         public \Throwable|null $throwable,
+        public SequenceNumber|null $position,
     ) {
     }
 
@@ -22,11 +24,13 @@ final readonly class Error
         SubscriptionId $subscriptionId,
         string $message,
         \Throwable|null $throwable,
+        SequenceNumber|null $position,
     ): self {
         return new self(
             $subscriptionId,
             $message,
-            $throwable
+            $throwable,
+            $position
         );
     }
 }

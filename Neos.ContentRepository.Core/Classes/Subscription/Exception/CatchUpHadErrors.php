@@ -30,6 +30,6 @@ final class CatchUpHadErrors extends \RuntimeException
      */
     public static function createFromErrors(Errors $errors): self
     {
-        return new self(sprintf('Exception while catching up: %s', $errors->getClampedMessage()), 1732132930, $errors->first()->throwable);
+        return new self(sprintf('Error%s while catching up: %s', $errors->count() > 1 ? 's' : '', $errors->getClampedMessage()), 1732132930, $errors->first()->throwable);
     }
 }

@@ -218,7 +218,7 @@ final class SubscriptionEngine
                 $subscription->position,
                 SubscriptionError::fromPreviousStatusAndException($subscription->status, $e)
             );
-            return Error::create($subscription->id, $e->getMessage(), $e);
+            return Error::create($subscription->id, $e->getMessage(), $e, null);
         }
 
         if ($subscription->status === SubscriptionStatus::ACTIVE) {
@@ -243,7 +243,7 @@ final class SubscriptionEngine
             $subscriber->projection->resetState();
         } catch (\Throwable $e) {
             $this->logger?->error(sprintf('Subscription Engine: Subscriber "%s" for "%s" has an error in the resetState method: %s', $subscriber::class, $subscription->id->value, $e->getMessage()));
-            return Error::create($subscription->id, $e->getMessage(), $e);
+            return Error::create($subscription->id, $e->getMessage(), $e, null);
         }
         $this->subscriptionStore->update(
             $subscription->id,
@@ -302,7 +302,7 @@ final class SubscriptionEngine
             try {
                 $subscriber->catchUpHook?->onBeforeCatchUp($subscription->status);
             } catch (\Throwable $e) {
-                $errors[] = $error = Error::create($subscription->id, $e->getMessage(), $errors === [] ? $e : null);
+                $errors[] = $error = Error::create($subscription->id, $e->getMessage(), $errors === [] ? $e : null, position: null);
                 $this->logCatchupHookError($error);
             }
         }
@@ -344,7 +344,7 @@ final class SubscriptionEngine
                     try {
                         $subscriber->catchUpHook?->onBeforeEvent($domainEvent, $eventEnvelope);
                     } catch (\Throwable $e) {
-                        $errors[] = $error = Error::create($subscription->id, $e->getMessage(), $errors === [] ? $e : null);
+                        $errors[] = $error = Error::create($subscription->id, $e->getMessage(), $errors === [] ? $e : null, $eventEnvelope->sequenceNumber);
                         $this->logCatchupHookError($error);
                     }
 
@@ -352,7 +352,7 @@ final class SubscriptionEngine
                         $subscriber->projection->apply($domainEvent, $eventEnvelope);
                     } catch (\Throwable $e) {
                         // ERROR Case:
-                        $errors[] = Error::create($subscription->id, $e->getMessage(), $errors === [] ? $e : null);
+                        $errors[] = Error::create($subscription->id, $e->getMessage(), $errors === [] ? $e : null, $eventEnvelope->sequenceNumber);
                         $this->logger?->error(sprintf('Subscription Engine: Subscriber "%s" for "%s" could not process the event "%s" (sequence number: %d): %s', $subscriber::class, $subscription->id->value, $eventEnvelope->event->type->value, $eventEnvelope->sequenceNumber->value, $e->getMessage()));
 
                         // for the leftover events we are not including this failed subscription for catchup
@@ -377,7 +377,7 @@ final class SubscriptionEngine
                     try {
                         $subscriber->catchUpHook?->onAfterEvent($domainEvent, $eventEnvelope);
                     } catch (\Throwable $e) {
-                        $errors[] = $error = Error::create($subscription->id, $e->getMessage(), $errors === [] ? $e : null);
+                        $errors[] = $error = Error::create($subscription->id, $e->getMessage(), $errors === [] ? $e : null, $eventEnvelope->sequenceNumber);
                         $this->logCatchupHookError($error);
                     }
                 }
@@ -409,7 +409,7 @@ final class SubscriptionEngine
                 try {
                     $this->subscribers->get($subscriptionId)->catchUpHook?->onAfterBatchCompleted();
                 } catch (\Throwable $e) {
-                    $errors[] = $error = Error::create($subscriptionId, $e->getMessage(), $errors === [] ? $e : null);
+                    $errors[] = $error = Error::create($subscriptionId, $e->getMessage(), $errors === [] ? $e : null, position: null);
                     $this->logCatchupHookError($error);
                 }
             }
@@ -427,7 +427,7 @@ final class SubscriptionEngine
             try {
                 $this->subscribers->get($subscriptionId)->catchUpHook?->onAfterCatchUp();
             } catch (\Throwable $e) {
-                $errors[] = $error = Error::create($subscriptionId, $e->getMessage(), $errors === [] ? $e : null);
+                $errors[] = $error = Error::create($subscriptionId, $e->getMessage(), $errors === [] ? $e : null, position: null);
                 $this->logCatchupHookError($error);
             }
         }

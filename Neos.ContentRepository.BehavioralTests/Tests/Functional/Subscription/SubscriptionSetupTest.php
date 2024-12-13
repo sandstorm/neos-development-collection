@@ -278,7 +278,12 @@ final class SubscriptionSetupTest extends AbstractSubscriptionEngineTestCase
         );
 
         $result = $this->subscriptionEngine->setup();
-        self::assertEquals(Errors::fromArray([Error::create(SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'), $exception->getMessage(), $exception)]), $result->errors);
+        self::assertEquals(Errors::fromArray([Error::create(
+            SubscriptionId::fromString('Vendor.Package:SecondFakeProjection'),
+            $exception->getMessage(),
+            $exception,
+            null
+        )]), $result->errors);
 
         self::assertEquals(
             $expectedStatusForFailedProjection,

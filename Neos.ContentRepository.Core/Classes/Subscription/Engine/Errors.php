@@ -56,7 +56,7 @@ final readonly class Errors implements \IteratorAggregate, \Countable
         $additionalMessage = '';
         $lines = [];
         foreach ($this->errors as $error) {
-            $lines[] = sprintf('"%s": %s', $error->subscriptionId->value, $error->message);
+            $lines[] = sprintf('%s"%s": %s', $error->position ? 'Event ' . $error->position->value . ' in ' : '', $error->subscriptionId->value, $error->message);
             if (count($lines) >= self::CLAMP_ERRORS) {
                 $additionalMessage = sprintf('%sAnd %d other exceptions, see log.', ";\n", count($this->errors) - self::CLAMP_ERRORS);
                 break;

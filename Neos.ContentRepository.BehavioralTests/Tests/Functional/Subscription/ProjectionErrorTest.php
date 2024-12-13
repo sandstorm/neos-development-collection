@@ -62,7 +62,12 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
         );
 
         $result = $this->subscriptionEngine->catchUpActive();
-        self::assertEquals(ProcessedResult::failed(1, Errors::fromArray([Error::create(SubscriptionId::fromString('Vendor.Package:FakeProjection'), $exception->getMessage(), $exception)])), $result);
+        self::assertEquals(ProcessedResult::failed(1, Errors::fromArray([Error::create(
+            SubscriptionId::fromString('Vendor.Package:FakeProjection'),
+            $exception->getMessage(),
+            $exception,
+            SequenceNumber::fromInteger(1)
+        )])), $result);
 
         self::assertEquals(
             $expectedStatusForFailedProjection,
@@ -337,7 +342,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
             $handleException = $exception;
         }
         self::assertInstanceOf(CatchUpHadErrors::class, $exception);
-        self::assertEquals('Exception while catching up: "Vendor.Package:FakeProjection": This projection is kaputt.', $handleException->getMessage());
+        self::assertEquals('Error while catching up: Event 1 in "Vendor.Package:FakeProjection": This projection is kaputt.', $handleException->getMessage());
         self::assertSame($originalException, $handleException->getPrevious());
 
         // workspace is created. The fake projection failed on the first event, but other projections succeed:
@@ -388,7 +393,12 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
         );
 
         $result = $this->subscriptionEngine->boot(batchSize: 1);
-        self::assertEquals(ProcessedResult::failed(1, Errors::fromArray([Error::create(SubscriptionId::fromString('Vendor.Package:FakeProjection'), $exception->getMessage(), $exception)])), $result);
+        self::assertEquals(ProcessedResult::failed(1, Errors::fromArray([Error::create(
+            SubscriptionId::fromString('Vendor.Package:FakeProjection'),
+            $exception->getMessage(),
+            $exception,
+            SequenceNumber::fromInteger(1)
+        )])), $result);
 
         self::assertEquals(
             $expectedStatusForFailedProjection,
