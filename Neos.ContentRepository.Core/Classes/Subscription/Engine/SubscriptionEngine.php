@@ -302,7 +302,8 @@ final class SubscriptionEngine
             try {
                 $subscriber->catchUpHook?->onBeforeCatchUp($subscription->status);
             } catch (\Throwable $e) {
-                $errors[] = Error::create($subscription->id, $e->getMessage(), $errors === [] ? $e : null);
+                $errors[] = $error = Error::create($subscription->id, $e->getMessage(), $errors === [] ? $e : null);
+                $this->logCatchupHookError($error);
             }
         }
 
@@ -343,13 +344,15 @@ final class SubscriptionEngine
                     try {
                         $subscriber->catchUpHook?->onBeforeEvent($domainEvent, $eventEnvelope);
                     } catch (\Throwable $e) {
-                        $errors[] = Error::create($subscription->id, $e->getMessage(), $errors === [] ? $e : null);
+                        $errors[] = $error = Error::create($subscription->id, $e->getMessage(), $errors === [] ? $e : null);
+                        $this->logCatchupHookError($error);
                     }
 
                     try {
                         $subscriber->projection->apply($domainEvent, $eventEnvelope);
                     } catch (\Throwable $e) {
                         // ERROR Case:
+                        $errors[] = Error::create($subscription->id, $e->getMessage(), $errors === [] ? $e : null);
                         $this->logger?->error(sprintf('Subscription Engine: Subscriber "%s" for "%s" could not process the event "%s" (sequence number: %d): %s', $subscriber::class, $subscription->id->value, $eventEnvelope->event->type->value, $eventEnvelope->sequenceNumber->value, $e->getMessage()));
 
                         // for the leftover events we are not including this failed subscription for catchup
@@ -365,7 +368,6 @@ final class SubscriptionEngine
                                 $e
                             ),
                         );
-                        $errors[] = Error::create($subscription->id, $e->getMessage(), $errors === [] ? $e : null);
                         continue;
                     }
                     // HAPPY Case:
@@ -375,7 +377,8 @@ final class SubscriptionEngine
                     try {
                         $subscriber->catchUpHook?->onAfterEvent($domainEvent, $eventEnvelope);
                     } catch (\Throwable $e) {
-                        $errors[] = Error::create($subscription->id, $e->getMessage(), $errors === [] ? $e : null);
+                        $errors[] = $error = Error::create($subscription->id, $e->getMessage(), $errors === [] ? $e : null);
+                        $this->logCatchupHookError($error);
                     }
                 }
                 $numberOfProcessedEvents++;
@@ -406,7 +409,8 @@ final class SubscriptionEngine
                 try {
                     $this->subscribers->get($subscriptionId)->catchUpHook?->onAfterBatchCompleted();
                 } catch (\Throwable $e) {
-                    $errors[] = Error::create($subscriptionId, $e->getMessage(), $errors === [] ? $e : null);
+                    $errors[] = $error = Error::create($subscriptionId, $e->getMessage(), $errors === [] ? $e : null);
+                    $this->logCatchupHookError($error);
                 }
             }
 
@@ -423,11 +427,19 @@ final class SubscriptionEngine
             try {
                 $this->subscribers->get($subscriptionId)->catchUpHook?->onAfterCatchUp();
             } catch (\Throwable $e) {
-                $errors[] = Error::create($subscriptionId, $e->getMessage(), $errors === [] ? $e : null);
+                $errors[] = $error = Error::create($subscriptionId, $e->getMessage(), $errors === [] ? $e : null);
+                $this->logCatchupHookError($error);
             }
         }
 
         return $errors === [] ? ProcessedResult::success($numberOfProcessedEvents) : ProcessedResult::failed($numberOfProcessedEvents, Errors::fromArray($errors));
+    }
+
+    private function logCatchupHookError(Error $error): void
+    {
+        $this->logger?->error(
+            sprintf('Subscription Engine: Subscription %s has error in catchup hook: %s', $error->subscriptionId->value, $error->message)
+        );
     }
 
     /**

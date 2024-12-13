@@ -199,11 +199,10 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
 
     private static function createErrorForReason(string $method, Errors $errors): Error
     {
-        $message = [];
-        $message[] = sprintf('%s: Following error%s', $method, $errors->count() === 1 ? '' : 's');
-        foreach ($errors as $error) {
-            $message[] = sprintf('    Subscription "%s": %s', $error->subscriptionId->value, $error->message);
-        }
+        $message = [
+            sprintf('%s Following error%s', $method, $errors->count() === 1 ? '' : 's'),
+            ...array_map(fn (string $line) => '    ' . $line, explode("\n", $errors->getClampedMessage()))
+        ];
         return new Error(join("\n", $message));
     }
 

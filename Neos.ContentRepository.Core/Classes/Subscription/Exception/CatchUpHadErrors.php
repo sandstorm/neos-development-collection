@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Subscription\Exception;
 
 use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookFailed;
-use Neos\ContentRepository\Core\Subscription\Engine\Error;
 use Neos\ContentRepository\Core\Subscription\Engine\Errors;
 
 /**
@@ -26,22 +25,11 @@ use Neos\ContentRepository\Core\Subscription\Engine\Errors;
  */
 final class CatchUpHadErrors extends \RuntimeException
 {
-    private const CLAMP_ERRORS = 5;
-
     /**
      * @internal
      */
     public static function createFromErrors(Errors $errors): self
     {
-        $additionalMessage = '';
-        $lines = [];
-        foreach ($errors as $error) {
-            $lines[] = sprintf('"%s": %s', $error->subscriptionId->value, $error->message);
-            if (count($lines) >= self::CLAMP_ERRORS) {
-                $additionalMessage = sprintf('%sAnd %d other exceptions, see log.', ";\n", count($errors) - self::CLAMP_ERRORS);
-                break;
-            }
-        }
-        return new self(sprintf('Exception while catching up: %s%s', join(";\n", $lines), $additionalMessage), 1732132930, $errors->first()->throwable);
+        return new self(sprintf('Exception while catching up: %s', $errors->getClampedMessage()), 1732132930, $errors->first()->throwable);
     }
 }

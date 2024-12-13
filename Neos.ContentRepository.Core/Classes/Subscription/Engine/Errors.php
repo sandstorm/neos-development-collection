@@ -10,6 +10,8 @@ namespace Neos\ContentRepository\Core\Subscription\Engine;
  */
 final readonly class Errors implements \IteratorAggregate, \Countable
 {
+    private const CLAMP_ERRORS = 5;
+
     /**
      * @var non-empty-array<Error>
      */
@@ -47,5 +49,19 @@ final readonly class Errors implements \IteratorAggregate, \Countable
         foreach ($this->errors as $error) {
             return $error;
         }
+    }
+
+    public function getClampedMessage(): string
+    {
+        $additionalMessage = '';
+        $lines = [];
+        foreach ($this->errors as $error) {
+            $lines[] = sprintf('"%s": %s', $error->subscriptionId->value, $error->message);
+            if (count($lines) >= self::CLAMP_ERRORS) {
+                $additionalMessage = sprintf('%sAnd %d other exceptions, see log.', ";\n", count($this->errors) - self::CLAMP_ERRORS);
+                break;
+            }
+        }
+        return join(";\n", $lines) . $additionalMessage;
     }
 }
