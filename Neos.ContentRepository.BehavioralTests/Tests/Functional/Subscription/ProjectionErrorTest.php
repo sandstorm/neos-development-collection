@@ -337,7 +337,7 @@ final class ProjectionErrorTest extends AbstractSubscriptionEngineTestCase
             $handleException = $exception;
         }
         self::assertInstanceOf(CatchUpHadErrors::class, $exception);
-        self::assertEquals('Exception in subscriber "Vendor.Package:FakeProjection" while catching up: This projection is kaputt.', $handleException->getMessage());
+        self::assertEquals('Exception while catching up: "Vendor.Package:FakeProjection": This projection is kaputt.', $handleException->getMessage());
         self::assertSame($originalException, $handleException->getPrevious());
 
         // workspace is created. The fake projection failed on the first event, but other projections succeed:
