@@ -109,6 +109,14 @@ final class Subscriptions implements \IteratorAggregate, \Countable, \JsonSerial
         return new self([...$this->subscriptionsById, $subscription->id->value => $subscription]);
     }
 
+    public function getIds(): SubscriptionIds
+    {
+        return SubscriptionIds::fromArray(array_map(
+            fn (Subscription $subscription) => $subscription->id,
+            iterator_to_array($this->subscriptionsById)
+        ));
+    }
+
     /**
      * @return iterable<Subscription>
      */

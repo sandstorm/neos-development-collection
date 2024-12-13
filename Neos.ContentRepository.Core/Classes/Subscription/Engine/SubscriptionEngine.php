@@ -16,7 +16,6 @@ use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
 use Neos\ContentRepository\Core\Subscription\Subscriber\Subscribers;
 use Neos\ContentRepository\Core\Subscription\Subscription;
 use Neos\ContentRepository\Core\Subscription\SubscriptionError;
-use Neos\ContentRepository\Core\Subscription\Subscriptions;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatusCollection;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatusFilter;
@@ -297,10 +296,11 @@ final class SubscriptionEngine
             return ProcessedResult::success(0);
         }
 
-        $subscriptionsToInvokeAroundCatchUpHooks = $subscriptionsToCatchup;
-        foreach ($subscriptionsToInvokeAroundCatchUpHooks as $subscription) {
+        $subscriptionIdsToInvokeAroundCatchUpHooks = $subscriptionsToCatchup->getIds();
+        foreach ($subscriptionsToCatchup as $subscription) {
+            $subscriber = $this->subscribers->get($subscription->id);
             try {
-                $this->subscribers->get($subscription->id)->catchUpHook?->onBeforeCatchUp($subscription->status);
+                $subscriber->catchUpHook?->onBeforeCatchUp($subscription->status);
             } catch (\Throwable $e) {
                 $errors[] = Error::forSubscription($subscription->id, $e);
             }
@@ -332,6 +332,10 @@ final class SubscriptionEngine
                 foreach ($subscriptionsToCatchup as $subscription) {
                     if ($subscription->position->value >= $sequenceNumber->value) {
                         $this->logger?->debug(sprintf('Subscription Engine: Subscription "%s" is farther than the current position (%d >= %d), continue catch up.', $subscription->id->value, $subscription->position->value, $sequenceNumber->value));
+                        continue;
+                    }
+                    if (!$subscriptionIdsToInvokeAroundCatchUpHooks->contain($subscription->id)) {
+                        $this->logger?->info(sprintf('Subscription Engine: Subscription "%s" with status "%s" was not part of the first batch, continue catch up.', $subscription->id->value, $subscription->status->value));
                         continue;
                     }
                     $subscriber = $this->subscribers->get($subscription->id);
@@ -400,11 +404,11 @@ final class SubscriptionEngine
             // todo test that this is done before onAfterBatchCompleted
             $this->subscriptionStore->commit();
 
-            foreach ($subscriptionsToInvokeAroundCatchUpHooks as $subscription) {
+            foreach ($subscriptionIdsToInvokeAroundCatchUpHooks as $subscriptionId) {
                 try {
-                    $this->subscribers->get($subscription->id)->catchUpHook?->onAfterBatchCompleted();
+                    $this->subscribers->get($subscriptionId)->catchUpHook?->onAfterBatchCompleted();
                 } catch (\Throwable $e) {
-                    $errors[] = Error::forSubscription($subscription->id, $e);
+                    $errors[] = Error::forSubscription($subscriptionId, $e);
                 }
             }
 
@@ -417,13 +421,11 @@ final class SubscriptionEngine
             }
         }
 
-        // todo do we need want to invoke for failed projections onAfterCatchUp, as onBeforeCatchUp was invoked already and to be consistent to "shutdown" this catchup iteration?
-        // note that a catchup error in onAfterEvent would bubble up directly and never invoke onAfterCatchUp
-        foreach ($subscriptionsToInvokeAroundCatchUpHooks as $subscription) {
+        foreach ($subscriptionIdsToInvokeAroundCatchUpHooks as $subscriptionId) {
             try {
-                $this->subscribers->get($subscription->id)->catchUpHook?->onAfterCatchUp();
+                $this->subscribers->get($subscriptionId)->catchUpHook?->onAfterCatchUp();
             } catch (\Throwable $e) {
-                $errors[] = Error::forSubscription($subscription->id, $e);
+                $errors[] = Error::forSubscription($subscriptionId, $e);
             }
         }
 
