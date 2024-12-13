@@ -73,25 +73,23 @@ final readonly class DelegatingCatchUpHook implements CatchUpHookInterface
      */
     private function delegateHooks(\Closure $closure, string $hookName): void
     {
-        /** @var array<\Throwable> $errors */
+        $firstError = null;
+        /** @var list<string> $errors */
         $errors = [];
-        $firstFailedCatchupHook = null;
         foreach ($this->catchUpHooks as $catchUpHook) {
             try {
                 $closure($catchUpHook);
             } catch (\Throwable $e) {
-                $firstFailedCatchupHook ??= substr(strrchr($catchUpHook::class, '\\') ?: '', 1);
-                $errors[] = $e;
+                $firstError ??= $e;
+                $failedCatchupHookName = substr(strrchr($catchUpHook::class, '\\') ?: '', 1);
+                $errors[] = sprintf('"%s": %s', $failedCatchupHookName, $e->getMessage());
             }
         }
-        if ($errors !== []) {
-            $firstError = array_shift($errors);
-            $additionalMessage = $errors !== [] ? sprintf(' (and %d other)', count($errors)) : '';
+        if ($firstError !== null) {
             throw new CatchUpHookFailed(
-                sprintf('Hook "%s"%s failed "%s": %s', $firstFailedCatchupHook, $additionalMessage, $hookName, $firstError->getMessage()),
+                sprintf('Hook "%s" failed: %s', $hookName, join(";\n", $errors)),
                 1733243960,
-                $firstError,
-                $errors
+                $firstError
             );
         }
     }

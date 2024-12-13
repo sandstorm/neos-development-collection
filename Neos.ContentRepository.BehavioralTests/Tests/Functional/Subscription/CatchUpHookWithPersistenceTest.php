@@ -38,12 +38,12 @@ final class CatchUpHookWithPersistenceTest extends AbstractSubscriptionEngineTes
         $this->commitExampleContentStreamEvent();
         $this->commitExampleContentStreamEvent();
 
-        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::ACTIVE);
-        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class));
-        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterEvent')->willReturnCallback(function () {
+        $this->catchupHookForSecondFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::ACTIVE);
+        $this->catchupHookForSecondFakeProjection->expects(self::once())->method('onBeforeEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class));
+        $this->catchupHookForSecondFakeProjection->expects(self::once())->method('onAfterEvent')->willReturnCallback(function () {
             $this->getObject(Connection::class)->commit();
         });
-        $this->catchupHookForFakeProjection->expects(self::never())->method('onAfterCatchUp');
+        $this->catchupHookForSecondFakeProjection->expects(self::never())->method('onAfterCatchUp');
 
         self::assertEmpty(
             $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
@@ -87,13 +87,13 @@ final class CatchUpHookWithPersistenceTest extends AbstractSubscriptionEngineTes
 
         self::assertTrue($this->getObject(PersistenceManagerInterface::class)->isNewObject($persistentResource));
 
-        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::ACTIVE);
-        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class));
-        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterEvent')->willReturnCallback(function () use ($persistentResource) {
+        $this->catchupHookForSecondFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::ACTIVE);
+        $this->catchupHookForSecondFakeProjection->expects(self::once())->method('onBeforeEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class));
+        $this->catchupHookForSecondFakeProjection->expects(self::once())->method('onAfterEvent')->willReturnCallback(function () use ($persistentResource) {
             $this->getObject(ResourceRepository::class)->add($persistentResource);
             $this->getObject(PersistenceManagerInterface::class)->persistAll();
         });
-        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp');
+        $this->catchupHookForSecondFakeProjection->expects(self::once())->method('onAfterCatchUp');
 
         self::assertEmpty(
             $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()

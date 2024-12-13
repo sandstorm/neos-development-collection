@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\BehavioralTests\Tests\Functional\Subscription;
 
 use Neos\ContentRepository\Core\Feature\ContentStreamCreation\Event\ContentStreamWasCreated;
+use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
+use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Neos\EventStore\Model\EventEnvelope;
@@ -34,11 +36,25 @@ final class CatchUpHookTest extends AbstractSubscriptionEngineTestCase
             $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
         );
 
-        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::ACTIVE)->willReturnCallback($expectNoHandledEvents);
-        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class))->willReturnCallback($expectNoHandledEvents);
-        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class))->willReturnCallback($expectOneHandledEvent);
-        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterBatchCompleted')->willReturnCallback($expectOneHandledEvent);
-        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp')->willReturnCallback($expectOneHandledEvent);
+        // first projection hooks
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::ACTIVE);
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class));
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class));
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterBatchCompleted');
+        $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp');
+
+        // second projection hooks
+        $this->catchupHookForSecondFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::ACTIVE)->willReturnCallback($expectNoHandledEvents);
+        $this->catchupHookForSecondFakeProjection->expects(self::once())->method('onBeforeEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class))->willReturnCallback($expectNoHandledEvents);
+        $this->catchupHookForSecondFakeProjection->expects(self::once())->method('onAfterEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class))->willReturnCallback($expectOneHandledEvent);
+        $this->catchupHookForSecondFakeProjection->expects(self::once())->method('onAfterBatchCompleted')->willReturnCallback($expectOneHandledEvent);
+        $this->catchupHookForSecondFakeProjection->expects(self::once())->method('onAfterCatchUp')->willReturnCallback($expectOneHandledEvent);
+
+        $this->additionalCatchupHookForSecondFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::ACTIVE)->willReturnCallback($expectNoHandledEvents);
+        $this->additionalCatchupHookForSecondFakeProjection->expects(self::once())->method('onBeforeEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class))->willReturnCallback($expectNoHandledEvents);
+        $this->additionalCatchupHookForSecondFakeProjection->expects(self::once())->method('onAfterEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class))->willReturnCallback($expectOneHandledEvent);
+        $this->additionalCatchupHookForSecondFakeProjection->expects(self::once())->method('onAfterBatchCompleted')->willReturnCallback($expectOneHandledEvent);
+        $this->additionalCatchupHookForSecondFakeProjection->expects(self::once())->method('onAfterCatchUp')->willReturnCallback($expectOneHandledEvent);
 
         $expectNoHandledEvents();
 
@@ -58,11 +74,19 @@ final class CatchUpHookTest extends AbstractSubscriptionEngineTestCase
         $this->fakeProjection->expects(self::never())->method('apply');
         $this->subscriptionEngine->setup();
 
+        // first projection hooks
         $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::BOOTING);
         $this->catchupHookForFakeProjection->expects(self::never())->method('onBeforeEvent');
         $this->catchupHookForFakeProjection->expects(self::never())->method('onAfterEvent');
         $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterBatchCompleted');
         $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp');
+
+        // second projection hooks
+        $this->catchupHookForSecondFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::BOOTING);
+        $this->catchupHookForSecondFakeProjection->expects(self::never())->method('onBeforeEvent');
+        $this->catchupHookForSecondFakeProjection->expects(self::never())->method('onAfterEvent');
+        $this->catchupHookForSecondFakeProjection->expects(self::once())->method('onAfterBatchCompleted');
+        $this->catchupHookForSecondFakeProjection->expects(self::once())->method('onAfterCatchUp');
 
         $result = $this->subscriptionEngine->boot();
         self::assertNull($result->errors);
@@ -79,11 +103,19 @@ final class CatchUpHookTest extends AbstractSubscriptionEngineTestCase
         $this->fakeProjection->expects(self::never())->method('apply');
         $this->subscriptionEngine->setup();
 
+        // first projection hooks
         $this->catchupHookForFakeProjection->expects(self::never())->method('onBeforeCatchUp');
         $this->catchupHookForFakeProjection->expects(self::never())->method('onBeforeEvent');
         $this->catchupHookForFakeProjection->expects(self::never())->method('onAfterEvent');
         $this->catchupHookForFakeProjection->expects(self::never())->method('onAfterBatchCompleted');
         $this->catchupHookForFakeProjection->expects(self::never())->method('onAfterCatchUp');
+
+        // second projection hooks
+        $this->catchupHookForSecondFakeProjection->expects(self::never())->method('onBeforeCatchUp');
+        $this->catchupHookForSecondFakeProjection->expects(self::never())->method('onBeforeEvent');
+        $this->catchupHookForSecondFakeProjection->expects(self::never())->method('onAfterEvent');
+        $this->catchupHookForSecondFakeProjection->expects(self::never())->method('onAfterBatchCompleted');
+        $this->catchupHookForSecondFakeProjection->expects(self::never())->method('onAfterCatchUp');
 
         $result = $this->subscriptionEngine->catchUpActive();
         self::assertNull($result->errors);
@@ -91,6 +123,47 @@ final class CatchUpHookTest extends AbstractSubscriptionEngineTestCase
 
         $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::BOOTING, SequenceNumber::fromInteger(0));
         self::assertEmpty($this->secondFakeProjection->getState()->findAppliedSequenceNumberValues());
+    }
+
+    /** @test */
+    public function catchHooksAreOnlyRunForMatchingSubscriber()
+    {
+        $this->eventStore->setup();
+        $this->fakeProjection->expects(self::once())->method('setUp');
+        $this->fakeProjection->expects(self::never())->method('apply');
+        $this->subscriptionEngine->setup();
+        $this->subscriptionEngine->boot();
+
+        // first projection hooks
+        $this->catchupHookForFakeProjection->expects(self::never())->method('onBeforeCatchUp');
+        $this->catchupHookForFakeProjection->expects(self::never())->method('onBeforeEvent');
+        $this->catchupHookForFakeProjection->expects(self::never())->method('onAfterEvent');
+        $this->catchupHookForFakeProjection->expects(self::never())->method('onAfterBatchCompleted');
+        $this->catchupHookForFakeProjection->expects(self::never())->method('onAfterCatchUp');
+
+        // second projection hooks
+        $this->catchupHookForSecondFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::ACTIVE);
+        $this->catchupHookForSecondFakeProjection->expects(self::once())->method('onBeforeEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class));
+        $this->catchupHookForSecondFakeProjection->expects(self::once())->method('onAfterEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class));
+        $this->catchupHookForSecondFakeProjection->expects(self::once())->method('onAfterBatchCompleted');
+        $this->catchupHookForSecondFakeProjection->expects(self::once())->method('onAfterCatchUp');
+
+        $this->additionalCatchupHookForSecondFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::ACTIVE);
+        $this->additionalCatchupHookForSecondFakeProjection->expects(self::once())->method('onBeforeEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class));
+        $this->additionalCatchupHookForSecondFakeProjection->expects(self::once())->method('onAfterEvent')->with(self::isInstanceOf(ContentStreamWasCreated::class));
+        $this->additionalCatchupHookForSecondFakeProjection->expects(self::once())->method('onAfterBatchCompleted');
+        $this->additionalCatchupHookForSecondFakeProjection->expects(self::once())->method('onAfterCatchUp');
+
+        // commit an event
+        $this->commitExampleContentStreamEvent();
+
+        $result = $this->subscriptionEngine->catchUpActive(SubscriptionEngineCriteria::create(
+            [SubscriptionId::fromString('Vendor.Package:SecondFakeProjection')]
+        ));
+        self::assertNull($result->errors);
+        self::assertEquals(1, $result->numberOfProcessedEvents);
+
+        $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
     }
 
     public function provideValidBatchSizes(): iterable
@@ -152,51 +225,64 @@ final class CatchUpHookTest extends AbstractSubscriptionEngineTestCase
         $this->commitExampleContentStreamEvent();
         $this->commitExampleContentStreamEvent();
 
+        // first projection hooks
         $this->catchupHookForFakeProjection->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::BOOTING);
-        $this->catchupHookForFakeProjection->expects($i = self::exactly(4))->method('onBeforeEvent')->willReturnCallback(function ($_, EventEnvelope $eventEnvelope) use ($i) {
-            match($i->getInvocationCount()) {
-                1 => [
-                    self::assertEquals(1, $eventEnvelope->sequenceNumber->value),
-                    self::assertEquals([], $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues())
-                ],
-                2 => [
-                    self::assertEquals(2, $eventEnvelope->sequenceNumber->value),
-                    self::assertEquals([1], $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues())
-                ],
-                3 => [
-                    self::assertEquals(3, $eventEnvelope->sequenceNumber->value),
-                    self::assertEquals([1,2], $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues())
-                ],
-                4 => [
-                    self::assertEquals(4, $eventEnvelope->sequenceNumber->value),
-                    self::assertEquals([1,2,3], $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues())
-                ],
-            };
-        });
-        $this->catchupHookForFakeProjection->expects($i = self::exactly(4))->method('onAfterEvent')->willReturnCallback(function ($_, EventEnvelope $eventEnvelope) use ($i) {
-            match($i->getInvocationCount()) {
-                1 => [
-                    self::assertEquals(1, $eventEnvelope->sequenceNumber->value),
-                    self::assertEquals([1], $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues())
-                ],
-                2 => [
-                    self::assertEquals(2, $eventEnvelope->sequenceNumber->value),
-                    self::assertEquals([1,2], $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues())
-                ],
-                3 => [
-                    self::assertEquals(3, $eventEnvelope->sequenceNumber->value),
-                    self::assertEquals([1,2,3], $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues())
-                ],
-                4 => [
-                    self::assertEquals(4, $eventEnvelope->sequenceNumber->value),
-                    self::assertEquals([1,2,3,4], $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues())
-                ],
-            };
-        });
-        $this->catchupHookForFakeProjection->expects($i = self::exactly(\count($onAfterBatchCompletedInvocations)))->method('onAfterBatchCompleted')->willReturnCallback(function () use ($i, $onAfterBatchCompletedInvocations) {
-            self::assertEquals($onAfterBatchCompletedInvocations[$i->getInvocationCount() - 1], $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues());
-        });
+        $this->catchupHookForFakeProjection->expects(self::exactly(4))->method('onBeforeEvent');
+        $this->catchupHookForFakeProjection->expects(self::exactly(4))->method('onAfterEvent');
+        $this->catchupHookForFakeProjection->expects(self::exactly(\count($onAfterBatchCompletedInvocations)))->method('onAfterBatchCompleted');
         $this->catchupHookForFakeProjection->expects(self::once())->method('onAfterCatchUp');
+
+        // second projection hooks
+        foreach ([
+            $this->catchupHookForSecondFakeProjection,
+            $this->additionalCatchupHookForSecondFakeProjection,
+        ] as $catchUpHookMock) {
+            $catchUpHookMock->expects(self::once())->method('onBeforeCatchUp')->with(SubscriptionStatus::BOOTING);
+            $catchUpHookMock->expects($i = self::exactly(4))->method('onBeforeEvent')->willReturnCallback(function ($_, EventEnvelope $eventEnvelope) use ($i) {
+                match($i->getInvocationCount()) {
+                    1 => [
+                        self::assertEquals(1, $eventEnvelope->sequenceNumber->value),
+                        self::assertEquals([], $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues())
+                    ],
+                    2 => [
+                        self::assertEquals(2, $eventEnvelope->sequenceNumber->value),
+                        self::assertEquals([1], $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues())
+                    ],
+                    3 => [
+                        self::assertEquals(3, $eventEnvelope->sequenceNumber->value),
+                        self::assertEquals([1,2], $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues())
+                    ],
+                    4 => [
+                        self::assertEquals(4, $eventEnvelope->sequenceNumber->value),
+                        self::assertEquals([1,2,3], $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues())
+                    ],
+                };
+            });
+            $catchUpHookMock->expects($i = self::exactly(4))->method('onAfterEvent')->willReturnCallback(function ($_, EventEnvelope $eventEnvelope) use ($i) {
+                match($i->getInvocationCount()) {
+                    1 => [
+                        self::assertEquals(1, $eventEnvelope->sequenceNumber->value),
+                        self::assertEquals([1], $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues())
+                    ],
+                    2 => [
+                        self::assertEquals(2, $eventEnvelope->sequenceNumber->value),
+                        self::assertEquals([1,2], $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues())
+                    ],
+                    3 => [
+                        self::assertEquals(3, $eventEnvelope->sequenceNumber->value),
+                        self::assertEquals([1,2,3], $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues())
+                    ],
+                    4 => [
+                        self::assertEquals(4, $eventEnvelope->sequenceNumber->value),
+                        self::assertEquals([1,2,3,4], $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues())
+                    ],
+                };
+            });
+            $catchUpHookMock->expects($i = self::exactly(\count($onAfterBatchCompletedInvocations)))->method('onAfterBatchCompleted')->willReturnCallback(function () use ($i, $onAfterBatchCompletedInvocations) {
+                self::assertEquals($onAfterBatchCompletedInvocations[$i->getInvocationCount() - 1], $this->secondFakeProjection->getState()->findAppliedSequenceNumberValues());
+            });
+            $catchUpHookMock->expects(self::once())->method('onAfterCatchUp');
+        }
 
         self::assertEmpty($this->secondFakeProjection->getState()->findAppliedSequenceNumberValues());
 

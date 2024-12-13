@@ -27,6 +27,7 @@ use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepository\TestSuite\Fakes\FakeCatchUpHookFactory;
+use Neos\ContentRepository\TestSuite\Fakes\FakeCatchUpHookFactory2;
 use Neos\ContentRepository\TestSuite\Fakes\FakeContentDimensionSourceFactory;
 use Neos\ContentRepository\TestSuite\Fakes\FakeNodeTypeManagerFactory;
 use Neos\ContentRepository\TestSuite\Fakes\FakeProjectionFactory;
@@ -57,6 +58,10 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
     protected DebugEventProjection $secondFakeProjection;
 
     protected CatchUpHookInterface&MockObject $catchupHookForFakeProjection;
+
+    protected CatchUpHookInterface&MockObject $catchupHookForSecondFakeProjection;
+
+    protected CatchUpHookInterface&MockObject $additionalCatchupHookForSecondFakeProjection;
 
     public static function setUpBeforeClass(): void
     {
@@ -96,10 +101,21 @@ abstract class AbstractSubscriptionEngineTestCase extends TestCase // we don't u
         );
 
         $this->catchupHookForFakeProjection = $this->getMockBuilder(CatchUpHookInterface::class)->getMock();
+        FakeCatchUpHookFactory::setCatchupHook(
+            $this->fakeProjection->getState(),
+            $this->catchupHookForFakeProjection
+        );
 
+        $this->catchupHookForSecondFakeProjection = $this->getMockBuilder(CatchUpHookInterface::class)->getMock();
         FakeCatchUpHookFactory::setCatchupHook(
             $this->secondFakeProjection->getState(),
-            $this->catchupHookForFakeProjection
+            $this->catchupHookForSecondFakeProjection
+        );
+
+        $this->additionalCatchupHookForSecondFakeProjection = $this->getMockBuilder(CatchUpHookInterface::class)->getMock();
+        FakeCatchUpHookFactory2::setCatchupHook(
+            $this->secondFakeProjection->getState(),
+            $this->additionalCatchupHookForSecondFakeProjection
         );
 
         FakeNodeTypeManagerFactory::setConfiguration([]);
