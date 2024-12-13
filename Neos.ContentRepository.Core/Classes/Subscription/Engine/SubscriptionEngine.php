@@ -112,6 +112,11 @@ final class SubscriptionEngine
         }
         $errors = [];
         foreach ($subscriptions as $subscription) {
+            if ($subscription->status === SubscriptionStatus::NEW
+                || !$this->subscribers->contain($subscription->id)) {
+                // todo test this case! And mark projections as detached?
+                continue;
+            }
             $error = $this->resetSubscription($subscription);
             if ($error !== null) {
                 $errors[] = $error;
