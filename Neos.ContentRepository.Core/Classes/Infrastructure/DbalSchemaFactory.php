@@ -151,6 +151,17 @@ final class DbalSchemaFactory
         return $column;
     }
 
+    public static function columnForProperties(string $columnName, AbstractPlatform $platform): Column
+    {
+        $column = (new Column($columnName, Type::getType(Types::JSON)));
+
+        if ($platform instanceof AbstractMySQLPlatform) {
+            $column = $column->setPlatformOption('collation', self::DEFAULT_MYSQL_COLLATION);
+        }
+
+        return $column;
+    }
+
     public static function columnForGenericString(string $columnName, AbstractPlatform $platform): Column
     {
         $column = (new Column($columnName, Type::getType(Types::STRING)));
