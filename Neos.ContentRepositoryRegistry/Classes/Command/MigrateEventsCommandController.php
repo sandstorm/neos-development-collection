@@ -168,4 +168,20 @@ class MigrateEventsCommandController extends CommandController
         $eventMigrationService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, $this->eventMigrationServiceFactory);
         $eventMigrationService->copyNodesStatus($this->outputLine(...));
     }
+
+    /**
+     * Migrates the checkpoint tables to ACTIVE subscriptions
+     *
+     * Needed for #5321: https://github.com/neos/neos-development-collection/pull/5321
+     *
+     * Included in November 2024 - before final Neos 9.0 release
+     *
+     * @param string $contentRepository Identifier of the Content Repository to migrate
+     */
+    public function migrateCheckpointsToSubscriptionsCommand(string $contentRepository = 'default'): void
+    {
+        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
+        $eventMigrationService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, $this->eventMigrationServiceFactory);
+        $eventMigrationService->migrateCheckpointsToSubscriptions($this->outputLine(...));
+    }
 }

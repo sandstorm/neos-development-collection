@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\CommandHandler;
 
+use Neos\ContentRepository\Core\Subscription\Exception\CatchUpHadErrors;
+
 /**
  * @api can be used as collection of commands to be individually handled:
  *
  *     foreach ($commands as $command) {
  *         $contentRepository->handle($command);
  *     }
+ *
+ * Note that as they are separate commands, they might individually fail due to constraints
+ * or a projection or catchup failing during the first catchup with {@see CatchUpHadErrors}
  *
  * @implements \IteratorAggregate<CommandInterface>
  */

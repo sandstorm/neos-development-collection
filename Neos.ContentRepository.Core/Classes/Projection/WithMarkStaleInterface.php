@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Projection;
 
-use Neos\ContentRepository\Core\ContentRepository;
-use Neos\ContentRepository\Core\EventStore\EventPersister;
+use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 
 /**
  * Additional marker interface to add to a {@see ProjectionInterface}.
@@ -19,7 +18,7 @@ interface WithMarkStaleInterface
 {
     /**
      * Triggered during catching up after applying events
-     * {@see ContentRepository::catchUpProjection()}
+     * {@see SubscriptionEngine::catchUpActive()}
      *
      * Can be f.e. used to flush caches inside the Projection State.
      *
