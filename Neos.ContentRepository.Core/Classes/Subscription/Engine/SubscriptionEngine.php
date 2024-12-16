@@ -116,7 +116,7 @@ final class SubscriptionEngine
                 $subscription->status === SubscriptionStatus::NEW
                 || !$this->subscribers->contain($subscription->id)
             ) {
-                // todo test this case! And mark projections as detached?
+                // Todo mark projections as detached like setup or catchup?
                 continue;
             }
             $error = $this->resetSubscription($subscription);

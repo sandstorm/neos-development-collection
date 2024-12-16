@@ -60,7 +60,6 @@ final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTes
         $this->fakeProjection->expects(self::never())->method('apply');
         // catchup to mark detached subscribers
         $result = $this->subscriptionEngine->catchUpActive();
-        // todo result should reflect that there was an detachment? Throw error in CR?
         self::assertEquals(ProcessedResult::success(1), $result);
 
         self::assertEquals(
@@ -87,6 +86,26 @@ final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTes
             [SequenceNumber::fromInteger(1), SequenceNumber::fromInteger(2)],
             $this->secondFakeProjection->getState()->findAppliedSequenceNumbers()
         );
+
+        // still detached
+        self::assertEquals(
+            $expectedDetachedState,
+            $this->subscriptionStatus('Vendor.Package:FakeProjection')
+        );
+
+        // setup is a noop:
+        $result = $this->subscriptionEngine->setup(SubscriptionEngineCriteria::create([SubscriptionId::fromString('Vendor.Package:FakeProjection')]));
+        self::assertNull($result->errors);
+
+        // still detached
+        self::assertEquals(
+            $expectedDetachedState,
+            $this->subscriptionStatus('Vendor.Package:FakeProjection')
+        );
+
+        // reset is a noop:
+        $result = $this->subscriptionEngine->reset(SubscriptionEngineCriteria::create([SubscriptionId::fromString('Vendor.Package:FakeProjection')]));
+        self::assertNull($result->errors);
 
         // still detached
         self::assertEquals(
@@ -123,7 +142,6 @@ final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTes
         $this->fakeProjection->expects(self::never())->method('apply');
         // setup to find detached subscribers
         $result = $this->subscriptionEngine->setup();
-        // todo result should reflect that there was an detachment?
         self::assertNull($result->errors);
 
         $expectedDetachedState = DetachedSubscriptionStatus::create(
@@ -131,14 +149,6 @@ final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTes
             subscriptionStatus: SubscriptionStatus::DETACHED,
             subscriptionPosition: SequenceNumber::fromInteger(1)
         );
-        self::assertEquals(
-            $expectedDetachedState,
-            $this->subscriptionStatus('Vendor.Package:FakeProjection')
-        );
-
-        // another setup does not reattach, because there is no subscriber
-        $result = $this->subscriptionEngine->setup();
-        self::assertNull($result->errors);
 
         self::assertEquals(
             $expectedDetachedState,

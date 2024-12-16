@@ -43,7 +43,8 @@ final class SubscriptionNewStatusTest extends AbstractSubscriptionEngineTestCase
 
         $newFakeProjection = $this->getMockBuilder(ProjectionInterface::class)->disableAutoReturnValueGeneration()->getMock();
         $newFakeProjection->method('getState')->willReturn(new class implements ProjectionStateInterface {});
-        $newFakeProjection->expects(self::exactly(4))->method('status')->willReturnOnConsecutiveCalls(
+        $newFakeProjection->expects(self::exactly(5))->method('status')->willReturnOnConsecutiveCalls(
+            ProjectionStatus::setupRequired('Set me up'),
             ProjectionStatus::setupRequired('Set me up'),
             ProjectionStatus::setupRequired('Set me up'),
             ProjectionStatus::ok(),
@@ -84,6 +85,15 @@ final class SubscriptionNewStatusTest extends AbstractSubscriptionEngineTestCase
         $result = $this->subscriptionEngine->setup(SubscriptionEngineCriteria::create([SubscriptionId::fromString('contentGraph')]));
         self::assertNull($result->errors);
 
+        self::assertEquals(
+            $expectedNewState,
+            $this->subscriptionStatus('Vendor.Package:NewFakeProjection')
+        );
+
+        // reset is a noop and skips this NEW projection!
+        $result = $this->subscriptionEngine->reset(SubscriptionEngineCriteria::create([SubscriptionId::fromString('Vendor.Package:NewFakeProjection')]));
+        self::assertNull($result->errors);
+        // still new and NOT booting!
         self::assertEquals(
             $expectedNewState,
             $this->subscriptionStatus('Vendor.Package:NewFakeProjection')
