@@ -28,6 +28,12 @@ use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryI
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateClassification;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
+use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
+use Neos\ContentRepository\Core\Subscription\Store\SubscriptionCriteria;
+use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
+use Neos\ContentRepository\Core\Subscription\Subscription;
+use Neos\ContentRepository\Core\Subscription\SubscriptionId;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepositoryRegistry\Command\MigrateEventsCommandController;
 use Neos\ContentRepositoryRegistry\Factory\EventStore\DoctrineEventStoreFactory;
 use Neos\EventStore\EventStoreInterface;
@@ -44,6 +50,7 @@ use Neos\EventStore\Model\EventStream\VirtualStreamName;
 use Neos\Neos\Domain\Model\WorkspaceClassification;
 use Neos\Neos\Domain\Model\WorkspaceRole;
 use Neos\Neos\Domain\Model\WorkspaceRoleSubjectType;
+use Doctrine\DBAL\Exception as DBALException;
 
 /**
  * Content Repository service to perform migrations of events.
@@ -59,6 +66,7 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
     private array $eventsModified = [];
 
     public function __construct(
+        private readonly SubscriptionEngine $subscriptionEngine,
         private readonly ContentRepositoryId $contentRepositoryId,
         private readonly EventStoreInterface $eventStore,
         private readonly Connection $connection
@@ -920,6 +928,59 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
             }
         }
         $outputFn('<comment>NOTE: To reduce the number of matched content streams and to cleanup the event store run `./flow contentStream:removeDangling` and `./flow contentStream:pruneRemovedFromEventStream`</comment>');
+    }
+
+    public function migrateCheckpointsToSubscriptions(\Closure $outputFn): void
+    {
+        /** @var SubscriptionStoreInterface $subscriptionStore */
+        $subscriptionStore = (new \ReflectionClass($this->subscriptionEngine))->getProperty('subscriptionStore')->getValue($this->subscriptionEngine);
+        $subscriptionStore->setup();
+
+        foreach ([
+            'contentGraph' => 'cr_%s_p_graph_checkpoint',
+            'Neos.Neos:DocumentUriPathProjection' => 'cr_%s_p_neos_documenturipath_checkpoint',
+            'Neos.Neos:PendingChangesProjection' => 'cr_%s_p_neos_change_checkpoint',
+        ] as $subscriberId => $projectionCheckpointTablePattern) {
+            $projectionCheckpointTable = sprintf($projectionCheckpointTablePattern, $this->contentRepositoryId->value);
+            try {
+                $rows = $this->connection->fetchAllAssociative("SELECT appliedsequencenumber from {$projectionCheckpointTable}");
+            } catch (DBALException $e) {
+                $outputFn(sprintf('<comment>Could not migrate subscriber %s</comment>, please replay: %s', $subscriberId, $e->getMessage()));
+                continue;
+            }
+            $first = reset($rows);
+            if (count($rows) !== 1 || !isset($first['appliedsequencenumber'])) {
+                $outputFn(sprintf('<comment>Could not migrate subscriber %s</comment>, please replay. Expected exactly one appliedsequencenumber', $subscriberId));
+                continue;
+            }
+
+            $subscription = $subscriptionStore->findByCriteriaForUpdate(SubscriptionCriteria::create([SubscriptionId::fromString($subscriberId)]))->first();
+
+            if ($subscription === null) {
+                $subscriptionStore->add(
+                    new Subscription(
+                        SubscriptionId::fromString($subscriberId),
+                        SubscriptionStatus::ACTIVE,
+                        SequenceNumber::fromInteger((int)$first['appliedsequencenumber']),
+                        null,
+                        null
+                    )
+                );
+                $outputFn(sprintf('<success>Added subscriber %s with active and position %s</success>', $subscriberId, $first['appliedsequencenumber']));
+            } else {
+                if ($subscription->status === SubscriptionStatus::ACTIVE) {
+                    $outputFn(sprintf('<success>Subscriber %s is already active</success>', $subscriberId));
+                    continue;
+                }
+                $subscriptionStore->update(
+                    SubscriptionId::fromString($subscriberId),
+                    SubscriptionStatus::ACTIVE,
+                    SequenceNumber::fromInteger((int)$first['appliedsequencenumber']),
+                    null
+                );
+                $outputFn(sprintf('<success>Updated subscriber %s to active and position %s</success>', $subscriberId, $first['appliedsequencenumber']));
+            }
+        }
     }
 
     /** ------------------------ */

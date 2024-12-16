@@ -135,11 +135,6 @@ final class CommandSimulator
 
         foreach ($eventStream as $eventEnvelope) {
             $event = $this->eventNormalizer->denormalize($eventEnvelope->event);
-
-            if (!$this->contentRepositoryProjection->canHandle($event)) {
-                continue;
-            }
-
             $this->contentRepositoryProjection->apply($event, $eventEnvelope);
         }
     }

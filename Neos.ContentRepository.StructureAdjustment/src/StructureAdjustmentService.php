@@ -6,7 +6,7 @@ namespace Neos\ContentRepository\StructureAdjustment;
 
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
-use Neos\ContentRepository\Core\EventStore\EventPersister;
+use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
 use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
@@ -14,12 +14,15 @@ use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
+use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\ContentRepository\StructureAdjustment\Adjustment\DimensionAdjustment;
 use Neos\ContentRepository\StructureAdjustment\Adjustment\DisallowedChildNodeAdjustment;
 use Neos\ContentRepository\StructureAdjustment\Adjustment\PropertyAdjustment;
 use Neos\ContentRepository\StructureAdjustment\Adjustment\StructureAdjustment;
 use Neos\ContentRepository\StructureAdjustment\Adjustment\TetheredNodeAdjustments;
 use Neos\ContentRepository\StructureAdjustment\Adjustment\UnknownNodeTypeAdjustment;
+use Neos\EventStore\EventStoreInterface;
+use Neos\EventStore\Model\Events;
 
 class StructureAdjustmentService implements ContentRepositoryServiceInterface
 {
@@ -38,8 +41,10 @@ class StructureAdjustmentService implements ContentRepositoryServiceInterface
     private readonly ContentGraphInterface $liveContentGraph;
 
     public function __construct(
-        private readonly ContentRepository $contentRepository,
-        private readonly EventPersister $eventPersister,
+        ContentRepository $contentRepository,
+        private readonly EventStoreInterface $eventStore,
+        private readonly EventNormalizer $eventNormalizer,
+        private readonly SubscriptionEngine $subscriptionEngine,
         NodeTypeManager $nodeTypeManager,
         InterDimensionalVariationGraph $interDimensionalVariationGraph,
         PropertyConverter $propertyConverter,
@@ -98,11 +103,20 @@ class StructureAdjustmentService implements ContentRepositoryServiceInterface
 
     public function fixError(StructureAdjustment $adjustment): void
     {
-        if ($adjustment->remediation) {
-            $remediation = $adjustment->remediation;
-            $eventsToPublish = $remediation();
-            assert($eventsToPublish instanceof EventsToPublish);
-            $this->eventPersister->publishEvents($this->contentRepository, $eventsToPublish);
+        if (!$adjustment->remediation) {
+            return;
         }
+        $remediation = $adjustment->remediation;
+        $eventsToPublish = $remediation();
+        assert($eventsToPublish instanceof EventsToPublish);
+        $normalizedEvents = Events::fromArray(
+            $eventsToPublish->events->map($this->eventNormalizer->normalize(...))
+        );
+        $this->eventStore->commit(
+            $eventsToPublish->streamName,
+            $normalizedEvents,
+            $eventsToPublish->expectedVersion
+        );
+        $this->subscriptionEngine->catchUpActive();
     }
 }
