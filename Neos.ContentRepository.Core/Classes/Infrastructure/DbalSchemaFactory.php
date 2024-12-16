@@ -156,7 +156,8 @@ final class DbalSchemaFactory
         $column = (new Column($columnName, Type::getType(Types::JSON)));
 
         if ($platform instanceof AbstractMySQLPlatform) {
-            $column = $column->setPlatformOption('collation', self::DEFAULT_MYSQL_COLLATION);
+            $column = (new Column($columnName, Type::getType(Types::TEXT)))
+                ->setPlatformOption('collation', self::DEFAULT_MYSQL_COLLATION);
         }
 
         return $column;
