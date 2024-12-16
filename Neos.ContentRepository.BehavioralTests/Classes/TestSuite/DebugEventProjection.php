@@ -82,7 +82,7 @@ final class DebugEventProjection implements ProjectionInterface
             'sequencenumber'
         ]);
 
-        $schema = DbalSchemaFactory::createSchemaWithTables($schemaManager, [$table]);
+        $schema = DbalSchemaFactory::createSchemaWithTables($this->dbal, [$table]);
         $statements = DbalSchemaDiff::determineRequiredSqlStatements($this->dbal, $schema);
 
         return $statements;
