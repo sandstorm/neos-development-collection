@@ -92,14 +92,6 @@ final class SubscriptionEngine
         );
     }
 
-    public function reactivate(SubscriptionEngineCriteria|null $criteria = null, \Closure $progressCallback = null, int $batchSize = null): ProcessedResult
-    {
-        $criteria ??= SubscriptionEngineCriteria::noConstraints();
-        return $this->processExclusively(
-            fn () => $this->catchUpSubscriptions($criteria, SubscriptionStatusFilter::fromArray([SubscriptionStatus::ERROR, SubscriptionStatus::DETACHED]), $progressCallback, $batchSize)
-        );
-    }
-
     public function reset(SubscriptionEngineCriteria|null $criteria = null): Result
     {
         $criteria ??= SubscriptionEngineCriteria::noConstraints();

@@ -51,20 +51,19 @@ use Doctrine\DBAL\Exception as DBALException;
  *
  * Special cases:
  *
- * *Replay*
+ * *Replay for initialisation*
  *
  * For initialising on a new database - which contains events already - a replay will make sure that the subscriptions
  * are emptied and reapply the events. This can be triggered via {@see replaySubscription} or {@see replayAllSubscriptions}
  *
  * And after registering a new subscription a setup as well as a replay of this subscription is also required.
  *
- * *Reactivate*
+ * *Replay to repair*
  *
- * In case a subscription is detached but is reinstalled a reactivation is needed via {@see reactivateSubscription}
+ * In case a subscription is detached and then reinstalled a replay will make sure its caught up to all new events.
+ * And that the previous state will be reset as the projections logic might have changed.
  *
- * Also in case a subscription runs into the error status, its code needs to be fixed, and it can also be attempted to be reactivated.
- *
- * Note that in both cases a subscription replay would also work, but with the difference that the subscription is reset as well.
+ * Also in case a subscription runs into the error status, its code needs to be fixed, and it can be attempted to be replayed.
  *
  * @api
  */
@@ -145,29 +144,6 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
         $bootResult = $this->subscriptionEngine->boot(progressCallback: $progressCallback, batchSize: self::REPLAY_BATCH_SIZE);
         if ($bootResult->errors !== null) {
             return self::createErrorForReason('Catchup failed:', $bootResult->errors);
-        }
-        return null;
-    }
-
-    /**
-     * Reactivate a subscription
-     *
-     * The explicit catchup is only needed for subscriptions in the error or detached status with an advanced position.
-     * Running a full replay would work but might be overkill, instead this reactivation will just attempt
-     * catchup the subscription back to active from its current position.
-     */
-    public function reactivateSubscription(SubscriptionId $subscriptionId, \Closure|null $progressCallback = null): Error|null
-    {
-        $subscriptionStatus = $this->subscriptionEngine->subscriptionStatus(SubscriptionEngineCriteria::create([$subscriptionId]))->first();
-        if ($subscriptionStatus === null) {
-            return new Error(sprintf('Subscription "%s" is not registered.', $subscriptionId->value));
-        }
-        if ($subscriptionStatus->subscriptionStatus === SubscriptionStatus::NEW) {
-            return new Error(sprintf('Subscription "%s" is not setup and cannot be reactivated.', $subscriptionId->value));
-        }
-        $reactivateResult = $this->subscriptionEngine->reactivate(SubscriptionEngineCriteria::create([$subscriptionId]), progressCallback: $progressCallback, batchSize: self::REPLAY_BATCH_SIZE);
-        if ($reactivateResult->errors !== null) {
-            return self::createErrorForReason('Could not reactivate subscriber:', $reactivateResult->errors);
         }
         return null;
     }

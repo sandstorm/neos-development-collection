@@ -135,7 +135,7 @@ final class ContentRepositoryMaintenanceCommandControllerTest extends AbstractSu
 
         // repair projection
         $this->secondFakeProjection->killSaboteur();
-        $this->subscriptionController->reactivateCommand(subscription: 'Vendor.Package:SecondFakeProjection', contentRepository: $this->contentRepository->id->value, quiet: true);
+        $this->subscriptionController->replayCommand(subscription: 'Vendor.Package:SecondFakeProjection', contentRepository: $this->contentRepository->id->value, force: true, quiet: true);
 
         $this->expectOkayStatus('Vendor.Package:SecondFakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(2));
     }

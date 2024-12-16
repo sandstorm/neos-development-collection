@@ -17,18 +17,19 @@ use Symfony\Component\Console\Output\Output;
  *
  * If any interaction is required "./flow cr:status" can be asked.
  *
- * *Replay*
+ * *Replay for initialisation*
  *
  * For initialising on a new database - which contains events already - a replay will make sure that the subscriptions
  * are emptied and reapply the events. This can be triggered via "./flow subscription:replay --subscription contentGraph" or "./flow subscription:replayall"
  *
  * And after registering a new subscription a setup as well as a replay of this subscription is also required.
  *
- * *Reactivate*
+ * *Replay to repair*
  *
- * In case a subscription is detached but is reinstalled a reactivation is needed via "./flow subscription:reactivate --subscription contentGraph"
+ * In case a subscription is detached and then reinstalled a replay will make sure its caught up to all new events.
+ * And that the previous state will be reset as the projections logic might have changed.
  *
- * Also in case a subscription runs into the error status, its code needs to be fixed, and it can also be attempted to be reactivated.
+ * Also in case a subscription runs into the error status, its code needs to be fixed, and it can be attempted to be replayed.
  *
  * See also {@see ContentRepositoryMaintainer} for more information.
  */
@@ -124,46 +125,6 @@ final class SubscriptionCommandController extends CommandController
         }
 
         $result = $contentRepositoryMaintainer->replayAllSubscriptions(progressCallback: $progressCallback);
-
-        if (!$quiet) {
-            $this->output->progressFinish();
-            $this->outputLine();
-        }
-
-        if ($result !== null) {
-            $this->outputLine('<error>%s</error>', [$result->getMessage()]);
-            $this->quit(1);
-        } elseif (!$quiet) {
-            $this->outputLine('<success>Done.</success>');
-        }
-    }
-
-    /**
-     * Reactivate a subscription
-     *
-     * The explicit catchup is only needed for projections in the error or detached status with an advanced position.
-     * Running a full replay would work but might be overkill, instead this reactivation will just attempt
-     * catchup the subscription back to active from its current position.
-     *
-     * @param string $subscription Identifier of the subscription to reactivate like it was configured (e.g. "contentGraph", "Vendor.Package:YourProjection")
-     * @param string $contentRepository Identifier of the Content Repository instance to operate on
-     * @param bool $quiet If set only fatal errors are rendered to the output (must be used with --force flag to avoid user input)
-     */
-    public function reactivateCommand(string $subscription, string $contentRepository = 'default', bool $quiet = false): void
-    {
-        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
-        $contentRepositoryMaintainer = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new ContentRepositoryMaintainerFactory());
-
-        $progressCallback = null;
-        if (!$quiet) {
-            $this->outputLine('Reactivate subscription "%s" of Content Repository "%s" ...', [$subscription, $contentRepositoryId->value]);
-            // render memory consumption and time remaining
-            $this->output->getProgressBar()->setFormat('debug');
-            $this->output->progressStart();
-            $progressCallback = fn () => $this->output->progressAdvance();
-        }
-
-        $result = $contentRepositoryMaintainer->reactivateSubscription(SubscriptionId::fromString($subscription), progressCallback: $progressCallback);
 
         if (!$quiet) {
             $this->output->progressFinish();

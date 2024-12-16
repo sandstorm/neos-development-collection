@@ -84,9 +84,8 @@ final class CrCommandController extends CommandController
         $contentRepositoryMaintainer = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new ContentRepositoryMaintainerFactory());
         $crStatus = $contentRepositoryMaintainer->status();
         $hasErrors = false;
-        $reactivationRequired = false;
+        $replayRequired = false;
         $setupRequired = false;
-        $bootingRequired = false;
         $this->outputLine('Event Store:');
         $this->output('  Setup: ');
         $this->outputLine(match ($crStatus->eventStoreStatus->type) {
@@ -148,9 +147,9 @@ final class CrCommandController extends CommandController
                     $this->outputLine(' at position <b>%d</b>', [$status->subscriptionPosition->value]);
                 }
                 $hasErrors |= $status->subscriptionStatus === SubscriptionStatus::ERROR;
-                $reactivationRequired |= $status->subscriptionStatus === SubscriptionStatus::ERROR;
-                $bootingRequired |= $status->subscriptionStatus === SubscriptionStatus::BOOTING;
-                $reactivationRequired |= $status->subscriptionStatus === SubscriptionStatus::DETACHED;
+                $replayRequired |= $status->subscriptionStatus === SubscriptionStatus::ERROR;
+                $replayRequired |= $status->subscriptionStatus === SubscriptionStatus::BOOTING;
+                $replayRequired |= $status->subscriptionStatus === SubscriptionStatus::DETACHED;
                 if ($verbose && $status->subscriptionError !== null) {
                     $lines = explode(chr(10), $status->subscriptionError->errorMessage ?: '<comment>No details available.</comment>');
                     foreach ($lines as $line) {
@@ -164,11 +163,8 @@ final class CrCommandController extends CommandController
             if ($setupRequired) {
                 $this->outputLine('<comment>Setup required, please run <em>./flow cr:setup</em></comment>');
             }
-            if ($bootingRequired) {
-                $this->outputLine('<comment>Replay needed for <comment>BOOTING</comment> projections, please run <em>./flow subscription:replay [subscription-id]</em></comment>');
-            }
-            if ($reactivationRequired) {
-                $this->outputLine('<comment>Reactivation of <comment>ERROR</comment> or <comment>DETACHED</comment> projection required, please run <em>./flow subscription:reactivate [subscription-id]</em></comment>');
+            if ($replayRequired) {
+                $this->outputLine('<comment>Replay needed for <comment>BOOTING</comment>, <comment>ERROR</comment> or <comment>DETACHED</comment> subscriptions, please run <em>./flow subscription:replay [subscription-id]</em></comment>');
             }
         }
         if ($hasErrors) {

@@ -111,7 +111,7 @@ final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTes
     }
 
     /** @test */
-    public function projectionIsDetachedOnSetupAndReattachedIfPossible()
+    public function projectionIsDetachedOnSetup()
     {
         $this->fakeProjection->expects(self::once())->method('setUp');
         $this->fakeProjection->expects(self::once())->method('apply');
@@ -159,12 +159,6 @@ final class SubscriptionDetachedStatusTest extends AbstractSubscriptionEngineTes
             ),
             $this->subscriptionStatus('Vendor.Package:FakeProjection')
         );
-
-        // reactivate does re-attach as the projection if its found again
-        $result = $this->subscriptionEngine->reactivate(SubscriptionEngineCriteria::create([SubscriptionId::fromString('Vendor.Package:FakeProjection')]));
-        self::assertNull($result->errors);
-
-        $this->expectOkayStatus('Vendor.Package:FakeProjection', SubscriptionStatus::ACTIVE, SequenceNumber::fromInteger(1));
     }
 
     /** @test */
