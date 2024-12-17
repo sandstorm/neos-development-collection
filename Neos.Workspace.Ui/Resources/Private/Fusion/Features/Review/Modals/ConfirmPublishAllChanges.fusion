@@ -29,25 +29,24 @@ prototype(Neos.Workspace.Ui:Component.Modal.ConfirmPublishAllChanges) < prototyp
           {private.i18n.id('workspaces.publishAllChangesInWorkspaceConfirmation').arguments([props.workspaceTitle])}
         </div>
       </header>
-      <section>
+      <footer>
         <Neos.Workspace.Ui:Component.Button
           label={private.i18n.id('cancel')}
           attributes.popovertarget={private.popoverId}
           attributes.popovertargetaction="close"
         />
-
-        <div class="neos-pull-right">
-          <Neos.Workspace.Ui:Component.Button
-            isSuccess
-            autofocus
-            label={private.i18n.id('workspaces.publishAllChanges')}
-            icon="fas fa-check-double icon-white"
-            attributes.hx-target='body'
-            attributes.hx-swap='innerHTML'
-            attributes.hx-get={private.publishWorkspaceUri}
-          />
-        </div>
-      </section>
+        <Neos.Workspace.Ui:Component.Button
+          isSuccess
+          autofocus
+          label={private.i18n.id('workspaces.publishAllChanges')}
+          icon="fas fa-check-double icon-white"
+          attributes.hx-get={private.publishWorkspaceUri}
+          attributes.hx-select="#workspace-module-content"
+          attributes.hx-target="#workspace-module-content"
+          attributes.hx-swap="outerHTML"
+          attributes.hx-on--after-request={'document.getElementById("' + private.popoverId + '").hidePopover()'}
+        />
+      </footer>
     </div>
   `
 }
