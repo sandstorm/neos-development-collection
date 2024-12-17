@@ -96,7 +96,7 @@
     "scripts": {
         "lint:phpcs": "../../bin/phpcs --colors",
         "lint:phpcs:fix": "../../bin/phpcbf --colors",
-        "lint:phpstan": "../../bin/phpstan analyse",
+        "lint:phpstan": "../../bin/phpstan analyse -v",
         "lint:phpstan-generate-baseline": "../../bin/phpstan analyse --generate-baseline",
         "lint:distributionintegrity": "[ -d 'Neos.ContentRepository' ] && { echo 'Package Neos.ContentRepository should not exist.' 1>&2; exit 1; } || exit 0;",
         "lint": [
@@ -292,7 +292,7 @@
     },
     "require-dev": {
         "roave/security-advisories": "dev-latest",
-        "phpstan/phpstan": "^1.8",
+        "phpstan/phpstan": "^1.11",
         "squizlabs/php_codesniffer": "^3.6",
         "phpunit/phpunit": "^9.0",
         "neos/behat": "*",

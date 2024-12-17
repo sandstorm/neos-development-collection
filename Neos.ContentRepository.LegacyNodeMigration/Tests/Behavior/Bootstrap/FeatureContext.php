@@ -103,24 +103,26 @@ class FeatureContext implements Context
         $propertyMapper = $this->getObject(PropertyMapper::class);
 
         // HACK to access the property converter
-        $propertyConverterAccess = new class implements ContentRepositoryServiceFactoryInterface {
+        $crInternalsAccess = new class implements ContentRepositoryServiceFactoryInterface {
             public PropertyConverter|null $propertyConverter;
+            public EventNormalizer|null $eventNormalizer;
             public function build(ContentRepositoryServiceFactoryDependencies $serviceFactoryDependencies): ContentRepositoryServiceInterface
             {
                 $this->propertyConverter = $serviceFactoryDependencies->propertyConverter;
+                $this->eventNormalizer = $serviceFactoryDependencies->eventNormalizer;
                 return new class implements ContentRepositoryServiceInterface
                 {
                 };
             }
         };
-        $this->getContentRepositoryService($propertyConverterAccess);
+        $this->getContentRepositoryService($crInternalsAccess);
 
         $eventExportProcessor = new EventExportProcessor(
             $nodeTypeManager,
             $propertyMapper,
-            $propertyConverterAccess->propertyConverter,
+            $crInternalsAccess->propertyConverter,
             $this->currentContentRepository->getVariationGraph(),
-            $this->getObject(EventNormalizer::class),
+            $crInternalsAccess->eventNormalizer,
             $rootNodeTypeMapping ?? RootNodeTypeMapping::fromArray(['/sites' => NodeTypeNameFactory::NAME_SITES]),
             $this->nodeDataRows
         );

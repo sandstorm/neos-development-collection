@@ -21,20 +21,16 @@ use Neos\EventStore\Model\EventEnvelope;
 interface ProjectionInterface
 {
     /**
-     * Set up the projection state (create databases, call {@see CheckpointStorageInterface::setUp()}).
+     * Set up the projection state (create/update required database tables, ...).
      */
     public function setUp(): void;
 
     /**
-     * Determines the status of the projection (not to confuse with {@see getState()})
+     * Determines the setup status of the projection. E.g. are the database tables created or any columns missing.
      */
     public function status(): ProjectionStatus;
 
-    public function canHandle(EventInterface $event): bool;
-
     public function apply(EventInterface $event, EventEnvelope $eventEnvelope): void;
-
-    public function getCheckpointStorage(): CheckpointStorageInterface;
 
     /**
      * NOTE: The ProjectionStateInterface returned must be ALWAYS THE SAME INSTANCE.
@@ -46,5 +42,5 @@ interface ProjectionInterface
      */
     public function getState(): ProjectionStateInterface;
 
-    public function reset(): void;
+    public function resetState(): void;
 }
