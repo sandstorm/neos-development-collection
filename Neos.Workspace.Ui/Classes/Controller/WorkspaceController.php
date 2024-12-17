@@ -50,14 +50,9 @@ use Neos\Media\Domain\Model\AssetInterface;
 use Neos\Media\Domain\Model\ImageInterface;
 use Neos\Neos\Controller\Module\AbstractModuleController;
 use Neos\Neos\Domain\Model\User;
-use Neos\Neos\Domain\Model\UserId;
 use Neos\Neos\Domain\Model\WorkspaceClassification;
 use Neos\Neos\Domain\Model\WorkspaceDescription;
-use Neos\Neos\Domain\Model\WorkspaceRole;
-use Neos\Neos\Domain\Model\WorkspaceRoleAssignment;
 use Neos\Neos\Domain\Model\WorkspaceRoleAssignments;
-use Neos\Neos\Domain\Model\WorkspaceRoleSubject;
-use Neos\Neos\Domain\Model\WorkspaceRoleSubjectType;
 use Neos\Neos\Domain\Model\WorkspaceTitle;
 use Neos\Neos\Domain\NodeLabel\NodeLabelGeneratorInterface;
 use Neos\Neos\Domain\Repository\SiteRepository;
@@ -72,7 +67,6 @@ use Neos\Neos\PendingChangesProjection\Changes;
 use Neos\Neos\Security\Authorization\ContentRepositoryAuthorizationService;
 use Neos\Neos\Utility\NodeTypeWithFallbackProvider;
 use Neos\Workspace\Ui\ViewModel\ChangeItem;
-use Neos\Workspace\Ui\ViewModel\ConfirmDeleteWorkspaceRoleAssignmentFormData;
 use Neos\Workspace\Ui\ViewModel\ContentChangeItem;
 use Neos\Workspace\Ui\ViewModel\ContentChangeItems;
 use Neos\Workspace\Ui\ViewModel\ContentChangeProperties;
@@ -81,13 +75,10 @@ use Neos\Workspace\Ui\ViewModel\ContentChanges\DateTimeContentChange;
 use Neos\Workspace\Ui\ViewModel\ContentChanges\ImageContentChange;
 use Neos\Workspace\Ui\ViewModel\ContentChanges\TagContentChange;
 use Neos\Workspace\Ui\ViewModel\ContentChanges\TextContentChange;
-use Neos\Workspace\Ui\ViewModel\CreateWorkspaceRoleAssignmentFormData;
 use Neos\Workspace\Ui\ViewModel\DocumentChangeItem;
 use Neos\Workspace\Ui\ViewModel\DocumentItem;
 use Neos\Workspace\Ui\ViewModel\EditWorkspaceFormData;
-use Neos\Workspace\Ui\ViewModel\EditWorkspaceRoleAssignmentsFormData;
 use Neos\Workspace\Ui\ViewModel\PendingChanges;
-use Neos\Workspace\Ui\ViewModel\RoleAssignmentListItem;
 use Neos\Workspace\Ui\ViewModel\WorkspaceListItem;
 use Neos\Workspace\Ui\ViewModel\WorkspaceListItems;
 
@@ -483,156 +474,6 @@ class WorkspaceController extends AbstractModuleController
             $this->view->assign('workspaceName', $workspace->workspaceName->value);
             $this->view->assign('workspaceTitle', $workspaceMetadata->title->value);
         }
-    }
-
-
-    public function editWorkspaceRoleAssignmentsAction(WorkspaceName $workspaceName): void
-    {
-        $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
-        $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspaceName);
-
-        // TODO: Render a form to edit role assignments
-        // TODO can current user see/edit role assignments?
-        $roleAssignmentsVisible = true;
-        $roleAssignmentsEditable = true;
-
-        /** @var array<RoleAssignmentListItem> $workspaceRoleAssignments */
-        $workspaceRoleAssignments = [];
-
-        foreach ($this->workspaceService->getWorkspaceRoleAssignments($contentRepositoryId, $workspaceName) as $workspaceRoleAssignment) {
-            $subjectLabel = match ($workspaceRoleAssignment->subject->type) {
-                WorkspaceRoleSubjectType::USER => $this->userService->findUserById(UserId::fromString($workspaceRoleAssignment->subject->value))?->getLabel() ?? $workspaceRoleAssignment->subject->value,
-                WorkspaceRoleSubjectType::GROUP => $workspaceRoleAssignment->subject->value,
-            };
-
-            $roleLabel = $workspaceRoleAssignment->role->value;
-
-            $workspaceRoleAssignments[] = new RoleAssignmentListItem(
-                subjectValue: $workspaceRoleAssignment->subject->value,
-                subjectLabel: $subjectLabel,
-                subjectTypeValue: $workspaceRoleAssignment->subject->type->value,
-                roleLabel: $roleLabel,
-                subjectType: $workspaceRoleAssignment->subject->type->value,
-            );
-        }
-
-
-
-        $editWorkspaceRoleAssignmentsFormData = new EditWorkspaceRoleAssignmentsFormData(
-            workspaceName: $workspaceName,
-            workspaceTitle: $workspaceMetadata->title,
-            roleAssignmentsEditable: $roleAssignmentsEditable,
-            roleAssignments: $workspaceRoleAssignments,
-        );
-
-        $this->view->assign('editWorkspaceRoleAssignmentsFormData', $editWorkspaceRoleAssignmentsFormData);
-    }
-
-    public function createWorkspaceRoleAssignmentAction(WorkspaceName $workspaceName): void
-    {
-        $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
-        $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspaceName);
-
-        $userOptions = [];
-        foreach ($this->userService->getUsers()->toArray() as $user) {
-            $userOptions[$user->getId()->value] = $user->getLabel();
-        }
-
-        $rolesInSystem = $this->policyService->getRoles();
-        $groupOptions = [];
-        foreach ($rolesInSystem as $role) {
-            $groupOptions[$role->getIdentifier()] = $role->getLabel();
-        }
-
-        $workspaceRoleSubjectTypes = WorkspaceRoleSubjectType::cases();
-        /** @var array<string, string> $subjectTypeOptions where key is the Id and value is the translated label of the SubjectType */
-        $subjectTypeOptions = [];
-        foreach ($workspaceRoleSubjectTypes as $workspaceRoleSubjectType) {
-            $subjectTypeOptions[$workspaceRoleSubjectType->value] = $this->getModuleLabel("workspaces.workspace.workspaceRoleAssignment.subjectType.label.$workspaceRoleSubjectType->value");
-        }
-
-        $workspaceRoles = WorkspaceRole::cases();
-        /** @var array<string, string> $roleOptions where key is the Id and value is the translated label of the Role */
-        $roleOptions = [];
-        foreach ($workspaceRoles as $workspaceRole) {
-            $roleOptions[$workspaceRole->value] = $this->getModuleLabel("workspaces.workspace.workspaceRoleAssignment.role.label.$workspaceRole->value");
-        }
-
-        $this->view->assign('createWorkspaceRoleAssignmentFormData', new CreateWorkspaceRoleAssignmentFormData(
-            workspaceName: $workspaceName,
-            workspaceTitle: $workspaceMetadata->title,
-            userOptions: $userOptions,
-            groupOptions: $groupOptions,
-            subjectTypeOptions: $subjectTypeOptions,
-            roleOptions: $roleOptions,
-        ));
-    }
-
-    public function addWorkspaceRoleAssignmentAction(
-        WorkspaceName $workspaceName,
-        string $subjectValue,
-        string $subjectTypeValue,
-        string $roleValue,
-    ): void
-    {
-        // TODO: Validate if user can add role assignment to workspace
-
-        $subjectType = WorkspaceRoleSubjectType::from($subjectTypeValue);
-        $subject = WorkspaceRoleSubject::create($subjectType, $subjectValue);
-        $role = WorkspaceRole::from($roleValue);
-
-        if ($subjectType === WorkspaceRoleSubjectType::USER) {
-            $this->addUserRoleAssignment($workspaceName, $subject, $role);
-        } elseif ($subjectType === WorkspaceRoleSubjectType::GROUP) {
-            $this->addGroupRoleAssignment($workspaceName, $subject, $role);
-        } else {
-            $this->addFlashMessage(
-                $this->getModuleLabel('workspaces.roleAssignmentCouldNotBeAdded'),
-                '',
-                Message::SEVERITY_ERROR
-            );
-            $this->throwStatus(400, 'Invalid subject type');
-        }
-    }
-
-    public function confirmDeleteWorkspaceRoleAssignmentAction(WorkspaceName $workspaceName, string $subjectValue, string $subjectType): void
-    {
-        $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
-        $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspaceName);
-
-        $confirmDeleteWorkspaceRoleAssignmentFormData = new ConfirmDeleteWorkspaceRoleAssignmentFormData(
-            workspaceName: $workspaceName,
-            workspaceTitle: $workspaceMetadata->title,
-            subjectValue: $subjectValue,
-            subjectType: $subjectType,
-        );
-
-        $this->view->assign('confirmDeleteWorkspaceRoleAssignmentFormData', $confirmDeleteWorkspaceRoleAssignmentFormData);
-    }
-
-    public function deleteWorkspaceRoleAssignmentAction(WorkspaceName $workspaceName, string $subjectValue, string $subjectType): void
-    {
-        $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
-        try {
-            $this->workspaceService->unassignWorkspaceRole(
-                $contentRepositoryId,
-                $workspaceName,
-                WorkspaceRoleSubject::create(
-                    WorkspaceRoleSubjectType::from($subjectType),
-                    $subjectValue
-                )
-            );
-        } catch (\Exception $e) {
-            // TODO: error handling
-            $this->addFlashMessage(
-                $this->getModuleLabel('workspaces.roleAssignmentCouldNotBeDeleted'),
-                '',
-                Message::SEVERITY_ERROR
-            );
-            $this->throwStatus(500, 'Role assignment could not be deleted');
-        }
-
-        $this->redirect('editWorkspaceRoleAssignments', null, null, ['workspaceName' => $workspaceName->value]);
     }
 
     /**
@@ -1519,38 +1360,11 @@ class WorkspaceController extends AbstractModuleController
         }
         return WorkspaceListItems::fromArray($workspaceListItems);
     }
+
     protected function getChangesFromWorkspace(Workspace $selectedWorkspace,ContentRepository $contentRepository ): Changes{
         return $contentRepository->projectionState(ChangeFinder::class)
             ->findByContentStreamId(
                 $selectedWorkspace->currentContentStreamId
             );
-    }
-
-    private function addUserRoleAssignment(WorkspaceName $workspaceName, WorkspaceRoleSubject $subject, WorkspaceRole $role): void
-    {
-        if ($this->userService->findUserById(UserId::fromString($subject->value)) === null) {
-            $this->addFlashMessage(
-                $this->getModuleLabel('workspaces.roleAssignmentCouldNotBeAdded'),
-                '',
-                Message::SEVERITY_ERROR
-            );
-            $this->throwStatus(400, 'Invalid user');
-        }
-
-        $this->workspaceService->assignWorkspaceRole(
-            SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId,
-            $workspaceName,
-            WorkspaceRoleAssignment::createForUser(UserId::fromString($subject->value), $role)
-        );
-    }
-
-    private function addGroupRoleAssignment(WorkspaceName $workspaceName, WorkspaceRoleSubject $subject, WorkspaceRole $role): void
-    {
-        // TODO check if group exists?
-        $this->workspaceService->assignWorkspaceRole(
-            SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId,
-            $workspaceName,
-            WorkspaceRoleAssignment::createForGroup($subject->value, $role)
-        );
     }
 }
