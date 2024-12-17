@@ -47,7 +47,7 @@ prototype(Neos.Workspace.Ui:Component.ReviewChangeDiff) < prototype(Neos.Fusion:
             <span>{contentChanges.properties.propertyLabel}</span>
           </td>
         </tr>
-        <tr class="diff-property-content">
+        <tr class="diff-property-content" @if={blocks}>
           <td></td>
           <Neos.Fusion:Loop @if.isText={contentChanges.properties.type == 'text'} items={contentChanges.changes.diff} itemKey="index" itemName="blocks">
             <Neos.Fusion:Loop items={blocks} itemName="block">
