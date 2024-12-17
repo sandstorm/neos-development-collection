@@ -11,7 +11,6 @@ prototype(Neos.Workspace.Ui:Component.ReviewTable) < prototype(Neos.Fusion:Compo
 
   @private {
     i18n = ${I18n.id('').source('Main').package('Neos.Workspace.Ui')}
-
   }
 
   renderer = afx`

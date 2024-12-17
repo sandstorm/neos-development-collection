@@ -185,7 +185,8 @@ class WorkspaceController extends AbstractModuleController
                 '',
                 Message::SEVERITY_ERROR
             );
-            $this->redirect('index');
+            $this->indexAction();
+            return;
         }
 
         $workspacePermissions = $this->authorizationService->getWorkspacePermissions($contentRepositoryId, $workspace, $this->securityContext->getRoles(), $currentUser->getId());
@@ -195,7 +196,8 @@ class WorkspaceController extends AbstractModuleController
                 '',
                 Message::SEVERITY_ERROR
             );
-            $this->redirect('index');
+            $this->indexAction();
+            return;
         }
         $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspace);
         $baseWorkspaceMetadata = null;
@@ -215,7 +217,8 @@ class WorkspaceController extends AbstractModuleController
             'canPublishToBaseWorkspace' => $baseWorkspacePermissions?->write ?? false,
             'canPublishToWorkspace' => $workspacePermissions->write,
             'siteChanges' => $this->computeSiteChanges($workspaceObj, $contentRepository),
-            'contentDimensions' => $contentRepository->getContentDimensionSource()->getContentDimensionsOrderedByPriority()
+            'contentDimensions' => $contentRepository->getContentDimensionSource()->getContentDimensionsOrderedByPriority(),
+            'flashMessages' => $this->controllerContext->getFlashMessageContainer()->getMessagesAndFlush(),
         ]);
     }
 
@@ -267,7 +270,7 @@ class WorkspaceController extends AbstractModuleController
             $this->throwStatus(500, 'Workspace could not be created');
         }
         $this->addFlashMessage($this->getModuleLabel('workspaces.workspaceHasBeenCreated', [$title->value]));
-        $this->redirect('index');
+        $this->indexAction();
     }
 
     /**
@@ -556,7 +559,7 @@ class WorkspaceController extends AbstractModuleController
         );
 
         $this->addFlashMessage($this->getModuleLabel('workspaces.selectedChangeHasBeenPublished'));
-        $this->redirect('review', null, null, ['workspace' => $selectedWorkspace->value]);
+        $this->reviewAction($selectedWorkspace);
     }
 
     /**
@@ -580,9 +583,7 @@ class WorkspaceController extends AbstractModuleController
         );
 
         $this->addFlashMessage($this->getModuleLabel('workspaces.selectedChangeHasBeenDiscarded'));
-
-        $this->redirect('review', null, null, ['workspace' => $selectedWorkspace->value]);
-
+        $this->reviewAction($selectedWorkspace);
     }
 
     /**
@@ -625,8 +626,7 @@ class WorkspaceController extends AbstractModuleController
             default:
                 throw new \RuntimeException('Invalid action "' . htmlspecialchars($action) . '" given.', 1346167441);
         }
-
-        $this->redirect('review', null, null, ['workspace' => $workspace->value]);
+        $this->reviewAction($workspace);
     }
 
     /**
@@ -648,8 +648,7 @@ class WorkspaceController extends AbstractModuleController
                 ],
             )
         );
-        //todo make redirect work
-        $this->redirect('index');
+        $this->indexAction();
     }
 
     public function confirmPublishAllChangesAction(WorkspaceName $workspaceName): void
@@ -754,8 +753,7 @@ class WorkspaceController extends AbstractModuleController
                 [htmlspecialchars($workspace->value)],
             )
         );
-        //todo make redirect to index work
-        $this->redirect('review', null, null, ['workspace' => $workspace->value]);
+        $this->reviewAction($workspace);
     }
 
     /**

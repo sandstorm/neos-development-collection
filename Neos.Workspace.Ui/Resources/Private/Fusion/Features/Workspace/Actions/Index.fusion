@@ -3,6 +3,8 @@ Neos.Workspace.Ui.WorkspaceController.index = Neos.Fusion:Component {
   userWorkspaceName = ${userWorkspaceName}
   /// Neos\Workspace\Ui\ViewModel\WorkspaceListItems
   workspaceListItems = ${workspaceListItems}
+  /// array
+  flashMessages = ${flashMessages}
 
   newAction = Neos.Fusion:UriBuilder {
     action = 'new'

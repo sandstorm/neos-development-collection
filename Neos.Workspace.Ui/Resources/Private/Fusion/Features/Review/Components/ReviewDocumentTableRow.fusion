@@ -18,7 +18,6 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
       arguments {
         targetWorkspaceName = ${selectedWorkspaceName}
         targetNode = ${document.document.documentNodeAddress}
-
       }
     }
     openNodeInPreviewAction = Neos.Fusion:ActionUri {
@@ -28,10 +27,10 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
       action = 'preview'
       // todo fixme
       @process.addQuery = ${value + '?node=' + document.document.documentNodeAddress}
-
     }
     discardDocumentAction = Neos.Fusion:ActionUri {
       action = 'discardDocument'
+      format = 'htmx'
       arguments {
         nodeAddress = ${document.document.documentNodeAddress}
         selectedWorkspace = ${selectedWorkspaceName}
@@ -39,6 +38,7 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
     }
     publishDocumentAction = Neos.Fusion:ActionUri {
       action = 'publishDocument'
+      format = 'htmx'
       arguments {
         nodeAddress = ${document.document.documentNodeAddress}
         selectedWorkspace = ${selectedWorkspaceName}

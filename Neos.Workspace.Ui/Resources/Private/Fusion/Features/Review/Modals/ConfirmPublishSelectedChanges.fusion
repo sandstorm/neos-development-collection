@@ -7,6 +7,7 @@ prototype(Neos.Workspace.Ui:Component.Modal.ConfirmPublishSelectedChanges) < pro
 
     publishSelectedChanges = Neos.Fusion:ActionUri {
       action = 'publishOrDiscardNodes'
+      format = 'htmx'
       arguments {
         workspace = ${workspaceName}
         action = 'publish'
