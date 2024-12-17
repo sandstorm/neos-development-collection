@@ -31,13 +31,14 @@ prototype(Neos.Workspace.Ui:Component.Modal.ConfirmPublishSelectedChanges) < pro
       </header>
       <section>
         <Neos.Workspace.Ui:Component.Button
-          label={"cancel"}
+          label={private.i18n.id('cancel')}
           attributes.popovertarget={private.popoverId}
           attributes.popovertargetaction="close"
         />
         <div class="neos-pull-right">
           <Neos.Workspace.Ui:Component.Button
             isSuccess
+            autofocus
             label={"publish"}
             icon="fas fa-check-double icon-white"
             attributes.form="publishOrDiscardNodes"

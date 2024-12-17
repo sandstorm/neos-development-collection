@@ -13,9 +13,7 @@ prototype(Neos.Workspace.Ui:Component.Modal.ConfirmDiscardAllChanges) < prototyp
     }
     indexWorkspaceUri = Neos.Fusion:ActionUri {
       action = 'index'
-
     }
-
   }
 
   renderer = afx`
@@ -35,7 +33,7 @@ prototype(Neos.Workspace.Ui:Component.Modal.ConfirmDiscardAllChanges) < prototyp
       </header>
       <section>
         <Neos.Workspace.Ui:Component.Button
-          label={"cancel"}
+          label={private.i18n.id('cancel')}
           attributes.popovertarget={private.popoverId}
           attributes.popovertargetaction="close"
         />
@@ -45,6 +43,7 @@ prototype(Neos.Workspace.Ui:Component.Modal.ConfirmDiscardAllChanges) < prototyp
             isDanger
             label={private.i18n.id('workspaces.discardAllChanges')}
             icon="trash-alt icon-white"
+            autofocus
             attributes.hx-get={private.discardWorkspaceUri}
             attributes.hx-target='body'
             attributes.hx-swap='innerHTML'

@@ -33,7 +33,7 @@ prototype(Neos.Workspace.Ui:Component.Modal.Delete) < prototype(Neos.Fusion:Comp
           popovertarget={private.popoverId}
           popovertargetaction="close"
         >
-          {private.i18n.id('cancel', 'Cancel', [])}
+          {private.i18n.id('cancel')}
         </button>
         <Neos.Fusion.Form:Form
           form.target.action="delete"
@@ -47,6 +47,7 @@ prototype(Neos.Workspace.Ui:Component.Modal.Delete) < prototype(Neos.Fusion:Comp
           attributes.hx-on--after-request={'document.getElementById("' + private.popoverId + '").hidePopover()'}
         >
           <button
+            autofocus
             type="submit"
             class="neos-button neos-button-danger"
           >

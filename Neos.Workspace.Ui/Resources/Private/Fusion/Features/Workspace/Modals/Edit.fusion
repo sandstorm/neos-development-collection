@@ -116,7 +116,7 @@ prototype(Neos.Workspace.Ui:Component.Modal.Edit) < prototype(Neos.Fusion:Compon
             popovertarget={private.popoverId}
             popovertargetaction="close"
           >
-            {private.i18n.id('cancel', 'Cancel', [])}
+            {private.i18n.id('cancel')}
           </button>
           <Neos.Fusion.Form:Button attributes.class="neos-button neos-button-primary">
             {private.i18n.id('applyChanges')}

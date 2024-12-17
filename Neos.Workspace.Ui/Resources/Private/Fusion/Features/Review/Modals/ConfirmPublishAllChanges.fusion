@@ -32,7 +32,7 @@ prototype(Neos.Workspace.Ui:Component.Modal.ConfirmPublishAllChanges) < prototyp
       </header>
       <section>
         <Neos.Workspace.Ui:Component.Button
-          label={"cancel"}
+          label={private.i18n.id('cancel')}
           attributes.popovertarget={private.popoverId}
           attributes.popovertargetaction="close"
         />
@@ -40,6 +40,7 @@ prototype(Neos.Workspace.Ui:Component.Modal.ConfirmPublishAllChanges) < prototyp
         <div class="neos-pull-right">
           <Neos.Workspace.Ui:Component.Button
             isSuccess
+            autofocus
             label={private.i18n.id('workspaces.publishAllChanges')}
             icon="fas fa-check-double icon-white"
             attributes.hx-target='body'

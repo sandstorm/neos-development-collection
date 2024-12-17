@@ -85,7 +85,7 @@ Neos.Workspace.Ui.WorkspaceController.new = Neos.Fusion:Component {
             popovertarget={props.popoverId}
             popovertargetaction="close"
           >
-            {I18n.translate('cancel', 'Cancel', [], 'Modules', 'Neos.Workspace.Ui')}
+            {props.i18n.id('cancel')}
           </button>
           <Neos.Fusion.Form:Button attributes.class="neos-button neos-button-primary">
             {props.i18n.id('workspaces.createWorkspace')}
