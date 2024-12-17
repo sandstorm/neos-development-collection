@@ -1,7 +1,6 @@
 prototype(Neos.Workspace.Ui:Component.Modal.ConfirmPublishAllChanges) < prototype(Neos.Fusion:Component) {
   workspaceTitle = ''
 
-
   @private {
     i18n = ${I18n.id('').source('Main').package('Neos.Workspace.Ui')}
     popoverId = 'confirm-publish-all-changes-popover'

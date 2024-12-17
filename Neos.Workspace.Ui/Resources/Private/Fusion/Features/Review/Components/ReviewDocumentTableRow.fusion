@@ -48,7 +48,11 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
   }
 
   renderer = afx`
-    <tr data-documentPath={documentPath} data-isNew={document.documentChanges.isNew} data-isMoved={document.documentChanges.isMoved}>
+    <tr
+      data-documentPath={documentPath}
+      data-isNew={document.documentChanges.isNew}
+      data-isMoved={document.documentChanges.isMoved}
+    >
       <Neos.Fusion:DataStructure
         @path="attributes.class"
         general="neos-document"
@@ -64,16 +68,18 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
       <td>
         <div class="neos-button">
           <label for={"check-document-" + document.document.aggregateId} class="neos-checkbox">
-            <input type="checkbox" name="moduleArguments[nodes][]" class="check-document" id={"check-document-" + document.document.aggregateId} value={document.document.documentNodeAddress} /><span></span>
+            <input type="checkbox" name="moduleArguments[nodes][]" class="check-document"
+                   id={"check-document-" + document.document.aggregateId}
+                   value={document.document.documentNodeAddress}/><span></span>
           </label>
         </div>
       </td>
       <td class="document-details">
         <Neos.Fusion:Loop items={document.document.documentBreadCrumb} itemName="crumb">
-          <Neos.Workspace.Ui:Component.Icon icon="fas fa-caret-right" @if.notFirst={!iterator.isFirst} />
+          <Neos.Workspace.Ui:Component.Icon icon="fas fa-caret-right" @if.notFirst={!iterator.isFirst}/>
           <span>
             <span class="node-icons" @if.hasIcon={document.document.documentIcon} @if.isLast={iterator.isLast}>
-                <Neos.Workspace.Ui:Component.Icon icon={document.document.documentIcon} />
+                <Neos.Workspace.Ui:Component.Icon icon={document.document.documentIcon}/>
                 <i @if.nodeIsHidden={document.documentChanges.isHidden} class="icon-red fa-solid fa-circle-xmark"></i>
             </span>
             <span>
@@ -84,24 +90,24 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
       </td>
       <td class="document-actions">
         <Neos.Workspace.Ui:Component.Button
-                title={props.canPublishToWorkspace ? private.i18n.id('workspaces.discardAllChangesInThisDocument'): private.i18n.id('workspaces.changes.noPermissionToPublishToWorkspace')}
-                icon="fas fa-trash-alt icon-white"
-                isDanger={true}
-                attributes.hx-get={private.discardDocumentAction}
-                attributes.hx-select="#workspace-module-content"
-                attributes.hx-target="#workspace-module-content"
-                attributes.hx-swap="outerHTML"
-                attributes.disabled={!props.canPublishToWorkspace }
+          title={props.canPublishToWorkspace ? private.i18n.id('workspaces.discardAllChangesInThisDocument'): private.i18n.id('workspaces.changes.noPermissionToPublishToWorkspace')}
+          icon="trash-alt icon-white"
+          isDanger
+          attributes.hx-get={private.discardDocumentAction}
+          attributes.hx-select="#workspace-module-content"
+          attributes.hx-target="#workspace-module-content"
+          attributes.hx-swap="outerHTML"
+          attributes.disabled={!props.canPublishToWorkspace }
         />
         <Neos.Workspace.Ui:Component.Button
-                title={props.canPublishToBaseWorkspace ? private.i18n.id('workspaces.publishAllChangesInThisDocument') :  private.i18n.id('workspaces.changes.noPermissionToPublishToBaseWorkspace')}
-                icon="fas fa-check icon-white"
-                isSuccess={true}
-                attributes.hx-get={private.publishDocumentAction}
-                attributes.hx-select="#workspace-module-content"
-                attributes.hx-target="#workspace-module-content"
-                attributes.hx-swap="outerHTML"
-                attributes.disabled={!props.canPublishToBaseWorkspace}
+          title={props.canPublishToBaseWorkspace ? private.i18n.id('workspaces.publishAllChangesInThisDocument') :  private.i18n.id('workspaces.changes.noPermissionToPublishToBaseWorkspace')}
+          icon="check icon-white"
+          isSuccess
+          attributes.hx-get={private.publishDocumentAction}
+          attributes.hx-select="#workspace-module-content"
+          attributes.hx-target="#workspace-module-content"
+          attributes.hx-swap="outerHTML"
+          attributes.disabled={!props.canPublishToBaseWorkspace}
         />
 
         <a href={private.openNodeInWorkspaceAction}
@@ -109,17 +115,15 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
            title={private.i18n.id('edit')}
            class="neos-button neos-button-primary"
            disabled={document.documentChanges.isRemoved}>
-          <Neos.Workspace.Ui:Component.Icon icon="fas fa-pencil-alt" />
+          <Neos.Workspace.Ui:Component.Icon icon="fas fa-pencil-alt"/>
         </a>
         <a href={private.openNodeInPreviewAction}
            target="_blank"
            title={private.i18n.id('workspaces.openPageInWorkspace').arguments([selectedWorkspaceLabel])}
            class="neos-button neos-button-primary">
-          <Neos.Workspace.Ui:Component.Icon icon="fas fa-external-link-alt" />
+          <Neos.Workspace.Ui:Component.Icon icon="fas fa-external-link-alt"/>
         </a>
-
       </td>
-
     </tr>
   `
 }

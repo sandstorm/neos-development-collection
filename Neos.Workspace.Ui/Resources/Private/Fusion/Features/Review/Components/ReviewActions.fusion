@@ -67,7 +67,7 @@ prototype(Neos.Workspace.Ui:Component.ReviewActions) < prototype(Neos.Fusion:Com
             <Neos.Workspace.Ui:Component.Button
               label={private.i18n.id('workspaces.discardAllChanges')}
               icon="fas fa-trash-alt icon-white"
-              isDanger={true}
+              isDanger
               attributes.hx-get={private.confirmDiscardAllChanges}
               attributes.hx-target='#popover-container'
               attributes.hx-swap='innerHTML'
@@ -77,7 +77,7 @@ prototype(Neos.Workspace.Ui:Component.ReviewActions) < prototype(Neos.Fusion:Com
             <Neos.Workspace.Ui:Component.Button
               label={private.i18n.id('workspaces.publishAllChangesTo').arguments([props.baseWorkspaceLabel])}
               icon="fas fa-check-double icon-white"
-              isPrimary={true}
+              isPrimary
               attributes.hx-get={private.confirmPublishAllChanges}
               attributes.hx-target='#popover-container'
               attributes.hx-swap='innerHTML'
@@ -89,7 +89,7 @@ prototype(Neos.Workspace.Ui:Component.ReviewActions) < prototype(Neos.Fusion:Com
             <Neos.Workspace.Ui:Component.Button
               label={private.i18n.id('workspaces.discardSelectedChanges')}
               icon="fas fa-trash-alt icon-white"
-              isDanger={true}
+              isDanger
               attributes.hx-get={private.confirmDiscardSelectedChanges}
               attributes.hx-target='#popover-container'
               attributes.hx-swap='innerHTML'
@@ -99,7 +99,7 @@ prototype(Neos.Workspace.Ui:Component.ReviewActions) < prototype(Neos.Fusion:Com
             <Neos.Workspace.Ui:Component.Button
               label={private.i18n.id('workspaces.publishSelectedChangesTo').arguments([props.baseWorkspaceLabel])}
               icon="fas fa-check icon-white"
-              isPrimary={true}
+              isPrimary
               attributes.hx-target={'#popover-container'}
               attributes.hx-swap='innerHTML'
               attributes.hx-post={private.confirmPublishSelectedChanges}
