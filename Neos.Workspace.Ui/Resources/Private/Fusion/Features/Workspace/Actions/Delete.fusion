@@ -2,7 +2,9 @@
 # Delete confirmation modal with empty POST response
 #
 Neos.Workspace.Ui.WorkspaceController.delete = Neos.Fusion:Component {
+  /// string
   workspaceName = ${workspaceName}
+  /// string
   workspaceTitle = ${workspaceTitle}
 
   renderer = Neos.Fusion:Match {

@@ -52,6 +52,8 @@ use Neos\Neos\Controller\Module\AbstractModuleController;
 use Neos\Neos\Domain\Model\User;
 use Neos\Neos\Domain\Model\WorkspaceClassification;
 use Neos\Neos\Domain\Model\WorkspaceDescription;
+use Neos\Neos\Domain\Model\WorkspaceRole;
+use Neos\Neos\Domain\Model\WorkspaceRoleAssignment;
 use Neos\Neos\Domain\Model\WorkspaceRoleAssignments;
 use Neos\Neos\Domain\Model\WorkspaceTitle;
 use Neos\Neos\Domain\NodeLabel\NodeLabelGeneratorInterface;
@@ -234,6 +236,7 @@ class WorkspaceController extends AbstractModuleController
         WorkspaceTitle $title,
         WorkspaceName $baseWorkspace,
         WorkspaceDescription $description,
+        string $visibility = 'shared',
     ): void {
         $currentUser = $this->userService->getCurrentUser();
         if ($currentUser === null) {
@@ -244,15 +247,16 @@ class WorkspaceController extends AbstractModuleController
         $workspaceName = $this->workspaceService->getUniqueWorkspaceName($contentRepositoryId, $title->value);
 
         try {
+            $assignments = $visibility === 'shared' ?
+                WorkspaceRoleAssignments::createForSharedWorkspace($currentUser->getId()) :
+                WorkspaceRoleAssignments::createForPrivateWorkspace($currentUser->getId());
             $this->workspaceService->createSharedWorkspace(
                 $contentRepositoryId,
                 $workspaceName,
                 $title,
                 $description,
                 $baseWorkspace,
-                WorkspaceRoleAssignments::createForSharedWorkspace(
-                    $currentUser->getId()
-                )
+                $assignments
             );
         } catch (WorkspaceAlreadyExists $exception) {
             $this->addFlashMessage(

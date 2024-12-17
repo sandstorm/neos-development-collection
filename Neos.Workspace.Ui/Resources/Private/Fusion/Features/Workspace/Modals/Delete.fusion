@@ -1,5 +1,7 @@
 prototype(Neos.Workspace.Ui:Component.Modal.Delete) < prototype(Neos.Fusion:Component) {
+  /// string
   workspaceName = null
+  /// string
   workspaceTitle = null
 
   @private {
