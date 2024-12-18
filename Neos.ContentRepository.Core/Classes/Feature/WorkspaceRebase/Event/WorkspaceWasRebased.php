@@ -16,6 +16,7 @@ namespace Neos\ContentRepository\Core\Feature\WorkspaceRebase\Event;
 
 use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\Feature\Common\EmbedsWorkspaceName;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Dto\RebaseErrorHandlingStrategy;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 
@@ -34,6 +35,10 @@ final readonly class WorkspaceWasRebased implements EventInterface, EmbedsWorksp
          * The old content stream ID (which is not active anymore now)
          */
         public ContentStreamId $previousContentStreamId,
+        /**
+         * Indicates if all events in the workspace were kept or if failing changes were discarded {@see RebaseErrorHandlingStrategy::STRATEGY_FORCE}
+         */
+        public bool $hadConflicts
     ) {
     }
 
@@ -48,6 +53,7 @@ final readonly class WorkspaceWasRebased implements EventInterface, EmbedsWorksp
             WorkspaceName::fromString($values['workspaceName']),
             ContentStreamId::fromString($values['newContentStreamId']),
             ContentStreamId::fromString($values['previousContentStreamId']),
+            $values['hadConflicts'] ?? false
         );
     }
 

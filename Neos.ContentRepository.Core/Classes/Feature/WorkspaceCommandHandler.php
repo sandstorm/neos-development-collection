@@ -288,6 +288,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                     $workspace->workspaceName,
                     $newContentStreamId,
                     $workspace->currentContentStreamId,
+                    hadConflicts: false
                 ),
             ),
             ExpectedVersion::ANY()
@@ -404,6 +405,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                         $command->workspaceName,
                         $command->rebasedContentStreamId,
                         $workspace->currentContentStreamId,
+                        hadConflicts: $commandSimulator->hasConflicts()
                     ),
                 ),
                 ExpectedVersion::ANY()
