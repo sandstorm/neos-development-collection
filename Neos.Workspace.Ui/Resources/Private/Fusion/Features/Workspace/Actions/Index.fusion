@@ -5,6 +5,10 @@ Neos.Workspace.Ui.WorkspaceController.index = Neos.Fusion:Component {
   workspaceListItems = ${workspaceListItems}
   /// array
   flashMessages = ${flashMessages}
+  /// string
+  sortBy = ${sortBy}
+  /// bool
+  sortAscending = ${sortAscending}
 
   newAction = Neos.Fusion:UriBuilder {
     action = 'new'
@@ -24,6 +28,8 @@ Neos.Workspace.Ui.WorkspaceController.index = Neos.Fusion:Component {
           <Neos.Workspace.Ui:Component.WorkspaceTable
             userWorkspaceName={props.userWorkspaceName}
             workspaceListItems={props.workspaceListItems}
+            sortBy={props.sortBy}
+            sortAscending={props.sortAscending}
           />
         </div>
       </main>

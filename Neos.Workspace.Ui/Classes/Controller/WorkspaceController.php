@@ -129,7 +129,7 @@ class WorkspaceController extends AbstractModuleController
     /**
      * Display a list of unpublished content
      */
-    public function indexAction(): void
+    public function indexAction(string $sortBy = 'title', bool $sortAscending = true): void
     {
         $currentUser = $this->userService->getCurrentUser();
         if ($currentUser === null) {
@@ -155,11 +155,17 @@ class WorkspaceController extends AbstractModuleController
         $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
         $workspaceListItems = $this->getWorkspaceListItems($contentRepository, $currentUser);
 
+        if ($sortBy === 'title') {
+            $workspaceListItems = $workspaceListItems->sortByTitle($sortAscending);
+        }
+
         $this->view->assignMultiple([
             // todo remove userWorkspaceName field and add distinction to $workspaceListItems as $workspaceListItems->userWorkspace and $workspaceListItems->otherWorkspaces or something.
             'userWorkspaceName' => $this->workspaceService->getPersonalWorkspaceForUser($contentRepositoryId, $currentUser->getId())->workspaceName->value,
             'workspaceListItems' => $workspaceListItems,
             'flashMessages' => $this->controllerContext->getFlashMessageContainer()->getMessagesAndFlush(),
+            'sortAscending' => $sortAscending,
+            'sortBy' => $sortBy,
         ]);
     }
 

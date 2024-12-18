@@ -6,9 +6,20 @@ prototype(Neos.Workspace.Ui:Component.WorkspaceTable) < prototype(Neos.Fusion:Co
   userWorkspaceName = null
   /// \Neos\Workspace\Ui\ViewModel\WorkspaceListItems
   workspaceListItems = ${{}}
+  /// string
+  sortBy = 'title'
+  /// bool
+  sortAscending = true
 
   @private {
     i18n = ${I18n.id('').source('Main').package('Neos.Workspace.Ui')}
+    workspacesUri = Neos.Fusion:ActionUri {
+      action = 'index'
+      format = 'html'
+      arguments {
+        sortAscending = ${!props.sortAscending}
+      }
+    }
   }
 
   renderer = afx`
@@ -17,9 +28,16 @@ prototype(Neos.Workspace.Ui:Component.WorkspaceTable) < prototype(Neos.Fusion:Co
       <tr>
         <th></th>
         <th>
-          <button type="button" class="icon-button">
+          <button
+            type="button"
+            class="icon-button"
+            hx-get={private.workspacesUri}
+            hx-select="#workspace-module-content"
+            hx-target="#workspace-module-content"
+            hx-swap="outerHTML"
+          >
             {private.i18n.id('workspaces.workspace.title').translate()}
-            <Neos.Workspace.Ui:Component.Icon icon="sort-alpha-down"/>
+            <Neos.Workspace.Ui:Component.Icon icon={props.sortAscending ? 'sort-alpha-down' : 'sort-alpha-up'}/>
           </button>
         </th>
         <th>{private.i18n.id('workspaces.workspace.description')}</th>
