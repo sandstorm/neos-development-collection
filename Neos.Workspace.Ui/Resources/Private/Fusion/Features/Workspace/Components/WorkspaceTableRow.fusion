@@ -96,7 +96,6 @@ prototype(Neos.Workspace.Ui:Component.WorkspaceTableRow) < prototype(Neos.Fusion
       <td class="workspace-description-column">
         {props.workspaceListItem.description || '﹘'}
       </td>
-      <td>﹘</td>
       <td>{private.i18n.id('workspaces.workspace.status.' + props.workspaceListItem.status).translate()}</td>
       <td>
         <Neos.Workspace.Ui:Component.Badge
