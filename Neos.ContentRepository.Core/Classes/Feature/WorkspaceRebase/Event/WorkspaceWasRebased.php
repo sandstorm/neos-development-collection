@@ -36,7 +36,7 @@ final readonly class WorkspaceWasRebased implements EventInterface, EmbedsWorksp
          */
         public ContentStreamId $previousContentStreamId,
         /**
-         * Indicates if all events in the workspace were kept or if failing changes were discarded {@see RebaseErrorHandlingStrategy::STRATEGY_FORCE}
+         * Indicates if failing changes were discarded during a forced rebase {@see RebaseErrorHandlingStrategy::STRATEGY_FORCE} or if all events in the workspace were kept.
          */
         public bool $hadConflicts
     ) {
