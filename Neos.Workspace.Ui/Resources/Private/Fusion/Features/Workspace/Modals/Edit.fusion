@@ -1,9 +1,15 @@
 prototype(Neos.Workspace.Ui:Component.Modal.Edit) < prototype(Neos.Fusion:Component) {
+  /// string
   workspaceName = ''
+  /// string
   workspaceTitle = ''
+  /// string
   workspaceDescription = ''
+  /// string
   baseWorkspaceName = ''
-
+  /// string
+  visibility = ''
+  /// boolean
   workspaceHasChanges = false
   /// array<workspaceName: string, workspaceTitle: string>
   baseWorkspaceOptions = ${[]}
@@ -105,6 +111,33 @@ prototype(Neos.Workspace.Ui:Component.Modal.Edit) < prototype(Neos.Fusion:Compon
                   style={{ color: 'var(--warningText)', marginRight: '.5em' }}
                 ></i>{' '}
                 {private.i18n.id('workspaces.cantChangeBaseWorkspaceBecauseWorkspaceContainsChanges')}
+              </p>
+            </Neos.Fusion.Form:Neos.BackendModule.FieldContainer>
+
+            <Neos.Fusion.Form:Neos.BackendModule.FieldContainer
+              label="workspaces.workspace.visibility"
+              class="neos-control-group"
+            >
+              <Neos.Fusion.Form:Radio
+                renderer.checked={props.visibility == 'shared'}
+                field.name="visibility"
+                field.value="shared"
+              >
+                {private.i18n.id('workspaces.workspace.visibility.internal')}
+              </Neos.Fusion.Form:Radio>
+              <p>
+                {private.i18n.id('workspaces.workspace.visibility.internal.help')}
+              </p>
+              <br/>
+              <Neos.Fusion.Form:Radio
+                renderer.checked={props.visibility == 'private'}
+                field.name="visibility"
+                field.value="private"
+              >
+                {private.i18n.id('workspaces.workspace.visibility.private')}
+              </Neos.Fusion.Form:Radio>
+              <p>
+                {private.i18n.id('workspaces.workspace.visibility.private.help')}
               </p>
             </Neos.Fusion.Form:Neos.BackendModule.FieldContainer>
           </fieldset>

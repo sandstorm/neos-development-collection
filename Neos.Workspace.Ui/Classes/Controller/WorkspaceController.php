@@ -14,7 +14,6 @@ declare(strict_types=1);
 
 namespace Neos\Workspace\Ui\Controller;
 
-use Doctrine\DBAL\Exception as DBALException;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionId;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
@@ -35,12 +34,8 @@ use Neos\Diff\Diff;
 use Neos\Diff\Renderer\Html\HtmlArrayRenderer;
 use Neos\Error\Messages\Message;
 use Neos\Flow\Annotations as Flow;
-use Neos\Flow\Http\Exception;
-use Neos\Flow\I18n\Exception\IndexOutOfBoundsException;
-use Neos\Flow\I18n\Exception\InvalidFormatPlaceholderException;
 use Neos\Flow\I18n\Translator;
 use Neos\Flow\Mvc\Exception\StopActionException;
-use Neos\Flow\Mvc\Routing\Exception\MissingActionNameException;
 use Neos\Flow\Package\PackageManager;
 use Neos\Flow\Property\PropertyMapper;
 use Neos\Flow\Security\Context;
@@ -52,8 +47,6 @@ use Neos\Neos\Controller\Module\AbstractModuleController;
 use Neos\Neos\Domain\Model\User;
 use Neos\Neos\Domain\Model\WorkspaceClassification;
 use Neos\Neos\Domain\Model\WorkspaceDescription;
-use Neos\Neos\Domain\Model\WorkspaceRole;
-use Neos\Neos\Domain\Model\WorkspaceRoleAssignment;
 use Neos\Neos\Domain\Model\WorkspaceRoleAssignments;
 use Neos\Neos\Domain\Model\WorkspaceTitle;
 use Neos\Neos\Domain\NodeLabel\NodeLabelGeneratorInterface;
@@ -187,8 +180,7 @@ class WorkspaceController extends AbstractModuleController
                 '',
                 Message::SEVERITY_ERROR
             );
-            $this->indexAction();
-            return;
+            $this->forward('index');
         }
 
         $workspacePermissions = $this->authorizationService->getWorkspacePermissions($contentRepositoryId, $workspace, $this->securityContext->getRoles(), $currentUser->getId());
@@ -198,8 +190,7 @@ class WorkspaceController extends AbstractModuleController
                 '',
                 Message::SEVERITY_ERROR
             );
-            $this->indexAction();
-            return;
+            $this->forward('index');
         }
         $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspace);
         $baseWorkspaceMetadata = null;
@@ -274,7 +265,7 @@ class WorkspaceController extends AbstractModuleController
             $this->throwStatus(500, 'Workspace could not be created');
         }
         $this->addFlashMessage($this->getModuleLabel('workspaces.workspaceHasBeenCreated', [$title->value]));
-        $this->indexAction();
+        $this->forward('index');
     }
 
     /**
@@ -321,10 +312,8 @@ class WorkspaceController extends AbstractModuleController
      * Update a workspace
      *
      * @Flow\Validate(argumentName="title", type="\Neos\Flow\Validation\Validator\NotEmptyValidator")
-     * @param WorkspaceName $workspaceName
      * @param WorkspaceTitle $title Human friendly title of the workspace, for example "Christmas Campaign"
      * @param WorkspaceDescription $description A description explaining the purpose of the new workspace
-     * @return void
      */
     public function updateAction(
         WorkspaceName $workspaceName,
@@ -400,10 +389,7 @@ class WorkspaceController extends AbstractModuleController
      * TODO: Add force delete option to ignore unpublished nodes or dependent workspaces, the later should be rebased instead
      *
      * @param WorkspaceName $workspaceName A workspace to delete
-     * @throws IndexOutOfBoundsException
-     * @throws InvalidFormatPlaceholderException
      * @throws StopActionException
-     * @throws DBALException
      */
     public function deleteAction(WorkspaceName $workspaceName): void
     {
@@ -544,13 +530,6 @@ class WorkspaceController extends AbstractModuleController
 
     /**
      * Publish a single document node
-     *
-     * @param string $nodeAddress
-     * @param WorkspaceName $selectedWorkspace
-     * @throws Exception
-     * @throws MissingActionNameException
-     * @throws StopActionException
-     * @throws WorkspaceRebaseFailed
      */
     public function publishDocumentAction(string $nodeAddress, WorkspaceName $selectedWorkspace): void
     {
@@ -563,18 +542,13 @@ class WorkspaceController extends AbstractModuleController
         );
 
         $this->addFlashMessage($this->getModuleLabel('workspaces.selectedChangeHasBeenPublished'));
-        $this->reviewAction($selectedWorkspace);
+        $this->forward('review', null, null, ['workspace' => $selectedWorkspace->value]);
     }
 
     /**
      * Discard a single document node
      *
-     * @param string $nodeAddress
-     * @param WorkspaceName $selectedWorkspace
-     * @throws StopActionException
      * @throws WorkspaceRebaseFailed
-     * @throws Exception
-     * @throws MissingActionNameException
      */
     public function discardDocumentAction(string $nodeAddress, WorkspaceName $selectedWorkspace): void
     {
@@ -587,14 +561,11 @@ class WorkspaceController extends AbstractModuleController
         );
 
         $this->addFlashMessage($this->getModuleLabel('workspaces.selectedChangeHasBeenDiscarded'));
-        $this->reviewAction($selectedWorkspace);
+        $this->forward('review', null, null, ['workspace' => $selectedWorkspace->value]);
     }
 
     /**
      * @psalm-param list<string> $nodes
-     * @throws IndexOutOfBoundsException
-     * @throws InvalidFormatPlaceholderException
-     * @throws StopActionException
      */
     public function publishOrDiscardNodesAction(array $nodes, string $action, WorkspaceName $workspace): void
     {
@@ -611,7 +582,6 @@ class WorkspaceController extends AbstractModuleController
                         $nodeAddress->aggregateId
                     );
                 }
-                //todo: make flashmessage work with htmx
                 $this->addFlashMessage(
                     $this->getModuleLabel('workspaces.selectedChangesHaveBeenPublished')
                 );
@@ -630,7 +600,7 @@ class WorkspaceController extends AbstractModuleController
             default:
                 throw new \RuntimeException('Invalid action "' . htmlspecialchars($action) . '" given.', 1346167441);
         }
-        $this->reviewAction($workspace);
+        $this->forward('review', null, null, ['workspace' => $workspace->value]);
     }
 
     /**
@@ -652,7 +622,7 @@ class WorkspaceController extends AbstractModuleController
                 ],
             )
         );
-        $this->indexAction();
+        $this->forward('index');
     }
 
     public function confirmPublishAllChangesAction(WorkspaceName $workspaceName): void
@@ -757,15 +727,11 @@ class WorkspaceController extends AbstractModuleController
                 [htmlspecialchars($workspace->value)],
             )
         );
-        $this->reviewAction($workspace);
+        $this->forward('review', null, null, ['workspace' => $workspace->value]);
     }
 
     /**
      * Computes the number of added, changed and removed nodes for the given workspace
-     *
-     * @param Workspace $selectedWorkspace
-     * @param ContentRepository $contentRepository
-     * @return PendingChanges
      */
     protected function computePendingChanges(Workspace $selectedWorkspace, ContentRepository $contentRepository): PendingChanges
     {
@@ -1103,11 +1069,8 @@ class WorkspaceController extends AbstractModuleController
      * Note: It's clear that this method needs to be extracted and moved to a more universal service at some point.
      * However, since we only implemented diff-view support for this particular controller at the moment, it stays
      * here for the time being. Once we start displaying diffs elsewhere, we should refactor the diff rendering part.
-     *
-     * @param mixed $propertyValue
-     * @return string
      */
-    protected function renderSlimmedDownContent($propertyValue)
+    protected function renderSlimmedDownContent(mixed $propertyValue): string
     {
         $content = '';
         if (is_string($propertyValue)) {
@@ -1121,12 +1084,8 @@ class WorkspaceController extends AbstractModuleController
 
     /**
      * Tries to determine a label for the specified property
-     *
-     * @param string $propertyName
-     * @param Node $changedNode
-     * @return string
      */
-    protected function getPropertyLabel($propertyName, Node $changedNode)
+    protected function getPropertyLabel(string $propertyName, Node $changedNode): string
     {
         $properties = $this->getNodeType($changedNode)->getProperties();
         if (
@@ -1168,7 +1127,6 @@ class WorkspaceController extends AbstractModuleController
      * do that in these cases.
      *
      * @param array<int|string,mixed> &$diffArray
-     * @return void
      */
     protected function postProcessDiffArray(array &$diffArray): void
     {
@@ -1195,8 +1153,6 @@ class WorkspaceController extends AbstractModuleController
      * workspaces.
      * If $excludedWorkspace is set, this workspace and all its base workspaces will be excluded from the list of returned workspaces
      *
-     * @param ContentRepository $contentRepository
-     * @param WorkspaceName|null $excludedWorkspace
      * @return array<string,string>
      */
     protected function prepareBaseWorkspaceOptions(
@@ -1244,23 +1200,6 @@ class WorkspaceController extends AbstractModuleController
         });
 
         return $baseWorkspaceOptions;
-    }
-
-    /**
-     * Todo remove?
-     * Creates an array of user names and their respective labels which are possible owners for a workspace.
-     *
-     * @return array<int|string,string>
-     */
-    protected function prepareOwnerOptions(): array
-    {
-        $ownerOptions = ['' => '-'];
-        foreach ($this->userService->getUsers() as $user) {
-            /** @var User $user */
-            $ownerOptions[$this->persistenceManager->getIdentifierByObject($user)] = $user->getLabel();
-        }
-
-        return $ownerOptions;
     }
 
     private function requireBaseWorkspace(

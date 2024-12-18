@@ -1,3 +1,0 @@
-# Actions that update a workspace and redirect to the index view
-
-Neos.Workspace.Ui.WorkspaceController.create < Neos.Workspace.Ui.WorkspaceController.index
