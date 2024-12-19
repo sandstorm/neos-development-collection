@@ -121,13 +121,13 @@ prototype(Neos.Workspace.Ui:Component.WorkspaceTableRow) < prototype(Neos.Fusion
           attributes.hx-target='#popover-container'
           attributes.hx-swap='innerHTML'
           attributes.hx-on--after-request={'document.getElementById("' + private.editWorkspacePopoverId + '").showPopover()'}
-          attributes.disabled={props.workspaceListItem.permissions.manage == false}
+          attributes.disabled={props.workspaceListItem.personal || props.workspaceListItem.permissions.manage == false}
         />
         <Neos.Workspace.Ui:Component.Button
           isDanger
           title={private.i18n.id('workspaces.deleteWorkspace').arguments([props.workspaceListItem.title])}
           icon="trash-alt icon-white"
-          attributes.disabled={props.workspaceListItem.pendingChanges.total > 0 || props.workspaceListItem.permissions.manage == false}
+          attributes.disabled={props.workspaceListItem.personal || props.workspaceListItem.pendingChanges.total > 0 || props.workspaceListItem.permissions.manage == false}
           attributes.hx-get={private.deleteWorkspaceUri}
           attributes.hx-target='#popover-container'
           attributes.hx-swap='innerHTML'
