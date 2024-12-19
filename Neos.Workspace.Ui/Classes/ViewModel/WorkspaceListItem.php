@@ -47,8 +47,7 @@ final readonly class WorkspaceListItem
 
     public function isPrivate(): bool
     {
-        if ($this->classification !== WorkspaceClassification::SHARED->value ||
-            $this->roleAssignments->count() > 1) {
+        if ($this->classification !== WorkspaceClassification::SHARED->value) {
             return false;
         }
         foreach ($this->roleAssignments as $roleAssignment) {
@@ -61,9 +60,6 @@ final readonly class WorkspaceListItem
 
     public function isShared(): bool
     {
-        if ($this->roleAssignments->count() > 1) {
-            return true;
-        }
         foreach ($this->roleAssignments as $roleAssignment) {
             if ($roleAssignment->role === WorkspaceRole::COLLABORATOR) {
                 return true;

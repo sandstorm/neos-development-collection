@@ -7,12 +7,12 @@ prototype(Neos.Workspace.Ui:Component.Modal.Edit) < prototype(Neos.Fusion:Compon
   workspaceDescription = ''
   /// string
   baseWorkspaceName = ''
-  /// string
-  visibility = ''
   /// boolean
   workspaceHasChanges = false
   /// array<workspaceName: string, workspaceTitle: string>
   baseWorkspaceOptions = ${[]}
+  /// boolean
+  isShared = false
 
   @private {
     i18n = ${I18n.id('').source('Main').package('Neos.Workspace.Ui')}
@@ -50,6 +50,7 @@ prototype(Neos.Workspace.Ui:Component.Modal.Edit) < prototype(Neos.Fusion:Compon
       <Neos.Fusion.Form:Form
         form.target.action="update"
         form.target.format="htmx"
+        form.data.visibility={props.isShared ? 'shared' : 'private'}
         attributes.class="neos-inline"
         attributes.hx-post={form.getTarget()}
         attributes.hx-disabled-elt="find button"
@@ -115,23 +116,16 @@ prototype(Neos.Workspace.Ui:Component.Modal.Edit) < prototype(Neos.Fusion:Compon
             <Neos.Fusion.Form:Neos.BackendModule.FieldContainer
               label="workspaces.workspace.visibility"
               class="neos-control-group"
+              field.name="visibility"
             >
-              <Neos.Fusion.Form:Radio
-                renderer.checked={props.visibility == 'shared'}
-                field.name="visibility"
-                field.value="shared"
-              >
+              <Neos.Fusion.Form:Radio field.value="shared">
                 {private.i18n.id('workspaces.workspace.visibility.shared')}
               </Neos.Fusion.Form:Radio>
               <p>
                 {private.i18n.id('workspaces.workspace.visibility.shared.help')}
               </p>
               <br/>
-              <Neos.Fusion.Form:Radio
-                renderer.checked={props.visibility == 'private'}
-                field.name="visibility"
-                field.value="private"
-              >
+              <Neos.Fusion.Form:Radio field.value="private">
                 {private.i18n.id('workspaces.workspace.visibility.private')}
               </Neos.Fusion.Form:Radio>
               <p>

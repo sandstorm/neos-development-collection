@@ -31,6 +31,7 @@
 .workspace-type-column {
   padding: 0 0.5ch;
   text-align: center;
+  width: 20px;
 }
 
 .workspace-type-column > * {
