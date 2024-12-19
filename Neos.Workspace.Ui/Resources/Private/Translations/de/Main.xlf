@@ -59,8 +59,8 @@
         <source>Private workspace</source>
         <target state="final">Privater Arbeitsbereich</target>
       </trans-unit>
-      <trans-unit id="workspaces.internalWorkspace" xml:space="preserve" approved="yes">
-        <source>Internal workspace</source>
+      <trans-unit id="workspaces.sharedWorkspace" xml:space="preserve" approved="yes">
+        <source>Shared workspace</source>
         <target state="final">Interner Arbeitsbereich</target>
       </trans-unit>
       <trans-unit id="workspaces.readonlyWorkspace" xml:space="preserve" approved="yes">
@@ -95,11 +95,11 @@
         <source>Only reviewers and administrators can access and modify this workspace</source>
         <target state="final">Nur Reviewer und Administratoren können auf diesen Arbeitsbereich zugreifen und ihn bearbeiten</target>
       </trans-unit>
-      <trans-unit id="workspaces.workspace.visibility.internal" xml:space="preserve" approved="yes">
-        <source>Internal</source>
+      <trans-unit id="workspaces.workspace.visibility.shared" xml:space="preserve" approved="yes">
+        <source>Shared</source>
         <target state="final">Intern</target>
       </trans-unit>
-      <trans-unit id="workspaces.workspace.visibility.internal.help" xml:space="preserve" approved="yes">
+      <trans-unit id="workspaces.workspace.visibility.shared.help" xml:space="preserve" approved="yes">
         <source>Any logged in editor can see and modify this workspace.</source>
         <target state="final">Jeder angemeldete Redakteur kann diesen Arbeitsbereich sehen und bearbeiten.</target>
       </trans-unit>
@@ -269,6 +269,18 @@
         <source>Select all current changes</source>
         <target state="final">Alle aktuellen Änderungen auswählen</target>
       </trans-unit>
+      <trans-unit id="table.column.access.shared" approved="yes">
+				<source>This is a shared workspace</source>
+				<target>Dies ist ein gemeinsamer Arbeitsbereich</target>
+			</trans-unit>
+      <trans-unit id="table.column.access.private" approved="yes">
+				<source>This is a private workspace</source>
+				<target>Dies ist ein privater Arbeitsbereich</target>
+			</trans-unit>
+      <trans-unit id="table.column.access.personal" approved="yes">
+				<source>This is the personal workspace of "{0}"</source>
+				<target>Dies ist der persönliche Arbeitsbereich von "{0}"</target>
+			</trans-unit>
     </body>
   </file>
 </xliff>

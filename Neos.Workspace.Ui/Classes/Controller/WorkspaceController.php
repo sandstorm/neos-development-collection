@@ -277,7 +277,7 @@ class WorkspaceController extends AbstractModuleController
     /**
      * Edit a workspace
      *
-     * Renders /Resource/Private/Fusion/Views/Edit.fusion
+     * @param WorkspaceName $workspaceName The name of the workspace that is being edited
      */
     public function editAction(WorkspaceName $workspaceName): void
     {
@@ -318,8 +318,10 @@ class WorkspaceController extends AbstractModuleController
      * Update a workspace
      *
      * @Flow\Validate(argumentName="title", type="\Neos\Flow\Validation\Validator\NotEmptyValidator")
+     * @param WorkspaceName $workspaceName The name of the workspace that is being updated
      * @param WorkspaceTitle $title Human friendly title of the workspace, for example "Christmas Campaign"
      * @param WorkspaceDescription $description A description explaining the purpose of the new workspace
+     * @param WorkspaceName $baseWorkspace A description explaining the purpose of the new workspace
      */
     public function updateAction(
         WorkspaceName $workspaceName,
@@ -651,6 +653,7 @@ class WorkspaceController extends AbstractModuleController
             'workspaceTitle' => $workspaceMetadata->title->value,
         ]);
     }
+
     public function confirmDiscardAllChangesAction(WorkspaceName $workspaceName): void
     {
         $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
@@ -693,6 +696,7 @@ class WorkspaceController extends AbstractModuleController
             'baseWorkspaceTitle' => $baseWorkspaceMetadata->title->value,
         ]);
     }
+
     public function confirmDiscardSelectedChangesAction(WorkspaceName $workspaceName): void
     {
         $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
@@ -1246,6 +1250,10 @@ class WorkspaceController extends AbstractModuleController
         // todo this throws "No workspace is assigned to the user with id" for the case user logs first into workspace module before workspace exists!!!
         $userWorkspace = $this->workspaceService->getPersonalWorkspaceForUser($contentRepository->id, $userWorkspaceOwner->getId());
         $userWorkspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepository->id, $userWorkspace->workspaceName);
+        $workspaceRoleAssignments = $this->workspaceService->getWorkspaceRoleAssignments(
+            $contentRepository->id,
+            $userWorkspace->workspaceName
+        );
         $userWorkspacesPermissions = $this->authorizationService->getWorkspacePermissions(
             $contentRepository->id,
             $userWorkspace->workspaceName,
@@ -1265,11 +1273,13 @@ class WorkspaceController extends AbstractModuleController
             !$allWorkspaces->getDependantWorkspaces($userWorkspace->workspaceName)->isEmpty(),
             $userWorkspaceOwner->getLabel(),
             $userWorkspacesPermissions,
+            $workspaceRoleAssignments,
         );
 
         // add other, accessible workspaces
         foreach ($allWorkspaces as $workspace) {
             $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepository->id, $workspace->workspaceName);
+            $workspaceRoleAssignments = $this->workspaceService->getWorkspaceRoleAssignments($contentRepository->id, $workspace->workspaceName);
             $workspacesPermissions = $this->authorizationService->getWorkspacePermissions(
                 $contentRepository->id,
                 $workspace->workspaceName,
@@ -1303,6 +1313,7 @@ class WorkspaceController extends AbstractModuleController
                 !$allWorkspaces->getDependantWorkspaces($workspace->workspaceName)->isEmpty(),
                 $workspaceOwner?->getLabel(),
                 $workspacesPermissions,
+                $workspaceRoleAssignments,
             );
         }
         return WorkspaceListItems::fromArray($workspaceListItems);

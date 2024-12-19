@@ -59,9 +59,9 @@
         <source>Private workspace</source>
         <target state="translated">Bidang kerja Privat</target>
       </trans-unit>
-      <trans-unit id="workspaces.internalWorkspace" xml:space="preserve">
-        <source>Internal workspace</source>
-        <target state="translated">Bidang kerja internal</target>
+      <trans-unit id="workspaces.sharedWorkspace" xml:space="preserve">
+        <source>Shared workspace</source>
+        <target state="translated">Bidang kerja shared</target>
       </trans-unit>
       <trans-unit id="workspaces.readonlyWorkspace" xml:space="preserve">
         <source>Read-only workspace</source>
@@ -95,11 +95,11 @@
         <source>Only reviewers and administrators can access and modify this workspace</source>
         <target state="translated">Hanya pengulas dan administrator yang dapat mengakses dan memodifikasi bidang kerja ini</target>
       </trans-unit>
-      <trans-unit id="workspaces.workspace.visibility.internal" xml:space="preserve">
-        <source>Internal</source>
-        <target state="translated">Internal</target>
+      <trans-unit id="workspaces.workspace.visibility.shared" xml:space="preserve">
+        <source>Shared</source>
+        <target state="translated">Shared</target>
       </trans-unit>
-      <trans-unit id="workspaces.workspace.visibility.internal.help" xml:space="preserve">
+      <trans-unit id="workspaces.workspace.visibility.shared.help" xml:space="preserve">
         <source>Any logged in editor can see and modify this workspace.</source>
         <target state="translated">Editor login yang dapat melihat dan mengubah bidang kerja ini.</target>
       </trans-unit>

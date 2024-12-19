@@ -59,8 +59,8 @@
         <source>Private workspace</source>
         <target state="final">Prywatny obszar roboczy</target>
       </trans-unit>
-      <trans-unit id="workspaces.internalWorkspace" xml:space="preserve" approved="yes">
-        <source>Internal workspace</source>
+      <trans-unit id="workspaces.sharedWorkspace" xml:space="preserve" approved="yes">
+        <source>Shared workspace</source>
         <target state="final">Wewnętrzny obszar roboczy</target>
       </trans-unit>
       <trans-unit id="workspaces.readonlyWorkspace" xml:space="preserve" approved="yes">
@@ -95,11 +95,11 @@
         <source>Only reviewers and administrators can access and modify this workspace</source>
         <target state="final">Tylko recenzenci i administratorzy mogą otwierać i modyfikować ten obszar roboczy</target>
       </trans-unit>
-      <trans-unit id="workspaces.workspace.visibility.internal" xml:space="preserve" approved="yes">
-        <source>Internal</source>
+      <trans-unit id="workspaces.workspace.visibility.shared" xml:space="preserve" approved="yes">
+        <source>Shared</source>
         <target state="final">Wewnętrzny</target>
       </trans-unit>
-      <trans-unit id="workspaces.workspace.visibility.internal.help" xml:space="preserve" approved="yes">
+      <trans-unit id="workspaces.workspace.visibility.shared.help" xml:space="preserve" approved="yes">
         <source>Any logged in editor can see and modify this workspace.</source>
         <target state="final">Każdy zalogowany redaktor może zobaczyć i modyfikować ten obszar roboczy.</target>
       </trans-unit>

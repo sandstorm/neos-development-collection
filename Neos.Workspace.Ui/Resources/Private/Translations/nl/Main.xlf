@@ -51,8 +51,8 @@
         <source>Private workspace</source>
         <target state="final">Privé workspace</target>
       </trans-unit>
-      <trans-unit id="workspaces.internalWorkspace" xml:space="preserve">
-        <source>Internal workspace</source>
+      <trans-unit id="workspaces.sharedWorkspace" xml:space="preserve">
+        <source>Shared workspace</source>
         <target state="translated">Interne workspace</target>
       </trans-unit>
       <trans-unit id="workspaces.readonlyWorkspace" xml:space="preserve" approved="yes">
@@ -87,11 +87,11 @@
         <source>Only reviewers and administrators can access and modify this workspace</source>
         <target state="translated">Alleen reviewers en administrators hebben toegang en kunnen wijzigingen aanbrengen in deze workspace</target>
       </trans-unit>
-      <trans-unit id="workspaces.workspace.visibility.internal" xml:space="preserve">
-        <source>Internal</source>
+      <trans-unit id="workspaces.workspace.visibility.shared" xml:space="preserve">
+        <source>Shared</source>
         <target state="translated">Intern</target>
       </trans-unit>
-      <trans-unit id="workspaces.workspace.visibility.internal.help" xml:space="preserve">
+      <trans-unit id="workspaces.workspace.visibility.shared.help" xml:space="preserve">
         <source>Any logged in editor can see and modify this workspace.</source>
         <target state="translated">Iedere ingelogde redacteur kan deze workspace bekijken en wijzigen.</target>
       </trans-unit>

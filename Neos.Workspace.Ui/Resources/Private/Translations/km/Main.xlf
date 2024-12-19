@@ -59,8 +59,8 @@
         <source>Private workspace</source>
         <target state="final">តំបន់ការងារឯកជន</target>
       </trans-unit>
-      <trans-unit id="workspaces.internalWorkspace" xml:space="preserve" approved="yes">
-        <source>Internal workspace</source>
+      <trans-unit id="workspaces.sharedWorkspace" xml:space="preserve" approved="yes">
+        <source>Shared workspace</source>
         <target state="final">តំបន់ការងារផ្ទៃក្នុង</target>
       </trans-unit>
       <trans-unit id="workspaces.readonlyWorkspace" xml:space="preserve" approved="yes">
@@ -96,11 +96,11 @@
         <source>Only reviewers and administrators can access and modify this workspace</source>
         <target state="final">មាន​តែអ្នក​ត្រួត​ពិនិត្យនិងអ្នកគ្រប់គ្រងអាចចូលដំណើរការនិងកែប្រែតំបន់ការងារនេះ</target>
       </trans-unit>
-      <trans-unit id="workspaces.workspace.visibility.internal" xml:space="preserve" approved="yes">
-        <source>Internal</source>
+      <trans-unit id="workspaces.workspace.visibility.shared" xml:space="preserve" approved="yes">
+        <source>Shared</source>
         <target state="final">ផ្ទៃក្នុង</target>
       </trans-unit>
-      <trans-unit id="workspaces.workspace.visibility.internal.help" xml:space="preserve" approved="yes">
+      <trans-unit id="workspaces.workspace.visibility.shared.help" xml:space="preserve" approved="yes">
         <source>Any logged in editor can see and modify this workspace.</source>
         <target state="final">រាល់ការចូលទេនៅក្នុងកម្មវិធីនិពន្ធអាចមើលឃើញនិងកែប្រែតំបន់ការងារនេះ</target>
       </trans-unit>

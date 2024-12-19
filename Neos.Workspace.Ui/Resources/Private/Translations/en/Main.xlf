@@ -57,8 +57,8 @@
       <trans-unit id="workspaces.privateWorkspace" xml:space="preserve">
 				<source>Private workspace</source>
 			</trans-unit>
-      <trans-unit id="workspaces.internalWorkspace" xml:space="preserve">
-				<source>Internal workspace</source>
+      <trans-unit id="workspaces.sharedWorkspace" xml:space="preserve">
+				<source>Shared workspace</source>
 			</trans-unit>
       <trans-unit id="workspaces.readonlyWorkspace" xml:space="preserve">
 				<source>Read-only workspace</source>
@@ -126,10 +126,10 @@
       <trans-unit id="workspaces.workspace.visibility.private.help" xml:space="preserve">
 				<source>Only reviewers and administrators can access and modify this workspace</source>
 			</trans-unit>
-      <trans-unit id="workspaces.workspace.visibility.internal" xml:space="preserve">
-				<source>Internal</source>
+      <trans-unit id="workspaces.workspace.visibility.shared" xml:space="preserve">
+				<source>Shared</source>
 			</trans-unit>
-      <trans-unit id="workspaces.workspace.visibility.internal.help" xml:space="preserve">
+      <trans-unit id="workspaces.workspace.visibility.shared.help" xml:space="preserve">
 				<source>Any logged in editor can see and modify this workspace.</source>
 			</trans-unit>
       <trans-unit id="workspaces.workspace.status" xml:space="preserve">
@@ -298,6 +298,15 @@
 			</trans-unit>
       <trans-unit id="workspaces.changes.noPermissionToReadWorkspace" xml:space="preserve">
 				<source>You do not have permission to see this workspace</source>
+			</trans-unit>
+      <trans-unit id="table.column.access.shared" xml:space="preserve">
+				<source>This is a shared workspace</source>
+			</trans-unit>
+      <trans-unit id="table.column.access.private" xml:space="preserve">
+				<source>This is a private workspace</source>
+			</trans-unit>
+      <trans-unit id="table.column.access.personal" xml:space="preserve">
+				<source>This is the personal workspace of "{0}"</source>
 			</trans-unit>
     </body>
   </file>

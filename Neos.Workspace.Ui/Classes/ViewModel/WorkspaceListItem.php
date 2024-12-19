@@ -15,7 +15,10 @@ declare(strict_types=1);
 namespace Neos\Workspace\Ui\ViewModel;
 
 use Neos\Flow\Annotations as Flow;
+use Neos\Neos\Domain\Model\WorkspaceClassification;
 use Neos\Neos\Domain\Model\WorkspacePermissions;
+use Neos\Neos\Domain\Model\WorkspaceRole;
+use Neos\Neos\Domain\Model\WorkspaceRoleAssignments;
 
 #[Flow\Proxy(false)]
 final readonly class WorkspaceListItem
@@ -33,6 +36,39 @@ final readonly class WorkspaceListItem
         // todo check if necessary, only for personal workspaces that others have permissions to
         public ?string $owner,
         public WorkspacePermissions $permissions,
+        public WorkspaceRoleAssignments $roleAssignments,
     ) {
+    }
+
+    public function isPersonal(): bool
+    {
+        return $this->classification === WorkspaceClassification::PERSONAL->value;
+    }
+
+    public function isPrivate(): bool
+    {
+        if ($this->classification !== WorkspaceClassification::SHARED->value ||
+            $this->roleAssignments->count() > 1) {
+            return false;
+        }
+        foreach ($this->roleAssignments as $roleAssignment) {
+            if ($roleAssignment->role === WorkspaceRole::COLLABORATOR) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public function isShared(): bool
+    {
+        if ($this->roleAssignments->count() > 1) {
+            return true;
+        }
+        foreach ($this->roleAssignments as $roleAssignment) {
+            if ($roleAssignment->role === WorkspaceRole::COLLABORATOR) {
+                return true;
+            }
+        }
+        return false;
     }
 }

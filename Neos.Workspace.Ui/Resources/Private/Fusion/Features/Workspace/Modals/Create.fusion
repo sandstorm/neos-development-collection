@@ -91,10 +91,10 @@ prototype(Neos.Workspace.Ui:Component.Modal.Create) < prototype(Neos.Fusion:Comp
                 field.name="visibility"
                 field.value="shared"
               >
-                {private.i18n.id('workspaces.workspace.visibility.internal')}
+                {private.i18n.id('workspaces.workspace.visibility.shared')}
               </Neos.Fusion.Form:Radio>
               <p>
-                {private.i18n.id('workspaces.workspace.visibility.internal.help')}
+                {private.i18n.id('workspaces.workspace.visibility.shared.help')}
               </p>
               <br/>
               <Neos.Fusion.Form:Radio

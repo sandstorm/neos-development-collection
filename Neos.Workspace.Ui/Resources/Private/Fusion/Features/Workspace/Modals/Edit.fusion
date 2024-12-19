@@ -50,7 +50,6 @@ prototype(Neos.Workspace.Ui:Component.Modal.Edit) < prototype(Neos.Fusion:Compon
       <Neos.Fusion.Form:Form
         form.target.action="update"
         form.target.format="htmx"
-        form.target.arguments.workspaceName={props.workspaceName}
         attributes.class="neos-inline"
         attributes.hx-post={form.getTarget()}
         attributes.hx-disabled-elt="find button"
@@ -58,6 +57,10 @@ prototype(Neos.Workspace.Ui:Component.Modal.Edit) < prototype(Neos.Fusion:Compon
       >
         <section>
           <fieldset>
+            <Neos.Fusion.Form:Hidden
+              field.name="workspaceName"
+              field.value={props.workspaceName}
+            />
             <Neos.Fusion.Form:Neos.BackendModule.FieldContainer
               field.name="title"
               field.value={props.workspaceTitle}
@@ -101,15 +104,10 @@ prototype(Neos.Workspace.Ui:Component.Modal.Edit) < prototype(Neos.Fusion:Compon
                   </Neos.Fusion.Form:Select.Option>
                 </Neos.Fusion:Loop>
               </Neos.Fusion.Form:Select>
-              <!-- TODO: use component and styling -->
-              <p
-                style={{ marginTop: '.5em' }}
-                @if.workspaceHasChanges={props.workspaceHasChanges}
-              >
-                <i
-                  class="fas fa-exclamation-triangle"
-                  style={{ color: 'var(--warningText)', marginRight: '.5em' }}
-                ></i>{' '}
+              <br/>
+              <p @if.workspaceHasChanges={props.workspaceHasChanges}>
+                <Neos.Workspace.Ui:Component.Icon icon="exclamation-triangle" style={{ color: 'var(--warningText)' }}/>
+                {' '}
                 {private.i18n.id('workspaces.cantChangeBaseWorkspaceBecauseWorkspaceContainsChanges')}
               </p>
             </Neos.Fusion.Form:Neos.BackendModule.FieldContainer>
@@ -123,10 +121,10 @@ prototype(Neos.Workspace.Ui:Component.Modal.Edit) < prototype(Neos.Fusion:Compon
                 field.name="visibility"
                 field.value="shared"
               >
-                {private.i18n.id('workspaces.workspace.visibility.internal')}
+                {private.i18n.id('workspaces.workspace.visibility.shared')}
               </Neos.Fusion.Form:Radio>
               <p>
-                {private.i18n.id('workspaces.workspace.visibility.internal.help')}
+                {private.i18n.id('workspaces.workspace.visibility.shared.help')}
               </p>
               <br/>
               <Neos.Fusion.Form:Radio

@@ -3,6 +3,7 @@ prototype(Neos.Workspace.Ui:Component.Icon) < prototype(Neos.Fusion:Component) {
   secondaryIcon = ''
   spin = false
   rotate = false
+  // TODO: Support colors
   style = ''
 
   renderer = afx`
