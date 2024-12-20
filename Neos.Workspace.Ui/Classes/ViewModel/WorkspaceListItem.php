@@ -25,7 +25,6 @@ final readonly class WorkspaceListItem
 {
     public function __construct(
         public string $name,
-        // todo unused!!
         public string $classification,
         public string $status,
         public string $title,
@@ -33,7 +32,6 @@ final readonly class WorkspaceListItem
         public ?string $baseWorkspaceName,
         public PendingChanges $pendingChanges,
         public bool $hasDependantWorkspaces,
-        // todo check if necessary, only for personal workspaces that others have permissions to
         public ?string $owner,
         public WorkspacePermissions $permissions,
         public WorkspaceRoleAssignments $roleAssignments,
