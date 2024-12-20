@@ -93,21 +93,21 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
           title={props.canPublishToWorkspace ? private.i18n.id('workspaces.discardAllChangesInThisDocument'): private.i18n.id('workspaces.changes.noPermissionToPublishToWorkspace')}
           icon="trash-alt icon-white"
           isDanger
+          disabled={!props.canPublishToWorkspace }
           attributes.hx-get={private.discardDocumentAction}
           attributes.hx-select="#workspace-module-content"
           attributes.hx-target="#workspace-module-content"
           attributes.hx-swap="outerHTML"
-          attributes.disabled={!props.canPublishToWorkspace }
         />
         <Neos.Workspace.Ui:Component.Button
           title={props.canPublishToBaseWorkspace ? private.i18n.id('workspaces.publishAllChangesInThisDocument') :  private.i18n.id('workspaces.changes.noPermissionToPublishToBaseWorkspace')}
           icon="check icon-white"
           isSuccess
+          disabled={!props.canPublishToBaseWorkspace}
           attributes.hx-get={private.publishDocumentAction}
           attributes.hx-select="#workspace-module-content"
           attributes.hx-target="#workspace-module-content"
           attributes.hx-swap="outerHTML"
-          attributes.disabled={!props.canPublishToBaseWorkspace}
         />
 
         <a href={private.openNodeInWorkspaceAction}

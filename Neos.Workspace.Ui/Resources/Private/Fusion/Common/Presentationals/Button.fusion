@@ -11,7 +11,7 @@ prototype(Neos.Workspace.Ui:Component.Button) < prototype(Neos.Fusion:Component)
   isPrimary = false
   ///boolean
   isSuccess = false
-  /// boolean TODO: unused api?
+  /// boolean
   disabled = false
   /// string
   icon = ''
@@ -27,6 +27,7 @@ prototype(Neos.Workspace.Ui:Component.Button) < prototype(Neos.Fusion:Component)
       class={['neos-button', props.isDanger && 'neos-button-danger', props.isWarning && 'neos-button-warning', props.isPrimary && 'neos-button-primary', props.isSuccess && 'neos-button-success']}
       autofocus
       autofocus.@if={props.autofocus}
+      disabled.@if={props.disabled}
       {...props.attributes}
     >
       <Neos.Workspace.Ui:Component.Icon icon={props.icon} @if={props.icon}/>
