@@ -706,9 +706,13 @@ class WorkspaceController extends AbstractModuleController
     {
         $changesCount = ['new' => 0, 'changed' => 0, 'removed' => 0];
         foreach($this->getChangesFromWorkspace($selectedWorkspace, $contentRepository) as $change) {
-            if($change->deleted) $changesCount['removed']++;
-            elseif($change->created) $changesCount['new']++;
-            else $changesCount['changed']++;
+            if ($change->deleted) {
+                $changesCount['removed']++;
+            } elseif ($change->created) {
+                $changesCount['new']++;
+            } else {
+                $changesCount['changed']++;
+            }
         }
         return new PendingChanges(new: $changesCount['new'], changed: $changesCount['changed'], removed:$changesCount['removed']);
     }
