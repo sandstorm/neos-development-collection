@@ -139,25 +139,10 @@ class WorkspaceController extends AbstractModuleController
             throw new \RuntimeException('No user authenticated', 1718308216);
         }
 
-        $contentRepositoryIds = $this->contentRepositoryRegistry->getContentRepositoryIds();
-        $numberOfContentRepositories = $contentRepositoryIds->count();
-        if ($numberOfContentRepositories === 0) {
-            throw new \RuntimeException('No content repository configured', 1718296290);
-        }
-        if ($this->request->hasArgument('contentRepositoryId')) {
-            $contentRepositoryIdArgument = $this->request->getArgument('contentRepositoryId');
-            assert(is_string($contentRepositoryIdArgument));
-            $contentRepositoryId = ContentRepositoryId::fromString($contentRepositoryIdArgument);
-        } else {
-            $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
-        }
-        $this->view->assign('contentRepositoryIds', $contentRepositoryIds);
-        $this->view->assign('contentRepositoryId', $contentRepositoryId->value);
-        $this->view->assign('displayContentRepositorySelector', $numberOfContentRepositories > 1);
-
+        $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
         $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
-        $workspaceListItems = $this->getWorkspaceListItems($contentRepository);
 
+        $workspaceListItems = $this->getWorkspaceListItems($contentRepository);
         if ($sortBy === 'title') {
             $workspaceListItems = $workspaceListItems->sortByTitle($sortAscending);
         }
