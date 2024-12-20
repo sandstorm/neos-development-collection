@@ -288,7 +288,7 @@
         <source>The workspace "{0}" has been created.</source>
       </trans-unit>
       <trans-unit id="workspaces.changedTags" xml:space="preserve">
-				<source>New element status</source>
+				<source>New element tags</source>
 			</trans-unit>
       <trans-unit id="workspaces.changes.noPermissionToPublishToBaseWorkspace" xml:space="preserve">
 				<source>You do not have permission to publish to the base workspace</source>

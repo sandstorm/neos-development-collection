@@ -941,7 +941,7 @@ class WorkspaceController extends AbstractModuleController
         $actualOriginalTags = $originalNode?->tags->withoutInherited()->all();
         $actualChangedTags = $changedNode->tags->withoutInherited()->all();
 
-        if ($actualOriginalTags?->equals($actualChangedTags)) {
+        if ($actualOriginalTags?->equals($actualChangedTags) === false) {
             $contentChanges['tags'] = new ContentChangeItem(
                 properties: new ContentChangeProperties(
                     type: 'tags',
