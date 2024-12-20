@@ -517,65 +517,6 @@ class WorkspaceController extends AbstractModuleController
     }
 
     /**
-     * Rebase the current users personal workspace onto the given $targetWorkspace and then
-     * redirects to the $targetNode in the content module.
-     */
-    public function rebaseAndRedirectAction(string $targetNode, WorkspaceName $targetWorkspaceName): void
-    {
-        $targetNodeAddress = NodeAddress::fromJsonString(
-            $targetNode
-        );
-        $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
-        $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
-
-        $targetWorkspace = $contentRepository->findWorkspaceByName($targetWorkspaceName);
-
-        $user = $this->userService->getCurrentUser();
-        if ($user === null) {
-            throw new \RuntimeException('No account is authenticated', 1710068880);
-        }
-        $personalWorkspace = $this->workspaceService->getPersonalWorkspaceForUser($targetNodeAddress->contentRepositoryId, $user->getId());
-
-        /** @todo do something else
-         * if ($personalWorkspace !== $targetWorkspace) {
-         * if ($this->publishingService->getUnpublishedNodesCount($personalWorkspace) > 0) {
-         * $message = $this->getModuleLabel(
-         * 'workspaces.cantEditBecauseWorkspaceContainsChanges',
-         * );
-         * $this->addFlashMessage($message, '', Message::SEVERITY_WARNING, [], 1437833387);
-         * $this->redirect('show', null, null, ['workspace' => $targetWorkspace]);
-         * }
-         * $personalWorkspace->setBaseWorkspace($targetWorkspace);
-         * $this->workspaceFinder->update($personalWorkspace);
-         * }
-         */
-
-        $targetNodeAddressInPersonalWorkspace = NodeAddress::create(
-            $targetNodeAddress->contentRepositoryId,
-            $personalWorkspace->workspaceName,
-            $targetNodeAddress->dimensionSpacePoint,
-            $targetNodeAddress->aggregateId
-        );
-
-        if ($this->packageManager->isPackageAvailable('Neos.Neos.Ui')) {
-            $mainRequest = $this->controllerContext->getRequest()->getMainRequest();
-            $this->uriBuilder->setRequest($mainRequest);
-
-            $this->redirect(
-                'index',
-                'Backend',
-                'Neos.Neos.Ui',
-                ['node' => $targetNodeAddressInPersonalWorkspace->toJson()]
-            );
-        }
-
-        $this->redirectToUri(
-            $this->nodeUriBuilderFactory->forActionRequest($this->request)
-                ->uriFor($targetNodeAddressInPersonalWorkspace)
-        );
-    }
-
-    /**
      * Publish a single document node
      */
     public function publishDocumentAction(string $nodeAddress, WorkspaceName $selectedWorkspace): void

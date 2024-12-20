@@ -13,13 +13,6 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
   @private {
     i18n = ${I18n.id('').source('Main').package('Neos.Workspace.Ui')}
 
-    openNodeInWorkspaceAction = Neos.Fusion:ActionUri {
-      action = 'rebaseAndRedirect'
-      arguments {
-        targetWorkspaceName = ${selectedWorkspaceName}
-        targetNode = ${document.document.documentNodeAddress}
-      }
-    }
     openNodeInPreviewAction = Neos.Fusion:ActionUri {
       request=${request.mainRequest}
       package='Neos.Neos'
@@ -110,13 +103,6 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
           attributes.hx-swap="outerHTML"
         />
 
-        <a href={private.openNodeInWorkspaceAction}
-           target="_blank"
-           title={private.i18n.id('edit')}
-           class="neos-button neos-button-primary"
-           disabled={document.documentChanges.isRemoved}>
-          <Neos.Workspace.Ui:Component.Icon icon="fas fa-pencil-alt"/>
-        </a>
         <a href={private.openNodeInPreviewAction}
            target="_blank"
            title={private.i18n.id('workspaces.openPageInWorkspace').arguments([selectedWorkspaceLabel])}
