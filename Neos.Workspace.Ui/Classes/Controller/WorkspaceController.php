@@ -156,15 +156,13 @@ class WorkspaceController extends AbstractModuleController
         $this->view->assign('displayContentRepositorySelector', $numberOfContentRepositories > 1);
 
         $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
-        $workspaceListItems = $this->getWorkspaceListItems($contentRepository, $currentUser);
+        $workspaceListItems = $this->getWorkspaceListItems($contentRepository);
 
         if ($sortBy === 'title') {
             $workspaceListItems = $workspaceListItems->sortByTitle($sortAscending);
         }
 
         $this->view->assignMultiple([
-            // todo remove userWorkspaceName field and add distinction to $workspaceListItems as $workspaceListItems->userWorkspace and $workspaceListItems->otherWorkspaces or something.
-            'userWorkspaceName' => $this->workspaceService->getPersonalWorkspaceForUser($contentRepositoryId, $currentUser->getId())->workspaceName->value,
             'workspaceListItems' => $workspaceListItems,
             'flashMessages' => $this->controllerContext->getFlashMessageContainer()->getMessagesAndFlush(),
             'sortAscending' => $sortAscending,
@@ -422,10 +420,9 @@ class WorkspaceController extends AbstractModuleController
             )
         );
 
-        $workspaceListItems = $this->getWorkspaceListItems($contentRepository, $currentUser);
+        $workspaceListItems = $this->getWorkspaceListItems($contentRepository);
 
         $this->view->assignMultiple([
-            'userWorkspaceName' => $this->workspaceService->getPersonalWorkspaceForUser($contentRepositoryId, $currentUser->getId())->workspaceName->value,
             'workspaceListItems' => $workspaceListItems,
         ]);
     }
@@ -433,9 +430,6 @@ class WorkspaceController extends AbstractModuleController
     /**
      * Delete a workspace
      *
-     * TODO: Add force delete option to ignore unpublished nodes or dependent workspaces, the later should be rebased instead
-     *
-     * @param WorkspaceName $workspaceName A workspace to delete
      * @throws StopActionException
      */
     public function deleteAction(WorkspaceName $workspaceName): void
@@ -499,7 +493,7 @@ class WorkspaceController extends AbstractModuleController
             );
             $this->addFlashMessage($message, '', Message::SEVERITY_WARNING);
             $this->throwStatus(403, 'Workspace has unpublished nodes');
-        // delete workspace on POST -> todo make this more FLOW-ig by possibly having a DeleteController with post() and get() _or_ by having deleteAction_post and deleteAction_get?? Or a separate action?
+        // delete workspace on POST -> TODO: Split this into 2 actions like the create or edit workflows
         } elseif ($this->request->getHttpRequest()->getMethod() === 'POST') {
             $this->workspaceService->deleteWorkspace($contentRepositoryId, $workspaceName);
 
@@ -967,15 +961,11 @@ class WorkspaceController extends AbstractModuleController
             $originalPropertyValue = ($originalNode?->getProperty($propertyName));
 
             if ($changedPropertyValue === $originalPropertyValue) {
-                // TODO  && !$changedNode->isRemoved()
                 continue;
             }
 
             if (!is_object($originalPropertyValue) && !is_object($changedPropertyValue)) {
                 $originalSlimmedDownContent = $this->renderSlimmedDownContent($originalPropertyValue);
-                // TODO $changedSlimmedDownContent = $changedNode->isRemoved()
-                // ? ''
-                // : $this->renderSlimmedDownContent($changedPropertyValue);
                 $changedSlimmedDownContent = $this->renderSlimmedDownContent($changedPropertyValue);
 
                 $diff = new Diff(
@@ -1223,38 +1213,9 @@ class WorkspaceController extends AbstractModuleController
 
     protected function getWorkspaceListItems(
         ContentRepository $contentRepository,
-        User $userWorkspaceOwner,
     ): WorkspaceListItems {
         $workspaceListItems = [];
         $allWorkspaces = $contentRepository->findWorkspaces();
-        // todo this throws "No workspace is assigned to the user with id" for the case user logs first into workspace module before workspace exists!!!
-        $userWorkspace = $this->workspaceService->getPersonalWorkspaceForUser($contentRepository->id, $userWorkspaceOwner->getId());
-        $userWorkspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepository->id, $userWorkspace->workspaceName);
-        $workspaceRoleAssignments = $this->workspaceService->getWorkspaceRoleAssignments(
-            $contentRepository->id,
-            $userWorkspace->workspaceName
-        );
-        $userWorkspacesPermissions = $this->authorizationService->getWorkspacePermissions(
-            $contentRepository->id,
-            $userWorkspace->workspaceName,
-            $this->securityContext->getRoles(),
-            $userWorkspaceOwner->getId()
-        );
-
-        // add user workspace first
-        $workspaceListItems[$userWorkspace->workspaceName->value] = new WorkspaceListItem(
-            $userWorkspace->workspaceName->value,
-            $userWorkspaceMetadata->classification->value,
-            $userWorkspace->status->value,
-            $userWorkspaceMetadata->title->value,
-            $userWorkspaceMetadata->description->value,
-            $userWorkspace->baseWorkspaceName?->value,
-            $this->computePendingChanges($userWorkspace, $contentRepository),
-            !$allWorkspaces->getDependantWorkspaces($userWorkspace->workspaceName)->isEmpty(),
-            $userWorkspaceOwner->getLabel(),
-            $userWorkspacesPermissions,
-            $workspaceRoleAssignments,
-        );
 
         // add other, accessible workspaces
         foreach ($allWorkspaces as $workspace) {
@@ -1272,7 +1233,6 @@ class WorkspaceController extends AbstractModuleController
                 continue;
             }
 
-            // TODO use owner/WorkspaceRoleAssignment?
             // TODO: If user is allowed to edit child workspace, we need to at least show the parent workspaces in the list
             if ($workspacesPermissions->read === false) {
                 continue;

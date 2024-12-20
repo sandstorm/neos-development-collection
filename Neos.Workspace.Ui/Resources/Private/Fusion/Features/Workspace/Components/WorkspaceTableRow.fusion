@@ -2,8 +2,6 @@
 # Renders a single workspace list item
 #
 prototype(Neos.Workspace.Ui:Component.WorkspaceTableRow) < prototype(Neos.Fusion:Component) {
-  /// string
-  userWorkspaceName = null
   /// Neos\Workspace\Ui\ViewModel\WorkspaceListItem
   workspaceListItem = ${[]}
   /// integer
@@ -76,7 +74,7 @@ prototype(Neos.Workspace.Ui:Component.WorkspaceTableRow) < prototype(Neos.Fusion
       <td class="workspace-label-column" style={'--indent-level:' + props.level }>
         <Neos.Workspace.Ui:Component.Icon icon="level-up-alt" @if={props.level > 1}/>
         {props.workspaceListItem.title}
-        <span class="workspace__info-text" @if={props.workspaceListItem.name == props.userWorkspaceName}>
+        <span class="workspace__info-text" @if={props.workspaceListItem.personal}>
           ({private.i18n.id('workspaces.workspace.userWorkspace')})
         </span>
       </td>

@@ -1,6 +1,4 @@
 Neos.Workspace.Ui.WorkspaceController.index = Neos.Fusion:Component {
-  /// string
-  userWorkspaceName = ${userWorkspaceName}
   /// Neos\Workspace\Ui\ViewModel\WorkspaceListItems
   workspaceListItems = ${workspaceListItems}
   /// array
@@ -26,7 +24,6 @@ Neos.Workspace.Ui.WorkspaceController.index = Neos.Fusion:Component {
       <main class="neos-content neos-container-fluid">
         <div class="neos-row-fluid">
           <Neos.Workspace.Ui:Component.WorkspaceTable
-            userWorkspaceName={props.userWorkspaceName}
             workspaceListItems={props.workspaceListItems}
             sortBy={props.sortBy}
             sortAscending={props.sortAscending}
