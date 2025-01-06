@@ -17,6 +17,9 @@ namespace Neos\Workspace\Ui\Mvc;
 use Neos\Flow\Mvc\ActionRequest;
 use Neos\Flow\Security\RequestPatternInterface;
 
+/**
+ * @internal for communication within the Workspace UI only
+ */
 final class HtmxRequestPattern implements RequestPatternInterface
 {
     public function matchRequest(ActionRequest $request): bool

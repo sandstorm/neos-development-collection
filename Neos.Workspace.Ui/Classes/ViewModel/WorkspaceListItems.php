@@ -18,6 +18,7 @@ use Neos\Flow\Annotations as Flow;
 
 /**
  * @implements \IteratorAggregate<WorkspaceListItem>
+ * @internal for communication within the Workspace UI only
  */
 #[Flow\Proxy(false)]
 final readonly class WorkspaceListItems implements \IteratorAggregate, \Countable

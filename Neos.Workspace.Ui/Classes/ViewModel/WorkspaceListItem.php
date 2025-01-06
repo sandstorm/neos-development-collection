@@ -20,6 +20,9 @@ use Neos\Neos\Domain\Model\WorkspacePermissions;
 use Neos\Neos\Domain\Model\WorkspaceRole;
 use Neos\Neos\Domain\Model\WorkspaceRoleAssignments;
 
+/**
+ * @internal for communication within the Workspace UI only
+ */
 #[Flow\Proxy(false)]
 final readonly class WorkspaceListItem
 {

@@ -17,6 +17,9 @@ namespace Neos\Workspace\Ui\ViewModel\ContentChanges;
 use Neos\Flow\Annotations as Flow;
 use Neos\Media\Domain\Model\ImageInterface;
 
+/**
+ * @internal for communication within the Workspace UI only
+ */
 #[Flow\Proxy(false)]
 final readonly class ImageContentChange
 {

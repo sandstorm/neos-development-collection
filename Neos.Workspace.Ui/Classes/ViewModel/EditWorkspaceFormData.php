@@ -19,6 +19,9 @@ use Neos\Flow\Annotations as Flow;
 use Neos\Neos\Domain\Model\WorkspaceDescription;
 use Neos\Neos\Domain\Model\WorkspaceTitle;
 
+/**
+ * @internal for communication within the Workspace UI only
+ */
 #[Flow\Proxy(false)]
 final readonly class EditWorkspaceFormData
 {

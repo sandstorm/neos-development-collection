@@ -81,6 +81,8 @@ use Neos\Workspace\Ui\ViewModel\WorkspaceListItems;
 
 /**
  * The Neos Workspace module controller
+ *
+ * @internal for communication within the Workspace UI only
  */
 #[Flow\Scope('singleton')]
 class WorkspaceController extends AbstractModuleController

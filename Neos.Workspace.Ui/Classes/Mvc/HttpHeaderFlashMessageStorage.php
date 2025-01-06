@@ -20,6 +20,9 @@ use Neos\Flow\Mvc\FlashMessage\FlashMessageStorageInterface;
 use Psr\Http\Message\ResponseInterface as HttpResponseInterface;
 use Psr\Http\Message\ServerRequestInterface as HttpRequestInterface;
 
+/**
+ * @internal for communication within the Workspace UI only
+ */
 final class HttpHeaderFlashMessageStorage implements FlashMessageStorageInterface
 {
     private FlashMessageContainer|null $flashMessageContainer = null;

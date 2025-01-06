@@ -21,6 +21,9 @@ use Neos\Workspace\Ui\ViewModel\ContentChanges\ImageContentChange;
 use Neos\Workspace\Ui\ViewModel\ContentChanges\TagContentChange;
 use Neos\Workspace\Ui\ViewModel\ContentChanges\TextContentChange;
 
+/**
+ * @internal for communication within the Workspace UI only
+ */
 #[Flow\Proxy(false)]
 readonly class ContentChangeItem
 {
