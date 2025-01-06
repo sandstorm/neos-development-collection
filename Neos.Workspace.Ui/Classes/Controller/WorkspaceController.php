@@ -16,6 +16,7 @@ namespace Neos\Workspace\Ui\Controller;
 
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionId;
+use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Exception\WorkspaceAlreadyExists;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\WorkspaceRebaseFailed;
@@ -23,7 +24,6 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindAncestorNodes
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Nodes;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
-use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAddress;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
@@ -44,7 +44,6 @@ use Neos\Fusion\View\FusionView;
 use Neos\Media\Domain\Model\AssetInterface;
 use Neos\Media\Domain\Model\ImageInterface;
 use Neos\Neos\Controller\Module\AbstractModuleController;
-use Neos\Neos\Domain\Model\User;
 use Neos\Neos\Domain\Model\WorkspaceClassification;
 use Neos\Neos\Domain\Model\WorkspaceDescription;
 use Neos\Neos\Domain\Model\WorkspaceRole;
@@ -725,11 +724,13 @@ class WorkspaceController extends AbstractModuleController
     {
         $siteChanges = [];
         $changes = $this->getChangesFromWorkspace($selectedWorkspace, $contentRepository);
+
+        // TODO hack for the case $change->originDimensionSpacePoint is NULL so we can fetch a subgraph still. This is the case for changes NodeAggregateNameWasChanged or NodeAggregateTypeWasChanged
+        $dimensionSpacePoints = iterator_to_array($contentRepository->getVariationGraph()->getDimensionSpacePoints());
+        /** @var DimensionSpacePoint $arbitraryDimensionSpacePoint */
+        $arbitraryDimensionSpacePoint = reset($dimensionSpacePoints);
+
         foreach ($changes as $change) {
-            if ($change->originDimensionSpacePoint === null) {
-                // todo implement support for change node type!!! Because originDimensionSpacePoint is null currently for that case.
-                continue;
-            }
             $workspaceName = $selectedWorkspace->workspaceName;
             if ($change->deleted) {
                 // If we deleted a node, there is no way for us to anymore find the deleted node in the ContentStream
@@ -741,7 +742,7 @@ class WorkspaceController extends AbstractModuleController
                 $workspaceName = $baseWorkspace->workspaceName;
             }
             $subgraph = $contentRepository->getContentGraph($workspaceName)->getSubgraph(
-                $change->originDimensionSpacePoint->toDimensionSpacePoint(),
+                $change->originDimensionSpacePoint?->toDimensionSpacePoint() ?? $arbitraryDimensionSpacePoint,
                 VisibilityConstraints::withoutRestrictions()
             );
 
@@ -837,7 +838,7 @@ class WorkspaceController extends AbstractModuleController
                     $nodeAddress = NodeAddress::create(
                         $contentRepository->id,
                         $selectedWorkspace->workspaceName,
-                        $change->originDimensionSpacePoint->toDimensionSpacePoint(),
+                        $change->originDimensionSpacePoint?->toDimensionSpacePoint() ?? $arbitraryDimensionSpacePoint,
                         $change->nodeAggregateId
                     );
                     $nodeType = $contentRepository->getNodeTypeManager()->getNodeType($node->nodeTypeName);
