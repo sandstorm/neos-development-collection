@@ -17,7 +17,7 @@ namespace Neos\Workspace\Ui\ViewModel\ContentChanges;
 use Neos\Flow\Annotations as Flow;
 
 #[Flow\Proxy(false)]
-final readonly class TagContentChange extends ContentChange
+final readonly class TagContentChange
 {
     /**
      * @param list<string> $addedTags

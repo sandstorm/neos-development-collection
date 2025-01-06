@@ -18,7 +18,7 @@ use Neos\Flow\Annotations as Flow;
 use Neos\Media\Domain\Model\ImageInterface;
 
 #[Flow\Proxy(false)]
-final readonly class ImageContentChange extends ContentChange
+final readonly class ImageContentChange
 {
     public function __construct(
         public ?ImageInterface $original,

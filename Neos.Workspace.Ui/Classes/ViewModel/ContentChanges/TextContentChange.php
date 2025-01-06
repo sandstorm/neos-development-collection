@@ -17,7 +17,7 @@ namespace Neos\Workspace\Ui\ViewModel\ContentChanges;
 use Neos\Flow\Annotations as Flow;
 
 #[Flow\Proxy(false)]
-final readonly class TextContentChange extends ContentChange
+final readonly class TextContentChange
 {
     /** @param array<int|string,mixed> $diff */
     public function __construct(

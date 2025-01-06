@@ -15,14 +15,18 @@ declare(strict_types=1);
 namespace Neos\Workspace\Ui\ViewModel;
 
 use Neos\Flow\Annotations as Flow;
-use Neos\Workspace\Ui\ViewModel\ContentChanges\ContentChange;
+use Neos\Workspace\Ui\ViewModel\ContentChanges\AssetContentChange;
+use Neos\Workspace\Ui\ViewModel\ContentChanges\DateTimeContentChange;
+use Neos\Workspace\Ui\ViewModel\ContentChanges\ImageContentChange;
+use Neos\Workspace\Ui\ViewModel\ContentChanges\TagContentChange;
+use Neos\Workspace\Ui\ViewModel\ContentChanges\TextContentChange;
 
 #[Flow\Proxy(false)]
 readonly class ContentChangeItem
 {
     public function __construct(
         public ContentChangeProperties $properties,
-        public ContentChange $changes,
+        public AssetContentChange|DateTimeContentChange|ImageContentChange|TagContentChange|TextContentChange $changes,
     ) {
     }
 }

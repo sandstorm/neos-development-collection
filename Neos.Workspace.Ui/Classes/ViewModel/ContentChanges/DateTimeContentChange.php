@@ -17,7 +17,7 @@ namespace Neos\Workspace\Ui\ViewModel\ContentChanges;
 use Neos\Flow\Annotations as Flow;
 
 #[Flow\Proxy(false)]
-final readonly class DateTimeContentChange extends ContentChange
+final readonly class DateTimeContentChange
 {
     public function __construct(
         public ?\DateTime $original,

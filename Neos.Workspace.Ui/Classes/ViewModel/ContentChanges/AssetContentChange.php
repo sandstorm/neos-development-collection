@@ -18,7 +18,7 @@ use Neos\Flow\Annotations as Flow;
 use Neos\Media\Domain\Model\AssetInterface;
 
 #[Flow\Proxy(false)]
-final readonly class AssetContentChange extends ContentChange
+final readonly class AssetContentChange
 {
     public function __construct(
         public ?AssetInterface $original,
