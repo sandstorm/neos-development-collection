@@ -1117,6 +1117,16 @@ class WorkspaceController extends AbstractModuleController
         $user = $this->userService->getCurrentUser();
         $baseWorkspaceOptions = [];
         $workspaces = $contentRepository->findWorkspaces();
+        $editedWorkspace = $editedWorkspaceName ? $workspaces->get($editedWorkspaceName) : null;
+        if ($editedWorkspace?->baseWorkspaceName !== null) {
+            // ensure that the current base workspace is always part of the list even if permissions are not granted
+            $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata(
+                $contentRepository->id,
+                $editedWorkspace->baseWorkspaceName
+            );
+            $baseWorkspaceOptions[$editedWorkspace->baseWorkspaceName->value] = $workspaceMetadata->title->value;
+        }
+
         foreach ($workspaces as $workspace) {
             if ($editedWorkspaceName !== null) {
                 if ($workspace->workspaceName->equals($editedWorkspaceName)) {
@@ -1210,7 +1220,6 @@ class WorkspaceController extends AbstractModuleController
                 continue;
             }
 
-            // TODO: If user is allowed to edit child workspace, we need to at least show the parent workspaces in the list
             if ($workspacesPermissions->read === false) {
                 continue;
             }
