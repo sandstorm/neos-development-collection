@@ -416,11 +416,7 @@ class WorkspaceController extends AbstractModuleController
             )
         );
 
-        $workspaceListItems = $this->getWorkspaceListItems($contentRepository);
-
-        $this->view->assignMultiple([
-            'workspaceListItems' => $workspaceListItems,
-        ]);
+        $this->forward('index');
     }
 
     /**

@@ -2,15 +2,9 @@ Neos.Workspace.Ui.WorkspaceController.new = Neos.Fusion:Component {
   /// array<string>
   baseWorkspaceOptions = ${baseWorkspaceOptions}
 
-  renderer = Neos.Fusion:Match {
-    @subject = ${request.httpRequest.method}
-    # Render the create modal
-    @default = afx`
-      <Neos.Workspace.Ui:Component.Modal.Create
-        baseWorkspaceOptions={props.baseWorkspaceOptions}
-      />
-    `
-    # Empty template for the delete response as the payload is contained in the HTTP headers
-    POST = ''
-  }
+  renderer = afx`
+    <Neos.Workspace.Ui:Component.Modal.Create
+      baseWorkspaceOptions={props.baseWorkspaceOptions}
+    />
+  `
 }

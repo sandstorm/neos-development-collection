@@ -55,6 +55,9 @@ prototype(Neos.Workspace.Ui:Component.Modal.Edit) < prototype(Neos.Fusion:Compon
         attributes.hx-post={form.getTarget()}
         attributes.hx-disabled-elt="find button"
         attributes.hx-on--after-request={'document.getElementById("' + private.popoverId + '").hidePopover()'}
+        attributes.hx-select="#workspace-module-content"
+        attributes.hx-target="#workspace-module-content"
+        attributes.hx-swap="outerHTML"
       >
         <section>
           <fieldset>
