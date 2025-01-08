@@ -231,10 +231,13 @@ class WorkspaceController extends AbstractModuleController
         $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
         $workspaceName = $this->workspaceService->getUniqueWorkspaceName($contentRepositoryId, $title->value);
 
+        $assignments = match($visibility) {
+            'shared' => WorkspaceRoleAssignments::createForSharedWorkspace($currentUser->getId()),
+            'private' => WorkspaceRoleAssignments::createForPrivateWorkspace($currentUser->getId()),
+            default => throw new \RuntimeException(sprintf('Invalid visibility %s given', $visibility), 1736343542)
+        };
+
         try {
-            $assignments = $visibility === 'shared' ?
-                WorkspaceRoleAssignments::createForSharedWorkspace($currentUser->getId()) :
-                WorkspaceRoleAssignments::createForPrivateWorkspace($currentUser->getId());
             $this->workspaceService->createSharedWorkspace(
                 $contentRepositoryId,
                 $workspaceName,
@@ -374,26 +377,25 @@ class WorkspaceController extends AbstractModuleController
             'Neos.Neos:AbstractEditor',
             WorkspaceRole::COLLABORATOR,
         );
-        if ($visibility === 'shared') {
-            if (!$workspaceRoleAssignments->contains($sharedRoleAssignment)) {
-                $this->workspaceService->assignWorkspaceRole(
-                    $contentRepositoryId,
-                    $workspaceName,
-                    WorkspaceRoleAssignment::createForGroup(
-                        'Neos.Neos:AbstractEditor',
-                        WorkspaceRole::COLLABORATOR,
-                    )
-                );
-            }
-        } elseif ($visibility === 'private' && $workspaceRoleAssignments->contains($sharedRoleAssignment)) {
-            $this->workspaceService->unassignWorkspaceRole(
+
+        match($visibility) {
+            'shared' => !$workspaceRoleAssignments->contains($sharedRoleAssignment) && $this->workspaceService->assignWorkspaceRole(
+                $contentRepositoryId,
+                $workspaceName,
+                WorkspaceRoleAssignment::createForGroup(
+                    'Neos.Neos:AbstractEditor',
+                    WorkspaceRole::COLLABORATOR,
+                )
+            ),
+            'private' => $workspaceRoleAssignments->contains($sharedRoleAssignment) && $this->workspaceService->unassignWorkspaceRole(
                 $contentRepositoryId,
                 $workspaceName,
                 WorkspaceRoleSubject::createForGroup('Neos.Neos:AbstractEditor'),
-            );
-        }
+            ),
+            default => throw new \RuntimeException(sprintf('Invalid visibility %s given', $visibility), 1736339457)
+        };
 
-        if ($baseWorkspace !== null && !$workspace->baseWorkspaceName->equals($baseWorkspace)) {
+        if ($baseWorkspace !== null && $workspace->baseWorkspaceName?->equals($baseWorkspace) === false) {
             // Update Base Workspace
             $this->workspacePublishingService->changeBaseWorkspace(
                 $contentRepositoryId,
