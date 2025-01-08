@@ -34,6 +34,7 @@ use Neos\Diff\Diff;
 use Neos\Diff\Renderer\Html\HtmlArrayRenderer;
 use Neos\Error\Messages\Message;
 use Neos\Flow\Annotations as Flow;
+use Neos\Flow\I18n\EelHelper\TranslationHelper;
 use Neos\Flow\I18n\Translator;
 use Neos\Flow\Mvc\Exception\StopActionException;
 use Neos\Flow\Package\PackageManager;
@@ -807,7 +808,7 @@ class WorkspaceController extends AbstractModuleController
                             )
                         )
                     );
-                    
+
                     if(!isset($siteChanges[$siteNodeName]['documents'][$documentPath]['document'])) {
                         $documentNodeAddress = NodeAddress::create(
                             $contentRepository->id,
@@ -1059,35 +1060,13 @@ class WorkspaceController extends AbstractModuleController
     protected function getPropertyLabel(string $propertyName, Node $changedNode): string
     {
         $properties = $this->getNodeType($changedNode)->getProperties();
-        if (
-            !isset($properties[$propertyName])
-            || !isset($properties[$propertyName]['ui']['label'])
-        ) {
+        $label = $properties[$propertyName]['ui']['label'] ?? null;
+        if ($label === null) {
             return $propertyName;
         }
-        $packageKey = 'Neos.Neos';
-        $source = 'Main';
-        $id = $properties[$propertyName]['ui']['label'];
-        $idParts = explode(':', $id, 3);
-        switch (count($idParts)) {
-            case 2:
-                $packageKey = $idParts[0];
-                $id = $idParts[1];
-                break;
-            case 3:
-                $packageKey = $idParts[0];
-                $source = str_replace('.', '/', $idParts[1]);
-                $id = $idParts[2];
-                break;
-        }
-        return $this->translator->translateById(
-            $id,
-            [],
-            null,
-            null,
-            $source,
-            $packageKey
-        ) ?: $properties[$propertyName]['ui']['label'];
+
+        // hack, we use the eel helper here to support the shorthand syntax: PackageKey:Source:trans-unit-id
+        return (new TranslationHelper())->translate($label) ?: $label;
     }
 
     /**
