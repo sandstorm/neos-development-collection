@@ -319,15 +319,15 @@ class WorkspaceController extends AbstractModuleController
      * @param WorkspaceName $workspaceName The name of the workspace that is being updated
      * @param WorkspaceTitle $title Human friendly title of the workspace, for example "Christmas Campaign"
      * @param WorkspaceDescription $description A description explaining the purpose of the new workspace
-     * @param WorkspaceName $baseWorkspace The base workspace to rebase this workspace onto if modified
      * @param string $visibility Allow other editors to collaborate on this workspace if set to "shared"
+     * @param WorkspaceName|null $baseWorkspace The base workspace to rebase this workspace onto if modified
      */
     public function updateAction(
         WorkspaceName $workspaceName,
         WorkspaceTitle $title,
         WorkspaceDescription $description,
-        WorkspaceName $baseWorkspace,
         string $visibility,
+        WorkspaceName|null $baseWorkspace = null,
     ): void {
         $currentUser = $this->userService->getCurrentUser();
         if ($currentUser === null) {
@@ -393,12 +393,14 @@ class WorkspaceController extends AbstractModuleController
             );
         }
 
-        // Update Base Workspace
-        $this->workspacePublishingService->changeBaseWorkspace(
-            $contentRepositoryId,
-            $workspaceName,
-            $baseWorkspace
-        );
+        if ($baseWorkspace !== null && !$workspace->baseWorkspaceName->equals($baseWorkspace)) {
+            // Update Base Workspace
+            $this->workspacePublishingService->changeBaseWorkspace(
+                $contentRepositoryId,
+                $workspaceName,
+                $baseWorkspace
+            );
+        }
 
         $this->addFlashMessage(
             $this->getModuleLabel(
