@@ -45,7 +45,6 @@ prototype(Neos.Workspace.Ui:Component.WorkspaceTable) < prototype(Neos.Fusion:Co
       </thead>
       <tbody>
         <Neos.Workspace.Ui:Component.WorkspaceTreeNode
-          workspaceName="live"
           workspaceListItems={props.workspaceListItems}
         />
       </tbody>
