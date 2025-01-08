@@ -3,11 +3,9 @@
 #
 prototype(Neos.Workspace.Ui:Component.WorkspaceTable) < prototype(Neos.Fusion:Component) {
   /// \Neos\Workspace\Ui\ViewModel\WorkspaceListItems
-  workspaceListItems = ${{}}
-  /// string
-  sortBy = 'title'
-  /// bool
-  sortAscending = true
+  workspaceListItems = null
+  /// Neos\Workspace\Ui\ViewModel\Sorting
+  sorting = null
 
   @private {
     i18n = ${I18n.id('').source('Main').package('Neos.Workspace.Ui')}
@@ -15,7 +13,8 @@ prototype(Neos.Workspace.Ui:Component.WorkspaceTable) < prototype(Neos.Fusion:Co
       action = 'index'
       format = 'html'
       arguments {
-        sortAscending = ${!props.sortAscending}
+        // Todo hack convert to array manually, flows routing chokes on value objects: Tried to convert an object of type "Neos\Workspace\Ui\ViewModel\Sorting" to an identity array, but it is unknown to the Persistence Manager.
+        sorting = ${sorting.withInvertedSorting().jsonSerialize()}
       }
     }
   }
@@ -35,7 +34,7 @@ prototype(Neos.Workspace.Ui:Component.WorkspaceTable) < prototype(Neos.Fusion:Co
             hx-swap="outerHTML"
           >
             {private.i18n.id('workspaces.workspace.title').translate()}
-            <Neos.Workspace.Ui:Component.Icon icon={props.sortAscending ? 'sort-alpha-down' : 'sort-alpha-up'}/>
+            <Neos.Workspace.Ui:Component.Icon icon={props.sorting.sortAscending ? 'sort-alpha-down' : 'sort-alpha-up'}/>
           </button>
         </th>
         <th>{private.i18n.id('workspaces.workspace.description')}</th>

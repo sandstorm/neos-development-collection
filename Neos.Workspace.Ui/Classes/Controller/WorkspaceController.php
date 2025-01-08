@@ -77,6 +77,7 @@ use Neos\Workspace\Ui\ViewModel\DocumentChangeItem;
 use Neos\Workspace\Ui\ViewModel\DocumentItem;
 use Neos\Workspace\Ui\ViewModel\EditWorkspaceFormData;
 use Neos\Workspace\Ui\ViewModel\PendingChanges;
+use Neos\Workspace\Ui\ViewModel\Sorting;
 use Neos\Workspace\Ui\ViewModel\WorkspaceListItem;
 use Neos\Workspace\Ui\ViewModel\WorkspaceListItems;
 
@@ -134,8 +135,13 @@ class WorkspaceController extends AbstractModuleController
     /**
      * Display a list of unpublished content
      */
-    public function indexAction(string $sortBy = 'title', bool $sortAscending = true): void
+    public function indexAction(Sorting|null $sorting = null): void
     {
+        $sorting ??= new Sorting(
+            sortBy: 'title',
+            sortAscending: true
+        );
+
         $currentUser = $this->userService->getCurrentUser();
         if ($currentUser === null) {
             throw new \RuntimeException('No user authenticated', 1718308216);
@@ -145,15 +151,14 @@ class WorkspaceController extends AbstractModuleController
         $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
 
         $workspaceListItems = $this->getWorkspaceListItems($contentRepository);
-        if ($sortBy === 'title') {
-            $workspaceListItems = $workspaceListItems->sortByTitle($sortAscending);
-        }
+        $workspaceListItems = match($sorting->sortBy) {
+            'title' => $workspaceListItems->sortByTitle($sorting->sortAscending),
+        };
 
         $this->view->assignMultiple([
             'workspaceListItems' => $workspaceListItems,
             'flashMessages' => $this->controllerContext->getFlashMessageContainer()->getMessagesAndFlush(),
-            'sortAscending' => $sortAscending,
-            'sortBy' => $sortBy,
+            'sorting' => $sorting,
         ]);
     }
 
