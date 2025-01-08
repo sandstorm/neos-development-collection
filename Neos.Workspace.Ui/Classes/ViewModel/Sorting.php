@@ -11,6 +11,9 @@ use Neos\Flow\Annotations as Flow;
 final readonly class Sorting implements \JsonSerializable, ProtectedContextAwareInterface
 {
     public function __construct(
+        /**
+         * @phpstan-var 'title'
+         */
         public string $sortBy,
         public bool $sortAscending
     ) {
@@ -19,6 +22,9 @@ final readonly class Sorting implements \JsonSerializable, ProtectedContextAware
         }
     }
 
+    /**
+     * @param array<mixed> $array
+     */
     public static function fromArray(array $array): self
     {
         return new self(
