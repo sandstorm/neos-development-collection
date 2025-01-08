@@ -219,7 +219,7 @@ class WorkspaceController extends AbstractModuleController
         $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
         $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
 
-        $this->view->assign('baseWorkspaceOptions', $this->prepareBaseWorkspaceOptions($contentRepository));
+        $this->view->assign('baseWorkspaceOptions', $this->prepareBaseWorkspaceOptions($contentRepository, null));
     }
 
     public function createAction(
@@ -1104,39 +1104,41 @@ class WorkspaceController extends AbstractModuleController
     }
 
     /**
-     * Creates an array of workspace names and their respective titles which are possible base workspaces for other
-     * workspaces.
-     * If $excludedWorkspace is set, this workspace and all its base workspaces will be excluded from the list of returned workspaces
+     * Creates an array of workspace names and their respective titles which are possible base workspaces
+     *
+     * If $editedWorkspace is set, this workspace and all its nested workspaces will be excluded from the list of returned workspaces
      *
      * @return array<string,string>
      */
     protected function prepareBaseWorkspaceOptions(
         ContentRepository $contentRepository,
-        WorkspaceName $excludedWorkspace = null,
+        WorkspaceName|null $editedWorkspaceName
     ): array {
         $user = $this->userService->getCurrentUser();
         $baseWorkspaceOptions = [];
         $workspaces = $contentRepository->findWorkspaces();
         foreach ($workspaces as $workspace) {
-            if (
-                $excludedWorkspace !== null) {
-                if ($workspace->workspaceName->equals($excludedWorkspace)) {
+            if ($editedWorkspaceName !== null) {
+                if ($workspace->workspaceName->equals($editedWorkspaceName)) {
                     continue;
                 }
-                if ( $workspaces->getBaseWorkspaces($workspace->workspaceName)->get(
-                        $excludedWorkspace
-                    ) !== null) {
+                if ($workspaces->getBaseWorkspaces($workspace->workspaceName)->get($editedWorkspaceName) !== null) {
                     continue;
                 }
             }
-            $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepository->id, $workspace->workspaceName);
+            $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata(
+                $contentRepository->id,
+                $workspace->workspaceName
+            );
             if (!in_array($workspaceMetadata->classification, [WorkspaceClassification::SHARED, WorkspaceClassification::ROOT], true)) {
                 continue;
             }
-            if ($user === null) {
-                continue;
-            }
-            $permissions = $this->authorizationService->getWorkspacePermissions($contentRepository->id, $workspace->workspaceName, $this->securityContext->getRoles(), $user->getId());
+            $permissions = $this->authorizationService->getWorkspacePermissions(
+                $contentRepository->id,
+                $workspace->workspaceName,
+                $this->securityContext->getRoles(),
+                $user?->getId()
+            );
             if (!$permissions->read) {
                 continue;
             }

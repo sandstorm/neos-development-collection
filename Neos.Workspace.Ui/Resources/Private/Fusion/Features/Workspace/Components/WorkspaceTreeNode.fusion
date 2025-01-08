@@ -6,12 +6,10 @@ prototype(Neos.Workspace.Ui:Component.WorkspaceTreeNode) < prototype(Neos.Fusion
   workspaceListItem = null
   /// Neos\Workspace\Ui\ViewModel\WorkspaceListItems
   workspaceListItems = null
+  // array<Neos\Workspace\Ui\ViewModel\WorkspaceListItem>
+  baseWorkspaceListItems = null
   /// int
   level = 0
-
-  @private {
-    baseWorkspaceListItems = ${Array.filter(props.workspaceListItems, (workspaceListItem) => workspaceListItem.baseWorkspaceName == (props.workspaceListItem.name || 'live'))}
-  }
 
   renderer = afx`
     <Neos.Workspace.Ui:Component.WorkspaceTableRow
@@ -19,10 +17,11 @@ prototype(Neos.Workspace.Ui:Component.WorkspaceTreeNode) < prototype(Neos.Fusion
       level={props.level}
       @if={props.workspaceListItem != null}
     />
-    <Neos.Fusion:Loop items={private.baseWorkspaceListItems} itemName="workspaceListItem">
+    <Neos.Fusion:Loop items={props.baseWorkspaceListItems} itemName="workspaceListItem">
       <Neos.Workspace.Ui:Component.WorkspaceTreeNode
         workspaceListItem={workspaceListItem}
         workspaceListItems={props.workspaceListItems}
+        baseWorkspaceListItems={Array.filter(props.workspaceListItems, (workspace) => workspace.baseWorkspaceName == workspaceListItem.name)}
         level={props.level + 1}
       />
     </Neos.Fusion:Loop>
