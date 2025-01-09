@@ -68,7 +68,7 @@ Feature: Rebasing with no conflict
       | workspaceName           | "user-test"          |
       | newContentStreamId      | "user-cs-rebased"    |
       | previousContentStreamId | "user-cs-identifier" |
-      | hadConflicts            | false                |
+      | skippedEvents           | []                   |
 
     When I am in workspace "user-test" and dimension space point {}
     Then I expect node aggregate identifier "sir-david-nodenborough" to lead to node user-cs-rebased;sir-david-nodenborough;{}

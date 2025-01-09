@@ -185,7 +185,7 @@ Feature: Workspace rebasing - conflicting changes
       | workspaceName           | "user-ws"                    |
       | newContentStreamId      | "user-cs-identifier-rebased" |
       | previousContentStreamId | "user-cs-identifier"         |
-      | hadConflicts            | true                         |
+      | skippedEvents           | [12,14]                      |
 
     Then I expect the content stream "user-cs-identifier" to not exist
     Then I expect the content stream "user-cs-identifier-rebased" to exist
