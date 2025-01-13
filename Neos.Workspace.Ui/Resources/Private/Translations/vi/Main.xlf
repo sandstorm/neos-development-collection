@@ -249,6 +249,14 @@
         <source>All changes from workspace "{0}" have been discarded.</source>
         <target state="translated">Tất cả thay đổi từ không gian làm việc "{0}" đã bị hủy bỏ.</target>
       </trans-unit>
+      <trans-unit id="applyChanges" xml:space="preserve">
+        <source>Apply changes</source>
+        <target state="needs-translation">Đồng ý thay đổi</target>
+      </trans-unit>
+      <trans-unit id="workspaces.reviewWorkspace.label" xml:space="preserve">
+        <source>Review</source>
+        <target state="needs-translation">Đánh giá</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>
