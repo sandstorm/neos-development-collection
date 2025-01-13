@@ -253,6 +253,10 @@
         <source>All changes from workspace "{0}" have been discarded.</source>
         <target state="needs-translation">All changes from workspace "{0}" have been discarded.</target>
       </trans-unit>
+      <trans-unit id="applyChanges" xml:space="preserve">
+        <source>Apply changes</source>
+        <target state="needs-translation">Примени измене</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>
