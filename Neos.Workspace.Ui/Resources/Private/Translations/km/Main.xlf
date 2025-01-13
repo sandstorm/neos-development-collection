@@ -250,6 +250,18 @@
         <source>All changes from workspace "{0}" have been discarded.</source>
         <target state="final">ការផ្លាស់ប្តូរទាំងអស់ពីតំបន់ធ្វើការ "{0}" ត្រូវបានបោះបង់។</target>
       </trans-unit>
+      <trans-unit id="workspaces.reviewWorkspace.label" xml:space="preserve">
+        <source>Review</source>
+        <target state="needs-translation">ពិនិត្យឡើងវិញ</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.lastModified" xml:space="preserve">
+        <source>Last modified</source>
+        <target state="needs-translation">ការកែប្រែចុងក្រោយ</target>
+      </trans-unit>
+      <trans-unit id="applyChanges" xml:space="preserve">
+        <source>Apply changes</source>
+        <target state="needs-translation">អនុវត្តការផ្លាស់ប្តូរ</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>
