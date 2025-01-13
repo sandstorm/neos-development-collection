@@ -253,6 +253,22 @@
         <source>All changes from workspace "{0}" have been discarded.</source>
         <target state="translated">Tutte le modifiche dallo spazio di lavoro "{0}" sono state scartate.</target>
       </trans-unit>
+      <trans-unit id="applyChanges" xml:space="preserve">
+        <source>Apply changes</source>
+        <target state="needs-translation">Applica i cambiamenti</target>
+      </trans-unit>
+      <trans-unit id="workspaces.reviewWorkspace.label" xml:space="preserve">
+        <source>Review</source>
+        <target state="needs-translation">Revisiona</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.lastModified" xml:space="preserve">
+        <source>Last modified</source>
+        <target state="needs-translation">Ultimo modificato</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.status" xml:space="preserve">
+        <source>Status</source>
+        <target state="needs-translation">Stato</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>
