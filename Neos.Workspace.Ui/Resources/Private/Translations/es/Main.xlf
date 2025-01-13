@@ -31,9 +31,9 @@
         <source>Create workspace</source>
         <target state="final">Crear espacio de trabajo</target>
       </trans-unit>
-      <trans-unit id="workspaces.deleteWorkspace" xml:space="preserve" approved="yes">
-        <source>Delete workspace</source>
-        <target state="final">Eliminar espacio de trabajo</target>
+      <trans-unit id="workspaces.deleteWorkspace" xml:space="preserve" approved="no">
+        <source>Delete workspace "{0}"</source>
+        <target state="needs-translation">Eliminar espacio de trabajo</target>
       </trans-unit>
       <trans-unit id="workspaces.editWorkspace" xml:space="preserve" approved="yes">
         <source>Edit workspace</source>
