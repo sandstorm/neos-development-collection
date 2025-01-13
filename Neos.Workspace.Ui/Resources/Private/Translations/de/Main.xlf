@@ -277,6 +277,26 @@
         <source>This is the personal workspace of "{0}"</source>
         <target>Dies ist der persönliche Arbeitsbereich von "{0}"</target>
       </trans-unit>
+      <trans-unit id="applyChanges" xml:space="preserve">
+        <source>Apply changes</source>
+        <target state="needs-translation">Änderungen übernehmen</target>
+      </trans-unit>
+      <trans-unit id="workspaces.reviewWorkspace.label" xml:space="preserve">
+        <source>Review</source>
+        <target state="needs-translation">Überprüfen</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.lastModified" xml:space="preserve">
+        <source>Last modified</source>
+        <target state="needs-translation">Zuletzt geändert</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.status" xml:space="preserve">
+        <source>Status</source>
+        <target state="needs-translation">Status</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.actions" xml:space="preserve">
+        <source>Actions</source>
+        <target state="needs-translation">Aktionen</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>
