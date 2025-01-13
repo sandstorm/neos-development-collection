@@ -4,8 +4,18 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\EventStore;
 
+use Neos\EventStore\EventStoreInterface;
+
 /**
- * A set of Content Repository "domain events"
+ * A set of Content Repository "domain events", part of {@see EventsToPublish}
+ *
+ * For better type checking we ensure that this collection is never empty.
+ * That is because {@see EventStoreInterface::commit()} will throw an exception if there are 0 events passed:
+ *
+ * > Writable events must contain at least one event
+ *
+ * We do not skip the case for 0 events to ensure each command always maps to a mutation.
+ * Forgiving noop behaviour is not intended for this low level code.
  *
  * @implements \IteratorAggregate<EventInterface|DecoratedEvent>
  * @internal only used during event publishing (from within command handlers) - and their implementation is not API
