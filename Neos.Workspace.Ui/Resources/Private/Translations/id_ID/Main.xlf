@@ -249,6 +249,22 @@
         <source>All changes from workspace "{0}" have been discarded.</source>
         <target state="translated">Semua perubahan dari ruang kerja " {0} " telah dibuang.</target>
       </trans-unit>
+      <trans-unit id="workspaces.reviewWorkspace.label" xml:space="preserve">
+        <source>Review</source>
+        <target state="needs-translation">Ulasan</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.lastModified" xml:space="preserve">
+        <source>Last modified</source>
+        <target state="needs-translation">Modifikasi terakhir</target>
+      </trans-unit>
+      <trans-unit id="applyChanges" xml:space="preserve">
+        <source>Apply changes</source>
+        <target state="needs-translation">Menerapkan perubahan</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.status" xml:space="preserve">
+        <source>Status</source>
+        <target state="needs-translation">Status</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>
