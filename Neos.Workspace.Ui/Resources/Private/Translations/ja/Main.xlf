@@ -249,6 +249,18 @@
         <source>All changes from workspace "{0}" have been discarded.</source>
         <target state="needs-translation">All changes from workspace "{0}" have been discarded.</target>
       </trans-unit>
+      <trans-unit id="workspaces.reviewWorkspace.label" xml:space="preserve">
+        <source>Review</source>
+        <target state="needs-translation">見直し</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.status" xml:space="preserve">
+        <source>Status</source>
+        <target state="needs-translation">状態</target>
+      </trans-unit>
+      <trans-unit id="applyChanges" xml:space="preserve">
+        <source>Apply changes</source>
+        <target state="needs-translation">変更を適用</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>
