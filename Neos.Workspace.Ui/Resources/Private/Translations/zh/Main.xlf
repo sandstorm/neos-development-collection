@@ -59,8 +59,8 @@
         <source>Private workspace</source>
         <target state="translated">私有工作区</target>
       </trans-unit>
-      <trans-unit id="workspaces.internalWorkspace" xml:space="preserve">
-        <source>Internal workspace</source>
+      <trans-unit id="workspaces.sharedWorkspace" xml:space="preserve">
+        <source>Shared workspace</source>
         <target state="translated">内部工作区</target>
       </trans-unit>
       <trans-unit id="workspaces.readonlyWorkspace" xml:space="preserve">
@@ -95,11 +95,11 @@
         <source>Only reviewers and administrators can access and modify this workspace</source>
         <target state="translated">只有审阅者和管理员可以访问和修改此工作区</target>
       </trans-unit>
-      <trans-unit id="workspaces.workspace.visibility.internal" xml:space="preserve">
-        <source>Internal</source>
-        <target state="needs-translation">Internal</target>
+      <trans-unit id="workspaces.workspace.visibility.shared" xml:space="preserve">
+        <source>Shared</source>
+        <target state="needs-translation">Shared</target>
       </trans-unit>
-      <trans-unit id="workspaces.workspace.visibility.internal.help" xml:space="preserve">
+      <trans-unit id="workspaces.workspace.visibility.shared.help" xml:space="preserve">
         <source>Any logged in editor can see and modify this workspace.</source>
         <target state="needs-translation">Any logged in editor can see and modify this workspace.</target>
       </trans-unit>
