@@ -23,10 +23,6 @@
         <source>Workspaces</source>
         <target state="final">Arbeitsbereiche</target>
       </trans-unit>
-      <trans-unit id="workspaces.detailsForWorkspace" xml:space="preserve" approved="yes">
-        <source>Details for "{0}"</source>
-        <target state="final">Details für "{0}"</target>
-      </trans-unit>
       <trans-unit id="workspaces.createNewWorkspace" xml:space="preserve" approved="yes">
         <source>Create new workspace</source>
         <target state="final">Neuen Arbeitsbereich erstellen</target>
@@ -270,17 +266,17 @@
         <target state="final">Alle aktuellen Änderungen auswählen</target>
       </trans-unit>
       <trans-unit id="table.column.access.shared" approved="yes">
-				<source>This is a shared workspace</source>
-				<target>Dies ist ein gemeinsamer Arbeitsbereich</target>
-			</trans-unit>
+        <source>This is a shared workspace</source>
+        <target>Dies ist ein gemeinsamer Arbeitsbereich</target>
+      </trans-unit>
       <trans-unit id="table.column.access.private" approved="yes">
-				<source>This is a private workspace</source>
-				<target>Dies ist ein privater Arbeitsbereich</target>
-			</trans-unit>
+        <source>This is a private workspace</source>
+        <target>Dies ist ein privater Arbeitsbereich</target>
+      </trans-unit>
       <trans-unit id="table.column.access.personal" approved="yes">
-				<source>This is the personal workspace of "{0}"</source>
-				<target>Dies ist der persönliche Arbeitsbereich von "{0}"</target>
-			</trans-unit>
+        <source>This is the personal workspace of "{0}"</source>
+        <target>Dies ist der persönliche Arbeitsbereich von "{0}"</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

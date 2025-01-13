@@ -23,10 +23,6 @@
         <source>Workspaces</source>
         <target state="translated">工作區</target>
       </trans-unit>
-      <trans-unit id="workspaces.detailsForWorkspace" xml:space="preserve">
-        <source>Details for "{0}"</source>
-        <target state="translated">「{0}」的細節</target>
-      </trans-unit>
       <trans-unit id="workspaces.createNewWorkspace" xml:space="preserve">
         <source>Create new workspace</source>
         <target state="translated">建立新工作區</target>

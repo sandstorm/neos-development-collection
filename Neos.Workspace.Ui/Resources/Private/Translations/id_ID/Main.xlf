@@ -23,10 +23,6 @@
         <source>Workspaces</source>
         <target state="translated">Bidang Kerja</target>
       </trans-unit>
-      <trans-unit id="workspaces.detailsForWorkspace" xml:space="preserve">
-        <source>Details for "{0}"</source>
-        <target state="translated">Rincian untuk "{0}"</target>
-      </trans-unit>
       <trans-unit id="workspaces.createNewWorkspace" xml:space="preserve">
         <source>Create new workspace</source>
         <target state="translated">Membuat bidang kerja baru</target>

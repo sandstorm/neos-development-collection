@@ -15,10 +15,6 @@
         <source>Workspaces</source>
         <target state="translated">Werkruimten</target>
       </trans-unit>
-      <trans-unit id="workspaces.detailsForWorkspace" xml:space="preserve" approved="yes">
-        <source>Details for "{0}"</source>
-        <target state="final">Details voor "{0}"</target>
-      </trans-unit>
       <trans-unit id="workspaces.createNewWorkspace" xml:space="preserve" approved="yes">
         <source>Create new workspace</source>
         <target state="final">Maak nieuwe workspace aan</target>

@@ -23,10 +23,6 @@
         <source>Workspaces</source>
         <target state="translated">Arbetsytor</target>
       </trans-unit>
-      <trans-unit id="workspaces.detailsForWorkspace" xml:space="preserve">
-        <source>Details for "{0}"</source>
-        <target state="translated">Detaljer för "{0}"</target>
-      </trans-unit>
       <trans-unit id="workspaces.createNewWorkspace" xml:space="preserve">
         <source>Create new workspace</source>
         <target state="translated">Skapa ny arbetsyta</target>

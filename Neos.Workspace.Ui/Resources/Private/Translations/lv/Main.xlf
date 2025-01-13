@@ -23,10 +23,6 @@
         <source>Workspaces</source>
         <target state="final">Darba virsmas</target>
       </trans-unit>
-      <trans-unit id="workspaces.detailsForWorkspace" xml:space="preserve" approved="yes">
-        <source>Details for "{0}"</source>
-        <target state="final">Informācija par {0}</target>
-      </trans-unit>
       <trans-unit id="workspaces.createNewWorkspace" xml:space="preserve" approved="yes">
         <source>Create new workspace</source>
         <target state="final">Izveidot jaunu darba virsmu</target>
