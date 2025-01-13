@@ -32,8 +32,8 @@
         <target state="translated">Új munkafelület</target>
       </trans-unit>
       <trans-unit id="workspaces.deleteWorkspace" xml:space="preserve">
-        <source>Delete workspace</source>
-        <target state="translated">Munkafelület törlése</target>
+        <source>Delete workspace "{0}"</source>
+        <target state="needs-translation">Munkafelület törlése</target>
       </trans-unit>
       <trans-unit id="workspaces.editWorkspace" xml:space="preserve">
         <source>Edit workspace</source>
