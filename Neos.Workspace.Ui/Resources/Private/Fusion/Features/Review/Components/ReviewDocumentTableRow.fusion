@@ -14,12 +14,11 @@ prototype(Neos.Workspace.Ui:Component.ReviewDocumentTableRow) < prototype(Neos.F
     i18n = ${I18n.id('').source('Main').package('Neos.Workspace.Ui')}
 
     openNodeInPreviewAction = Neos.Fusion:ActionUri {
-      request=${request.mainRequest}
-      package='Neos.Neos'
-      controller='Frontend\\\Node'
+      request = ${request.mainRequest}
+      package = 'Neos.Neos'
+      controller = 'Frontend\\\Node'
       action = 'preview'
-      // todo fixme
-      @process.addQuery = ${value + '?node=' + document.document.documentNodeAddress}
+      arguments = ${{node: document.document.documentNodeAddress}}
     }
     discardDocumentAction = Neos.Fusion:ActionUri {
       action = 'discardDocument'
