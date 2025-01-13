@@ -17,6 +17,7 @@ namespace Neos\ContentRepository\Core\Feature\Common;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePointSet;
 use Neos\ContentRepository\Core\DimensionSpace\VariantType;
+use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Dto\NodeAggregateIdsByNodePaths;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Event\NodeAggregateWithNodeWasCreated;
@@ -164,6 +165,9 @@ trait TetheredNodeInternals
         );
     }
 
+    /**
+     * @return array<EventInterface>
+     */
     protected function createEventsForMissingTetheredNodeAggregate(
         ContentGraphInterface $contentGraph,
         TetheredNodeTypeDefinition $tetheredNodeTypeDefinition,
@@ -173,7 +177,7 @@ trait TetheredNodeInternals
         ?NodeAggregateId $succeedingSiblingNodeAggregateId,
         NodeAggregateIdsByNodePaths $nodeAggregateIdsByNodePaths,
         NodePath $currentNodePath,
-    ): Events {
+    ): array {
         $events = [];
         $tetheredNodeType = $this->requireNodeType($tetheredNodeTypeDefinition->nodeTypeName);
         $nodeAggregateId = $nodeAggregateIdsByNodePaths->getNodeAggregateId($currentNodePath) ?? NodeAggregateId::create();
@@ -243,22 +247,20 @@ trait TetheredNodeInternals
         foreach ($tetheredNodeType->tetheredNodeTypeDefinitions as $childTetheredNodeTypeDefinition) {
             $events = array_merge(
                 $events,
-                iterator_to_array(
-                    $this->createEventsForMissingTetheredNodeAggregate(
-                        $contentGraph,
-                        $childTetheredNodeTypeDefinition,
-                        $affectedOriginDimensionSpacePoints,
-                        $coverageByOrigin,
-                        $nodeAggregateId,
-                        null,
-                        $nodeAggregateIdsByNodePaths,
-                        $currentNodePath->appendPathSegment($childTetheredNodeTypeDefinition->name),
-                    )
+                $this->createEventsForMissingTetheredNodeAggregate(
+                    $contentGraph,
+                    $childTetheredNodeTypeDefinition,
+                    $affectedOriginDimensionSpacePoints,
+                    $coverageByOrigin,
+                    $nodeAggregateId,
+                    null,
+                    $nodeAggregateIdsByNodePaths,
+                    $currentNodePath->appendPathSegment($childTetheredNodeTypeDefinition->name),
                 )
             );
         }
 
-        return Events::fromArray($events);
+        return $events;
     }
 
     protected function createEventsForWronglyTypedNodeAggregate(
@@ -311,21 +313,17 @@ trait TetheredNodeInternals
 
         // remove disallowed nodes
         if ($conflictResolutionStrategy === NodeAggregateTypeChangeChildConstraintConflictResolutionStrategy::STRATEGY_DELETE) {
-            array_push($events, ...iterator_to_array(
-                $this->deleteDisallowedNodesWhenChangingNodeType(
-                    $contentGraph,
-                    $nodeAggregate,
-                    $tetheredNodeType,
-                    $alreadyRemovedNodeAggregateIds
-                )
+            array_push($events, ...$this->deleteDisallowedNodesWhenChangingNodeType(
+                $contentGraph,
+                $nodeAggregate,
+                $tetheredNodeType,
+                $alreadyRemovedNodeAggregateIds
             ));
-            array_push($events, ...iterator_to_array(
-                $this->deleteObsoleteTetheredNodesWhenChangingNodeType(
-                    $contentGraph,
-                    $nodeAggregate,
-                    $tetheredNodeType,
-                    $alreadyRemovedNodeAggregateIds
-                )
+            array_push($events, ...$this->deleteObsoleteTetheredNodesWhenChangingNodeType(
+                $contentGraph,
+                $nodeAggregate,
+                $tetheredNodeType,
+                $alreadyRemovedNodeAggregateIds
             ));
         }
 
@@ -338,7 +336,7 @@ trait TetheredNodeInternals
             if ($tetheredChildNodeAggregate === null) {
                 $events = array_merge(
                     $events,
-                    iterator_to_array($this->createEventsForMissingTetheredNodeAggregate(
+                    $this->createEventsForMissingTetheredNodeAggregate(
                         $contentGraph,
                         $childTetheredNodeTypeDefinition,
                         $nodeAggregate->occupiedDimensionSpacePoints,
@@ -347,7 +345,7 @@ trait TetheredNodeInternals
                         null,
                         $nodeAggregateIdsByNodePaths,
                         $currentNodePath->appendPathSegment($childTetheredNodeTypeDefinition->name),
-                    ))
+                    )
                 );
             } elseif (!$tetheredChildNodeAggregate->nodeTypeName->equals($childTetheredNodeTypeDefinition->nodeTypeName)) {
                 $events = array_merge($events, iterator_to_array(

@@ -89,7 +89,7 @@ trait NodeVariationInternals
 
     /**
      * @param array<int,EventInterface> $events
-     * @return array<int,EventInterface>
+     * @return non-empty-array<int,EventInterface>
      */
     protected function collectNodeSpecializationVariantsThatWillHaveBeenCreated(
         ContentGraphInterface $contentGraph,
@@ -152,7 +152,7 @@ trait NodeVariationInternals
 
     /**
      * @param array<int,EventInterface> $events
-     * @return array<int,EventInterface>
+     * @return non-empty-array<int,EventInterface>
      */
     protected function collectNodeGeneralizationVariantsThatWillHaveBeenCreated(
         ContentGraphInterface $contentGraph,
@@ -215,7 +215,7 @@ trait NodeVariationInternals
 
     /**
      * @param array<int,EventInterface> $events
-     * @return array<int,EventInterface>
+     * @return non-empty-array<int,EventInterface>
      */
     protected function collectNodePeerVariantsThatWillHaveBeenCreated(
         ContentGraphInterface $contentGraph,

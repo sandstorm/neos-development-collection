@@ -10,16 +10,17 @@ namespace Neos\ContentRepository\Core\EventStore;
  * @implements \IteratorAggregate<EventInterface|DecoratedEvent>
  * @internal only used during event publishing (from within command handlers) - and their implementation is not API
  */
-final class Events implements \IteratorAggregate, \Countable
+final readonly class Events implements \IteratorAggregate, \Countable
 {
     /**
-     * @var array<EventInterface|DecoratedEvent>
+     * @var non-empty-array<EventInterface|DecoratedEvent>
      */
-    private readonly array $events;
+    public array $items;
 
     private function __construct(EventInterface|DecoratedEvent ...$events)
     {
-        $this->events = $events;
+        /** @var non-empty-array<EventInterface|DecoratedEvent> $events */
+        $this->items = $events;
     }
 
     public static function with(EventInterface|DecoratedEvent $event): self
@@ -29,11 +30,11 @@ final class Events implements \IteratorAggregate, \Countable
 
     public function withAppendedEvents(Events $events): self
     {
-        return new self(...$this->events, ...$events->events);
+        return new self(...$this->items, ...$events->items);
     }
 
     /**
-     * @param array<EventInterface|DecoratedEvent> $events
+     * @param non-empty-array<EventInterface|DecoratedEvent> $events
      * @return static
      */
     public static function fromArray(array $events): self
@@ -43,21 +44,21 @@ final class Events implements \IteratorAggregate, \Countable
 
     public function getIterator(): \Traversable
     {
-        yield from $this->events;
+        yield from $this->items;
     }
 
     /**
      * @template T
      * @param \Closure(EventInterface|DecoratedEvent $event): T $callback
-     * @return list<T>
+     * @return non-empty-list<T>
      */
     public function map(\Closure $callback): array
     {
-        return array_map($callback, $this->events);
+        return array_map($callback, $this->items);
     }
 
     public function count(): int
     {
-        return count($this->events);
+        return count($this->items);
     }
 }
