@@ -253,6 +253,22 @@
         <source>All changes from workspace "{0}" have been discarded.</source>
         <target state="translated">Alla ändringar från arbetsytan "{0}" har ignorerats.</target>
       </trans-unit>
+      <trans-unit id="workspaces.reviewWorkspace.label" xml:space="preserve">
+        <source>Review</source>
+        <target state="needs-translation">Granska</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.lastModified" xml:space="preserve">
+        <source>Last modified</source>
+        <target state="needs-translation">Senaste ändring</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.status" xml:space="preserve">
+        <source>Status</source>
+        <target state="needs-translation">Status</target>
+      </trans-unit>
+      <trans-unit id="applyChanges" xml:space="preserve">
+        <source>Apply changes</source>
+        <target state="needs-translation">Tillämpa ändringar</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>
