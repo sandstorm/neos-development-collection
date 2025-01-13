@@ -32,8 +32,8 @@
         <target state="translated">إنشاء فضاء العمل</target>
       </trans-unit>
       <trans-unit id="workspaces.deleteWorkspace" xml:space="preserve">
-        <source>Delete workspace</source>
-        <target state="translated">حذف فضاء العمل</target>
+        <source>Delete workspace "{0}"</source>
+        <target state="needs-translation">حذف فضاء العمل</target>
       </trans-unit>
       <trans-unit id="workspaces.editWorkspace" xml:space="preserve">
         <source>Edit workspace</source>
