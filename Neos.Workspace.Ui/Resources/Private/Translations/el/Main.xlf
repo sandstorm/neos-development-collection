@@ -253,6 +253,14 @@
         <source>All changes from workspace "{0}" have been discarded.</source>
         <target state="needs-translation">All changes from workspace "{0}" have been discarded.</target>
       </trans-unit>
+      <trans-unit id="applyChanges" xml:space="preserve">
+        <source>Apply changes</source>
+        <target state="needs-translation">Αποδοχή αλλαγών</target>
+      </trans-unit>
+      <trans-unit id="workspaces.reviewWorkspace.label" xml:space="preserve">
+        <source>Review</source>
+        <target state="needs-translation">Επισκόπηση</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>
