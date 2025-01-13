@@ -19,6 +19,7 @@ use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\NodeType\NodeType;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
+use Neos\ContentRepository\Core\NodeType\TetheredNodeTypeDefinition;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindChildNodesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
@@ -141,7 +142,7 @@ class TetheredNodeAdjustments
                         }
                     }
 
-                    $expectedTetheredNodeOrder = array_keys($nodeType->tetheredNodeTypeDefinitions->toArray());
+                    $expectedTetheredNodeOrder = $nodeType->tetheredNodeTypeDefinitions->map(fn (TetheredNodeTypeDefinition $definition) => $definition->name->value);
                     if (count($expectedTetheredNodeOrder) > 1 && array_keys($actualTetheredChildNodes) !== $expectedTetheredNodeOrder) {
                         /** @var array<int<2,max>,string> $expectedTetheredNodeOrder */
                         // we need to re-order: We go from the last to the first
