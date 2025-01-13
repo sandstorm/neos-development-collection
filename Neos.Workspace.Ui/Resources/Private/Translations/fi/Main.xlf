@@ -253,6 +253,18 @@
         <source>All changes from workspace "{0}" have been discarded.</source>
         <target state="final">Kaikki työtilan "{0}" muutokset on hylätty.</target>
       </trans-unit>
+      <trans-unit id="applyChanges" xml:space="preserve">
+        <source>Apply changes</source>
+        <target state="needs-translation">Tallenna muutokset</target>
+      </trans-unit>
+      <trans-unit id="workspaces.reviewWorkspace.label" xml:space="preserve">
+        <source>Review</source>
+        <target state="needs-translation">Arviointi</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.lastModified" xml:space="preserve">
+        <source>Last modified</source>
+        <target state="needs-translation">Viimeksi muokattu</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>
