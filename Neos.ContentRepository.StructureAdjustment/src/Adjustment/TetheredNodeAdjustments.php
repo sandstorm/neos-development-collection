@@ -141,7 +141,9 @@ class TetheredNodeAdjustments
                         }
                     }
 
-                    if (array_keys($actualTetheredChildNodes) !== array_keys($nodeType->tetheredNodeTypeDefinitions->toArray())) {
+                    $expectedTetheredNodeOrder = array_keys($nodeType->tetheredNodeTypeDefinitions->toArray());
+                    if (count($expectedTetheredNodeOrder) > 1 && array_keys($actualTetheredChildNodes) !== $expectedTetheredNodeOrder) {
+                        /** @var array<int<2,max>,string> $expectedTetheredNodeOrder */
                         // we need to re-order: We go from the last to the first
                         yield StructureAdjustment::createForNodeIdentity(
                             $nodeAggregate->workspaceName,
@@ -149,7 +151,7 @@ class TetheredNodeAdjustments
                             $nodeAggregate->nodeAggregateId,
                             StructureAdjustment::TETHERED_NODE_WRONGLY_ORDERED,
                             'Tethered nodes wrongly ordered, expected: '
-                                . implode(', ', array_keys($nodeType->tetheredNodeTypeDefinitions->toArray()))
+                                . implode(', ', $expectedTetheredNodeOrder)
                                 . ' - actual: '
                                 . implode(', ', array_keys($actualTetheredChildNodes)),
                             fn () => $this->reorderNodes(
@@ -157,7 +159,7 @@ class TetheredNodeAdjustments
                                 $this->contentGraph->getContentStreamId(),
                                 $nodeAggregate->getCoverageByOccupant($originDimensionSpacePoint),
                                 $actualTetheredChildNodes,
-                                array_keys($nodeType->tetheredNodeTypeDefinitions->toArray())
+                                $expectedTetheredNodeOrder
                             )
                         );
                     }
@@ -216,7 +218,7 @@ class TetheredNodeAdjustments
      * array key: name of tethered child node. Value: the Node itself.
      * @param array<string,Node> $actualTetheredChildNodes
      * an array depicting the expected tethered order, like ["node1", "node2"]
-     * @param array<int,string> $expectedNodeOrdering
+     * @param array<int<2,max>,string> $expectedNodeOrdering
      */
     private function reorderNodes(
         WorkspaceName $workspaceName,
@@ -254,6 +256,7 @@ class TetheredNodeAdjustments
             $succeedingSiblingNodeName = $nodeNameToMove;
         }
 
+        /** @var non-empty-array<NodeAggregateWasMoved> $events */
         $streamName = ContentStreamEventStreamName::fromContentStreamId($contentStreamId);
         return new EventsToPublish(
             $streamName->getEventStreamName(),
