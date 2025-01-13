@@ -269,6 +269,22 @@
         <source>The workspace "{0}" has been created.</source>
         <target state="translated">A área de trabalho "{0}" foi criada.</target>
       </trans-unit>
+      <trans-unit id="workspaces.reviewWorkspace.label" xml:space="preserve">
+        <source>Review</source>
+        <target state="needs-translation">Revisão</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.lastModified" xml:space="preserve">
+        <source>Last modified</source>
+        <target state="needs-translation">Última modificação</target>
+      </trans-unit>
+      <trans-unit id="applyChanges" xml:space="preserve">
+        <source>Apply changes</source>
+        <target state="needs-translation">Aplicar alterações</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.status" xml:space="preserve">
+        <source>Status</source>
+        <target state="needs-translation">Estado</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>
