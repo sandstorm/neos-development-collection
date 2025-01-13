@@ -253,6 +253,22 @@
         <source>All changes from workspace "{0}" have been discarded.</source>
         <target state="final">Wszystkie zmiany z obszaru roboczego "{0}" zostały odrzucone.</target>
       </trans-unit>
+      <trans-unit id="applyChanges" xml:space="preserve">
+        <source>Apply changes</source>
+        <target state="needs-translation">Zastosuj zmiany</target>
+      </trans-unit>
+      <trans-unit id="workspaces.reviewWorkspace.label" xml:space="preserve">
+        <source>Review</source>
+        <target state="needs-translation">Recenzuj</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.status" xml:space="preserve">
+        <source>Status</source>
+        <target state="needs-translation">Status</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.lastModified" xml:space="preserve">
+        <source>Last modified</source>
+        <target state="needs-translation">Ostatnia modyfikacja</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>
