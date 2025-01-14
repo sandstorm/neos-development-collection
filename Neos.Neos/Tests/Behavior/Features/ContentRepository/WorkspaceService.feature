@@ -29,12 +29,15 @@ Feature: Neos WorkspaceService related features
 
   Scenario: Create root workspace with a name that exceeds the workspace name max length
     When the root workspace "some-name-that-exceeds-the-max-allowed-length" is created
-    Then an exception 'Invalid workspace name "some-name-that-exceeds-the-max-allowed-length" given. A workspace name has to consist of at most 36 lower case characters' should be thrown
+    Then an exception of type "InvalidArgumentException" should be thrown with message:
+    """
+    Invalid workspace name "some-name-that-exceeds-the-max-allowed-length" given. A workspace name has to consist of at most 36 lower case characters
+    """
 
   Scenario: Create root workspace with a name that is already used
     Given the root workspace "some-root-workspace" is created
     When the root workspace "some-root-workspace" is created
-    Then an exception "The workspace some-root-workspace already exists" should be thrown
+    Then an exception of type "WorkspaceAlreadyExists" should be thrown
 
   Scenario: Get metadata of non-existing root workspace
     When a root workspace "some-root-workspace" exists without metadata
@@ -48,6 +51,13 @@ Feature: Neos WorkspaceService related features
     Then the workspace "some-root-workspace" should have the following metadata:
       | Title                    | Description | Classification | Owner user id |
       | Some new workspace title |             | ROOT           |               |
+
+  Scenario: Change title of root workspace to the same value
+    When the root workspace "some-root-workspace" with title "some title" and description "some description" is created
+    And the title of workspace "some-root-workspace" is set to "some title"
+    Then the workspace "some-root-workspace" should have the following metadata:
+      | Title      | Description      | Classification | Owner user id |
+      | some title | some description | ROOT           |               |
 
   Scenario: Set title of root workspace without metadata
     When a root workspace "some-root-workspace" exists without metadata
@@ -63,6 +73,13 @@ Feature: Neos WorkspaceService related features
       | Title               | Description                    | Classification | Owner user id |
       | some-root-workspace | Some new workspace description | ROOT           |               |
 
+  Scenario: Change description of root workspace to the same value
+    When the root workspace "some-root-workspace" with title "some title" and description "some description" is created
+    And the description of workspace "some-root-workspace" is set to "some description"
+    Then the workspace "some-root-workspace" should have the following metadata:
+      | Title      | Description      | Classification | Owner user id |
+      | some title | some description | ROOT           |               |
+
   Scenario: Change description of root workspace without metadata
     When a root workspace "some-root-workspace" exists without metadata
     And the description of workspace "some-root-workspace" is set to "Some new workspace description"
@@ -70,13 +87,38 @@ Feature: Neos WorkspaceService related features
       | Title               | Description                    | Classification | Owner user id |
       | some-root-workspace | Some new workspace description | ROOT           |               |
 
-
   Scenario: Create a single personal workspace
     When the root workspace "some-root-workspace" is created
-    And the personal workspace "some-user-workspace" is created with the target workspace "some-root-workspace" for user "some-user-id"
+    Then the user "jane.doe" does not have a personal workspace
+    And the personal workspace "some-user-workspace" is created with the target workspace "some-root-workspace" for user "jane.doe"
+    Then the personal workspace for user "jane.doe" is "some-user-workspace"
     Then the workspace "some-user-workspace" should have the following metadata:
       | Title               | Description | Classification | Owner user id |
-      | some-user-workspace |             | PERSONAL       | some-user-id  |
+      | some-user-workspace |             | PERSONAL       | janedoe       |
+
+  Scenario: Personal workspace names are unique https://github.com/neos/neos-development-collection/issues/2850
+    And the following Neos users exist:
+      | Id  | Username  | First name | Last name | Roles                   |
+      | 123 | test-user | Test       | User      | Neos.Neos:Administrator |
+      | 456 | test.user | Test       | User      | Neos.Neos:Administrator |
+
+    When the root workspace "live" is created
+
+    When a personal workspace for user "test-user" is created
+    Then the personal workspace for user "test-user" is "test-user"
+
+    When a personal workspace for user "test.user" is created
+    Then the personal workspace for user "test.user" is "test-user-1"
+
+  Scenario: A user cannot have multiple personal workspaces
+    When the root workspace "some-root-workspace" is created
+    And the personal workspace "a-user-workspace" is created with the target workspace "some-root-workspace" for user "jane.doe"
+    And the personal workspace "b-user-workspace" is created with the target workspace "some-root-workspace" for user "jane.doe"
+    Then an exception of type "RuntimeException" should be thrown with message:
+    """
+    Failed to create personal workspace "b-user-workspace" for user with id "janedoe", because the workspace "a-user-workspace" is already assigned to the user
+    """
+    Then the personal workspace for user "jane.doe" is "a-user-workspace"
 
   Scenario: Create a single shared workspace
     When the root workspace "some-root-workspace" is created
@@ -85,16 +127,36 @@ Feature: Neos WorkspaceService related features
       | Title                 | Description | Classification | Owner user id |
       | some-shared-workspace |             | SHARED         |               |
 
-  Scenario: Get metadata of non-existing sub workspace
+  Scenario: Get metadata of a sub workspace which is directly created via the content repository
     Given the root workspace "some-root-workspace" is created
-    When a workspace "some-workspace" with base workspace "some-root-workspace" exists without metadata
+    # dont use the workspace service here:
+    When the command CreateWorkspace is executed with payload:
+      | Key                | Value                 |
+      | workspaceName      | "some-workspace"      |
+      | baseWorkspaceName  | "some-root-workspace" |
+      | newContentStreamId | "any-cs"              |
+
     Then the workspace "some-workspace" should have the following metadata:
       | Title          | Description | Classification | Owner user id |
       | some-workspace |             | UNKNOWN        |               |
 
+  Scenario: Get metadata or roles if the workspace does not exist
+    Then the metadata for workspace "non-existing-workspace" does not exist
+    Then the roles for workspace "non-existing-workspace" does not exist
+
+    When the root workspace "some-root-workspace" with title "Some root workspace" and description "Some description" is created
+    And the role COLLABORATOR is assigned to workspace "some-root-workspace" for group "Neos.Neos:AbstractEditor"
+    Given the workspace "some-root-workspace" is deleted
+
+    Then the metadata for workspace "some-root-workspace" does not exist
+    Then the roles for workspace "some-root-workspace" does not exist
+
   Scenario: Assign role to non-existing workspace
     When the role COLLABORATOR is assigned to workspace "some-workspace" for group "Neos.Neos:AbstractEditor"
-    Then an exception 'Failed to find workspace with name "some-workspace" for content repository "default"' should be thrown
+    Then an exception of type "WorkspaceDoesNotExist" should be thrown with message:
+    """
+    The workspace "some-workspace" does not exist in content repository "default"
+    """
 
   Scenario: Assign group role to root workspace
     Given the root workspace "some-root-workspace" is created
@@ -107,46 +169,59 @@ Feature: Neos WorkspaceService related features
     Given the root workspace "some-root-workspace" is created
     When the role COLLABORATOR is assigned to workspace "some-root-workspace" for group "Neos.Neos:AbstractEditor"
     And the role MANAGER is assigned to workspace "some-root-workspace" for group "Neos.Neos:AbstractEditor"
-    Then an exception 'Failed to assign role for workspace "some-root-workspace" to subject "Neos.Neos:AbstractEditor" (Content Repository "default"): There is already a role assigned for that user/group, please unassign that first' should be thrown
+    Then an exception of type "RuntimeException" should be thrown with message:
+    """
+    Failed to assign role for workspace "some-root-workspace" to subject "Neos.Neos:AbstractEditor" (Content Repository "default"): There is already a role assigned for that user/group, please unassign that first
+    """
 
   Scenario: Assign user role to root workspace
     Given the root workspace "some-root-workspace" is created
-    When the role MANAGER is assigned to workspace "some-root-workspace" for user "some-user-id"
+    When the role MANAGER is assigned to workspace "some-root-workspace" for user "jane.doe"
     Then the workspace "some-root-workspace" should have the following role assignments:
-      | Subject type | Subject      | Role    |
-      | USER         | some-user-id | MANAGER |
+      | Subject type | Subject | Role    |
+      | USER         | janedoe | MANAGER |
 
   Scenario: Assign a role to the same user twice
     Given the root workspace "some-root-workspace" is created
-    When the role COLLABORATOR is assigned to workspace "some-root-workspace" for user "some-user-id"
-    And the role MANAGER is assigned to workspace "some-root-workspace" for user "some-user-id"
-    Then an exception 'Failed to assign role for workspace "some-root-workspace" to subject "some-user-id" (Content Repository "default"): There is already a role assigned for that user/group, please unassign that first' should be thrown
+    When the role COLLABORATOR is assigned to workspace "some-root-workspace" for user "john.doe"
+    And the role MANAGER is assigned to workspace "some-root-workspace" for user "john.doe"
+    Then an exception of type "RuntimeException" should be thrown with message:
+    """
+    Failed to assign role for workspace "some-root-workspace" to subject "johndoe" (Content Repository "default"): There is already a role assigned for that user/group, please unassign that first
+    """
 
   Scenario: Unassign role from non-existing workspace
     When the role for group "Neos.Neos:AbstractEditor" is unassigned from workspace "some-workspace"
-    Then an exception 'Failed to find workspace with name "some-workspace" for content repository "default"' should be thrown
+    Then an exception of type "WorkspaceDoesNotExist" should be thrown with message:
+    """
+    The workspace "some-workspace" does not exist in content repository "default"
+    """
 
   Scenario: Unassign role from workspace that has not been assigned before
     Given the root workspace "some-root-workspace" is created
     When the role for group "Neos.Neos:AbstractEditor" is unassigned from workspace "some-root-workspace"
-    Then an exception 'Failed to unassign role for subject "Neos.Neos:AbstractEditor" from workspace "some-root-workspace" (Content Repository "default"): No role assignment exists for this user/group' should be thrown
+    Then an exception of type "RuntimeException" should be thrown with message:
+    """
+    Failed to unassign role for subject "Neos.Neos:AbstractEditor" from workspace "some-root-workspace" (Content Repository "default"): No role assignment exists for this user/group
+    """
 
   Scenario: Assign two roles, then unassign one
     Given the root workspace "some-root-workspace" is created
-    And the role MANAGER is assigned to workspace "some-root-workspace" for user "some-user-id"
+    And the role MANAGER is assigned to workspace "some-root-workspace" for user "jane.doe"
     And the role COLLABORATOR is assigned to workspace "some-root-workspace" for group "Neos.Neos:AbstractEditor"
     Then the workspace "some-root-workspace" should have the following role assignments:
       | Subject type | Subject                  | Role         |
       | GROUP        | Neos.Neos:AbstractEditor | COLLABORATOR |
-      | USER         | some-user-id             | MANAGER      |
+      | USER         | janedoe                  | MANAGER      |
     When the role for group "Neos.Neos:AbstractEditor" is unassigned from workspace "some-root-workspace"
     Then the workspace "some-root-workspace" should have the following role assignments:
-      | Subject type | Subject      | Role    |
-      | USER         | some-user-id | MANAGER |
+      | Subject type | Subject | Role    |
+      | USER         | janedoe | MANAGER |
 
   Scenario: Workspace permissions for personal workspace for admin user
     Given the root workspace "live" is created
     When a personal workspace for user "jane.doe" is created
+    Then the personal workspace for user "jane.doe" is "jane-doe"
     Then the workspace "jane-doe" should have the following metadata:
       | Title    | Description | Classification | Owner user id |
       | Jane Doe |             | PERSONAL       | janedoe       |
@@ -186,14 +261,14 @@ Feature: Neos WorkspaceService related features
 
   Scenario: Workspace permissions for collaborator by user
     When the root workspace "some-root-workspace" is created
-    When the role COLLABORATOR is assigned to workspace "some-root-workspace" for user "johndoe"
+    When the role COLLABORATOR is assigned to workspace "some-root-workspace" for user "john.doe"
     Then the Neos user "jane.doe" should have the permissions "manage" for workspace "some-root-workspace"
     And the Neos user "john.doe" should have the permissions "read,write" for workspace "some-root-workspace"
     And the Neos user "editor" should have no permissions for workspace "some-root-workspace"
 
   Scenario: Workspace permissions for manager by user
     When the root workspace "some-root-workspace" is created
-    When the role MANAGER is assigned to workspace "some-root-workspace" for user "johndoe"
+    When the role MANAGER is assigned to workspace "some-root-workspace" for user "john.doe"
     Then the Neos user "jane.doe" should have the permissions "manage" for workspace "some-root-workspace"
     And the Neos user "john.doe" should have the permissions "read,write,manage" for workspace "some-root-workspace"
     And the Neos user "editor" should have no permissions for workspace "some-root-workspace"
@@ -212,7 +287,7 @@ Feature: Neos WorkspaceService related features
 
   Scenario: Permissions for workspace without metadata
     Given a root workspace "some-root-workspace" exists without metadata
-    When the role COLLABORATOR is assigned to workspace "some-root-workspace" for user "janedoe"
+    When the role COLLABORATOR is assigned to workspace "some-root-workspace" for user "jane.doe"
     Then the Neos user "jane.doe" should have the permissions "read,write,manage" for workspace "some-root-workspace"
     And the Neos user "john.doe" should have no permissions for workspace "some-root-workspace"
     And the Neos user "editor" should have no permissions for workspace "some-root-workspace"

@@ -9,8 +9,6 @@ use Behat\Gherkin\Node\TableNode;
 use Neos\Behat\FlowBootstrapTrait;
 use Neos\ContentGraph\DoctrineDbalAdapter\Tests\Behavior\Features\Bootstrap\CrImportExportTrait;
 use Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\CRBehavioralTestsSubjectProvider;
-use Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinPyStringNodeBasedNodeTypeManagerFactory;
-use Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinTableNodeBasedContentDimensionSourceFactory;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryDependencies;
@@ -30,6 +28,8 @@ use Neos\ContentRepository\LegacyNodeMigration\Processors\EventExportProcessor;
 use Neos\ContentRepository\LegacyNodeMigration\Processors\SitesExportProcessor;
 use Neos\ContentRepository\LegacyNodeMigration\RootNodeTypeMapping;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\CRTestSuiteTrait;
+use Neos\ContentRepository\TestSuite\Fakes\FakeNodeTypeManagerFactory;
+use Neos\ContentRepository\TestSuite\Fakes\FakeContentDimensionSourceFactory;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Property\PropertyMapper;
 use Neos\Flow\ResourceManagement\PersistentResource;
@@ -103,24 +103,26 @@ class FeatureContext implements Context
         $propertyMapper = $this->getObject(PropertyMapper::class);
 
         // HACK to access the property converter
-        $propertyConverterAccess = new class implements ContentRepositoryServiceFactoryInterface {
+        $crInternalsAccess = new class implements ContentRepositoryServiceFactoryInterface {
             public PropertyConverter|null $propertyConverter;
+            public EventNormalizer|null $eventNormalizer;
             public function build(ContentRepositoryServiceFactoryDependencies $serviceFactoryDependencies): ContentRepositoryServiceInterface
             {
                 $this->propertyConverter = $serviceFactoryDependencies->propertyConverter;
+                $this->eventNormalizer = $serviceFactoryDependencies->eventNormalizer;
                 return new class implements ContentRepositoryServiceInterface
                 {
                 };
             }
         };
-        $this->getContentRepositoryService($propertyConverterAccess);
+        $this->getContentRepositoryService($crInternalsAccess);
 
         $eventExportProcessor = new EventExportProcessor(
             $nodeTypeManager,
             $propertyMapper,
-            $propertyConverterAccess->propertyConverter,
+            $crInternalsAccess->propertyConverter,
             $this->currentContentRepository->getVariationGraph(),
-            $this->getObject(EventNormalizer::class),
+            $crInternalsAccess->eventNormalizer,
             $rootNodeTypeMapping ?? RootNodeTypeMapping::fromArray(['/sites' => NodeTypeNameFactory::NAME_SITES]),
             $this->nodeDataRows
         );
@@ -266,8 +268,8 @@ class FeatureContext implements Context
     ): ContentRepository {
         $this->contentRepositoryRegistry->resetFactoryInstance($contentRepositoryId);
         $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
-        GherkinTableNodeBasedContentDimensionSourceFactory::reset();
-        GherkinPyStringNodeBasedNodeTypeManagerFactory::reset();
+        FakeContentDimensionSourceFactory::reset();
+        FakeNodeTypeManagerFactory::reset();
 
         return $contentRepository;
     }

@@ -16,7 +16,7 @@ namespace Neos\Neos\Domain\Service;
 
 use League\Flysystem\Filesystem;
 use League\Flysystem\Local\LocalFilesystemAdapter;
-use Neos\ContentRepository\Core\Service\ContentStreamPrunerFactory;
+use Neos\ContentRepository\Core\Service\ContentRepositoryMaintainerFactory;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Export\ProcessingContext;
@@ -24,8 +24,6 @@ use Neos\ContentRepository\Export\ProcessorInterface;
 use Neos\ContentRepository\Export\Processors;
 use Neos\ContentRepository\Export\Severity;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
-use Neos\ContentRepositoryRegistry\Processors\ProjectionResetProcessor;
-use Neos\ContentRepositoryRegistry\Service\ProjectionServiceFactory;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Persistence\PersistenceManagerInterface;
 use Neos\Neos\Domain\Pruning\ContentRepositoryPruningProcessor;
@@ -33,6 +31,7 @@ use Neos\Neos\Domain\Pruning\RoleAndMetadataPruningProcessor;
 use Neos\Neos\Domain\Pruning\SitePruningProcessor;
 use Neos\Neos\Domain\Repository\DomainRepository;
 use Neos\Neos\Domain\Repository\SiteRepository;
+use Neos\Neos\Domain\Repository\WorkspaceMetadataAndRoleRepository;
 
 #[Flow\Scope('singleton')]
 final readonly class SitePruningService
@@ -42,7 +41,7 @@ final readonly class SitePruningService
         private SiteRepository $siteRepository,
         private DomainRepository $domainRepository,
         private PersistenceManagerInterface $persistenceManager,
-        private WorkspaceService $workspaceService,
+        private WorkspaceMetadataAndRoleRepository $workspaceMetadataAndRoleRepository,
     ) {
     }
 
@@ -65,17 +64,11 @@ final readonly class SitePruningService
                 $this->domainRepository,
                 $this->persistenceManager
             ),
+            'Prune roles and metadata' => new RoleAndMetadataPruningProcessor($contentRepositoryId, $this->workspaceMetadataAndRoleRepository),
             'Prune content repository' => new ContentRepositoryPruningProcessor(
                 $this->contentRepositoryRegistry->buildService(
                     $contentRepositoryId,
-                    new ContentStreamPrunerFactory()
-                )
-            ),
-            'Prune roles and metadata' => new RoleAndMetadataPruningProcessor($contentRepositoryId, $this->workspaceService),
-            'Reset all projections' => new ProjectionResetProcessor(
-                $this->contentRepositoryRegistry->buildService(
-                    $contentRepositoryId,
-                    new ProjectionServiceFactory()
+                    new ContentRepositoryMaintainerFactory()
                 )
             )
         ]);

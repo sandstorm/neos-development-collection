@@ -32,15 +32,15 @@ use Neos\ContentRepository\Core\Feature\RootNodeCreation\Event\RootNodeAggregate
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Event\SubtreeWasTagged;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Event\SubtreeWasUntagged;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasDiscarded;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPartiallyDiscarded;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Event\WorkspaceWasRebased;
-use Neos\ContentRepository\Core\Projection\CatchUpHookInterface;
+use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregate;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceDoesNotExist;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\EventStore\Model\EventEnvelope;
 
 /**
@@ -130,12 +130,11 @@ class GraphProjectorCatchUpHookForCacheFlushing implements CatchUpHookInterface
             SubtreeWasTagged::class,
             SubtreeWasUntagged::class,
             WorkspaceWasDiscarded::class,
-            WorkspaceWasPartiallyDiscarded::class,
             WorkspaceWasRebased::class
         ]);
     }
 
-    public function onBeforeCatchUp(): void
+    public function onBeforeCatchUp(SubscriptionStatus $subscriptionStatus): void
     {
     }
 
@@ -190,7 +189,6 @@ class GraphProjectorCatchUpHookForCacheFlushing implements CatchUpHookInterface
 
         if (
             $eventInstance instanceof WorkspaceWasDiscarded
-            || $eventInstance instanceof WorkspaceWasPartiallyDiscarded
             || $eventInstance instanceof WorkspaceWasRebased
         ) {
             $this->scheduleCacheFlushJobForWorkspaceName($this->contentRepositoryId, $eventInstance->workspaceName);
@@ -244,7 +242,7 @@ class GraphProjectorCatchUpHookForCacheFlushing implements CatchUpHookInterface
         );
     }
 
-    public function onBeforeBatchCompleted(): void
+    public function onAfterBatchCompleted(): void
     {
     }
 

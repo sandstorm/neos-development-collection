@@ -37,12 +37,22 @@ trait AssetUsageTrait
     abstract private function getObject(string $className): object;
 
     /**
+     * @BeforeScenario
+     */
+    final public function pruneAssetUsage(): void
+    {
+        foreach (static::$alreadySetUpContentRepositories as $contentRepositoryId) {
+            $this->getObject(\Neos\Neos\AssetUsage\Domain\AssetUsageRepository::class)->removeAll($contentRepositoryId);
+        }
+    }
+
+    /**
      * @Then I expect the AssetUsageService to have the following AssetUsages:
      */
     public function iExpectTheAssetUsageServiceToHaveTheFollowingAssetUsages(TableNode $table)
     {
         $assetUsageService = $this->getObject(AssetUsageService::class);
-        $assetUsages = $assetUsageService->findByFilter($this->currentContentRepository->id, AssetUsageFilter::create());
+        $assetUsages = iterator_to_array($assetUsageService->findByFilter($this->currentContentRepository->id, AssetUsageFilter::create()));
 
         $tableRows = $table->getHash();
         foreach ($assetUsages as $assetUsage) {
@@ -60,9 +70,10 @@ trait AssetUsageTrait
             }
         }
 
-        Assert::assertEmpty($tableRows, "Not all given asset usages where found.");
-        Assert::assertSame($assetUsages->count(), count($table->getHash()), "More asset usages found as given.");
-
+        Assert::assertTrue(
+            $tableRows === [] && count($assetUsages) === count($table->getHash()),
+            sprintf('Mismatch between all actual asset usages %s and leftover asset usages to match %s', json_encode($assetUsages, JSON_PRETTY_PRINT), json_encode($tableRows, JSON_PRETTY_PRINT))
+        );
     }
 
     /**

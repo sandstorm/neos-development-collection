@@ -96,9 +96,17 @@ Feature: Discard individual nodes (basics)
     When the command DiscardIndividualNodesFromWorkspace is executed with payload:
       | Key                | Value                                                                                                        |
       | workspaceName      | "user-test"                                                                                                  |
-      | nodesToDiscard     | [{"workspaceName": "user-test", "dimensionSpacePoint": {}, "nodeAggregateId": "sir-nodeward-nodington-iii"}] |
+      | nodesToDiscard     | ["sir-nodeward-nodington-iii"] |
       | newContentStreamId | "user-cs-identifier-new"                                                                                     |
     Then I expect the content stream "user-cs-identifier" to not exist
+
+    Then I expect exactly 2 events to be published on stream with prefix "Workspace:user-test"
+    And event at index 1 is of type "WorkspaceWasDiscarded" with payload:
+      | Key                     | Expected                 |
+      | workspaceName           | "user-test"              |
+      | newContentStreamId      | "user-cs-identifier-new" |
+      | previousContentStreamId | "user-cs-identifier"     |
+      | partial                 | true                     |
 
     When I am in workspace "user-test" and dimension space point {}
     Then I expect node aggregate identifier "sir-david-nodenborough" to lead to node user-cs-identifier-new;sir-david-nodenborough;{}
@@ -126,7 +134,7 @@ Feature: Discard individual nodes (basics)
     When the command DiscardIndividualNodesFromWorkspace is executed with payload:
       | Key                             | Value                                                                                                                                  |
       | workspaceName                   | "user-test"                                                                                                                            |
-      | nodesToDiscard                  | [{"dimensionSpacePoint": {}, "nodeAggregateId": "non-existing-node"}, {"dimensionSpacePoint": {}, "nodeAggregateId": "sir-unchanged"}] |
+      | nodesToDiscard                  | ["non-existing-node", "sir-unchanged"] |
       | newContentStreamId              | "user-cs-identifier-new-two"                                                                                                           |
 
     # all nodes are still on the original user cs
@@ -156,16 +164,16 @@ Feature: Discard individual nodes (basics)
     When the command DiscardIndividualNodesFromWorkspace is executed with payload:
       | Key                | Value                                                                                                                                                                                                                                                                                                                  |
       | workspaceName      | "user-test"                                                                                                                                                                                                                                                                                                            |
-      | nodesToDiscard     | [{"workspaceName": "user-test", "dimensionSpacePoint": {}, "nodeAggregateId": "sir-david-nodenborough"}, {"workspaceName": "user-test", "dimensionSpacePoint": {}, "nodeAggregateId": "nody-mc-nodeface"}, {"workspaceName": "user-test", "dimensionSpacePoint": {}, "nodeAggregateId": "sir-nodeward-nodington-iii"}] |
+      | nodesToDiscard     | ["sir-david-nodenborough", "nody-mc-nodeface", "sir-nodeward-nodington-iii"] |
       | newContentStreamId | "user-cs-identifier-new"                                                                                                                                                                                                                                                                                               |
 
-    # when discarding all nodes we expect a full discard via WorkspaceWasDiscarded
     Then I expect exactly 2 events to be published on stream with prefix "Workspace:user-test"
     And event at index 1 is of type "WorkspaceWasDiscarded" with payload:
       | Key                     | Expected                 |
       | workspaceName           | "user-test"              |
       | newContentStreamId      | "user-cs-identifier-new" |
       | previousContentStreamId | "user-cs-identifier"     |
+      | partial                 | false                    |
 
     When I am in workspace "user-test" and dimension space point {}
     Then I expect node aggregate identifier "sir-david-nodenborough" to lead to node user-cs-identifier-new;sir-david-nodenborough;{}
@@ -186,7 +194,7 @@ Feature: Discard individual nodes (basics)
     When the command DiscardIndividualNodesFromWorkspace is executed with payload:
       | Key            | Value                                                                                                        |
       | workspaceName  | "user-test"                                                                                                  |
-      | nodesToDiscard | [{"workspaceName": "user-test", "dimensionSpacePoint": {}, "nodeAggregateId": "sir-nodeward-nodington-iii"}] |
+      | nodesToDiscard | ["sir-nodeward-nodington-iii"] |
 
     # live WS does not change because of a discard
     When I am in workspace "live" and dimension space point {}

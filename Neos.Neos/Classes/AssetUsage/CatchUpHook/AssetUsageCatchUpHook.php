@@ -7,7 +7,6 @@ namespace Neos\Neos\AssetUsage\CatchUpHook;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
 use Neos\ContentRepository\Core\EventStore\EventInterface;
-use Neos\ContentRepository\Core\Feature\Common\EmbedsContentStreamId;
 use Neos\ContentRepository\Core\Feature\Common\EmbedsWorkspaceName;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Event\DimensionSpacePointWasMoved;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Event\NodeAggregateWithNodeWasCreated;
@@ -16,10 +15,8 @@ use Neos\ContentRepository\Core\Feature\NodeRemoval\Event\NodeAggregateWasRemove
 use Neos\ContentRepository\Core\Feature\NodeVariation\Event\NodeGeneralizationVariantWasCreated;
 use Neos\ContentRepository\Core\Feature\NodeVariation\Event\NodePeerVariantWasCreated;
 use Neos\ContentRepository\Core\Feature\NodeVariation\Event\NodeSpecializationVariantWasCreated;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Dto\NodeIdsToPublishOrDiscard;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasDiscarded;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPartiallyDiscarded;
-use Neos\ContentRepository\Core\Projection\CatchUpHookInterface;
+use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindDescendantNodesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
@@ -28,6 +25,7 @@ use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryI
 use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceDoesNotExist;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\EventStore\Model\EventEnvelope;
 use Neos\Neos\AssetUsage\Service\AssetUsageIndexingService;
 
@@ -43,7 +41,7 @@ class AssetUsageCatchUpHook implements CatchUpHookInterface
     ) {
     }
 
-    public function onBeforeCatchUp(): void
+    public function onBeforeCatchUp(SubscriptionStatus $subscriptionStatus): void
     {
     }
 
@@ -60,7 +58,6 @@ class AssetUsageCatchUpHook implements CatchUpHookInterface
 
         match ($eventInstance::class) {
             NodeAggregateWasRemoved::class => $this->removeNodes($eventInstance->getWorkspaceName(), $eventInstance->nodeAggregateId, $eventInstance->affectedCoveredDimensionSpacePoints),
-            WorkspaceWasPartiallyDiscarded::class => $this->discardNodes($eventInstance->getWorkspaceName(), $eventInstance->discardedNodes),
             default => null
         };
     }
@@ -88,8 +85,7 @@ class AssetUsageCatchUpHook implements CatchUpHookInterface
         };
     }
 
-
-    public function onBeforeBatchCompleted(): void
+    public function onAfterBatchCompleted(): void
     {
     }
 
@@ -118,17 +114,23 @@ class AssetUsageCatchUpHook implements CatchUpHookInterface
         $contentGraph = $this->contentGraphReadModel->getContentGraph($workspaceName);
 
         foreach ($dimensionSpacePoints as $dimensionSpacePoint) {
+            $this->assetUsageIndexingService->removeIndexForWorkspaceNameNodeAggregateIdAndDimensionSpacePoint(
+                $this->contentRepositoryId,
+                $workspaceName,
+                $nodeAggregateId,
+                $dimensionSpacePoint
+            );
+
             $subgraph = $contentGraph->getSubgraph($dimensionSpacePoint, VisibilityConstraints::withoutRestrictions());
-            $node = $subgraph->findNodeById($nodeAggregateId);
             $descendants = $subgraph->findDescendantNodes($nodeAggregateId, FindDescendantNodesFilter::create());
 
-            $nodes = array_merge([$node], iterator_to_array($descendants));
-
-            /** @var Node $node */
-            foreach ($nodes as $node) {
-                $this->assetUsageIndexingService->removeIndexForNode(
+            /** @var Node $descendant */
+            foreach ($descendants as $descendant) {
+                $this->assetUsageIndexingService->removeIndexForWorkspaceNameNodeAggregateIdAndDimensionSpacePoint(
                     $this->contentRepositoryId,
-                    $node
+                    $descendant->workspaceName,
+                    $descendant->aggregateId,
+                    $descendant->dimensionSpacePoint
                 );
             }
         }
@@ -137,22 +139,6 @@ class AssetUsageCatchUpHook implements CatchUpHookInterface
     private function discardWorkspace(WorkspaceName $workspaceName): void
     {
         $this->assetUsageIndexingService->removeIndexForWorkspace($this->contentRepositoryId, $workspaceName);
-    }
-
-    private function discardNodes(WorkspaceName $workspaceName, NodeIdsToPublishOrDiscard $nodeIds): void
-    {
-        foreach ($nodeIds as $nodeId) {
-            if (!$nodeId->dimensionSpacePoint) {
-                // NodeAggregateTypeWasChanged and NodeAggregateNameWasChanged don't impact asset usage
-                continue;
-            }
-            $this->assetUsageIndexingService->removeIndexForWorkspaceNameNodeAggregateIdAndDimensionSpacePoint(
-                $this->contentRepositoryId,
-                $workspaceName,
-                $nodeId->nodeAggregateId,
-                $nodeId->dimensionSpacePoint
-            );
-        }
     }
 
     private function updateDimensionSpacePoint(WorkspaceName $workspaceName, DimensionSpacePoint $source, DimensionSpacePoint $target): void

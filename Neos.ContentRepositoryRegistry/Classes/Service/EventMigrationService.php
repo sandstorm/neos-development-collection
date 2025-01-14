@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepositoryRegistry\Service;
 
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
+use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNodeAndSerializedProperties;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\DisableNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\EnableNodeAggregate;
@@ -15,27 +17,40 @@ use Neos\ContentRepository\Core\Feature\NodeDuplication\Command\CopyNodesRecursi
 use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetSerializedNodeProperties;
 use Neos\ContentRepository\Core\Feature\NodeMove\Command\MoveNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Command\SetSerializedNodeReferences;
-use Neos\ContentRepository\Core\Feature\NodeReferencing\Event\NodeReferencesWereSet;
 use Neos\ContentRepository\Core\Feature\NodeRemoval\Command\RemoveNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeRenaming\Command\ChangeNodeAggregateName;
 use Neos\ContentRepository\Core\Feature\NodeTypeChange\Command\ChangeNodeAggregateType;
 use Neos\ContentRepository\Core\Feature\NodeVariation\Command\CreateNodeVariant;
 use Neos\ContentRepository\Core\Feature\RootNodeCreation\Command\CreateRootNodeAggregateWithNode;
 use Neos\ContentRepository\Core\Feature\RootNodeCreation\Command\UpdateRootNodeAggregateDimensions;
+use Neos\ContentRepository\Core\Feature\WorkspaceEventStreamName;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateClassification;
+use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
+use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
+use Neos\ContentRepository\Core\Subscription\Store\SubscriptionCriteria;
+use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
+use Neos\ContentRepository\Core\Subscription\Subscription;
+use Neos\ContentRepository\Core\Subscription\SubscriptionId;
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\ContentRepositoryRegistry\Command\MigrateEventsCommandController;
 use Neos\ContentRepositoryRegistry\Factory\EventStore\DoctrineEventStoreFactory;
 use Neos\EventStore\EventStoreInterface;
+use Neos\EventStore\Model\Event;
+use Neos\EventStore\Model\Event\EventMetadata;
 use Neos\EventStore\Model\Event\EventType;
 use Neos\EventStore\Model\Event\EventTypes;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Neos\EventStore\Model\EventEnvelope;
+use Neos\EventStore\Model\Events;
 use Neos\EventStore\Model\EventStream\EventStreamFilter;
+use Neos\EventStore\Model\EventStream\ExpectedVersion;
 use Neos\EventStore\Model\EventStream\VirtualStreamName;
 use Neos\Neos\Domain\Model\WorkspaceClassification;
 use Neos\Neos\Domain\Model\WorkspaceRole;
 use Neos\Neos\Domain\Model\WorkspaceRoleSubjectType;
+use Doctrine\DBAL\Exception as DBALException;
 
 /**
  * Content Repository service to perform migrations of events.
@@ -51,6 +66,7 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
     private array $eventsModified = [];
 
     public function __construct(
+        private readonly SubscriptionEngine $subscriptionEngine,
         private readonly ContentRepositoryId $contentRepositoryId,
         private readonly EventStoreInterface $eventStore,
         private readonly Connection $connection
@@ -699,27 +715,32 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
             } catch (UniqueConstraintViolationException) {
                 $outputFn('  Metadata already exists');
             }
-            $roleAssignment = [];
+            $roleAssignments = [];
             if ($workspaceName->isLive()) {
-                $roleAssignment = [
+                $roleAssignments[] = [
                     'subject_type' => WorkspaceRoleSubjectType::GROUP->value,
                     'subject' => 'Neos.Neos:LivePublisher',
                     'role' => WorkspaceRole::COLLABORATOR->value,
                 ];
+                $roleAssignments[] = [
+                    'subject_type' => WorkspaceRoleSubjectType::GROUP->value,
+                    'subject' => 'Neos.Flow:Everybody',
+                    'role' => WorkspaceRole::VIEWER->value,
+                ];
             } elseif ($isInternalWorkspace) {
-                $roleAssignment = [
+                $roleAssignments[] = [
                     'subject_type' => WorkspaceRoleSubjectType::GROUP->value,
                     'subject' => 'Neos.Neos:AbstractEditor',
                     'role' => WorkspaceRole::COLLABORATOR->value,
                 ];
             } elseif ($isPrivateWorkspace) {
-                $roleAssignment = [
+                $roleAssignments[] = [
                     'subject_type' => WorkspaceRoleSubjectType::USER->value,
                     'subject' => $workspaceOwner,
                     'role' => WorkspaceRole::COLLABORATOR->value,
                 ];
             }
-            if ($roleAssignment !== []) {
+            foreach ($roleAssignments as $roleAssignment) {
                 try {
                     $this->connection->insert('neos_neos_workspace_role', [
                         'content_repository_id' => $this->contentRepositoryId->value,
@@ -734,6 +755,232 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
             $addedWorkspaceMetadata++;
         }
         $outputFn(sprintf('Added metadata & role assignments for %d workspaces.', $addedWorkspaceMetadata));
+    }
+
+    /**
+     * Reorders all NodeAggregateWasMoved events to allow replaying in case orphaned nodes existed in previous betas
+     */
+    public function reorderNodeAggregateWasRemoved(\Closure $outputFn): void
+    {
+        $liveWorkspaceContentStreamId = null;
+        // hardcoded to LIVE
+        foreach ($this->eventStore->load(WorkspaceEventStreamName::fromWorkspaceName(WorkspaceName::forLive())->getEventStreamName(), EventStreamFilter::create(EventTypes::create(EventType::fromString('RootWorkspaceWasCreated')))) as $eventEnvelope) {
+            $rootWorkspaceWasCreated = self::decodeEventPayload($eventEnvelope);
+            $liveWorkspaceContentStreamId = ContentStreamId::fromString($rootWorkspaceWasCreated['newContentStreamId']);
+            break;
+        }
+
+        if (!$liveWorkspaceContentStreamId) {
+            throw new \RuntimeException('Workspace live does not exist. No migration necessary.');
+        }
+
+        $backupEventTableName = DoctrineEventStoreFactory::databaseTableName($this->contentRepositoryId) . '_bkp_' . date('Y_m_d_H_i_s');
+        $outputFn('Backup: copying events table to %s', [$backupEventTableName]);
+        $this->copyEventTable($backupEventTableName);
+
+        $liveContentStreamName = ContentStreamEventStreamName::fromContentStreamId($liveWorkspaceContentStreamId)->getEventStreamName();
+
+        $duplicateNodeAggregateWasCreated = [];
+        $allNodeAggregateWasCreated = [];
+        foreach ($this->eventStore->load($liveContentStreamName, EventStreamFilter::create(EventTypes::create(EventType::fromString('NodeAggregateWithNodeWasCreated')))) as $eventEnvelope) {
+            $nodeAggregateWasCreated = self::decodeEventPayload($eventEnvelope);
+            if (isset($allNodeAggregateWasCreated[$nodeAggregateWasCreated['nodeAggregateId']])) {
+                $duplicateNodeAggregateWasCreated[] = $nodeAggregateWasCreated['nodeAggregateId'];
+            }
+            $allNodeAggregateWasCreated[$nodeAggregateWasCreated['nodeAggregateId']] = true;
+        }
+
+        $eventsToReorder = [];
+        // get all NodeAggregateWasRemoved from the live content stream
+        foreach ($this->eventStore->load($liveContentStreamName, EventStreamFilter::create(EventTypes::create(EventType::fromString('NodeAggregateWasRemoved')))) as $eventEnvelope) {
+            $nodeAggregateWasRemoved = self::decodeEventPayload($eventEnvelope);
+            if (in_array($nodeAggregateWasRemoved['nodeAggregateId'], $duplicateNodeAggregateWasCreated, true)) {
+                $outputFn(sprintf('Skipped reordering removal for %s because %s has multiple creation events.', $eventEnvelope->sequenceNumber->value, $nodeAggregateWasRemoved['nodeAggregateId']));
+                continue;
+            }
+            $eventsToReorder[] = $eventEnvelope;
+        }
+
+        if (!count($eventsToReorder)) {
+            $outputFn('Migration was not necessary.');
+            return;
+        }
+
+        // remove all the NodeAggregateWasRemoved events at their sequenceNumbers
+        $eventTableName = DoctrineEventStoreFactory::databaseTableName($this->contentRepositoryId);
+        $this->connection->beginTransaction();
+        $this->connection->executeStatement(
+            'DELETE FROM ' . $eventTableName . ' WHERE sequencenumber IN (:sequenceNumbers)',
+            [
+                'sequenceNumbers' => array_map(fn (EventEnvelope $eventEnvelope) => $eventEnvelope->sequenceNumber->value, $eventsToReorder)
+            ],
+            [
+                'sequenceNumbers' => ArrayParameterType::STRING
+            ]
+        );
+        $this->connection->commit();
+
+        $mapper = function (EventEnvelope $eventEnvelope): Event {
+            $metadata = $event->eventMetadata?->value ?? [];
+            $metadata['reorderedByMigration'] = sprintf('Originally recorded at %s with sequence number %d', $eventEnvelope->recordedAt->format(\DateTimeInterface::ATOM), $eventEnvelope->sequenceNumber->value);
+            return new Event(
+                $eventEnvelope->event->id,
+                $eventEnvelope->event->type,
+                $eventEnvelope->event->data,
+                EventMetadata::fromArray($metadata),
+                $eventEnvelope->event->causationId,
+                $eventEnvelope->event->correlationId
+            );
+        };
+
+        // reapply the NodeAggregateWasRemoved events
+        $this->eventStore->commit(
+            $liveContentStreamName,
+            Events::fromArray(array_map($mapper, $eventsToReorder)),
+            ExpectedVersion::ANY()
+        );
+
+        $outputFn(sprintf('Reordered %d removals. Please replay and rebase your other workspaces.', count($eventsToReorder)));
+    }
+
+    public function migrateCopyTetheredNode(\Closure $outputFn): void
+    {
+        $this->eventsModified = [];
+
+        $backupEventTableName = DoctrineEventStoreFactory::databaseTableName($this->contentRepositoryId)
+            . '_bkp_' . date('Y_m_d_H_i_s');
+        $outputFn(sprintf('Backup: copying events table to %s', $backupEventTableName));
+
+        $this->copyEventTable($backupEventTableName);
+
+        $streamName = VirtualStreamName::all();
+        $eventStream = $this->eventStore->load($streamName, EventStreamFilter::create(EventTypes::create(EventType::fromString('NodeAggregateWithNodeWasCreated'))));
+        foreach ($eventStream as $eventEnvelope) {
+            $outputRewriteNotice = fn(string $message) => $outputFn(sprintf('%s@%s %s', $eventEnvelope->sequenceNumber->value, $eventEnvelope->event->type->value, $message));
+            if ($eventEnvelope->event->type->value !== 'NodeAggregateWithNodeWasCreated') {
+                throw new \RuntimeException(sprintf('Unhandled event: %s', $eventEnvelope->event->type->value));
+            }
+
+            $eventMetaData = $eventEnvelope->event->metadata?->value;
+            // a copy is basically a NodeAggregateWithNodeWasCreated with CopyNodesRecursively command, so we skip others:
+            if (!$eventMetaData || ($eventMetaData['commandClass'] ?? null) !== CopyNodesRecursively::class) {
+                continue;
+            }
+
+            $eventData = self::decodeEventPayload($eventEnvelope);
+            if ($eventData['nodeAggregateClassification'] !== NodeAggregateClassification::CLASSIFICATION_TETHERED->value) {
+                // this copy is okay
+                continue;
+            }
+
+            $eventData['nodeAggregateClassification'] = NodeAggregateClassification::CLASSIFICATION_REGULAR->value;
+            $this->updateEventPayload($eventEnvelope->sequenceNumber, $eventData);
+
+            $eventMetaData['commandPayload']['nodeTreeToInsert']['nodeAggregateClassification'] = NodeAggregateClassification::CLASSIFICATION_REGULAR->value;
+
+            $this->updateEventMetaData($eventEnvelope->sequenceNumber, $eventMetaData);
+            $outputRewriteNotice(sprintf('Copied tethered node "%s" of type "%s" (name: %s) was migrated', $eventData['nodeAggregateId'], $eventData['nodeTypeName'], json_encode($eventData['nodeName'])));
+        }
+
+        if (!count($this->eventsModified)) {
+            $outputFn('Migration was not necessary.');
+            return;
+        }
+
+        $outputFn();
+        $outputFn(sprintf('Migration applied to %s events. Please replay the projections `./flow cr:projectionReplayAll`', count($this->eventsModified)));
+    }
+
+    public function copyNodesStatus(\Closure $outputFn): void
+    {
+        $unpublishedCopyNodesInWorkspaces = [];
+
+        $streamName = VirtualStreamName::all();
+        $eventStream = $this->eventStore->load($streamName, EventStreamFilter::create(EventTypes::create(EventType::fromString('NodeAggregateWithNodeWasCreated'))));
+        foreach ($eventStream as $eventEnvelope) {
+            $eventMetaData = $eventEnvelope->event->metadata?->value;
+            // a copy is basically a NodeAggregateWithNodeWasCreated with CopyNodesRecursively command, so we skip others:
+            if (!$eventMetaData || ($eventMetaData['commandClass'] ?? null) !== CopyNodesRecursively::class) {
+                continue;
+            }
+
+            $eventData = self::decodeEventPayload($eventEnvelope);
+
+            if ($eventData['workspaceName'] !== 'live') {
+                $unpublishedCopyNodesInWorkspaces[$eventData['contentStreamId'] . ' (' . $eventData['workspaceName'] . ')'][] = sprintf(
+                    '@%s copy node %s to %s',
+                    $eventEnvelope->sequenceNumber->value,
+                    $eventMetaData['commandPayload']['nodeTreeToInsert']['nodeAggregateId'],
+                    $eventMetaData['commandPayload']['targetParentNodeAggregateId']
+                );
+            }
+        }
+
+        if ($unpublishedCopyNodesInWorkspaces === []) {
+            $outputFn('Everything regarding copy nodes okay.');
+            return;
+        }
+        $outputFn('<comment>WARNING: %d content streams contain unpublished legacy copy node events. They MUST be published before migrating to Neos 9 (stable) and will not be publishable afterward.</comment>', [count($unpublishedCopyNodesInWorkspaces)]);
+        foreach ($unpublishedCopyNodesInWorkspaces as $contentStream => $unpublishedCopyNodesInWorkspace) {
+            $outputFn('<comment>Content stream %s</comment>', [$contentStream]);
+            foreach ($unpublishedCopyNodesInWorkspace as $unpublishedCopyNode) {
+                $outputFn('  - %s', [$unpublishedCopyNode]);
+            }
+        }
+        $outputFn('<comment>NOTE: To reduce the number of matched content streams and to cleanup the event store run `./flow contentStream:removeDangling` and `./flow contentStream:pruneRemovedFromEventStream`</comment>');
+    }
+
+    public function migrateCheckpointsToSubscriptions(\Closure $outputFn): void
+    {
+        /** @var SubscriptionStoreInterface $subscriptionStore */
+        $subscriptionStore = (new \ReflectionClass($this->subscriptionEngine))->getProperty('subscriptionStore')->getValue($this->subscriptionEngine);
+        $subscriptionStore->setup();
+
+        foreach ([
+            'contentGraph' => 'cr_%s_p_graph_checkpoint',
+            'Neos.Neos:DocumentUriPathProjection' => 'cr_%s_p_neos_documenturipath_checkpoint',
+            'Neos.Neos:PendingChangesProjection' => 'cr_%s_p_neos_change_checkpoint',
+        ] as $subscriberId => $projectionCheckpointTablePattern) {
+            $projectionCheckpointTable = sprintf($projectionCheckpointTablePattern, $this->contentRepositoryId->value);
+            try {
+                $rows = $this->connection->fetchAllAssociative("SELECT appliedsequencenumber from {$projectionCheckpointTable}");
+            } catch (DBALException $e) {
+                $outputFn(sprintf('<comment>Could not migrate subscriber %s</comment>, please replay: %s', $subscriberId, $e->getMessage()));
+                continue;
+            }
+            $first = reset($rows);
+            if (count($rows) !== 1 || !isset($first['appliedsequencenumber'])) {
+                $outputFn(sprintf('<comment>Could not migrate subscriber %s</comment>, please replay. Expected exactly one appliedsequencenumber', $subscriberId));
+                continue;
+            }
+
+            $subscription = $subscriptionStore->findByCriteriaForUpdate(SubscriptionCriteria::create([SubscriptionId::fromString($subscriberId)]))->first();
+
+            if ($subscription === null) {
+                $subscriptionStore->add(
+                    new Subscription(
+                        SubscriptionId::fromString($subscriberId),
+                        SubscriptionStatus::ACTIVE,
+                        SequenceNumber::fromInteger((int)$first['appliedsequencenumber']),
+                        null,
+                        null
+                    )
+                );
+                $outputFn(sprintf('<success>Added subscriber %s with active and position %s</success>', $subscriberId, $first['appliedsequencenumber']));
+            } else {
+                if ($subscription->status === SubscriptionStatus::ACTIVE) {
+                    $outputFn(sprintf('<success>Subscriber %s is already active</success>', $subscriberId));
+                    continue;
+                }
+                $subscriptionStore->update(
+                    SubscriptionId::fromString($subscriberId),
+                    SubscriptionStatus::ACTIVE,
+                    SequenceNumber::fromInteger((int)$first['appliedsequencenumber']),
+                    null
+                );
+                $outputFn(sprintf('<success>Updated subscriber %s to active and position %s</success>', $subscriberId, $first['appliedsequencenumber']));
+            }
+        }
     }
 
     /** ------------------------ */

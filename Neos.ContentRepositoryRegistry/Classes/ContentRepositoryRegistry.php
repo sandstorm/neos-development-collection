@@ -11,25 +11,29 @@ use Neos\ContentRepository\Core\Factory\CommandHooksFactory;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryFactory;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryInterface;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
-use Neos\ContentRepository\Core\Factory\ProjectionsAndCatchUpHooksFactory;
+use Neos\ContentRepository\Core\Factory\ContentRepositorySubscriberFactories;
+use Neos\ContentRepository\Core\Factory\ProjectionSubscriberFactory;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
-use Neos\ContentRepository\Core\Projection\CatchUpHookFactoryInterface;
+use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookFactories;
+use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookFactoryInterface;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionFactoryInterface;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
-use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionFactoryInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionFactoryInterface;
-use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryIds;
-use Neos\ContentRepository\Core\SharedModel\User\UserIdProviderInterface;
+use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
+use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepositoryRegistry\Exception\ContentRepositoryNotFoundException;
 use Neos\ContentRepositoryRegistry\Exception\InvalidConfigurationException;
+use Neos\ContentRepositoryRegistry\Factory\AuthProvider\AuthProviderFactoryInterface;
 use Neos\ContentRepositoryRegistry\Factory\Clock\ClockFactoryInterface;
 use Neos\ContentRepositoryRegistry\Factory\ContentDimensionSource\ContentDimensionSourceFactoryInterface;
 use Neos\ContentRepositoryRegistry\Factory\EventStore\EventStoreFactoryInterface;
 use Neos\ContentRepositoryRegistry\Factory\NodeTypeManager\NodeTypeManagerFactoryInterface;
-use Neos\ContentRepositoryRegistry\Factory\UserIdProvider\UserIdProviderFactoryInterface;
+use Neos\ContentRepositoryRegistry\Factory\SubscriptionStore\SubscriptionStoreFactoryInterface;
 use Neos\ContentRepositoryRegistry\SubgraphCachingInMemory\ContentSubgraphWithRuntimeCaches;
 use Neos\ContentRepositoryRegistry\SubgraphCachingInMemory\SubgraphCachePool;
 use Neos\EventStore\EventStoreInterface;
@@ -38,6 +42,7 @@ use Neos\Flow\ObjectManagement\ObjectManagerInterface;
 use Neos\Utility\Arrays;
 use Neos\Utility\PositionalArraySorter;
 use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 use Symfony\Component\Serializer\Serializer;
@@ -45,7 +50,7 @@ use Symfony\Component\Serializer\Serializer;
 /**
  * @api
  */
-#[Flow\Scope("singleton")]
+#[Flow\Scope('singleton')]
 final class ContentRepositoryRegistry
 {
     /**
@@ -54,13 +59,26 @@ final class ContentRepositoryRegistry
     private array $factoryInstances = [];
 
     /**
+     * @var array<string, mixed>
+     */
+    private array $settings;
+
+    #[Flow\Inject(name: 'Neos.ContentRepositoryRegistry:Logger', lazy: false)]
+    protected LoggerInterface $logger;
+
+    #[Flow\Inject()]
+    protected ObjectManagerInterface $objectManager;
+
+    #[Flow\Inject()]
+    protected SubgraphCachePool $subgraphCachePool;
+
+    /**
+     * @internal for flow wiring and test cases only
      * @param array<string, mixed> $settings
      */
-    public function __construct(
-        private readonly array $settings,
-        private readonly ObjectManagerInterface $objectManager,
-        private readonly SubgraphCachePool $subgraphCachePool,
-    ) {
+    public function injectSettings(array $settings): void
+    {
+        $this->settings = $settings;
     }
 
     /**
@@ -95,16 +113,6 @@ final class ContentRepositoryRegistry
         return ContentRepositoryIds::fromArray($contentRepositoryIds);
     }
 
-    /**
-     * @internal for test cases only
-     */
-    public function resetFactoryInstance(ContentRepositoryId $contentRepositoryId): void
-    {
-        if (array_key_exists($contentRepositoryId->value, $this->factoryInstances)) {
-            unset($this->factoryInstances[$contentRepositoryId->value]);
-        }
-    }
-
     public function subgraphForNode(Node $node): ContentSubgraphInterface
     {
         $contentRepository = $this->get($node->contentRepositoryId);
@@ -131,6 +139,16 @@ final class ContentRepositoryRegistry
     public function buildService(ContentRepositoryId $contentRepositoryId, ContentRepositoryServiceFactoryInterface $contentRepositoryServiceFactory): ContentRepositoryServiceInterface
     {
         return $this->getFactory($contentRepositoryId)->buildService($contentRepositoryServiceFactory);
+    }
+
+    /**
+     * @internal for test cases only
+     */
+    public function resetFactoryInstance(ContentRepositoryId $contentRepositoryId): void
+    {
+        if (array_key_exists($contentRepositoryId->value, $this->factoryInstances)) {
+            unset($this->factoryInstances[$contentRepositoryId->value]);
+        }
     }
 
     /**
@@ -169,6 +187,8 @@ final class ContentRepositoryRegistry
             unset($contentRepositorySettings['preset']);
         }
         try {
+            /** @var CatchUpHookFactoryInterface<ContentGraphReadModelInterface>|null $contentGraphCatchUpHookFactory */
+            $contentGraphCatchUpHookFactory = $this->buildCatchUpHookFactory($contentRepositoryId, 'contentGraph', $contentRepositorySettings['contentGraphProjection']);
             $clock = $this->buildClock($contentRepositoryId, $contentRepositorySettings);
             return new ContentRepositoryFactory(
                 $contentRepositoryId,
@@ -176,10 +196,14 @@ final class ContentRepositoryRegistry
                 $this->buildNodeTypeManager($contentRepositoryId, $contentRepositorySettings),
                 $this->buildContentDimensionSource($contentRepositoryId, $contentRepositorySettings),
                 $this->buildPropertySerializer($contentRepositoryId, $contentRepositorySettings),
-                $this->buildProjectionsFactory($contentRepositoryId, $contentRepositorySettings),
-                $this->buildUserIdProvider($contentRepositoryId, $contentRepositorySettings),
+                $this->buildAuthProviderFactory($contentRepositoryId, $contentRepositorySettings),
                 $clock,
+                $this->buildSubscriptionStore($contentRepositoryId, $clock, $contentRepositorySettings),
+                $this->buildContentGraphProjectionFactory($contentRepositoryId, $contentRepositorySettings),
+                $contentGraphCatchUpHookFactory,
                 $this->buildCommandHooksFactory($contentRepositoryId, $contentRepositorySettings),
+                $this->buildAdditionalSubscribersFactories($contentRepositoryId, $contentRepositorySettings),
+                $this->logger,
             );
         } catch (\Exception $exception) {
             throw InvalidConfigurationException::fromException($contentRepositoryId, $exception);
@@ -243,39 +267,44 @@ final class ContentRepositoryRegistry
     }
 
     /** @param array<string, mixed> $contentRepositorySettings */
-    private function buildProjectionsFactory(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): ProjectionsAndCatchUpHooksFactory
+    private function buildContentGraphProjectionFactory(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): ContentGraphProjectionFactoryInterface
     {
-        $projectionsAndCatchUpHooksFactory = new ProjectionsAndCatchUpHooksFactory();
-
-        // content graph projection:
         if (!isset($contentRepositorySettings['contentGraphProjection']['factoryObjectName'])) {
             throw InvalidConfigurationException::fromMessage('Content repository "%s" does not have the contentGraphProjection.factoryObjectName configured.', $contentRepositoryId->value);
         }
 
-        $projectionFactory = $this->objectManager->get($contentRepositorySettings['contentGraphProjection']['factoryObjectName']);
-        if (!$projectionFactory instanceof ContentGraphProjectionFactoryInterface) {
-            throw InvalidConfigurationException::fromMessage('Projection factory object name of contentGraphProjection (content repository "%s") is not an instance of %s but %s.', $contentRepositoryId->value, ContentGraphProjectionFactoryInterface::class, get_debug_type($projectionFactory));
+        $contentGraphProjectionFactory = $this->objectManager->get($contentRepositorySettings['contentGraphProjection']['factoryObjectName']);
+        if (!$contentGraphProjectionFactory instanceof ContentGraphProjectionFactoryInterface) {
+            throw InvalidConfigurationException::fromMessage('Projection factory object name of contentGraphProjection (content repository "%s") is not an instance of %s but %s.', $contentRepositoryId->value, ContentGraphProjectionFactoryInterface::class, get_debug_type($contentGraphProjectionFactory));
         }
-        $projectionsAndCatchUpHooksFactory->registerFactory($projectionFactory, $contentRepositorySettings['contentGraphProjection']['options'] ?? []);
+        return $contentGraphProjectionFactory;
+    }
 
-        $this->registerCatchupHookForProjection($contentRepositorySettings['contentGraphProjection'], $projectionsAndCatchUpHooksFactory, $projectionFactory, 'contentGraphProjection', $contentRepositoryId);
-
-        // additional projections:
-        (is_array($contentRepositorySettings['projections'] ?? [])) || throw InvalidConfigurationException::fromMessage('Content repository "%s" expects projections configured as array.', $contentRepositoryId->value);
-        foreach ($contentRepositorySettings['projections'] ?? [] as $projectionName => $projectionOptions) {
-            if ($projectionOptions === null) {
+    /**
+     * @param array<string, mixed> $projectionOptions
+     * @return CatchUpHookFactoryInterface<ProjectionStateInterface>|null
+     */
+    private function buildCatchUpHookFactory(ContentRepositoryId $contentRepositoryId, string $projectionName, array $projectionOptions): ?CatchUpHookFactoryInterface
+    {
+        if (!isset($projectionOptions['catchUpHooks'])) {
+            return null;
+        }
+        $catchUpHookFactories = CatchUpHookFactories::create();
+        foreach ($projectionOptions['catchUpHooks'] as $catchUpHookName => $catchUpHookOptions) {
+            if ($catchUpHookOptions === null) {
+                // Allow catch up hooks to be disabled by setting their configuration to `null`
                 continue;
             }
-            (is_array($projectionOptions)) || throw InvalidConfigurationException::fromMessage('Projection "%s" (content repository "%s") must be configured as array got %s', $projectionName, $contentRepositoryId->value, get_debug_type($projectionOptions));
-            $projectionFactory = isset($projectionOptions['factoryObjectName']) ? $this->objectManager->get($projectionOptions['factoryObjectName']) : null;
-            if (!$projectionFactory instanceof ProjectionFactoryInterface) {
-                throw InvalidConfigurationException::fromMessage('Projection factory object name for projection "%s" (content repository "%s") is not an instance of %s but %s.', $projectionName, $contentRepositoryId->value, ProjectionFactoryInterface::class, get_debug_type($projectionFactory));
+            $catchUpHookFactory = $this->objectManager->get($catchUpHookOptions['factoryObjectName']);
+            if (!$catchUpHookFactory instanceof CatchUpHookFactoryInterface) {
+                throw InvalidConfigurationException::fromMessage('CatchUpHook factory object name for hook "%s" in projection "%s" (content repository "%s") is not an instance of %s but %s', $catchUpHookName, $projectionName, $contentRepositoryId->value, CatchUpHookFactoryInterface::class, get_debug_type($catchUpHookFactory));
             }
-            $projectionsAndCatchUpHooksFactory->registerFactory($projectionFactory, $projectionOptions['options'] ?? []);
-
-            $this->registerCatchupHookForProjection($projectionOptions, $projectionsAndCatchUpHooksFactory, $projectionFactory, $projectionName, $contentRepositoryId);
+            $catchUpHookFactories = $catchUpHookFactories->with($catchUpHookFactory);
         }
-        return $projectionsAndCatchUpHooksFactory;
+        if ($catchUpHookFactories->isEmpty()) {
+            return null;
+        }
+        return $catchUpHookFactories;
     }
 
     /** @param array<string, mixed> $contentRepositorySettings */
@@ -300,32 +329,45 @@ final class ContentRepositoryRegistry
         return new CommandHooksFactory(...$commandHookFactories);
     }
 
-    /**
-     * @param ProjectionFactoryInterface<ProjectionInterface<ProjectionStateInterface>> $projectionFactory
-     */
-    private function registerCatchupHookForProjection(mixed $projectionOptions, ProjectionsAndCatchUpHooksFactory $projectionsAndCatchUpHooksFactory, ProjectionFactoryInterface $projectionFactory, string $projectionName, ContentRepositoryId $contentRepositoryId): void
+    /** @param array<string, mixed> $contentRepositorySettings */
+    private function buildAdditionalSubscribersFactories(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): ContentRepositorySubscriberFactories
     {
-        foreach (($projectionOptions['catchUpHooks'] ?? []) as $catchUpHookOptions) {
-            if ($catchUpHookOptions === null) {
+        if (!is_array($contentRepositorySettings['projections'] ?? [])) {
+            throw InvalidConfigurationException::fromMessage('Content repository "%s" expects projections configured as array.', $contentRepositoryId->value);
+        }
+        /** @var array<ProjectionSubscriberFactory> $projectionSubscriberFactories */
+        $projectionSubscriberFactories = [];
+        foreach (($contentRepositorySettings['projections'] ?? []) as $projectionName => $projectionOptions) {
+            // Allow projections to be disabled by setting their configuration to `null`
+            if ($projectionOptions === null) {
                 continue;
             }
-            $catchUpHookFactory = $this->objectManager->get($catchUpHookOptions['factoryObjectName']);
-            if (!$catchUpHookFactory instanceof CatchUpHookFactoryInterface) {
-                throw InvalidConfigurationException::fromMessage('CatchUpHook factory object name for projection "%s" (content repository "%s") is not an instance of %s but %s', $projectionName, $contentRepositoryId->value, CatchUpHookFactoryInterface::class, get_debug_type($catchUpHookFactory));
+            if (!is_array($projectionOptions)) {
+                throw InvalidConfigurationException::fromMessage('Projection "%s" (content repository "%s") must be configured as array got %s', $projectionName, $contentRepositoryId->value, get_debug_type($projectionOptions));
             }
-            $projectionsAndCatchUpHooksFactory->registerCatchUpHookFactory($projectionFactory, $catchUpHookFactory);
+            $projectionFactory = isset($projectionOptions['factoryObjectName']) ? $this->objectManager->get($projectionOptions['factoryObjectName']) : null;
+            if (!$projectionFactory instanceof ProjectionFactoryInterface) {
+                throw InvalidConfigurationException::fromMessage('Projection factory object name for projection "%s" (content repository "%s") is not an instance of %s but %s.', $projectionName, $contentRepositoryId->value, ProjectionFactoryInterface::class, get_debug_type($projectionFactory));
+            }
+            $projectionSubscriberFactories[$projectionName] = new ProjectionSubscriberFactory(
+                SubscriptionId::fromString($projectionName),
+                $projectionFactory,
+                $this->buildCatchUpHookFactory($contentRepositoryId, $projectionName, $projectionOptions),
+                $projectionOptions['options'] ?? [],
+            );
         }
+        return ContentRepositorySubscriberFactories::fromArray($projectionSubscriberFactories);
     }
 
     /** @param array<string, mixed> $contentRepositorySettings */
-    private function buildUserIdProvider(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): UserIdProviderInterface
+    private function buildAuthProviderFactory(ContentRepositoryId $contentRepositoryId, array $contentRepositorySettings): AuthProviderFactoryInterface
     {
-        isset($contentRepositorySettings['userIdProvider']['factoryObjectName']) || throw InvalidConfigurationException::fromMessage('Content repository "%s" does not have userIdProvider.factoryObjectName configured.', $contentRepositoryId->value);
-        $userIdProviderFactory = $this->objectManager->get($contentRepositorySettings['userIdProvider']['factoryObjectName']);
-        if (!$userIdProviderFactory instanceof UserIdProviderFactoryInterface) {
-            throw InvalidConfigurationException::fromMessage('userIdProvider.factoryObjectName for content repository "%s" is not an instance of %s but %s.', $contentRepositoryId->value, UserIdProviderFactoryInterface::class, get_debug_type($userIdProviderFactory));
+        isset($contentRepositorySettings['authProvider']['factoryObjectName']) || throw InvalidConfigurationException::fromMessage('Content repository "%s" does not have authProvider.factoryObjectName configured.', $contentRepositoryId->value);
+        $authProviderFactory = $this->objectManager->get($contentRepositorySettings['authProvider']['factoryObjectName']);
+        if (!$authProviderFactory instanceof AuthProviderFactoryInterface) {
+            throw InvalidConfigurationException::fromMessage('authProvider.factoryObjectName for content repository "%s" is not an instance of %s but %s.', $contentRepositoryId->value, AuthProviderFactoryInterface::class, get_debug_type($authProviderFactory));
         }
-        return $userIdProviderFactory->build($contentRepositoryId, $contentRepositorySettings['userIdProvider']['options'] ?? []);
+        return $authProviderFactory;
     }
 
     /** @param array<string, mixed> $contentRepositorySettings */
@@ -338,4 +380,16 @@ final class ContentRepositoryRegistry
         }
         return $clockFactory->build($contentRepositoryIdentifier, $contentRepositorySettings['clock']['options'] ?? []);
     }
+
+    /** @param array<string, mixed> $contentRepositorySettings */
+    private function buildSubscriptionStore(ContentRepositoryId $contentRepositoryId, ClockInterface $clock, array $contentRepositorySettings): SubscriptionStoreInterface
+    {
+        isset($contentRepositorySettings['subscriptionStore']['factoryObjectName']) || throw InvalidConfigurationException::fromMessage('Content repository "%s" does not have subscriptionStore.factoryObjectName configured.', $contentRepositoryId->value);
+        $subscriptionStoreFactory = $this->objectManager->get($contentRepositorySettings['subscriptionStore']['factoryObjectName']);
+        if (!$subscriptionStoreFactory instanceof SubscriptionStoreFactoryInterface) {
+            throw InvalidConfigurationException::fromMessage('subscriptionStore.factoryObjectName for content repository "%s" is not an instance of %s but %s.', $contentRepositoryId->value, SubscriptionStoreFactoryInterface::class, get_debug_type($subscriptionStoreFactory));
+        }
+        return $subscriptionStoreFactory->build($contentRepositoryId, $clock, $contentRepositorySettings['subscriptionStore']['options'] ?? []);
+    }
 }
+

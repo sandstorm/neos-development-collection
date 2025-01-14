@@ -32,6 +32,7 @@ final class EventMigrationServiceFactory implements ContentRepositoryServiceFact
         }
 
         return new EventMigrationService(
+            $serviceFactoryDependencies->subscriptionEngine,
             $serviceFactoryDependencies->contentRepositoryId,
             $serviceFactoryDependencies->eventStore,
             $this->connection

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Service;
 
-use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
 use Neos\ContentRepository\Core\Feature\ContentStreamCreation\Event\ContentStreamWasCreated;
@@ -15,18 +14,16 @@ use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Event\RootWorkspaceWas
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Event\WorkspaceWasCreated;
 use Neos\ContentRepository\Core\Feature\WorkspaceEventStreamName;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasDiscarded;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPartiallyDiscarded;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPartiallyPublished;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPublished;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Event\WorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Event\WorkspaceWasRebased;
 use Neos\ContentRepository\Core\Service\ContentStreamPruner\ContentStreamForPruning;
 use Neos\ContentRepository\Core\Service\ContentStreamPruner\ContentStreamStatus;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
+use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Model\Event\EventType;
 use Neos\EventStore\Model\Event\EventTypes;
-use Neos\EventStore\Model\Event\StreamName;
 use Neos\EventStore\Model\EventStream\EventStreamFilter;
 use Neos\EventStore\Model\EventStream\ExpectedVersion;
 use Neos\EventStore\Model\EventStream\VirtualStreamName;
@@ -39,9 +36,9 @@ use Neos\EventStore\Model\EventStream\VirtualStreamName;
 class ContentStreamPruner implements ContentRepositoryServiceInterface
 {
     public function __construct(
-        private readonly ContentRepository $contentRepository,
         private readonly EventStoreInterface $eventStore,
-        private readonly EventNormalizer $eventNormalizer
+        private readonly EventNormalizer $eventNormalizer,
+        private readonly SubscriptionEngine $subscriptionEngine,
     ) {
     }
 
@@ -161,10 +158,9 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
         }
 
         if ($danglingContentStreamsPresent) {
-            try {
-                $this->contentRepository->catchUpProjections();
-            } catch (\Throwable $e) {
-                $outputFn(sprintf('Could not catchup after removing unused content streams: %s. You might need to use ./flow contentstream:pruneremovedfromeventstream and replay.', $e->getMessage()));
+            $result = $this->subscriptionEngine->catchUpActive();
+            if ($result->hadErrors()) {
+                $outputFn('Catchup after removing unused content streams led to errors. You might need to use ./flow contentstream:pruneremovedfromeventstream and replay.');
             }
         } else {
             $outputFn('Okay. No pruneable streams in the event stream');
@@ -200,15 +196,6 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
         }
     }
 
-    public function pruneAllWorkspacesAndContentStreamsFromEventStream(): void
-    {
-        foreach ($this->findAllContentStreamStreamNames() as $contentStreamStreamName) {
-            $this->eventStore->deleteStream($contentStreamStreamName);
-        }
-        foreach ($this->findAllWorkspaceStreamNames() as $workspaceStreamName) {
-            $this->eventStore->deleteStream($workspaceStreamName);
-        }
-    }
 
     /**
      * Find all removed content streams that are unused in the event stream
@@ -323,6 +310,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
                     EventType::fromString('RootWorkspaceWasCreated'),
                     EventType::fromString('WorkspaceWasCreated'),
                     EventType::fromString('WorkspaceWasDiscarded'),
+                    // we must include these two legacy events in the query for they exist and will be upcasted at runtime
                     EventType::fromString('WorkspaceWasPartiallyDiscarded'),
                     EventType::fromString('WorkspaceWasPartiallyPublished'),
                     EventType::fromString('WorkspaceWasPublished'),
@@ -358,26 +346,6 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
                             ->withStatus(ContentStreamStatus::NO_LONGER_IN_USE);
                     }
                     break;
-                case WorkspaceWasPartiallyDiscarded::class:
-                    if (isset($cs[$domainEvent->newContentStreamId->value])) {
-                        $cs[$domainEvent->newContentStreamId->value] = $cs[$domainEvent->newContentStreamId->value]
-                            ->withStatus(ContentStreamStatus::IN_USE_BY_WORKSPACE);
-                    }
-                    if (isset($cs[$domainEvent->previousContentStreamId->value])) {
-                        $cs[$domainEvent->previousContentStreamId->value] = $cs[$domainEvent->previousContentStreamId->value]
-                            ->withStatus(ContentStreamStatus::NO_LONGER_IN_USE);
-                    }
-                    break;
-                case WorkspaceWasPartiallyPublished::class:
-                    if (isset($cs[$domainEvent->newSourceContentStreamId->value])) {
-                        $cs[$domainEvent->newSourceContentStreamId->value] = $cs[$domainEvent->newSourceContentStreamId->value]
-                            ->withStatus(ContentStreamStatus::IN_USE_BY_WORKSPACE);
-                    }
-                    if (isset($cs[$domainEvent->previousSourceContentStreamId->value])) {
-                        $cs[$domainEvent->previousSourceContentStreamId->value] = $cs[$domainEvent->previousSourceContentStreamId->value]
-                            ->withStatus(ContentStreamStatus::NO_LONGER_IN_USE);
-                    }
-                    break;
                 case WorkspaceWasPublished::class:
                     if (isset($cs[$domainEvent->newSourceContentStreamId->value])) {
                         $cs[$domainEvent->newSourceContentStreamId->value] = $cs[$domainEvent->newSourceContentStreamId->value]
@@ -410,49 +378,5 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
             }
         }
         return $cs;
-    }
-
-    /**
-     * @return list<StreamName>
-     */
-    private function findAllContentStreamStreamNames(): array
-    {
-        $events = $this->eventStore->load(
-            VirtualStreamName::forCategory(ContentStreamEventStreamName::EVENT_STREAM_NAME_PREFIX),
-            EventStreamFilter::create(
-                EventTypes::create(
-                    // we are only interested in the creation events to limit the amount of events to fetch
-                    EventType::fromString('ContentStreamWasCreated'),
-                    EventType::fromString('ContentStreamWasForked')
-                )
-            )
-        );
-        $allStreamNames = [];
-        foreach ($events as $eventEnvelope) {
-            $allStreamNames[] = $eventEnvelope->streamName;
-        }
-        return array_unique($allStreamNames, SORT_REGULAR);
-    }
-
-    /**
-     * @return list<StreamName>
-     */
-    private function findAllWorkspaceStreamNames(): array
-    {
-        $events = $this->eventStore->load(
-            VirtualStreamName::forCategory(WorkspaceEventStreamName::EVENT_STREAM_NAME_PREFIX),
-            EventStreamFilter::create(
-                EventTypes::create(
-                    // we are only interested in the creation events to limit the amount of events to fetch
-                    EventType::fromString('RootWorkspaceWasCreated'),
-                    EventType::fromString('WorkspaceWasCreated')
-                )
-            )
-        );
-        $allStreamNames = [];
-        foreach ($events as $eventEnvelope) {
-            $allStreamNames[] = $eventEnvelope->streamName;
-        }
-        return array_unique($allStreamNames, SORT_REGULAR);
     }
 }

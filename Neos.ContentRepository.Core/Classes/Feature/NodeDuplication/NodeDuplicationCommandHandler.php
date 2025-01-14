@@ -170,7 +170,7 @@ final class NodeDuplicationCommandHandler implements CommandHandlerInterface
 
     private function requireNewNodeAggregateIdsToNotExist(
         ContentGraphInterface $contentGraph,
-        Dto\NodeAggregateIdMapping $nodeAggregateIdMapping
+        \Neos\Neos\Domain\Service\NodeDuplication\NodeAggregateIdMapping $nodeAggregateIdMapping
     ): void {
         foreach ($nodeAggregateIdMapping->getAllNewNodeAggregateIds() as $nodeAggregateId) {
             $this->requireProjectedNodeAggregateToNotExist(
@@ -191,7 +191,7 @@ final class NodeDuplicationCommandHandler implements CommandHandlerInterface
         ?NodeAggregateId $targetSucceedingSiblingNodeAggregateId,
         ?NodeName $targetNodeName,
         NodeSubtreeSnapshot $nodeToInsert,
-        Dto\NodeAggregateIdMapping $nodeAggregateIdMapping,
+        \Neos\Neos\Domain\Service\NodeDuplication\NodeAggregateIdMapping $nodeAggregateIdMapping,
         array &$events,
     ): void {
         $events[] = new NodeAggregateWithNodeWasCreated(

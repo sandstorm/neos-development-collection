@@ -77,10 +77,12 @@ Feature: Workspace publication - complex chained functionality
       | originDimensionSpacePoint | {"language": "de"}        |
       | propertyValues            | {"text": "Modified text"} |
 
+    Then workspace user-ws has status OUTDATED
+
     When the command PublishIndividualNodesFromWorkspace is executed with payload and exceptions are caught:
       | Key                | Value                                                                             |
       | workspaceName      | "user-ws"                                                                         |
-      | nodesToPublish     | [{"dimensionSpacePoint": {"language": "de"}, "nodeAggregateId": "sir-nodebelig"}] |
+      | nodesToPublish     | ["sir-nodebelig"] |
       | newContentStreamId | "user-cs-id-rebased"                                                              |
     Then the last command should have thrown the WorkspaceRebaseFailed exception with:
       | SequenceNumber | Event                 | Exception                          |
@@ -101,12 +103,14 @@ Feature: Workspace publication - complex chained functionality
       | sourceOrigin    | {"language": "de"} |
       | targetOrigin    | {"language": "en"} |
 
+    Then workspace user-ws has status UP_TO_DATE
+
     When the command PublishIndividualNodesFromWorkspace is executed with payload and exceptions are caught:
       | Key                | Value                                                                                                            |
       | workspaceName      | "user-ws"                                                                                                        |
-      | nodesToPublish     | [{"workspaceName": "user-ws", "dimensionSpacePoint": {"language": "en"}, "nodeAggregateId": "nody-mc-nodeface"}] |
+      | nodesToPublish     | ["nody-mc-nodeface"] |
       | newContentStreamId | "user-cs-id-rebased"                                                                                             |
-    Then the last command should have thrown the WorkspaceRebaseFailed exception with:
+    Then the last command should have thrown the PartialWorkspaceRebaseFailed exception with:
       | SequenceNumber | Event                               | Exception                                             |
       | 13             | NodeGeneralizationVariantWasCreated | NodeAggregateDoesCurrentlyNotCoverDimensionSpacePoint |
 
@@ -116,3 +120,32 @@ Feature: Workspace publication - complex chained functionality
       | newContentStreamId | "user-cs-id-yet-again-rebased" |
     When I am in workspace "user-ws" and dimension space point {"language": "de"}
     Then I expect node aggregate identifier "nody-mc-nodeface" to lead to node user-cs-id-yet-again-rebased;nody-mc-nodeface;{"language": "de"}
+
+   Scenario: Publish a deletion and try to keep a move node from its descendants
+     see issue: https://github.com/neos/neos-development-collection/issues/5364
+
+     When the command MoveNodeAggregate is executed with payload:
+       | Key                          | Value              |
+       | workspaceName                | "user-ws"          |
+       | nodeAggregateId              | "nody-mc-nodeface" |
+       | dimensionSpacePoint          | {"language": "de"} |
+       | newParentNodeAggregateId     | "sir-nodebelig"    |
+       | relationDistributionStrategy | "gatherAll"        |
+
+     When the command RemoveNodeAggregate is executed with payload:
+       | Key                          | Value                    |
+       | workspaceName                | "user-ws"                |
+       | nodeAggregateId              | "sir-david-nodenborough" |
+       | coveredDimensionSpacePoint   | {"language": "de"}       |
+       | nodeVariantSelectionStrategy | "allVariants"            |
+
+     Then workspace user-ws has status UP_TO_DATE
+
+     When the command PublishIndividualNodesFromWorkspace is executed with payload and exceptions are caught:
+       | Key                | Value                                                                                      |
+       | workspaceName      | "user-ws"                                                                                  |
+       | nodesToPublish     | ["sir-david-nodenborough"] |
+       | newContentStreamId | "user-cs-id-rebased"                                                                       |
+     Then the last command should have thrown the PartialWorkspaceRebaseFailed exception with:
+       | SequenceNumber | Event                 | Exception                          |
+       | 11             | NodeAggregateWasMoved | NodeAggregateCurrentlyDoesNotExist |

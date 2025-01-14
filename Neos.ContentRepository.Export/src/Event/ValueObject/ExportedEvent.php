@@ -27,11 +27,15 @@ final readonly class ExportedEvent implements \JsonSerializable
         $payload = \json_decode($event->data->value, true, 512, JSON_THROW_ON_ERROR);
         // unset content stream id as this is overwritten during import
         unset($payload['contentStreamId'], $payload['workspaceName']);
+
+        $metaData = $event->metadata?->value ?? [];
+        unset($metaData['commandClass'], $metaData['commandPayload']);
+
         return new self(
             $event->id->value,
             $event->type->value,
             $payload,
-            $event->metadata?->value ?? [],
+            $metaData,
         );
     }
 
@@ -43,6 +47,7 @@ final readonly class ExportedEvent implements \JsonSerializable
         } catch (\JsonException $e) {
             throw new \InvalidArgumentException(sprintf('Failed to decode JSON "%s": %s', $json, $e->getMessage()), 1638432979, $e);
         }
+
         return new self(
             $data['identifier'],
             $data['type'],

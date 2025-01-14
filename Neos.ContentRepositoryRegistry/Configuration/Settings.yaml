@@ -12,6 +12,21 @@ Neos:
         ignoredClasses:
           Neos\\ContentRepository\\SharedModel\\NodeType\\NodeTypeManager: true
 
+    log:
+      psr3:
+        'Neos\Flow\Log\PsrLoggerFactory':
+          contentRepositoryLogger:
+            default:
+              class: Neos\Flow\Log\Backend\FileBackend
+              options:
+                # todo context aware? FLOW_APPLICATION_CONTEXT .. but that contains /
+                logFileURL: '%FLOW_PATH_DATA%Logs/ContentRepository.log'
+                createParentDirectories: true
+                severityThreshold: '%LOG_INFO%'
+                maximumLogFileSize: 10485760
+                logFilesToKeep: 1
+                logMessageOrigin: false
+
   ContentRepositoryRegistry:
     contentRepositories:
       default:
@@ -31,11 +46,14 @@ Neos:
         contentDimensionSource:
           factoryObjectName: Neos\ContentRepositoryRegistry\Factory\ContentDimensionSource\ConfigurationBasedContentDimensionSourceFactory
 
-        userIdProvider:
-          factoryObjectName: Neos\ContentRepositoryRegistry\Factory\UserIdProvider\StaticUserIdProviderFactory
+        authProvider:
+          factoryObjectName: Neos\ContentRepositoryRegistry\Factory\AuthProvider\StaticAuthProviderFactory
 
         clock:
           factoryObjectName: Neos\ContentRepositoryRegistry\Factory\Clock\SystemClockFactory
+
+        subscriptionStore:
+          factoryObjectName: Neos\ContentRepositoryRegistry\Factory\SubscriptionStore\SubscriptionStoreFactory
 
         propertyConverters:
           DateTimeNormalizer:

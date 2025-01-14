@@ -14,21 +14,21 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap;
 
+use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
-use Neos\ContentRepository\Core\EventStore\EventPersister;
-use Neos\ContentRepository\Core\EventStore\Events;
-use Neos\ContentRepository\Core\EventStore\EventsToPublish;
+use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryDependencies;
+use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceFactoryInterface;
+use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\AddDimensionShineThrough;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\MoveDimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNode;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\DisableNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\EnableNodeAggregate;
-use Neos\ContentRepository\Core\Feature\NodeDuplication\Command\CopyNodesRecursively;
 use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetNodeProperties;
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
 use Neos\ContentRepository\Core\Feature\NodeMove\Command\MoveNodeAggregate;
@@ -53,13 +53,16 @@ use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\DiscardWork
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishIndividualNodesFromWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Command\RebaseWorkspace;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\PartialWorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\WorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
+use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Model\Event;
 use Neos\EventStore\Model\Event\StreamName;
 use Neos\EventStore\Model\EventEnvelope;
+use Neos\EventStore\Model\Events;
 use Neos\EventStore\Model\EventStream\ExpectedVersion;
 use Neos\EventStore\Model\EventStream\VirtualStreamName;
 use Neos\Utility\Arrays;
@@ -190,7 +193,9 @@ trait GenericCommandExecutionAndEventPublication
             }
         }
         if ($commandClassName === CreateNodeAggregateWithNode::class || $commandClassName === SetNodeReferences::class) {
-            if (is_array($commandArguments['references'] ?? null)) {
+            if (is_string($commandArguments['references'] ?? null)) {
+                $commandArguments['references'] = iterator_to_array($this->mapRawNodeReferencesToNodeReferencesToWrite(json_decode($commandArguments['references'], true, 512, JSON_THROW_ON_ERROR)));
+            } elseif (is_array($commandArguments['references'] ?? null)) {
                 $commandArguments['references'] = iterator_to_array($this->mapRawNodeReferencesToNodeReferencesToWrite($commandArguments['references']));
             }
         }
@@ -242,7 +247,6 @@ trait GenericCommandExecutionAndEventPublication
             ChangeBaseWorkspace::class,
             ChangeNodeAggregateName::class,
             ChangeNodeAggregateType::class,
-            CopyNodesRecursively::class,
             CreateNodeAggregateWithNode::class,
             CreateNodeVariant::class,
             CreateRootNodeAggregateWithNode::class,
@@ -286,34 +290,41 @@ trait GenericCommandExecutionAndEventPublication
             Event\EventData::fromString(json_encode($eventPayload)),
             Event\EventMetadata::fromArray([])
         );
-        /** @var EventPersister $eventPersister */
-        $eventPersister = (new \ReflectionClass($this->currentContentRepository))->getProperty('eventPersister')
-            ->getValue($this->currentContentRepository);
-        /** @var EventNormalizer $eventNormalizer */
-        $eventNormalizer = (new \ReflectionClass($eventPersister))->getProperty('eventNormalizer')
-            ->getValue($eventPersister);
-        $event = $eventNormalizer->denormalize($artificiallyConstructedEvent);
 
-        $eventPersister->publishEvents($this->currentContentRepository, new EventsToPublish(
-            $streamName,
-            Events::with($event),
-            ExpectedVersion::ANY()
-        ));
+        // HACK can be replaced, once https://github.com/neos/neos-development-collection/pull/5341 is merged
+        $eventStoreAndSubscriptionEngine = new class implements ContentRepositoryServiceFactoryInterface {
+            public EventStoreInterface|null $eventStore;
+            public SubscriptionEngine|null $subscriptionEngine;
+            public function build(ContentRepositoryServiceFactoryDependencies $serviceFactoryDependencies): ContentRepositoryServiceInterface
+            {
+                $this->eventStore = $serviceFactoryDependencies->eventStore;
+                $this->subscriptionEngine = $serviceFactoryDependencies->subscriptionEngine;
+                return new class implements ContentRepositoryServiceInterface
+                {
+                };
+            }
+        };
+        $this->getContentRepositoryService($eventStoreAndSubscriptionEngine);
+        $eventStoreAndSubscriptionEngine->eventStore->commit($streamName, Events::with($artificiallyConstructedEvent), ExpectedVersion::ANY());
+        $eventStoreAndSubscriptionEngine->subscriptionEngine->catchUpActive();
     }
 
     /**
-     * @Then /^the last command should have thrown an exception of type "([^"]*)"(?: with code (\d*))?$/
+     * @Then the last command should have thrown an exception of type :shortExceptionName with code :expectedCode and message:
+     * @Then the last command should have thrown an exception of type :shortExceptionName with code :expectedCode
+     * @Then the last command should have thrown an exception of type :shortExceptionName with message:
+     * @Then the last command should have thrown an exception of type :shortExceptionName
      */
-    public function theLastCommandShouldHaveThrown(string $shortExceptionName, ?int $expectedCode = null): void
+    public function theLastCommandShouldHaveThrown(string $shortExceptionName, ?int $expectedCode = null, PyStringNode $expectedMessage = null): void
     {
-        if ($shortExceptionName === 'WorkspaceRebaseFailed') {
+        if ($shortExceptionName === 'WorkspaceRebaseFailed' || $shortExceptionName === 'PartialWorkspaceRebaseFailed') {
             throw new \RuntimeException('Please use the assertion "the last command should have thrown the WorkspaceRebaseFailed exception with" instead.');
         }
 
         Assert::assertNotNull($this->lastCommandException, 'Command did not throw exception');
         $lastCommandExceptionShortName = (new \ReflectionClass($this->lastCommandException))->getShortName();
-        Assert::assertSame($shortExceptionName, $lastCommandExceptionShortName, sprintf('Actual exception: %s (%s): %s', get_class($this->lastCommandException), $this->lastCommandException->getCode(), $this->lastCommandException->getMessage()));
-        if (!is_null($expectedCode)) {
+        Assert::assertSame($shortExceptionName, $lastCommandExceptionShortName, sprintf('Actual exception: %s (%s): %s', get_debug_type($this->lastCommandException), $this->lastCommandException->getCode(), $this->lastCommandException->getMessage()));
+        if ($expectedCode !== null) {
             Assert::assertSame($expectedCode, $this->lastCommandException->getCode(), sprintf(
                 'Expected exception code %s, got exception code %s instead; Message: %s',
                 $expectedCode,
@@ -321,17 +332,25 @@ trait GenericCommandExecutionAndEventPublication
                 $this->lastCommandException->getMessage()
             ));
         }
+        if ($expectedMessage !== null) {
+            Assert::assertSame($expectedMessage->getRaw(), $this->lastCommandException->getMessage());
+        }
+        $this->lastCommandException = null;
     }
 
     /**
-     * @Then the last command should have thrown the WorkspaceRebaseFailed exception with:
+     * @Then /^the last command should have thrown the (WorkspaceRebaseFailed|PartialWorkspaceRebaseFailed) exception with:$/
      */
-    public function theLastCommandShouldHaveThrownTheWorkspaceRebaseFailedWith(TableNode $payloadTable)
+    public function theLastCommandShouldHaveThrownTheWorkspaceRebaseFailedWith(string $shortExceptionName, TableNode $payloadTable)
     {
-        /** @var WorkspaceRebaseFailed $exception */
+        /** @var WorkspaceRebaseFailed|PartialWorkspaceRebaseFailed $exception */
         $exception = $this->lastCommandException;
         Assert::assertNotNull($exception, 'Command did not throw exception');
-        Assert::assertInstanceOf(WorkspaceRebaseFailed::class, $exception, sprintf('Actual exception: %s (%s): %s', get_class($exception), $exception->getCode(), $exception->getMessage()));
+
+        match ($shortExceptionName) {
+            'WorkspaceRebaseFailed' => Assert::assertInstanceOf(WorkspaceRebaseFailed::class, $exception, sprintf('Actual exception: %s (%s): %s', get_class($exception), $exception->getCode(), $exception->getMessage())),
+            'PartialWorkspaceRebaseFailed' => Assert::assertInstanceOf(PartialWorkspaceRebaseFailed::class, $exception, sprintf('Actual exception: %s (%s): %s', get_class($exception), $exception->getCode(), $exception->getMessage())),
+        };
 
         $actualComparableHash = [];
         foreach ($exception->conflictingEvents as $conflictingEvent) {
@@ -343,6 +362,23 @@ trait GenericCommandExecutionAndEventPublication
         }
 
         Assert::assertSame($payloadTable->getHash(), $actualComparableHash);
+        $this->lastCommandException = null;
+    }
+
+    /**
+     * @AfterScenario
+     */
+    public function ensureNoUnhandledCommandExceptions(\Behat\Behat\Hook\Scope\AfterScenarioScope $event): void
+    {
+        if ($this->lastCommandException !== null) {
+            Assert::fail(sprintf(
+                'Last command did throw with exception which was not asserted: %s: "%s" in %s:%s',
+                $this->lastCommandException::class,
+                $this->lastCommandException->getMessage(),
+                $event->getFeature()->getFile(),
+                $event->getScenario()->getLine(),
+            ));
+        }
     }
 
     /**

@@ -14,13 +14,10 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\BehavioralTests\Tests\Parallel\WorkspacePublicationDuringWriting;
 
+use Doctrine\DBAL\Connection;
 use Neos\ContentRepository\BehavioralTests\Tests\Parallel\AbstractParallelTestCase;
-use Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinPyStringNodeBasedNodeTypeManagerFactory;
-use Neos\ContentRepository\BehavioralTests\TestSuite\Behavior\GherkinTableNodeBasedContentDimensionSourceFactory;
+use Neos\ContentRepository\BehavioralTests\TestSuite\DebugEventProjection;
 use Neos\ContentRepository\Core\ContentRepository;
-use Neos\ContentRepository\Core\Dimension\ContentDimension;
-use Neos\ContentRepository\Core\Dimension\ContentDimensionId;
-use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNode;
@@ -30,7 +27,6 @@ use Neos\ContentRepository\Core\Feature\RootNodeCreation\Command\CreateRootNodeA
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Command\CreateRootWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Command\CreateWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishWorkspace;
-use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
@@ -38,6 +34,9 @@ use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamIsClosed;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
+use Neos\ContentRepository\TestSuite\Fakes\FakeContentDimensionSourceFactory;
+use Neos\ContentRepository\TestSuite\Fakes\FakeNodeTypeManagerFactory;
+use Neos\ContentRepository\TestSuite\Fakes\FakeProjectionFactory;
 use Neos\EventStore\Exception\ConcurrencyException;
 use Neos\Flow\ObjectManagement\ObjectManagerInterface;
 use PHPUnit\Framework\Assert;
@@ -55,31 +54,27 @@ class WorkspacePublicationDuringWritingTest extends AbstractParallelTestCase
     {
         parent::setUp();
         $this->log('------ process started ------');
-        // todo refrain from Gherkin naming here and make fakes easier to use: https://github.com/neos/neos-development-collection/pull/5346
-        GherkinTableNodeBasedContentDimensionSourceFactory::$contentDimensionsToUse = new class implements ContentDimensionSourceInterface
-        {
-            public function getDimension(ContentDimensionId $dimensionId): ?ContentDimension
-            {
-                return null;
-            }
-            public function getContentDimensionsOrderedByPriority(): array
-            {
-                return [];
-            }
-        };
-        // todo refrain from Gherkin naming here and make fakes easier to use: https://github.com/neos/neos-development-collection/pull/5346
-        GherkinPyStringNodeBasedNodeTypeManagerFactory::$nodeTypesToUse = new NodeTypeManager(
-            fn (): array => [
-                'Neos.ContentRepository:Root' => [],
-                'Neos.ContentRepository.Testing:Document' => [
-                    'properties' => [
-                        'title' => [
-                            'type' => 'string'
-                        ]
+
+        $debugProjection = new DebugEventProjection(
+            'cr_test_parallel_debug_projection',
+            $this->objectManager->get(Connection::class)
+        );
+        FakeProjectionFactory::setProjection(
+            'debug',
+            $debugProjection
+        );
+
+        FakeContentDimensionSourceFactory::setWithoutDimensions();
+        FakeNodeTypeManagerFactory::setConfiguration([
+            'Neos.ContentRepository:Root' => [],
+            'Neos.ContentRepository.Testing:Document' => [
+                'properties' => [
+                    'title' => [
+                        'type' => 'string'
                     ]
                 ]
             ]
-        );
+        ]);
 
         $setupLockResource = fopen(self::SETUP_LOCK_PATH, 'w+');
 
@@ -173,6 +168,11 @@ class WorkspacePublicationDuringWritingTest extends AbstractParallelTestCase
 
         $this->log('writing finished');
         Assert::assertTrue(true, 'No exception was thrown ;)');
+
+        $subgraph = $this->contentRepository->getContentGraph(WorkspaceName::forLive())->getSubgraph(DimensionSpacePoint::createWithoutDimensions(), VisibilityConstraints::withoutRestrictions());
+        $node = $subgraph->findNodeById(NodeAggregateId::fromString('nody-mc-nodeface'));
+        Assert::assertNotNull($node);
+        Assert::assertSame($node->getProperty('title'), 'changed-title-50');
     }
 
     /**

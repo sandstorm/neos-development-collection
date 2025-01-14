@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepositoryRegistry\SubgraphCachingInMemory;
 
+use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\Flow\Annotations as Flow;
 use Neos\ContentRepository\Core\EventStore\EventInterface;
-use Neos\ContentRepository\Core\Projection\CatchUpHookInterface;
+use Neos\ContentRepository\Core\Projection\CatchUpHook\CatchUpHookInterface;
 use Neos\EventStore\Model\EventEnvelope;
 
 /**
@@ -23,7 +24,7 @@ final class FlushSubgraphCachePoolCatchUpHook implements CatchUpHookInterface
     {
     }
 
-    public function onBeforeCatchUp(): void
+    public function onBeforeCatchUp(SubscriptionStatus $subscriptionStatus): void
     {
     }
 
@@ -36,7 +37,7 @@ final class FlushSubgraphCachePoolCatchUpHook implements CatchUpHookInterface
         $this->subgraphCachePool->reset();
     }
 
-    public function onBeforeBatchCompleted(): void
+    public function onAfterBatchCompleted(): void
     {
     }
 

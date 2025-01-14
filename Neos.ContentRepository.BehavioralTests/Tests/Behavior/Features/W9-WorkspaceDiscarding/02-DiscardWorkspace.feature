@@ -65,6 +65,14 @@ Feature: Workspace discarding - basic functionality
       | newContentStreamId | "user-cs-identifier-modified" |
     Then I expect the content stream "user-cs-identifier" to not exist
 
+    Then I expect exactly 2 events to be published on stream with prefix "Workspace:user-test"
+    And event at index 1 is of type "WorkspaceWasDiscarded" with payload:
+      | Key                     | Expected                      |
+      | workspaceName           | "user-test"                   |
+      | newContentStreamId      | "user-cs-identifier-modified" |
+      | previousContentStreamId | "user-cs-identifier"          |
+      | partial                 | false                         |
+
     When I am in workspace "user-test" and dimension space point {}
     Then I expect node aggregate identifier "nody-mc-nodeface" to lead to node user-cs-identifier-modified;nody-mc-nodeface;{}
     And I expect this node to have the following properties:
