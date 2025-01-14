@@ -238,29 +238,20 @@ trait CRTestSuiteTrait
         ContentRepositoryServiceFactoryInterface $factory
     ): ContentRepositoryServiceInterface;
 
-    final protected function getContentRepositoryServiceFactoryDependencies(): ContentRepositoryServiceFactoryDependencies
+    final protected function getContentGraphReadModel(): ContentGraphReadModelInterface
     {
-        $accessorFactory = new class implements ContentRepositoryServiceFactoryInterface {
+        return $this->getContentRepositoryService(new class implements ContentRepositoryServiceFactoryInterface {
             public function build(ContentRepositoryServiceFactoryDependencies $serviceFactoryDependencies): ContentRepositoryServiceInterface
             {
-                return new class ($serviceFactoryDependencies) implements ContentRepositoryServiceInterface
-                {
+                $contentGraphReadModel = $serviceFactoryDependencies->contentGraphReadModel;
+                return new class ($contentGraphReadModel) implements ContentRepositoryServiceInterface {
                     public function __construct(
-                        public readonly ContentRepositoryServiceFactoryDependencies $dependencies
+                        public ContentGraphReadModelInterface $contentGraphReadModel,
                     ) {
                     }
                 };
             }
-        };
-        return $this->getContentRepositoryService($accessorFactory)->dependencies;
-    }
-
-    final protected function getContentGraphReadModel(): ContentGraphReadModelInterface
-    {
-        return $this->getContentRepositoryServiceFactoryDependencies()
-            ->projectionsAndCatchUpHooks
-            ->contentGraphProjection
-            ->getState();
+        })->contentGraphReadModel;
     }
 
     /**
