@@ -34,9 +34,6 @@ use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStates;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceDoesNotExist;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStream;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreams;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
@@ -190,16 +187,6 @@ final class ContentRepository
     public function findWorkspaces(): Workspaces
     {
         return $this->contentGraphReadModel->findWorkspaces();
-    }
-
-    public function findContentStreamById(ContentStreamId $contentStreamId): ?ContentStream
-    {
-        return $this->contentGraphReadModel->findContentStreamById($contentStreamId);
-    }
-
-    public function findContentStreams(): ContentStreams
-    {
-        return $this->contentGraphReadModel->findContentStreams();
     }
 
     public function getNodeTypeManager(): NodeTypeManager
