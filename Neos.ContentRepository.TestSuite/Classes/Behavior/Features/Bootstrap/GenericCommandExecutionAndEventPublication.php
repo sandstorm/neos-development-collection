@@ -315,7 +315,7 @@ trait GenericCommandExecutionAndEventPublication
      * @Then the last command should have thrown an exception of type :shortExceptionName with message:
      * @Then the last command should have thrown an exception of type :shortExceptionName
      */
-    public function theLastCommandShouldHaveThrown(string $shortExceptionName, ?int $expectedCode = null, PyStringNode $expectedMessage = null): void
+    public function theLastCommandShouldHaveThrown(string $shortExceptionName, ?int $expectedCode = null, ?PyStringNode $expectedMessage = null): void
     {
         if ($shortExceptionName === 'WorkspaceRebaseFailed' || $shortExceptionName === 'PartialWorkspaceRebaseFailed') {
             throw new \RuntimeException('Please use the assertion "the last command should have thrown the WorkspaceRebaseFailed exception with" instead.');
