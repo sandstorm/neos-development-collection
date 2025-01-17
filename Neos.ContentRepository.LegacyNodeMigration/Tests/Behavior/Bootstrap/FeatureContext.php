@@ -97,7 +97,7 @@ class FeatureContext implements Context
     /**
      * @When I run the event migration
      */
-    public function iRunTheEventMigration(RootNodeTypeMapping $rootNodeTypeMapping = null): void
+    public function iRunTheEventMigration(?RootNodeTypeMapping $rootNodeTypeMapping = null): void
     {
         $nodeTypeManager = $this->currentContentRepository->getNodeTypeManager();
         $propertyMapper = $this->getObject(PropertyMapper::class);

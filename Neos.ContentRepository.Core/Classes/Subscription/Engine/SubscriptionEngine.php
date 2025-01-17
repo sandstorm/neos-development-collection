@@ -76,7 +76,7 @@ final class SubscriptionEngine
         return $errors === [] ? Result::success() : Result::failed(Errors::fromArray($errors));
     }
 
-    public function boot(SubscriptionEngineCriteria|null $criteria = null, \Closure $progressCallback = null, int $batchSize = null): ProcessedResult
+    public function boot(SubscriptionEngineCriteria|null $criteria = null, ?\Closure $progressCallback = null, ?int $batchSize = null): ProcessedResult
     {
         $criteria ??= SubscriptionEngineCriteria::noConstraints();
         return $this->processExclusively(
@@ -84,7 +84,7 @@ final class SubscriptionEngine
         );
     }
 
-    public function catchUpActive(SubscriptionEngineCriteria|null $criteria = null, \Closure $progressCallback = null, int $batchSize = null): ProcessedResult
+    public function catchUpActive(SubscriptionEngineCriteria|null $criteria = null, ?\Closure $progressCallback = null, ?int $batchSize = null): ProcessedResult
     {
         $criteria ??= SubscriptionEngineCriteria::noConstraints();
         return $this->processExclusively(
