@@ -103,7 +103,7 @@ class ContextOperation extends AbstractOperation
         unset($newContextProperties['invisibleContentShown']);
 
         if (!empty($newContextProperties)) {
-            throw new FlowQueryException('context() doesnt support the legacy properties: ' . join(', ', $newContextProperties), 1717592463);
+            throw new FlowQueryException('context() doesnt support the legacy properties: ' . join(', ', array_keys($newContextProperties)), 1717592463);
         }
 
         $output = [];
