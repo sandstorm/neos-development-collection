@@ -33,7 +33,7 @@
       </trans-unit>
       <trans-unit id="workspaces.deleteWorkspace" xml:space="preserve">
         <source>Delete workspace "{0}"</source>
-        <target state="needs-translation">Apagar área de trabalho</target>
+        <target state="translated">Apagar área de trabalho "{0}"</target>
       </trans-unit>
       <trans-unit id="workspaces.editWorkspace" xml:space="preserve">
         <source>Edit workspace</source>
@@ -271,19 +271,139 @@
       </trans-unit>
       <trans-unit id="workspaces.reviewWorkspace.label" xml:space="preserve">
         <source>Review</source>
-        <target state="needs-translation">Revisão</target>
+        <target state="translated">Revisão</target>
       </trans-unit>
       <trans-unit id="workspaces.workspace.lastModified" xml:space="preserve">
         <source>Last modified</source>
-        <target state="needs-translation">Última modificação</target>
+        <target state="translated">Última modificação</target>
       </trans-unit>
       <trans-unit id="applyChanges" xml:space="preserve">
         <source>Apply changes</source>
-        <target state="needs-translation">Aplicar alterações</target>
+        <target state="translated">Aplicar alterações</target>
       </trans-unit>
       <trans-unit id="workspaces.workspace.status" xml:space="preserve">
         <source>Status</source>
-        <target state="needs-translation">Estado</target>
+        <target state="translated">Estado</target>
+      </trans-unit>
+      <trans-unit id="workspaces.reviewWorkspace" xml:space="preserve">
+        <source>Review workspace "{0}"</source>
+        <target state="translated">Rever área de trabalho "{0}"</target>
+      </trans-unit>
+      <trans-unit id="workspaces.reviewWorkspace.disabled" xml:space="preserve">
+        <source>Workspace "{0}" has no unpublished changes</source>
+        <target state="translated">A área de trabalho "{0}" não tem alterações por publicar</target>
+      </trans-unit>
+      <trans-unit id="workspaces.numberOfWorkspaces" xml:space="preserve">
+        <source>{0} workspaces</source>
+        <target state="translated">{0} áreas de trabalho</target>
+      </trans-unit>
+      <trans-unit id="workspaces.deleteWorkspace.disabled" xml:space="preserve">
+        <source>Workspace "{0}" has unpublished changes</source>
+        <target state="translated">A área de trabalho "{0}" contém alterações por publicar</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.userWorkspace" xml:space="preserve">
+        <source>This is your workspace</source>
+        <target state="translated">Esta é a sua área de trabalho</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.workspaceManagerUsers" xml:space="preserve">
+        <source>Managed by Users</source>
+        <target state="translated">Gerido por Utilizadores</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspaceDoesNotExist" xml:space="preserve">
+        <source>Workspace "{0}" does not exist</source>
+        <target state="translated">A área de trabalho "{0}" não existe</target>
+      </trans-unit>
+      <trans-unit id="workspaces.changes.new[0]" xml:space="preserve">
+        <source>{0} node was added</source>
+        <target state="translated">{0} nó foi adicionado</target>
+      </trans-unit>
+      <trans-unit id="workspaces.changes.new[1]" xml:space="preserve">
+        <source>{0} nodes were added</source>
+        <target state="translated">{0} nós foram adicionados</target>
+      </trans-unit>
+      <trans-unit id="workspaces.changes.changed[0]" xml:space="preserve">
+        <source>{0} node was changed</source>
+        <target state="translated">{0} nó foi modificado</target>
+      </trans-unit>
+      <trans-unit id="workspaces.changes.changed[1]" xml:space="preserve">
+        <source>{0} nodes were changed</source>
+        <target state="translated">{0} nós foram modificados</target>
+      </trans-unit>
+      <trans-unit id="workspaces.changes.removed[1]" xml:space="preserve">
+        <source>{0} nodes were removed</source>
+        <target state="translated">{0} nós foram removidos</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.status.UP_TO_DATE" xml:space="preserve">
+        <source>Up to date</source>
+        <target state="translated">Atualizado</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.status.OUTDATED" xml:space="preserve">
+        <source>Outdated</source>
+        <target state="translated">Desatualizado</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.actions" xml:space="preserve">
+        <source>Actions</source>
+        <target state="translated">Ações</target>
+      </trans-unit>
+      <trans-unit id="workspaces.discardAllChangesInThisDocument" xml:space="preserve">
+        <source>Discard all changes in this document</source>
+        <target state="translated">Descartar todas as alterações neste documento</target>
+      </trans-unit>
+      <trans-unit id="workspaces.publishAllChangesInWorkspaceConfirmation" xml:space="preserve">
+        <source>Do you really want to publish all changes in the "{0}" workspace?</source>
+        <target state="translated">Deseja publicar todas as alterações na área de trabalho "{0}"?</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspaceCouldNotBeCreated" xml:space="preserve">
+        <source>Workspace could not be created.</source>
+        <target state="translated">A área de trabalho não pode ser criada.</target>
+      </trans-unit>
+      <trans-unit id="workspaces.changedTags" xml:space="preserve">
+        <source>New element tags</source>
+        <target state="translated">Novas etiquetas de Elementos</target>
+      </trans-unit>
+      <trans-unit id="workspaces.changes.noPermissionToPublishToWorkspace" xml:space="preserve">
+        <source>You do not have permission to publish to the this workspace</source>
+        <target state="translated">Não possui autorização para publicar nesta área de trabalho</target>
+      </trans-unit>
+      <trans-unit id="workspaces.changes.noPermissionToPublishToBaseWorkspace" xml:space="preserve">
+        <source>You do not have permission to publish to the base workspace</source>
+        <target state="translated">Não possui autorização para publicar na área de trabalho base</target>
+      </trans-unit>
+      <trans-unit id="workspaces.changes.noPermissionToReadWorkspace" xml:space="preserve">
+        <source>You do not have permission to see this workspace</source>
+        <target state="translated">Não possui autorização para visualizar esta área de trabalho</target>
+      </trans-unit>
+      <trans-unit id="table.column.access.shared" xml:space="preserve">
+        <source>This is a shared workspace</source>
+        <target state="translated">Esta área de trabalho é partilhada</target>
+      </trans-unit>
+      <trans-unit id="table.column.access.private" xml:space="preserve">
+        <source>This is a private workspace</source>
+        <target state="translated">Esta área de trabalho é privada</target>
+      </trans-unit>
+      <trans-unit id="workspaces.cantChangeBaseWorkspaceBecauseWorkspaceContainsChanges" xml:space="preserve">
+        <source>You cannot change the base workspace of workspace with unpublished changes.</source>
+        <target state="translated">Não pode modificar a área de trabalho base porque contém alterações não publicadas.</target>
+      </trans-unit>
+      <trans-unit id="table.column.access.personal" xml:space="preserve">
+        <source>This is the personal workspace of "{0}"</source>
+        <target state="translated">Esta é a área de trabalho pessoal de "{0}"</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.workspaceManagerGroups" xml:space="preserve">
+        <source>Managed by Groups</source>
+        <target state="translated">Gerido por Grupos</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.permissions" xml:space="preserve">
+        <source>Permissions</source>
+        <target state="translated">Permissões</target>
+      </trans-unit>
+      <trans-unit id="workspaces.changes.removed[0]" xml:space="preserve">
+        <source>{0} node was removed</source>
+        <target state="translated">{0} nó foi removido</target>
+      </trans-unit>
+      <trans-unit id="workspaces.publishAllChangesInThisDocument" xml:space="preserve">
+        <source>Publish all changes in this document</source>
+        <target state="translated">Publicar todas as alterações deste documento</target>
       </trans-unit>
     </body>
   </file>
