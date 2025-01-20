@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 namespace Neos\ContentRepository\NodeAccess\FlowQueryOperations;
 
 /*
@@ -12,10 +15,10 @@ namespace Neos\ContentRepository\NodeAccess\FlowQueryOperations;
  */
 
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
+use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
-use Neos\ContentRepository\NodeAccess\FlowQueryOperations\CreateNodeHashTrait;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Eel\FlowQuery\FlowQuery;
 use Neos\Eel\FlowQuery\FlowQueryException;
@@ -37,7 +40,7 @@ use Neos\Flow\Annotations as Flow;
  * - dimensions
  * - invisibleContentShown
  *
- * Unsupported options:
+ * Unsupported legacy options:
  * - currentDateTime
  * - targetDimensions
  * - removedContentShown
@@ -68,7 +71,7 @@ class ContextOperation extends AbstractOperation
     /**
      * {@inheritdoc}
      *
-     * @param array $context $context onto which this operation should be applied (array or array-like object)
+     * @param array<mixed> $context $context onto which this operation should be applied (array or array-like object)
      * @return boolean true if the operation can be applied onto the $context, false otherwise
      */
     public function canEvaluate($context)
@@ -80,7 +83,7 @@ class ContextOperation extends AbstractOperation
      * {@inheritdoc}
      *
      * @param FlowQuery $flowQuery The FlowQuery object
-     * @param array $arguments The arguments for this operation
+     * @param array<mixed> $arguments The arguments for this operation
      * @return void
      * @throws FlowQueryException
      */
@@ -93,11 +96,7 @@ class ContextOperation extends AbstractOperation
         $newContextProperties = $arguments[0];
         $newWorkspaceName = isset($newContextProperties['workspaceName']) ? WorkspaceName::fromString($newContextProperties['workspaceName']) : null;
         $newDimensions = isset($newContextProperties['dimensions']) ? DimensionSpacePoint::fromLegacyDimensionArray($newContextProperties['dimensions']) : null;
-        $newInvisibleContentShown = isset($newContextProperties['invisibleContentShown']) ? (
-            $newContextProperties['invisibleContentShown']
-                ? VisibilityConstraints::withoutRestrictions()
-                : VisibilityConstraints::frontend()
-        ) : null;
+        $newInvisibleContentShown = isset($newContextProperties['invisibleContentShown']) ? (bool)$newContextProperties['invisibleContentShown'] : null;
 
         unset($newContextProperties['workspaceName']);
         unset($newContextProperties['dimensions']);
@@ -115,7 +114,13 @@ class ContextOperation extends AbstractOperation
                 $newWorkspaceName ?? $contextNode->workspaceName
             )->getSubgraph(
                 $newDimensions ?? $contextNode->dimensionSpacePoint,
-                $newInvisibleContentShown ?? $contextNode->visibilityConstraints
+                VisibilityConstraints::fromTagConstraints(
+                    match ($newInvisibleContentShown) {
+                        true => $contextNode->visibilityConstraints->tagConstraints->without(SubtreeTag::disabled()),
+                        false => $contextNode->visibilityConstraints->tagConstraints->with(SubtreeTag::disabled()),
+                        null => $contextNode->visibilityConstraints->tagConstraints
+                    }
+                )
             );
 
             $nodeInModifiedContext = $newSubgraph->findNodeById($contextNode->aggregateId);

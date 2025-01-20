@@ -54,6 +54,14 @@ final readonly class SubtreeTags implements \IteratorAggregate, \Countable, \Jso
         return new self(...array_map(SubtreeTag::fromString(...), $tags));
     }
 
+    public function with(SubtreeTag $subtreeTagToAdd): self
+    {
+        if ($this->contain($subtreeTagToAdd)) {
+            return $this;
+        }
+        return new self(...[...$this->tags, $subtreeTagToAdd]);
+    }
+
     public function without(SubtreeTag $subtreeTagToRemove): self
     {
         if (!$this->contain($subtreeTagToRemove)) {
