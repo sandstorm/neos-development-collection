@@ -26,11 +26,6 @@ class NoChangesException extends \RuntimeException
         return new self(sprintf('Cannot publish workspace "%s" without any changes', $workspaceName->value), 1730463156);
     }
 
-    public static function nothingSelectedForPublish(WorkspaceName $workspaceName): self
-    {
-        return new self(sprintf('Cannot publish workspace "%s" because no changes were selected.', $workspaceName->value), 1730463510);
-    }
-
     public static function noChangesToRebase(WorkspaceName $workspaceName): self
     {
         return new self(sprintf('Cannot rebase workspace "%s" because it has no changes.', $workspaceName->value), 1730463693);

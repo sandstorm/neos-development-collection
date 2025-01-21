@@ -425,9 +425,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
     ): \Generator {
         $workspace = $this->requireWorkspace($command->workspaceName, $commandHandlingDependencies);
         $baseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
-        if ($command->nodesToPublish->isEmpty()) {
-            throw NoChangesException::nothingSelectedForPublish($command->workspaceName);
-        }
+
         if (!$workspace->hasPublishableChanges()) {
             throw NoChangesException::inWorkspaceToPublish($command->workspaceName);
         }
@@ -549,7 +547,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         $workspace = $this->requireWorkspace($command->workspaceName, $commandHandlingDependencies);
         $baseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
 
-        if ($command->nodesToDiscard->isEmpty() || !$workspace->hasPublishableChanges()) {
+        if (!$workspace->hasPublishableChanges()) {
             // noop
             return;
         }

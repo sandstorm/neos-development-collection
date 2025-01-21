@@ -129,21 +129,22 @@ Feature: Publishing individual nodes (basics)
       | Key   | Value            |
       | image | "Modified image" |
 
-  Scenario: Publish no node, non existing ones or unchanged nodes is a no-op
-    # no node
-    When the command PublishIndividualNodesFromWorkspace is executed with payload:
+  Scenario: Publish no node is not allowed
+    When the command PublishIndividualNodesFromWorkspace is executed with payload and exceptions are caught:
       | Key                             | Value                          |
       | workspaceName                   | "user-test"                    |
       | nodesToPublish                  | []                             |
       | contentStreamIdForRemainingPart | "user-cs-identifier-remaining" |
-    Then I expect the content stream "user-cs-identifier-remaining" to not exist
+    Then the last command should have thrown an exception of type "InvalidArgumentException" with code 1737448717
 
+  Scenario: Publish non existing nodes or unchanged nodes is a no-op
     # unchanged or non existing nodes
     When the command PublishIndividualNodesFromWorkspace is executed with payload:
-      | Key                             | Value                                                                                                                                  |
-      | workspaceName                   | "user-test"                                                                                                                            |
+      | Key                             | Value                                  |
+      | workspaceName                   | "user-test"                            |
       | nodesToPublish                  | ["non-existing-node", "sir-unchanged"] |
-      | contentStreamIdForRemainingPart | "user-cs-identifier-remaining-two"                                                                                                     |
+      | contentStreamIdForRemainingPart | "user-cs-identifier-remaining"         |
+    Then I expect the content stream "user-cs-identifier-remaining" to not exist
 
     When I am in workspace "live" and dimension space point {}
     Then I expect node aggregate identifier "sir-david-nodenborough" to lead to node cs-identifier;sir-david-nodenborough;{}

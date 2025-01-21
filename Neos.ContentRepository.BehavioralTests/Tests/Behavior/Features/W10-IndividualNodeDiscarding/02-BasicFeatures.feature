@@ -121,15 +121,16 @@ Feature: Discard individual nodes (basics)
     And I expect this node to have the following properties:
       | Key   | Value           |
       | image | "Initial image" |
-  Scenario: Discard no node, non existing ones or unchanged nodes is a no-op
-    # no node
-    When the command DiscardIndividualNodesFromWorkspace is executed with payload:
+
+  Scenario: Discard no node is not allowed
+    When the command DiscardIndividualNodesFromWorkspace is executed with payload and exceptions are caught:
       | Key                | Value                    |
       | workspaceName      | "user-test"              |
       | nodesToDiscard     | []                       |
       | newContentStreamId | "user-cs-identifier-new" |
-    Then I expect the content stream "user-cs-identifier-new" to not exist
+    Then the last command should have thrown an exception of type "InvalidArgumentException" with code 1737448741
 
+  Scenario: Discard non existing nodes or unchanged nodes is a no-op
     # unchanged or non existing nodes
     When the command DiscardIndividualNodesFromWorkspace is executed with payload:
       | Key                             | Value                                                                                                                                  |
