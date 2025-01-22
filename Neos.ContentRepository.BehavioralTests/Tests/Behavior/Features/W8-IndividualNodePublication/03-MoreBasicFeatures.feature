@@ -137,13 +137,19 @@ Feature: Publishing individual nodes (basics)
       | contentStreamIdForRemainingPart | "user-cs-identifier-remaining" |
     Then the last command should have thrown an exception of type "InvalidArgumentException" with code 1737448717
 
-  Scenario: Publish non existing nodes or unchanged nodes is a no-op
+  Scenario: Publish non existing nodes or unchanged nodes is skipped (via exception)
     # unchanged or non existing nodes
-    When the command PublishIndividualNodesFromWorkspace is executed with payload:
+    When the command PublishIndividualNodesFromWorkspace is executed with payload and exceptions are caught:
       | Key                             | Value                                  |
       | workspaceName                   | "user-test"                            |
       | nodesToPublish                  | ["non-existing-node", "sir-unchanged"] |
       | contentStreamIdForRemainingPart | "user-cs-identifier-remaining"         |
+
+    Then the last command should have thrown an exception of type "NoChangesException" with code 1737477674 and message:
+    """
+    No nodes matched in workspace "user-test" the filter non-existing-node,sir-unchanged.
+    """
+
     Then I expect the content stream "user-cs-identifier-remaining" to not exist
 
     When I am in workspace "live" and dimension space point {}
@@ -289,11 +295,17 @@ Feature: Publishing individual nodes (basics)
       | originDimensionSpacePoint | {}                                     |
       | propertyValues            | {"text": "Modified in live workspace"} |
 
-    When the command PublishIndividualNodesFromWorkspace is executed with payload:
+    When the command PublishIndividualNodesFromWorkspace is executed with payload and exceptions are caught:
       | Key                             | Value                                                            |
       | workspaceName                   | "user-test"                                                      |
       | nodesToPublish                  | ["non-existing"] |
       | contentStreamIdForRemainingPart | "user-cs-new"                                                    |
+
+    Then the last command should have thrown an exception of type "NoChangesException" with code 1737477674 and message:
+    """
+    No nodes matched in workspace "user-test" the filter non-existing.
+    """
+
     Then workspaces user-test has status OUTDATED
 
     Then I expect exactly 1 events to be published on stream with prefix "Workspace:user-test"

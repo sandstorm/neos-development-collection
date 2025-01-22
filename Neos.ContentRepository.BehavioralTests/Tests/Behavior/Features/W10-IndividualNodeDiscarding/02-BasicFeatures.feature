@@ -130,13 +130,18 @@ Feature: Discard individual nodes (basics)
       | newContentStreamId | "user-cs-identifier-new" |
     Then the last command should have thrown an exception of type "InvalidArgumentException" with code 1737448741
 
-  Scenario: Discard non existing nodes or unchanged nodes is a no-op
+  Scenario: Discard non existing nodes or unchanged nodes is skipped (via exception)
     # unchanged or non existing nodes
-    When the command DiscardIndividualNodesFromWorkspace is executed with payload:
+    When the command DiscardIndividualNodesFromWorkspace is executed with payload and exceptions are caught:
       | Key                             | Value                                                                                                                                  |
       | workspaceName                   | "user-test"                                                                                                                            |
       | nodesToDiscard                  | ["non-existing-node", "sir-unchanged"] |
       | newContentStreamId              | "user-cs-identifier-new-two"                                                                                                           |
+
+    Then the last command should have thrown an exception of type "NoChangesException" with code 1737477674 and message:
+    """
+    No nodes matched in workspace "user-test" the filter non-existing-node,sir-unchanged.
+    """
 
     # all nodes are still on the original user cs
     When I am in workspace "user-test" and dimension space point {}
