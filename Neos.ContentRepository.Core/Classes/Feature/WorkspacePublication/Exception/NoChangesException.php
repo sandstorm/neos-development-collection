@@ -45,9 +45,9 @@ class NoChangesException extends \RuntimeException
         return new self(sprintf('Skipped discard workspace "%s" without any publishable changes.', $workspaceName->value), 1730463156);
     }
 
-    public static function becauseWorkspaceToRebaseIsEmpty(WorkspaceName $workspaceName): self
+    public static function becauseWorkspaceToRebaseIsNotOutdated(WorkspaceName $workspaceName): self
     {
-        return new self(sprintf('Skipped rebase workspace "%s" without any publishable changes.', $workspaceName->value), 1730463693);
+        return new self(sprintf('Skipped rebase workspace "%s" because it is not outdated.', $workspaceName->value), 1730463693);
     }
 
     public static function becauseFilterDidNotMatch(WorkspaceName $workspaceName, NodeAggregateIds $selectedNodeAggregateIds): self

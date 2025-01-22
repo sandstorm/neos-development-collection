@@ -343,13 +343,24 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             $workspace->status === WorkspaceStatus::UP_TO_DATE
             && $command->rebaseErrorHandlingStrategy !== RebaseErrorHandlingStrategy::STRATEGY_FORCE
         ) {
-            // no-op if workspace is not outdated and not forcing it
-            // TODO throw here too?
-            return;
+            // skipped rebase, when not forcing it
+            throw NoChangesException::becauseWorkspaceToRebaseIsNotOutdated($command->workspaceName);
         }
 
         if (!$workspace->hasPublishableChanges()) {
-            NoChangesException::becauseWorkspaceToRebaseIsEmpty($command->workspaceName);
+            // if we have no changes in the workspace we can fork from the base directly
+            yield $this->closeContentStream(
+                $workspace->currentContentStreamId,
+                $workspaceContentStreamVersion
+            );
+
+            yield from $this->rebaseWorkspaceWithoutChanges(
+                $workspace,
+                $baseWorkspace,
+                $baseWorkspaceContentStreamVersion,
+                $command->rebasedContentStreamId
+            );
+            return;
         }
 
         $rebaseableCommands = RebaseableCommands::extractFromEventStream(
