@@ -19,6 +19,7 @@ use Neos\ContentRepository\Core\Dimension\ContentDimensionId;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Exception\WorkspaceAlreadyExists;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Dto\RebaseErrorHandlingStrategy;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\WorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindAncestorNodesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
@@ -63,6 +64,9 @@ use Neos\Neos\FrontendRouting\SiteDetection\SiteDetectionResult;
 use Neos\Neos\PendingChangesProjection\ChangeFinder;
 use Neos\Neos\PendingChangesProjection\Changes;
 use Neos\Neos\Security\Authorization\ContentRepositoryAuthorizationService;
+use Neos\Neos\Ui\Application\Shared\ConflictsOccurred;
+use Neos\Neos\Ui\Application\SyncWorkspace\SyncingSucceeded;
+use Neos\Neos\Ui\Infrastructure\ContentRepository\ConflictsFactory;
 use Neos\Neos\Utility\NodeTypeWithFallbackProvider;
 use Neos\Workspace\Ui\ViewModel\ChangeItem;
 use Neos\Workspace\Ui\ViewModel\ContentChangeItem;
@@ -704,6 +708,33 @@ class WorkspaceController extends AbstractModuleController
             )
         );
         $this->forward('review', null, null, ['workspace' => $workspace->value]);
+    }
+
+    /**
+     * Rebase a workspace
+     */
+    public function rebaseAction(WorkspaceName $workspaceName, bool $force): void
+    {
+        $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
+
+        try {
+            $this->workspacePublishingService->rebaseWorkspace(
+                $contentRepositoryId,
+                $workspaceName,
+                $force ? RebaseErrorHandlingStrategy::STRATEGY_FORCE : RebaseErrorHandlingStrategy::STRATEGY_FAIL
+            );
+            $this->addFlashMessage($this->getModuleLabel('workspaces.workspaceHasBeenRebased'));
+            $this->forward('index');
+
+        } catch (WorkspaceRebaseFailed $e) {
+            if ($force) {
+                $this->addFlashMessage($this->getModuleLabel('workspaces.ForceRebaseWorkspaceFailed'));
+                $this->forward('index');
+            }
+        }
+        $this->response->addHttpHeader('HX-Retarget', '#popover-container');
+        $this->response->addHttpHeader('HX-ReSwap', 'innerHTML');
+        $this->view->assign('workspaceName', $workspaceName->value);
     }
 
     /**
