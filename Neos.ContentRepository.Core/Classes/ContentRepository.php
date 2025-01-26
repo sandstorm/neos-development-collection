@@ -21,6 +21,7 @@ use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
+use Neos\ContentRepository\Core\EventStore\Events as DomainEvents;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\EventStore\InitiatingEventMetadata;
 use Neos\ContentRepository\Core\Feature\Security\AuthProviderInterface;
@@ -41,6 +42,7 @@ use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\ContentRepository\Core\Subscription\Exception\CatchUpHadErrors;
 use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Exception\ConcurrencyException;
+use Neos\EventStore\Model\Events;
 use Psr\Clock\ClockInterface;
 
 /**
@@ -93,8 +95,7 @@ final class ContentRepository
 
         // simple case
         if ($toPublish instanceof EventsToPublish) {
-            $eventsToPublish = $this->enrichEventsToPublishWithMetadata($toPublish);
-            $this->eventStore->commit($eventsToPublish->streamName, $this->eventNormalizer->normalizeEvents($eventsToPublish->events), $eventsToPublish->expectedVersion);
+            $this->eventStore->commit($toPublish->streamName, $this->enrichAndNormaliseEvents($toPublish->events), $toPublish->expectedVersion);
             $fullCatchUpResult = $this->subscriptionEngine->catchUpActive(); // NOTE: we don't batch here, to ensure the catchup is run completely and any errors don't stop it.
             if ($fullCatchUpResult->hadErrors()) {
                 throw CatchUpHadErrors::createFromErrors($fullCatchUpResult->errors);
@@ -104,10 +105,9 @@ final class ContentRepository
 
         // control-flow aware command handling via generator
         try {
-            foreach ($toPublish as $yieldedEventsToPublish) {
-                $eventsToPublish = $this->enrichEventsToPublishWithMetadata($yieldedEventsToPublish);
+            foreach ($toPublish as $eventsToPublish) {
                 try {
-                    $this->eventStore->commit($eventsToPublish->streamName, $this->eventNormalizer->normalizeEvents($eventsToPublish->events), $eventsToPublish->expectedVersion);
+                    $this->eventStore->commit($eventsToPublish->streamName, $this->enrichAndNormaliseEvents($eventsToPublish->events), $eventsToPublish->expectedVersion);
                 } catch (ConcurrencyException $concurrencyException) {
                     // we pass the exception into the generator (->throw), so it could be try-caught and reacted upon:
                     //
@@ -119,7 +119,7 @@ final class ContentRepository
                     //   }
                     $yieldedErrorStrategy = $toPublish->throw($concurrencyException);
                     if ($yieldedErrorStrategy instanceof EventsToPublish) {
-                        $this->eventStore->commit($yieldedErrorStrategy->streamName, $this->eventNormalizer->normalizeEvents($yieldedErrorStrategy->events), $yieldedErrorStrategy->expectedVersion);
+                        $this->eventStore->commit($yieldedErrorStrategy->streamName, $this->enrichAndNormaliseEvents($yieldedErrorStrategy->events), $yieldedErrorStrategy->expectedVersion);
                     }
                     throw $concurrencyException;
                 }
@@ -204,19 +204,17 @@ final class ContentRepository
         return $this->contentDimensionSource;
     }
 
-    private function enrichEventsToPublishWithMetadata(EventsToPublish $eventsToPublish): EventsToPublish
+    private function enrichAndNormaliseEvents(DomainEvents $events): Events
     {
         $initiatingUserId = $this->authProvider->getAuthenticatedUserId() ?? UserId::forSystemUser();
         $initiatingTimestamp = $this->clock->now();
 
-        return new EventsToPublish(
-            $eventsToPublish->streamName,
-            InitiatingEventMetadata::enrichEventsWithInitiatingMetadata(
-                $eventsToPublish->events,
-                $initiatingUserId,
-                $initiatingTimestamp
-            ),
-            $eventsToPublish->expectedVersion,
+        $events = InitiatingEventMetadata::enrichEventsWithInitiatingMetadata(
+            $events,
+            $initiatingUserId,
+            $initiatingTimestamp
         );
+
+        return Events::fromArray($events->map($this->eventNormalizer->normalize(...)));
     }
 }
