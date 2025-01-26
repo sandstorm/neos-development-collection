@@ -55,16 +55,20 @@ trait ContentStreamHandling
      */
     private function reopenContentStreamWithoutConstraintChecks(
         ContentStreamId $contentStreamId,
+        string $debugReason
     ): EventsToPublish {
         return new EventsToPublish(
             ContentStreamEventStreamName::fromContentStreamId($contentStreamId)->getEventStreamName(),
             Events::with(
-                new ContentStreamWasReopened(
-                    $contentStreamId
-                ),
+                DecoratedEvent::create(
+                    new ContentStreamWasReopened(
+                        $contentStreamId
+                    ),
+                    metadata: array_filter(['debug_reason' => $debugReason])
+                )
             ),
             // We operate here without constraints on purpose to ensure this can be commited.
-            //Constraints have been checked beforehand and its expected that the content stream is closed.
+            // Constraints have been checked beforehand and its expected that the content stream is closed.
             ExpectedVersion::ANY()
         );
     }

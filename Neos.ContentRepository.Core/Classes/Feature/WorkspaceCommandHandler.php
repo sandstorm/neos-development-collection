@@ -221,10 +221,12 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         );
 
         if ($commandSimulator->hasConflicts()) {
+            $workspaceRebaseFailed = WorkspaceRebaseFailed::duringPublish($commandSimulator->getConflictingEvents());
             yield $this->reopenContentStreamWithoutConstraintChecks(
-                $workspace->currentContentStreamId
+                $workspace->currentContentStreamId,
+                sprintf('conflicts %d: %s', $workspaceRebaseFailed->getCode(), $workspaceRebaseFailed->getMessage())
             );
-            throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getConflictingEvents());
+            throw $workspaceRebaseFailed;
         }
 
         $eventsOfWorkspaceToPublish = $this->getCopiedEventsOfEventStream(
@@ -392,12 +394,13 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             $command->rebaseErrorHandlingStrategy === RebaseErrorHandlingStrategy::STRATEGY_FAIL
             && $commandSimulator->hasConflicts()
         ) {
-            yield $this->reopenContentStreamWithoutConstraintChecks(
-                $workspace->currentContentStreamId
-            );
-
             // throw an exception that contains all the information about what exactly failed
-            throw WorkspaceRebaseFailed::duringRebase($commandSimulator->getConflictingEvents());
+            $workspaceRebaseFailed = WorkspaceRebaseFailed::duringRebase($commandSimulator->getConflictingEvents());
+            yield $this->reopenContentStreamWithoutConstraintChecks(
+                $workspace->currentContentStreamId,
+                sprintf('conflicts %d: %s', $workspaceRebaseFailed->getCode(), $workspaceRebaseFailed->getMessage())
+            );
+            throw $workspaceRebaseFailed;
         }
 
         // if we got so far without an exception (or if we don't care), we can switch the workspace's active content stream.
@@ -482,17 +485,19 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         );
 
         if ($commandSimulator->hasConflicts()) {
-            yield $this->reopenContentStreamWithoutConstraintChecks(
-                $workspace->currentContentStreamId
-            );
-            match ($workspace->status) {
+            $workspaceRebaseFailed = match ($workspace->status) {
                 // If the workspace is up-to-date it must be a problem regarding that the order of events cannot be changed
                 WorkspaceStatus::UP_TO_DATE =>
-                    throw PartialWorkspaceRebaseFailed::duringPartialPublish($commandSimulator->getConflictingEvents()),
+                    PartialWorkspaceRebaseFailed::duringPartialPublish($commandSimulator->getConflictingEvents()),
                 // If the workspace is outdated we cannot know for sure but suspect that the conflict arose due to changes in the base workspace.
                 WorkspaceStatus::OUTDATED =>
-                    throw WorkspaceRebaseFailed::duringPublish($commandSimulator->getConflictingEvents())
+                    WorkspaceRebaseFailed::duringPublish($commandSimulator->getConflictingEvents())
             };
+            yield $this->reopenContentStreamWithoutConstraintChecks(
+                $workspace->currentContentStreamId,
+                sprintf('conflicts %d: %s', $workspaceRebaseFailed->getCode(), $workspaceRebaseFailed->getMessage())
+            );
+            throw $workspaceRebaseFailed;
         }
 
         $selectedEventsOfWorkspaceToPublish = $this->getCopiedEventsOfEventStream(
@@ -511,7 +516,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                 );
             } catch (ConcurrencyException $concurrencyException) {
                 yield $this->reopenContentStreamWithoutConstraintChecks(
-                    $workspace->currentContentStreamId
+                    $workspace->currentContentStreamId,
+                    sprintf('concurrency %d: %s', $concurrencyException->getCode(), $concurrencyException->getMessage())
                 );
                 throw $concurrencyException;
             }
@@ -610,17 +616,19 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         );
 
         if ($commandSimulator->hasConflicts()) {
-            yield $this->reopenContentStreamWithoutConstraintChecks(
-                $workspace->currentContentStreamId
-            );
-            match ($workspace->status) {
+            $workspaceRebaseFailed = match ($workspace->status) {
                 // If the workspace is up-to-date it must be a problem regarding that the order of events cannot be changed
                 WorkspaceStatus::UP_TO_DATE =>
-                    throw PartialWorkspaceRebaseFailed::duringPartialDiscard($commandSimulator->getConflictingEvents()),
+                    PartialWorkspaceRebaseFailed::duringPartialDiscard($commandSimulator->getConflictingEvents()),
                 // If the workspace is outdated we cannot know for sure but suspect that the conflict arose due to changes in the base workspace.
                 WorkspaceStatus::OUTDATED =>
-                    throw WorkspaceRebaseFailed::duringDiscard($commandSimulator->getConflictingEvents())
+                    WorkspaceRebaseFailed::duringDiscard($commandSimulator->getConflictingEvents())
             };
+            yield $this->reopenContentStreamWithoutConstraintChecks(
+                $workspace->currentContentStreamId,
+                sprintf('conflicts %d: %s', $workspaceRebaseFailed->getCode(), $workspaceRebaseFailed->getMessage())
+            );
+            throw $workspaceRebaseFailed;
         }
 
         yield from $this->forkNewContentStreamAndApplyEvents(
