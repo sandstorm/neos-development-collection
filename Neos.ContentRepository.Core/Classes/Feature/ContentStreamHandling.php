@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Feature;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
+use Neos\ContentRepository\Core\EventStore\DecoratedEvent;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Feature\ContentStreamClosing\Event\ContentStreamWasClosed;
@@ -30,15 +31,19 @@ trait ContentStreamHandling
     private function closeContentStream(
         ContentStreamId $contentStreamId,
         Version $contentStreamVersion,
+        string $causationCommandClassName
     ): EventsToPublish {
         $streamName = ContentStreamEventStreamName::fromContentStreamId($contentStreamId)->getEventStreamName();
 
         return new EventsToPublish(
             $streamName,
             Events::with(
-                new ContentStreamWasClosed(
-                    $contentStreamId,
-                ),
+                DecoratedEvent::create(
+                    new ContentStreamWasClosed(
+                        $contentStreamId,
+                    ),
+                    metadata: array_filter(['debug_causationCommand' => substr($causationCommandClassName, strrpos($causationCommandClassName, '\\') + 1)])
+                )
             ),
             ExpectedVersion::fromVersion($contentStreamVersion)
         );

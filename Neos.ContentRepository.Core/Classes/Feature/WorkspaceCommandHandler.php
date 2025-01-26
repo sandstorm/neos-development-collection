@@ -206,7 +206,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         yield $this->closeContentStream(
             $workspace->currentContentStreamId,
-            $workspaceContentStreamVersion
+            $workspaceContentStreamVersion,
+            $command::class
         );
 
         $commandSimulator = $this->commandSimulatorFactory->createSimulatorForWorkspace($baseWorkspace->workspaceName);
@@ -242,7 +243,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                 );
             } catch (ConcurrencyException $concurrencyException) {
                 yield $this->reopenContentStreamWithoutConstraintChecks(
-                    $workspace->currentContentStreamId
+                    $workspace->currentContentStreamId,
+                    sprintf('concurrency %d: %s', $concurrencyException->getCode(), $concurrencyException->getMessage())
                 );
                 throw $concurrencyException;
             }
@@ -350,7 +352,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             // if we have no changes in the workspace we can fork from the base directly
             yield $this->closeContentStream(
                 $workspace->currentContentStreamId,
-                $workspaceContentStreamVersion
+                $workspaceContentStreamVersion,
+                $command::class
             );
 
             yield from $this->rebaseWorkspaceWithoutChanges(
@@ -371,7 +374,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         yield $this->closeContentStream(
             $workspace->currentContentStreamId,
-            $workspaceContentStreamVersion
+            $workspaceContentStreamVersion,
+            $command::class
         );
 
         $commandSimulator = $this->commandSimulatorFactory->createSimulatorForWorkspace($baseWorkspace->workspaceName);
@@ -458,7 +462,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         yield $this->closeContentStream(
             $workspace->currentContentStreamId,
-            $workspaceContentStreamVersion
+            $workspaceContentStreamVersion,
+            $command::class
         );
 
         $commandSimulator = $this->commandSimulatorFactory->createSimulatorForWorkspace($baseWorkspace->workspaceName);
@@ -579,7 +584,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         yield $this->closeContentStream(
             $workspace->currentContentStreamId,
-            $workspaceContentStreamVersion
+            $workspaceContentStreamVersion,
+            $command::class
         );
 
         if ($commandsToKeep->isEmpty()) {
@@ -790,8 +796,11 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             $sourceContentStreamId,
             $sourceContentStreamVersion
         )->withAppendedEvents(Events::with(
-            new ContentStreamWasClosed(
-                $newContentStreamId
+            DecoratedEvent::create(
+                new ContentStreamWasClosed(
+                    $newContentStreamId
+                ),
+                metadata: ['debug_reason' => sprintf('Forking %s from %s to publish %d events', $newContentStreamId->value, $sourceContentStreamId->value, $eventsToApplyOnNewContentStream?->count() ?? 0)]
             )
         ));
 
