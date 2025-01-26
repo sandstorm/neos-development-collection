@@ -31,19 +31,15 @@ trait ContentStreamHandling
     private function closeContentStream(
         ContentStreamId $contentStreamId,
         Version $contentStreamVersion,
-        string $causationCommandClassName
     ): EventsToPublish {
         $streamName = ContentStreamEventStreamName::fromContentStreamId($contentStreamId)->getEventStreamName();
 
         return new EventsToPublish(
             $streamName,
             Events::with(
-                DecoratedEvent::create(
-                    new ContentStreamWasClosed(
-                        $contentStreamId,
-                    ),
-                    metadata: array_filter(['debug_causationCommand' => substr($causationCommandClassName, strrpos($causationCommandClassName, '\\') + 1)])
-                )
+                new ContentStreamWasClosed(
+                    $contentStreamId,
+                ),
             ),
             ExpectedVersion::fromVersion($contentStreamVersion)
         );

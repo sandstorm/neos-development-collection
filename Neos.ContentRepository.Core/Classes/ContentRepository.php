@@ -100,7 +100,7 @@ final class ContentRepository
 
         // simple case
         if ($toPublish instanceof EventsToPublish) {
-            $this->eventStore->commit($toPublish->streamName, $this->enrichAndNormalizeEvents($toPublish->events, correlationId: null), $toPublish->expectedVersion);
+            $this->eventStore->commit($toPublish->streamName, Events::fromArray($this->enrichEventsWithInitiatingMetadata($toPublish->events)->map($this->eventNormalizer->normalize(...))), $toPublish->expectedVersion);
             $fullCatchUpResult = $this->subscriptionEngine->catchUpActive(); // NOTE: we don't batch here, to ensure the catchup is run completely and any errors don't stop it.
             if ($fullCatchUpResult->hadErrors()) {
                 throw CatchUpHadErrors::createFromErrors($fullCatchUpResult->errors);
@@ -109,11 +109,13 @@ final class ContentRepository
         }
 
         // control-flow aware command handling via generator
+        $isFirstEvent = true;
+        $causationCommandClassName = $command::class;
         $correlationId = CorrelationId::fromString(UuidFactory::create());
         try {
             foreach ($toPublish as $eventsToPublish) {
                 try {
-                    $this->eventStore->commit($eventsToPublish->streamName, $this->enrichAndNormalizeEvents($eventsToPublish->events, $correlationId), $eventsToPublish->expectedVersion);
+                    $this->eventStore->commit($eventsToPublish->streamName, $this->enrichAndNormalizeEvents($eventsToPublish->events, $correlationId, $isFirstEvent, $causationCommandClassName), $eventsToPublish->expectedVersion);
                 } catch (ConcurrencyException $concurrencyException) {
                     // we pass the exception into the generator (->throw), so it could be try-caught and reacted upon:
                     //
@@ -125,7 +127,7 @@ final class ContentRepository
                     //   }
                     $yieldedErrorStrategy = $toPublish->throw($concurrencyException);
                     if ($yieldedErrorStrategy instanceof EventsToPublish) {
-                        $this->eventStore->commit($yieldedErrorStrategy->streamName, $this->enrichAndNormalizeEvents($yieldedErrorStrategy->events, $correlationId), $yieldedErrorStrategy->expectedVersion);
+                        $this->eventStore->commit($yieldedErrorStrategy->streamName, $this->enrichAndNormalizeEvents($yieldedErrorStrategy->events, $correlationId, $isFirstEvent, $causationCommandClassName), $yieldedErrorStrategy->expectedVersion);
                     }
                     throw $concurrencyException;
                 }
@@ -210,19 +212,29 @@ final class ContentRepository
         return $this->contentDimensionSource;
     }
 
-    private function enrichAndNormalizeEvents(DomainEvents $events, CorrelationId|null $correlationId): Events
+    private function enrichEventsWithInitiatingMetadata(DomainEvents $events): DomainEvents
     {
         $initiatingUserId = $this->authProvider->getAuthenticatedUserId() ?? UserId::forSystemUser();
         $initiatingTimestamp = $this->clock->now();
 
-        $events = InitiatingEventMetadata::enrichEventsWithInitiatingMetadata(
+        return InitiatingEventMetadata::enrichEventsWithInitiatingMetadata(
             $events,
             $initiatingUserId,
             $initiatingTimestamp
         );
+    }
 
-        return Events::fromArray($events->map(function (EventInterface|DecoratedEvent $event) use ($correlationId) {
-            $decoratedEvent = DecoratedEvent::create($event, correlationId: $correlationId);
+    private function enrichAndNormalizeEvents(DomainEvents $events, CorrelationId|null $correlationId, bool &$isFirstEvent, string $causationCommandClassName): Events
+    {
+        $events = $this->enrichEventsWithInitiatingMetadata($events);
+
+        return Events::fromArray($events->map(function (EventInterface|DecoratedEvent $event) use ($correlationId, $causationCommandClassName, &$isFirstEvent) {
+            $metadata = $event instanceof DecoratedEvent ? $event->eventMetadata?->value ?? [] : [];
+            if ($isFirstEvent) {
+                $metadata['debug_causationCommand'] = substr($causationCommandClassName, strrpos($causationCommandClassName, '\\') + 1);
+                $isFirstEvent = false;
+            }
+            $decoratedEvent = DecoratedEvent::create($event, metadata: $metadata, correlationId: $correlationId);
             return $this->eventNormalizer->normalize($decoratedEvent);
         }));
     }

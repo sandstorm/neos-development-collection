@@ -206,8 +206,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         yield $this->closeContentStream(
             $workspace->currentContentStreamId,
-            $workspaceContentStreamVersion,
-            $command::class
+            $workspaceContentStreamVersion
         );
 
         $commandSimulator = $this->commandSimulatorFactory->createSimulatorForWorkspace($baseWorkspace->workspaceName);
@@ -354,8 +353,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             // if we have no changes in the workspace we can fork from the base directly
             yield $this->closeContentStream(
                 $workspace->currentContentStreamId,
-                $workspaceContentStreamVersion,
-                $command::class
+                $workspaceContentStreamVersion
             );
 
             yield from $this->rebaseWorkspaceWithoutChanges(
@@ -376,8 +374,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         yield $this->closeContentStream(
             $workspace->currentContentStreamId,
-            $workspaceContentStreamVersion,
-            $command::class
+            $workspaceContentStreamVersion
         );
 
         $commandSimulator = $this->commandSimulatorFactory->createSimulatorForWorkspace($baseWorkspace->workspaceName);
@@ -465,8 +462,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         yield $this->closeContentStream(
             $workspace->currentContentStreamId,
-            $workspaceContentStreamVersion,
-            $command::class
+            $workspaceContentStreamVersion
         );
 
         $commandSimulator = $this->commandSimulatorFactory->createSimulatorForWorkspace($baseWorkspace->workspaceName);
@@ -590,8 +586,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 
         yield $this->closeContentStream(
             $workspace->currentContentStreamId,
-            $workspaceContentStreamVersion,
-            $command::class
+            $workspaceContentStreamVersion
         );
 
         if ($commandsToKeep->isEmpty()) {
