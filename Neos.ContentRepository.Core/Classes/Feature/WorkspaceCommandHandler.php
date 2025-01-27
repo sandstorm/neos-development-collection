@@ -40,7 +40,6 @@ use Neos\ContentRepository\Core\Feature\WorkspaceModification\Command\DeleteWork
 use Neos\ContentRepository\Core\Feature\WorkspaceModification\Event\WorkspaceBaseWorkspaceWasChanged;
 use Neos\ContentRepository\Core\Feature\WorkspaceModification\Event\WorkspaceWasRemoved;
 use Neos\ContentRepository\Core\Feature\WorkspaceModification\Exception\BaseWorkspaceEqualsWorkspaceException;
-use Neos\ContentRepository\Core\Feature\WorkspaceModification\Exception\BaseWorkspaceUnchangedException;
 use Neos\ContentRepository\Core\Feature\WorkspaceModification\Exception\CircularRelationBetweenWorkspacesException;
 use Neos\ContentRepository\Core\Feature\WorkspaceModification\Exception\WorkspaceIsNotEmptyException;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\DiscardIndividualNodesFromWorkspace;
@@ -720,7 +719,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         $this->requireContentStreamToNotBeClosed($workspace->currentContentStreamId, $commandHandlingDependencies);
 
         if ($currentBaseWorkspace->workspaceName->equals($command->baseWorkspaceName)) {
-            throw BaseWorkspaceUnchangedException::becauseTheAttemptedBaseWorkspaceIsTheBase($command->baseWorkspaceName, $workspace->workspaceName);
+            throw WorkspaceCommandSkipped::becauseTheBaseWorkspaceIsUnchanged($command->baseWorkspaceName, $command->workspaceName);
         }
 
         $this->requireEmptyWorkspace($workspace);

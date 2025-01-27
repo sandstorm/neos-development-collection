@@ -54,7 +54,7 @@ Feature: Change base workspace works :D what else
       | Key               | Value       |
       | workspaceName     | "user-test" |
       | baseWorkspaceName | "live"      |
-    Then the last command should have thrown an exception of type "BaseWorkspaceUnchangedException" with code 1737534132 and message:
+    Then the last command should have thrown an exception of type "WorkspaceCommandSkipped" with code 1737534132 and message:
     """
     Skipped changing the base workspace to "live" from workspace "user-test" because its already set.
     """
