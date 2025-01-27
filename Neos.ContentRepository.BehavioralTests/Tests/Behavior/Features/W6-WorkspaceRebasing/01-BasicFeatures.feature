@@ -62,6 +62,14 @@ Feature: Rebasing with no conflict
       | rebaseErrorHandlingStrategy | "force"               |
     Then I expect the content stream "user-cs-identifier" to not exist
 
+    Then I expect exactly 2 events to be published on stream with prefix "Workspace:user-test"
+    And event at index 1 is of type "WorkspaceWasRebased" with payload:
+      | Key                     | Expected             |
+      | workspaceName           | "user-test"          |
+      | newContentStreamId      | "user-cs-rebased"    |
+      | previousContentStreamId | "user-cs-identifier" |
+      | skippedEvents           | []                   |
+
     When I am in workspace "user-test" and dimension space point {}
     Then I expect node aggregate identifier "sir-david-nodenborough" to lead to node user-cs-rebased;sir-david-nodenborough;{}
 

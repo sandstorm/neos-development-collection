@@ -49,6 +49,7 @@ use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishWork
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasDiscarded;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPublished;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Command\RebaseWorkspace;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\ConflictingEvent;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Dto\RebaseErrorHandlingStrategy;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Event\WorkspaceWasRebased;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\PartialWorkspaceRebaseFailed;
@@ -288,6 +289,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                     $workspace->workspaceName,
                     $newContentStreamId,
                     $workspace->currentContentStreamId,
+                    skippedEvents: []
                 ),
             ),
             ExpectedVersion::ANY()
@@ -404,6 +406,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                         $command->workspaceName,
                         $command->rebasedContentStreamId,
                         $workspace->currentContentStreamId,
+                        skippedEvents: $commandSimulator->getConflictingEvents()
+                            ->map(fn (ConflictingEvent $conflictingEvent) => $conflictingEvent->getSequenceNumber())
                     ),
                 ),
                 ExpectedVersion::ANY()
