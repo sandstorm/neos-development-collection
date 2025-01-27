@@ -145,7 +145,7 @@ Feature: Publishing individual nodes (basics)
       | nodesToPublish                  | ["non-existing-node", "sir-unchanged"] |
       | contentStreamIdForRemainingPart | "user-cs-identifier-remaining"         |
 
-    Then the last command should have thrown an exception of type "NoChangesException" with code 1737477674 and message:
+    Then the last command should have thrown an exception of type "WorkspaceCommandSkipped" with code 1737477674 and message:
     """
     No nodes matched in workspace "user-test" the filter non-existing-node,sir-unchanged.
     """
@@ -301,7 +301,7 @@ Feature: Publishing individual nodes (basics)
       | nodesToPublish                  | ["non-existing"] |
       | contentStreamIdForRemainingPart | "user-cs-new"                                                    |
 
-    Then the last command should have thrown an exception of type "NoChangesException" with code 1737477674 and message:
+    Then the last command should have thrown an exception of type "WorkspaceCommandSkipped" with code 1737477674 and message:
     """
     No nodes matched in workspace "user-test" the filter non-existing.
     """

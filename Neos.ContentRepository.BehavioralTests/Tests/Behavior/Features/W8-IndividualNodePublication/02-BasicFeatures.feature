@@ -91,7 +91,7 @@ Feature: Individual node publication
       | nodesToPublish                  | ["non-existing"] |
       | contentStreamIdForRemainingPart | "user-cs-new"                                                    |
 
-    Then the last command should have thrown an exception of type "NoChangesException" with code 1730463156 and message:
+    Then the last command should have thrown an exception of type "WorkspaceCommandSkipped" with code 1730463156 and message:
     """
     Skipped publish workspace "user-test" without any publishable changes.
     """

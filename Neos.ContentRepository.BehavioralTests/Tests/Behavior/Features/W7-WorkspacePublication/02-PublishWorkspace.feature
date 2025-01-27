@@ -186,7 +186,7 @@ Feature: Workspace based content publishing
       | workspaceName      | "user-test"   |
       | newContentStreamId | "user-cs-new" |
 
-    Then the last command should have thrown an exception of type "NoChangesException" with code 1730463156 and message:
+    Then the last command should have thrown an exception of type "WorkspaceCommandSkipped" with code 1730463156 and message:
     """
     Skipped publish workspace "user-test" without any publishable changes.
     """
@@ -214,7 +214,7 @@ Feature: Workspace based content publishing
       | workspaceName      | "user-test"   |
       | newContentStreamId | "user-cs-new" |
 
-    Then the last command should have thrown an exception of type "NoChangesException" with code 1730463156 and message:
+    Then the last command should have thrown an exception of type "WorkspaceCommandSkipped" with code 1730463156 and message:
     """
     Skipped publish workspace "user-test" without any publishable changes.
     """

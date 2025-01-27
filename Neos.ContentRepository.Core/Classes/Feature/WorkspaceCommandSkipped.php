@@ -12,14 +12,18 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\Core\Feature\WorkspacePublication\Exception;
+namespace Neos\ContentRepository\Core\Feature;
 
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 
 /**
- * Exception to denote that the workspace rebase operation was skipped as there are no (selected) publishable changes.
+ * Exception to denote that the workspace operation was skipped. No events were published.
+ *
+ * *Workspace publishing/discarding*
+ *
+ * Command skipped if there are no (selected) publishable changes.
  *
  * The case is not handled gracefully with a no-op as there would be no traces (emitted events) of the handled command,
  * and the original content stream id is kept. This exception denoting the operation is obsolete hardens the interactions.
@@ -31,9 +35,13 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
  *         $contentRepository->handle(...);
  *     }
  *
- * @api thrown as part of command handling in case of empty publish, discard and rebase operations
+ * *Workspace rebase*
+ *
+ * Command skipped if the workspace is not outdated.
+ *
+ * @api thrown as part of command handling in case of a workspace no-op
  */
-class NoChangesException extends \RuntimeException
+class WorkspaceCommandSkipped extends \RuntimeException
 {
     public static function becauseWorkspaceToPublishIsEmpty(WorkspaceName $workspaceName): self
     {

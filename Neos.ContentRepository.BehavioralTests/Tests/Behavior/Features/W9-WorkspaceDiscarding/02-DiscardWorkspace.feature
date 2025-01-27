@@ -172,7 +172,7 @@ Feature: Workspace discarding - basic functionality
       | workspaceName      | "user-test"             |
       | newContentStreamId | "user-cs-two-discarded" |
 
-    Then the last command should have thrown an exception of type "NoChangesException" with code 1730463156 and message:
+    Then the last command should have thrown an exception of type "WorkspaceCommandSkipped" with code 1730463156 and message:
     """
     Skipped discard workspace "user-test" without any publishable changes.
     """

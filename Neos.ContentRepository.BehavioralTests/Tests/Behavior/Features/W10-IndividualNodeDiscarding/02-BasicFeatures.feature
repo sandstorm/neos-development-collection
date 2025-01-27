@@ -138,7 +138,7 @@ Feature: Discard individual nodes (basics)
       | nodesToDiscard                  | ["non-existing-node", "sir-unchanged"] |
       | newContentStreamId              | "user-cs-identifier-new-two"                                                                                                           |
 
-    Then the last command should have thrown an exception of type "NoChangesException" with code 1737477674 and message:
+    Then the last command should have thrown an exception of type "WorkspaceCommandSkipped" with code 1737477674 and message:
     """
     No nodes matched in workspace "user-test" the filter non-existing-node,sir-unchanged.
     """
