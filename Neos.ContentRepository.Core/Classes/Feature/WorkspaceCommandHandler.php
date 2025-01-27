@@ -233,24 +233,26 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             $commandSimulator->eventStream(),
         );
 
-        try {
-            yield new EventsToPublish(
-                ContentStreamEventStreamName::fromContentStreamId($baseWorkspace->currentContentStreamId)
-                    ->getEventStreamName(),
-                $eventsOfWorkspaceToPublish,
-                ExpectedVersion::fromVersion($baseWorkspaceContentStreamVersion)
-            );
-        } catch (ConcurrencyException $concurrencyException) {
-            yield $this->reopenContentStreamWithoutConstraintChecks(
-                $workspace->currentContentStreamId
-            );
-            throw $concurrencyException;
+        if ($eventsOfWorkspaceToPublish !== null) {
+            try {
+                yield new EventsToPublish(
+                    ContentStreamEventStreamName::fromContentStreamId($baseWorkspace->currentContentStreamId)
+                        ->getEventStreamName(),
+                    $eventsOfWorkspaceToPublish,
+                    ExpectedVersion::fromVersion($baseWorkspaceContentStreamVersion)
+                );
+            } catch (ConcurrencyException $concurrencyException) {
+                yield $this->reopenContentStreamWithoutConstraintChecks(
+                    $workspace->currentContentStreamId
+                );
+                throw $concurrencyException;
+            }
         }
 
         yield $this->forkContentStream(
             $command->newContentStreamId,
             $baseWorkspace->currentContentStreamId,
-            Version::fromInteger($baseWorkspaceContentStreamVersion->value + $eventsOfWorkspaceToPublish->count())
+            Version::fromInteger($baseWorkspaceContentStreamVersion->value + ($eventsOfWorkspaceToPublish?->count() ?? 0))
         );
 
         yield new EventsToPublish(
@@ -305,7 +307,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         WorkspaceName $targetWorkspaceName,
         ContentStreamId $targetContentStreamId,
         EventStreamInterface $eventStream
-    ): Events {
+    ): Events|null {
         $events = [];
         foreach ($eventStream as $eventEnvelope) {
             $event = $this->eventNormalizer->denormalize($eventEnvelope->event);
@@ -318,7 +320,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             }
         }
 
-        return Events::fromArray($events);
+        // this could technically empty, but we handle it as a no-op
+        return $events !== [] ? Events::fromArray($events) : null;
     }
 
     /**
@@ -489,31 +492,32 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             };
         }
 
-        // this could empty and a no-op for the rare case when a command returns empty events e.g. the node was already tagged with this subtree tag
         $selectedEventsOfWorkspaceToPublish = $this->getCopiedEventsOfEventStream(
             $baseWorkspace->workspaceName,
             $baseWorkspace->currentContentStreamId,
             $commandSimulator->eventStream()->withMaximumSequenceNumber($highestSequenceNumberForMatching),
         );
 
-        try {
-            yield new EventsToPublish(
-                ContentStreamEventStreamName::fromContentStreamId($baseWorkspace->currentContentStreamId)
-                    ->getEventStreamName(),
-                $selectedEventsOfWorkspaceToPublish,
-                ExpectedVersion::fromVersion($baseWorkspaceContentStreamVersion)
-            );
-        } catch (ConcurrencyException $concurrencyException) {
-            yield $this->reopenContentStreamWithoutConstraintChecks(
-                $workspace->currentContentStreamId
-            );
-            throw $concurrencyException;
+        if ($selectedEventsOfWorkspaceToPublish !== null) {
+            try {
+                yield new EventsToPublish(
+                    ContentStreamEventStreamName::fromContentStreamId($baseWorkspace->currentContentStreamId)
+                        ->getEventStreamName(),
+                    $selectedEventsOfWorkspaceToPublish,
+                    ExpectedVersion::fromVersion($baseWorkspaceContentStreamVersion)
+                );
+            } catch (ConcurrencyException $concurrencyException) {
+                yield $this->reopenContentStreamWithoutConstraintChecks(
+                    $workspace->currentContentStreamId
+                );
+                throw $concurrencyException;
+            }
         }
 
         yield from $this->forkNewContentStreamAndApplyEvents(
             $command->contentStreamIdForRemainingPart,
             $baseWorkspace->currentContentStreamId,
-            Version::fromInteger($baseWorkspaceContentStreamVersion->value + $selectedEventsOfWorkspaceToPublish->count()),
+            Version::fromInteger($baseWorkspaceContentStreamVersion->value + ($selectedEventsOfWorkspaceToPublish?->count() ?? 0)),
             new EventsToPublish(
                 WorkspaceEventStreamName::fromWorkspaceName($command->workspaceName)->getEventStreamName(),
                 Events::fromArray([
@@ -784,7 +788,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         ContentStreamId $sourceContentStreamId,
         Version $sourceContentStreamVersion,
         EventsToPublish $pointWorkspaceToNewContentStream,
-        Events $eventsToApplyOnNewContentStream,
+        Events|null $eventsToApplyOnNewContentStream,
     ): \Generator {
         yield $this->forkContentStream(
             $newContentStreamId,
@@ -801,13 +805,12 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         yield new EventsToPublish(
             ContentStreamEventStreamName::fromContentStreamId($newContentStreamId)
                 ->getEventStreamName(),
-            $eventsToApplyOnNewContentStream->withAppendedEvents(
-                Events::with(
-                    new ContentStreamWasReopened(
-                        $newContentStreamId
-                    )
+            Events::fromArray([
+                ...($eventsToApplyOnNewContentStream ?? []),
+                new ContentStreamWasReopened(
+                    $newContentStreamId
                 )
-            ),
+            ]),
             ExpectedVersion::fromVersion(Version::first()->next())
         );
     }

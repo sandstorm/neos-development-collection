@@ -17,6 +17,7 @@ namespace Neos\ContentRepository\Core\Feature\NodeTypeChange;
 use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePointSet;
+use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Feature\RebaseableCommand;
@@ -90,6 +91,9 @@ trait NodeTypeChange
         NodeType $nodeType
     ): bool;
 
+    /**
+     * @return array<EventInterface>
+     */
     abstract protected function createEventsForMissingTetheredNodeAggregate(
         ContentGraphInterface $contentGraph,
         TetheredNodeTypeDefinition $tetheredNodeTypeDefinition,
@@ -99,7 +103,7 @@ trait NodeTypeChange
         ?NodeAggregateId $succeedingSiblingNodeAggregateId,
         NodeAggregateIdsByNodePaths $nodeAggregateIdsByNodePaths,
         NodePath $currentNodePath,
-    ): Events;
+    ): array;
 
     abstract protected function createEventsForWronglyTypedNodeAggregate(
         ContentGraphInterface $contentGraph,
@@ -230,18 +234,18 @@ trait NodeTypeChange
         // remove disallowed nodes
         $alreadyRemovedNodeAggregateIds = NodeAggregateIds::createEmpty();
         if ($command->strategy === NodeAggregateTypeChangeChildConstraintConflictResolutionStrategy::STRATEGY_DELETE) {
-            array_push($events, ...iterator_to_array($this->deleteDisallowedNodesWhenChangingNodeType(
+            array_push($events, ...$this->deleteDisallowedNodesWhenChangingNodeType(
                 $contentGraph,
                 $nodeAggregate,
                 $newNodeType,
                 $alreadyRemovedNodeAggregateIds,
-            )));
-            array_push($events, ...iterator_to_array($this->deleteObsoleteTetheredNodesWhenChangingNodeType(
+            ));
+            array_push($events, ...$this->deleteObsoleteTetheredNodesWhenChangingNodeType(
                 $contentGraph,
                 $nodeAggregate,
                 $newNodeType,
                 $alreadyRemovedNodeAggregateIds
-            )));
+            ));
         }
 
         // handle (missing) tethered node aggregates
@@ -254,7 +258,7 @@ trait NodeTypeChange
         foreach ($newNodeType->tetheredNodeTypeDefinitions as $tetheredNodeTypeDefinition) {
             $tetheredNodeAggregate = $contentGraph->findChildNodeAggregateByName($nodeAggregate->nodeAggregateId, $tetheredNodeTypeDefinition->name);
             if ($tetheredNodeAggregate === null) {
-                $events = array_merge($events, iterator_to_array($this->createEventsForMissingTetheredNodeAggregate(
+                $events = array_merge($events, $this->createEventsForMissingTetheredNodeAggregate(
                     $contentGraph,
                     $tetheredNodeTypeDefinition,
                     $nodeAggregate->occupiedDimensionSpacePoints,
@@ -263,7 +267,7 @@ trait NodeTypeChange
                     $succeedingSiblingIds[$tetheredNodeTypeDefinition->nodeTypeName->value] ?? null,
                     $command->tetheredDescendantNodeAggregateIds,
                     NodePath::fromNodeNames($tetheredNodeTypeDefinition->name)
-                )));
+                ));
             } elseif (!$tetheredNodeAggregate->nodeTypeName->equals($tetheredNodeTypeDefinition->nodeTypeName)) {
                 $events = array_merge($events, iterator_to_array($this->createEventsForWronglyTypedNodeAggregate(
                     $contentGraph,
