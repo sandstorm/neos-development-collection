@@ -135,7 +135,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         yield $this->forkContentStream(
             $command->newContentStreamId,
             $baseWorkspace->currentContentStreamId,
-            $sourceContentStreamVersion
+            $sourceContentStreamVersion,
+            sprintf('Create workspace %s with base %s', $command->workspaceName->value, $baseWorkspace->workspaceName->value)
         );
 
         yield new EventsToPublish(
@@ -254,7 +255,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         yield $this->forkContentStream(
             $command->newContentStreamId,
             $baseWorkspace->currentContentStreamId,
-            Version::fromInteger($baseWorkspaceContentStreamVersion->value + ($eventsOfWorkspaceToPublish?->count() ?? 0))
+            Version::fromInteger($baseWorkspaceContentStreamVersion->value + ($eventsOfWorkspaceToPublish?->count() ?? 0)),
+            sprintf('Publish workspace %s and fork base %s', $workspace->workspaceName->value, $baseWorkspace->workspaceName->value)
         );
 
         yield new EventsToPublish(
@@ -283,7 +285,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         yield $this->forkContentStream(
             $newContentStreamId,
             $baseWorkspace->currentContentStreamId,
-            $baseWorkspaceContentStreamVersion
+            $baseWorkspaceContentStreamVersion,
+            sprintf('Rebase empty workspace %s and fork base %s', $workspace->workspaceName->value, $baseWorkspace->workspaceName->value)
         );
 
         yield new EventsToPublish(
@@ -422,7 +425,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                 $command->workspaceName,
                 $command->rebasedContentStreamId,
                 $commandSimulator->eventStream(),
-            )
+            ),
+            sprintf('Rebase %s and fork base %s', $command->workspaceName->value, $baseWorkspace->workspaceName->value)
         );
 
         yield $this->removeContentStreamWithoutConstraintChecks($workspace->currentContentStreamId);
@@ -540,7 +544,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                 $command->workspaceName,
                 $command->contentStreamIdForRemainingPart,
                 $commandSimulator->eventStream()->withMinimumSequenceNumber($highestSequenceNumberForMatching->next())
-            )
+            ),
+            sprintf('Partial publish workspace %s and fork base %s', $command->workspaceName->value, $baseWorkspace->workspaceName->value)
         );
 
         yield $this->removeContentStreamWithoutConstraintChecks($workspace->currentContentStreamId);
@@ -646,7 +651,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                 $command->workspaceName,
                 $command->newContentStreamId,
                 $commandSimulator->eventStream(),
-            )
+            ),
+            sprintf('Partial discard workspace %s and fork base %s', $command->workspaceName->value, $baseWorkspace->workspaceName->value)
         );
 
         yield $this->removeContentStreamWithoutConstraintChecks($workspace->currentContentStreamId);
@@ -691,7 +697,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         yield $this->forkContentStream(
             $newContentStream,
             $baseWorkspace->currentContentStreamId,
-            $baseWorkspaceContentStreamVersion
+            $baseWorkspaceContentStreamVersion,
+            sprintf('Discard %s and fork base %s', $workspace->workspaceName->value, $baseWorkspace->workspaceName->value)
         );
 
         yield new EventsToPublish(
@@ -740,7 +747,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         yield $this->forkContentStream(
             $command->newContentStreamId,
             $newBaseWorkspace->currentContentStreamId,
-            $newBaseWorkspaceContentStreamVersion
+            $newBaseWorkspaceContentStreamVersion,
+            sprintf('Change base workspace of %s to %s', $workspace->workspaceName->value, $newBaseWorkspace->workspaceName->value)
         );
 
         yield new EventsToPublish(
@@ -793,17 +801,16 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         Version $sourceContentStreamVersion,
         EventsToPublish $pointWorkspaceToNewContentStream,
         Events|null $eventsToApplyOnNewContentStream,
+        string $debugReasonForFork
     ): \Generator {
         yield $this->forkContentStream(
             $newContentStreamId,
             $sourceContentStreamId,
-            $sourceContentStreamVersion
+            $sourceContentStreamVersion,
+            $debugReasonForFork . sprintf('; Apply %d events on new (temporary closed) content stream', $eventsToApplyOnNewContentStream?->count() ?? 0)
         )->withAppendedEvents(Events::with(
-            DecoratedEvent::create(
-                new ContentStreamWasClosed(
-                    $newContentStreamId
-                ),
-                metadata: ['debug_reason' => sprintf('Forking %s from %s to publish %d events', $newContentStreamId->value, $sourceContentStreamId->value, $eventsToApplyOnNewContentStream?->count() ?? 0)]
+            new ContentStreamWasClosed(
+                $newContentStreamId
             )
         ));
 

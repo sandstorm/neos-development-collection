@@ -79,16 +79,20 @@ trait ContentStreamHandling
     private function forkContentStream(
         ContentStreamId $newContentStreamId,
         ContentStreamId $sourceContentStreamId,
-        Version $sourceContentStreamVersion
+        Version $sourceContentStreamVersion,
+        string $debugReason
     ): EventsToPublish {
         return new EventsToPublish(
             ContentStreamEventStreamName::fromContentStreamId($newContentStreamId)->getEventStreamName(),
             Events::with(
-                new ContentStreamWasForked(
-                    $newContentStreamId,
-                    $sourceContentStreamId,
-                    $sourceContentStreamVersion,
-                ),
+                DecoratedEvent::create(
+                    event: new ContentStreamWasForked(
+                        $newContentStreamId,
+                        $sourceContentStreamId,
+                        $sourceContentStreamVersion,
+                    ),
+                    metadata: ['debug_reason' => $debugReason]
+                )
             ),
             // NO_STREAM to ensure the "fork" happens as the first event of the new content stream
             ExpectedVersion::NO_STREAM()
