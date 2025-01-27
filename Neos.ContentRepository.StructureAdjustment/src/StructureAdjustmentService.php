@@ -134,11 +134,7 @@ class StructureAdjustmentService implements ContentRepositoryServiceInterface
             return $this->eventNormalizer->normalize($decoratedEvent);
         }));
 
-        $this->eventStore->commit(
-            $eventsToPublish->streamName,
-            $normalizedEvents,
-            $eventsToPublish->expectedVersion
-        );
+        $this->eventStore->commit($eventsToPublish->streamName, $normalizedEvents, $eventsToPublish->expectedVersion);
         $this->subscriptionEngine->catchUpActive();
     }
 }

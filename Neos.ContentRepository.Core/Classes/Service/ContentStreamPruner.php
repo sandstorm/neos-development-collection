@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Service;
 
+use Neos\ContentRepository\Core\EventStore\DecoratedEvent;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
 use Neos\ContentRepository\Core\Feature\ContentStreamCreation\Event\ContentStreamWasCreated;
@@ -22,6 +23,7 @@ use Neos\ContentRepository\Core\Service\ContentStreamPruner\ContentStreamStatus;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\EventStore\EventStoreInterface;
+use Neos\EventStore\Model\Event\CorrelationId;
 use Neos\EventStore\Model\Event\EventType;
 use Neos\EventStore\Model\Event\EventTypes;
 use Neos\EventStore\Model\EventStream\EventStreamFilter;
@@ -129,6 +131,7 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
     {
         $allContentStreams = $this->findAllContentStreams();
 
+        $correlationId = CorrelationId::fromString(sprintf('ContentStreamPruner_%s', bin2hex(random_bytes(9))));
         $danglingContentStreamsPresent = false;
         foreach ($allContentStreams as $contentStream) {
             if (!$contentStream->isDangling()) {
@@ -145,8 +148,12 @@ class ContentStreamPruner implements ContentRepositoryServiceInterface
             $this->eventStore->commit(
                 ContentStreamEventStreamName::fromContentStreamId($contentStream->id)->getEventStreamName(),
                 $this->eventNormalizer->normalize(
-                    new ContentStreamWasRemoved(
-                        $contentStream->id
+                    DecoratedEvent::create(
+                        new ContentStreamWasRemoved(
+                            $contentStream->id
+                        ),
+                        metadata: ['debug_reason' => sprintf('Removed dangling content stream with status %s', $contentStream->status->value)],
+                        correlationId: $correlationId
                     )
                 ),
                 ExpectedVersion::STREAM_EXISTS()
