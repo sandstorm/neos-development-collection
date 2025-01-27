@@ -41,11 +41,15 @@ Feature: Rebasing with no conflict
 
     Then workspaces live,user-test have status UP_TO_DATE
 
-  Scenario: Rebase is a no-op if there are no changes
-    When the command RebaseWorkspace is executed with payload:
+  Scenario: Rebase is skipped (via exception) if there are no changes
+    When the command RebaseWorkspace is executed with payload and exceptions are caught:
       | Key                         | Value                 |
       | workspaceName               | "user-test"           |
       | rebasedContentStreamId      | "user-cs-rebased"     |
+    Then the last command should have thrown an exception of type "WorkspaceCommandSkipped" with code 1730463693 and message:
+    """
+    Skipped rebase workspace "user-test" because it is not outdated.
+    """
     Then I expect the content stream "user-cs-rebased" to not exist
 
     When I am in workspace "live" and dimension space point {}

@@ -192,8 +192,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         $workspace = $this->requireWorkspace($command->workspaceName, $commandHandlingDependencies);
         $baseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
         if (!$workspace->hasPublishableChanges()) {
-            // no-op
-            return;
+            throw WorkspaceCommandSkipped::becauseWorkspaceToPublishIsEmpty($command->workspaceName);
         }
         $workspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($workspace, $commandHandlingDependencies);
         $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($baseWorkspace, $commandHandlingDependencies);
@@ -343,8 +342,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             $workspace->status === WorkspaceStatus::UP_TO_DATE
             && $command->rebaseErrorHandlingStrategy !== RebaseErrorHandlingStrategy::STRATEGY_FORCE
         ) {
-            // no-op if workspace is not outdated and not forcing it
-            return;
+            // skipped rebase, when not forcing it
+            throw WorkspaceCommandSkipped::becauseWorkspaceToRebaseIsNotOutdated($command->workspaceName);
         }
 
         if (!$workspace->hasPublishableChanges()) {
@@ -436,9 +435,9 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
     ): \Generator {
         $workspace = $this->requireWorkspace($command->workspaceName, $commandHandlingDependencies);
         $baseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
-        if ($command->nodesToPublish->isEmpty() || !$workspace->hasPublishableChanges()) {
-            // noop
-            return;
+
+        if (!$workspace->hasPublishableChanges()) {
+            throw WorkspaceCommandSkipped::becauseWorkspaceToPublishIsEmpty($command->workspaceName);
         }
 
         $workspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($workspace, $commandHandlingDependencies);
@@ -454,8 +453,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         [$matchingCommands, $remainingCommands] = $rebaseableCommands->separateMatchingAndRemainingCommands($command->nodesToPublish);
 
         if ($matchingCommands->isEmpty()) {
-            // almost a noop (e.g. random node ids were specified) ;)
-            return;
+            throw WorkspaceCommandSkipped::becauseFilterDidNotMatch($command->workspaceName, $command->nodesToPublish);
         }
 
         yield $this->closeContentStream(
@@ -558,9 +556,8 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         $workspace = $this->requireWorkspace($command->workspaceName, $commandHandlingDependencies);
         $baseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
 
-        if ($command->nodesToDiscard->isEmpty() || !$workspace->hasPublishableChanges()) {
-            // noop
-            return;
+        if (!$workspace->hasPublishableChanges()) {
+            throw WorkspaceCommandSkipped::becauseWorkspaceToDiscardIsEmpty($command->workspaceName);
         }
 
         $workspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($workspace, $commandHandlingDependencies);
@@ -577,8 +574,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         [$commandsToDiscard, $commandsToKeep] = $rebaseableCommands->separateMatchingAndRemainingCommands($command->nodesToDiscard);
 
         if ($commandsToDiscard->isEmpty()) {
-            // if we have nothing to discard, we can just keep all. (e.g. random node ids were specified) It's almost a noop ;)
-            return;
+            throw WorkspaceCommandSkipped::becauseFilterDidNotMatch($command->workspaceName, $command->nodesToDiscard);
         }
 
         yield $this->closeContentStream(
@@ -660,7 +656,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         $baseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
 
         if (!$workspace->hasPublishableChanges()) {
-            return;
+            throw WorkspaceCommandSkipped::becauseWorkspaceToDiscardIsEmpty($command->workspaceName);
         }
 
         $this->requireContentStreamToNotBeClosed($workspace->currentContentStreamId, $commandHandlingDependencies);
@@ -723,8 +719,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         $this->requireContentStreamToNotBeClosed($workspace->currentContentStreamId, $commandHandlingDependencies);
 
         if ($currentBaseWorkspace->workspaceName->equals($command->baseWorkspaceName)) {
-            // no-op
-            return;
+            throw WorkspaceCommandSkipped::becauseTheBaseWorkspaceIsUnchanged($command->baseWorkspaceName, $command->workspaceName);
         }
 
         $this->requireEmptyWorkspace($workspace);
