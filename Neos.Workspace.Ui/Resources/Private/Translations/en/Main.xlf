@@ -51,6 +51,9 @@
       <trans-unit id="workspaces.editWorkspace" xml:space="preserve">
 				<source>Edit workspace "{0}"</source>
 			</trans-unit>
+      <trans-unit id="workspaces.rebaseWorkspace" xml:space="preserve">
+				<source>Sync workspace "{0}" with its base workspace</source>
+			</trans-unit>
       <trans-unit id="workspaces.personalWorkspace" xml:space="preserve">
 				<source>Personal workspace</source>
 			</trans-unit>
@@ -170,6 +173,15 @@
 			</trans-unit>
       <trans-unit id="workspaces.dialog.thisWillDeleteTheWorkspace" xml:space="preserve">
 				<source>This will delete the workspace including all unpublished content. This operation cannot be undone.</source>
+			</trans-unit>
+      <trans-unit id="workspaces.dialog.forceSyncWorkspace" xml:space="preserve">
+				<source>Syncing has failed</source>
+			</trans-unit>
+      <trans-unit id="workspaces.dialog.thisCanLeadToLostChanges" xml:space="preserve">
+				<source>A conflict occured while syncing the workspace. Do you want to drop the conflicting changes?</source>
+			</trans-unit>
+      <trans-unit id="workspaces.modal.yesRebaseWorkspace" xml:space="preserve">
+				<source>Yes, drop changes</source>
 			</trans-unit>
       <trans-unit id="workspaces.description" xml:space="preserve">
 				<source>This module contains the overview of all elements within the current workspace and it enables to continue the review and publishing workflow for them.</source>
@@ -307,6 +319,12 @@
 			</trans-unit>
       <trans-unit id="table.column.access.personal" xml:space="preserve">
 				<source>This is the personal workspace of "{0}"</source>
+			</trans-unit>
+      <trans-unit id="workspaces.workspaceHasBeenRebased" xml:space="preserve">
+				<source>The workspace has been successfully synced</source>
+			</trans-unit>
+      <trans-unit id="workspaces.ForceRebaseWorkspaceFailed" xml:space="preserve">
+				<source>Forcing the sync has failed. Please try discarding your changes.</source>
 			</trans-unit>
     </body>
   </file>

@@ -1,0 +1,10 @@
+Neos.Workspace.Ui.WorkspaceController.rebase = Neos.Fusion:Component {
+  /// string
+  workspaceName = ${workspaceName}
+
+  renderer = afx`
+    <Neos.Workspace.Ui:Component.Modal.Rebase
+      workspaceName={props.workspaceName}
+    />
+  `
+}
