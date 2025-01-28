@@ -86,6 +86,6 @@ final class WorkspaceRebaseFailed extends \RuntimeException
     private static function renderMessage(ConflictingEvents $conflictingEvents): string
     {
         $firstConflict = $conflictingEvents->first();
-        return sprintf('"%s" and %d further conflicts', $firstConflict?->getException()->getMessage(), count($conflictingEvents) - 1);
+        return sprintf('"%s"%s', $firstConflict?->getException()->getMessage(), count($conflictingEvents) > 1 ? sprintf(' and %d further conflicts', count($conflictingEvents) - 1) : '');
     }
 }
