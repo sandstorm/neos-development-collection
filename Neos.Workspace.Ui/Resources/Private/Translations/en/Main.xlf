@@ -184,7 +184,7 @@
 				<source>Workspace "{0}" contains modifications that are in conflict with the changes in workspace "{1}".</source>
 			</trans-unit>
       <trans-unit id="workspaces.dialog.thisCanLeadToLostChangesConfirmation" xml:space="preserve">
-				<source>Do you want to drop {0} conflicting changes?</source>
+				<source>Do you want to drop {0} conflicting change(s)?</source>
 			</trans-unit>
       <trans-unit id="workspaces.dialog.ConfirmationDropConflictingChanges" xml:space="preserve">
 				<source>Do you really want to drop all conflicting changes from workspace "{0}"?</source>

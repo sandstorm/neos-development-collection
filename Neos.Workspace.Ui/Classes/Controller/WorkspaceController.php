@@ -65,7 +65,6 @@ use Neos\Neos\PendingChangesProjection\ChangeFinder;
 use Neos\Neos\PendingChangesProjection\Changes;
 use Neos\Neos\Security\Authorization\ContentRepositoryAuthorizationService;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\ConflictingEvent;
-use Neos\Neos\Ui\Infrastructure\ContentRepository\ConflictsFactory;
 use Neos\Neos\Utility\NodeTypeWithFallbackProvider;
 use Neos\Workspace\Ui\ViewModel\ChangeItem;
 use Neos\Workspace\Ui\ViewModel\ContentChangeItem;
@@ -749,7 +748,6 @@ class WorkspaceController extends AbstractModuleController
             'workspaceName' => $workspaceName->value,
             'workspaceTitle' => $workspaceMetadata->title->value,
             'baseWorkspaceTitle' => $baseWorkspaceMetadata->title->value,
-            'conflictCount' => $e->conflictingEvents->count(),
             'conflictInformation' => $conflictInformation,
         ]);
 

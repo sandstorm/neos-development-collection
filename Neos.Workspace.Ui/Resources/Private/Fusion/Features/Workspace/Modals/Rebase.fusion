@@ -69,7 +69,7 @@ prototype(Neos.Workspace.Ui:Component.Modal.Rebase) < prototype(Neos.Fusion:Comp
             </table>
           </Neos.Fusion:Loop>
         </details>
-        <p>{private.i18n.id('workspaces.dialog.thisCanLeadToLostChangesConfirmation').arguments([props.conflictCount])}</p>
+        <p>{private.i18n.id('workspaces.dialog.thisCanLeadToLostChangesConfirmation').arguments([Array.length(props.conflictInformation)])}</p>
       </section>
       <footer>
         <button
