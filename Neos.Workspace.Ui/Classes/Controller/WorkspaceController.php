@@ -733,7 +733,7 @@ class WorkspaceController extends AbstractModuleController
                 'error' => $conflictingEvent->getException()->getMessage(),
                 'affectedNode' => $conflictingEvent->getAffectedNodeAggregateId(),
                 'event' => $conflictingEvent->getSequenceNumber()->value . '@' . (new \ReflectionClass($conflictingEvent->getEvent()))->getShortName(),
-                'eventPayload' => htmlentities((json_encode($conflictingEvent->getEvent()) ?? ''), ENT_NOQUOTES),
+                'eventPayload' => htmlentities((json_encode($conflictingEvent->getEvent()) !== false ? json_encode($conflictingEvent->getEvent()) : ''), ENT_NOQUOTES),
             ], iterator_to_array($e->conflictingEvents));
 
         }
@@ -748,6 +748,14 @@ class WorkspaceController extends AbstractModuleController
             $this->throwStatus(404, 'Workspace does not exist');
         }
         $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspace->workspaceName);
+        if ($workspace->baseWorkspaceName === null) {
+            $this->addFlashMessage(
+                $this->getModuleLabel('workspaces.workspaceDoesNotExist'),
+                '',
+                Message::SEVERITY_ERROR
+            );
+            $this->throwStatus(404, 'Workspace does not exist');
+        }
         $baseWorkspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspace->baseWorkspaceName);
         $this->response->addHttpHeader('HX-Retarget', '#popover-container');
         $this->response->addHttpHeader('HX-ReSwap', 'innerHTML');
