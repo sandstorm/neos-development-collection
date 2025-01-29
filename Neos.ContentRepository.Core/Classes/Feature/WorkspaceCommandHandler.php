@@ -50,6 +50,7 @@ use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasD
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPublished;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Command\RebaseWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\ConflictingEvent;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\ConflictingEvents;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Dto\RebaseErrorHandlingStrategy;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Event\WorkspaceWasRebased;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\PartialWorkspaceRebaseFailed;
@@ -67,6 +68,7 @@ use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Exception\ConcurrencyException;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Neos\EventStore\Model\Event\Version;
+use Neos\EventStore\Model\EventEnvelope;
 use Neos\EventStore\Model\EventStream\EventStreamInterface;
 use Neos\EventStore\Model\EventStream\ExpectedVersion;
 
@@ -199,10 +201,10 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($baseWorkspace, $commandHandlingDependencies);
 
         $rebaseableCommands = RebaseableCommands::extractFromEventStream(
-            $this->eventStore->load(
+            $this->triggerConflictForLegacyEvents($this->eventStore->load(
                 ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)
                     ->getEventStreamName()
-            )
+            ), dropLegacyEvents: false)
         );
 
         yield $this->closeContentStream(
@@ -369,10 +371,10 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         }
 
         $rebaseableCommands = RebaseableCommands::extractFromEventStream(
-            $this->eventStore->load(
+            $this->triggerConflictForLegacyEvents($this->eventStore->load(
                 ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)
                     ->getEventStreamName()
-            )
+            ), dropLegacyEvents: $command->rebaseErrorHandlingStrategy === RebaseErrorHandlingStrategy::STRATEGY_FORCE)
         );
 
         yield $this->closeContentStream(
@@ -433,6 +435,35 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
     }
 
     /**
+     * This layer can be removed if there are no legacy events expected during rebasing
+     * @return iterable<EventEnvelope>
+     */
+    private function triggerConflictForLegacyEvents(EventStreamInterface $eventStream, bool $dropLegacyEvents): iterable
+    {
+        foreach ($eventStream as $eventEnvelope) {
+            if (($eventEnvelope->event->metadata?->value['commandClass'] ?? '') === 'Neos\\ContentRepository\\Core\\Feature\\NodeDuplication\\Command\\CopyNodesRecursively') {
+                // The original draft of the CopyNodesRecursively command was removed. In case events that are created via that command are attempted to be
+                // normally rebased, published, or discarded we manually cause a conflict to ensure that the event is removed.
+                if ($dropLegacyEvents === true) {
+                    // a forced rebase drops the legacy events
+                    continue;
+                }
+                $originalEvent = $this->eventNormalizer->denormalize($eventEnvelope->event);
+                throw WorkspaceRebaseFailed::duringRebase(
+                    new ConflictingEvents(
+                        new ConflictingEvent(
+                            $originalEvent,
+                            throw new \RuntimeException('The legacy command CopyNodesRecursively was removed. Its not possible to rebase this event and it must be dropped.', 1738139237),
+                            $eventEnvelope->sequenceNumber
+                        ),
+                    )
+                );
+            }
+            yield $eventEnvelope;
+        }
+    }
+
+    /**
      * This method is like a combined Rebase and Publish!
      *
      * @return \Generator<int, EventsToPublish>
@@ -452,10 +483,10 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
         $baseWorkspaceContentStreamVersion = $this->requireOpenContentStreamAndVersion($baseWorkspace, $commandHandlingDependencies);
 
         $rebaseableCommands = RebaseableCommands::extractFromEventStream(
-            $this->eventStore->load(
+            $this->triggerConflictForLegacyEvents($this->eventStore->load(
                 ContentStreamEventStreamName::fromContentStreamId($workspace->currentContentStreamId)
                     ->getEventStreamName()
-            )
+            ), dropLegacyEvents: false)
         );
 
         [$matchingCommands, $remainingCommands] = $rebaseableCommands->separateMatchingAndRemainingCommands($command->nodesToPublish);

@@ -11,7 +11,6 @@ use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\MoveDim
 use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNodeAndSerializedProperties;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\DisableNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\EnableNodeAggregate;
-use Neos\ContentRepository\Core\Feature\NodeDuplication\Command\CopyNodesRecursively;
 use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetSerializedNodeProperties;
 use Neos\ContentRepository\Core\Feature\NodeMove\Command\MoveNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Command\SetSerializedNodeReferences;
@@ -24,7 +23,7 @@ use Neos\ContentRepository\Core\Feature\RootNodeCreation\Command\UpdateRootNodeA
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Command\TagSubtree;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Command\UntagSubtree;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
-use Neos\EventStore\Model\EventStream\EventStreamInterface;
+use Neos\EventStore\Model\EventEnvelope;
 
 /**
  * @internal
@@ -43,11 +42,14 @@ class RebaseableCommands implements \IteratorAggregate
         $this->items = $items;
     }
 
-    public static function extractFromEventStream(EventStreamInterface $eventStream): self
+    /**
+     * @param iterable<EventEnvelope> $eventStream
+     */
+    public static function extractFromEventStream(iterable $eventStream): self
     {
         $commands = [];
         foreach ($eventStream as $eventEnvelope) {
-            if ($eventEnvelope->event->metadata && isset($eventEnvelope->event->metadata?->value['commandClass'])) {
+            if (isset($eventEnvelope->event->metadata?->value['commandClass'])) {
                 $commands[] = RebaseableCommand::extractFromEventEnvelope($eventEnvelope);
             }
         }
