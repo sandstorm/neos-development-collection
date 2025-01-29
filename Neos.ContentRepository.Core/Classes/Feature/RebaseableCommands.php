@@ -105,9 +105,6 @@ class RebaseableCommands implements \IteratorAggregate
                 UntagSubtree::class,
                 UpdateRootNodeAggregateDimensions::class,
                     => $command->nodeAggregateId->equals($nodeId),
-                CopyNodesRecursively::class => $command->nodeAggregateIdMapping->getNewNodeAggregateId(
-                    $command->nodeTreeToInsert->nodeAggregateId
-                )?->equals($nodeId),
                 SetSerializedNodeReferences::class => $command->sourceNodeAggregateId->equals($nodeId),
                 // for non node-aggregate-changes we return false, so they are kept as remainder:
                 AddDimensionShineThrough::class,

@@ -13,7 +13,6 @@ use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNodeAndSerializedProperties;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\DisableNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\EnableNodeAggregate;
-use Neos\ContentRepository\Core\Feature\NodeDuplication\Command\CopyNodesRecursively;
 use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetSerializedNodeProperties;
 use Neos\ContentRepository\Core\Feature\NodeMove\Command\MoveNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Command\SetSerializedNodeReferences;
@@ -223,7 +222,7 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
                         $outputRewriteNotice(sprintf('Metadata: Removed %d $initialPropertyValues', $propertiesWithNullValues));
                         $this->updateEventMetaData($eventEnvelope->sequenceNumber, $eventMetaData);
                     }
-                } elseif ($eventMetaData['commandClass'] === CopyNodesRecursively::class) {
+                } elseif ($eventMetaData['commandClass'] === 'Neos\\ContentRepository\\Core\\Feature\\NodeDuplication\\Command\\CopyNodesRecursively') {
                     // nodes can be also created on copy, and in $nodeTreeToInsert, we have to also omit null values.
                     // NodeDuplicationCommandHandler::createEventsForNodeToInsert
 
@@ -411,7 +410,7 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
                 CreateNodeAggregateWithNodeAndSerializedProperties::class,
                 DisableNodeAggregate::class,
                 EnableNodeAggregate::class,
-                CopyNodesRecursively::class,
+                'Neos\\ContentRepository\\Core\\Feature\\NodeDuplication\\Command\\CopyNodesRecursively',
                 SetSerializedNodeProperties::class,
                 MoveNodeAggregate::class,
                 SetSerializedNodeReferences::class,
@@ -863,7 +862,7 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
 
             $eventMetaData = $eventEnvelope->event->metadata?->value;
             // a copy is basically a NodeAggregateWithNodeWasCreated with CopyNodesRecursively command, so we skip others:
-            if (!$eventMetaData || ($eventMetaData['commandClass'] ?? null) !== CopyNodesRecursively::class) {
+            if (!$eventMetaData || ($eventMetaData['commandClass'] ?? null) !== 'Neos\\ContentRepository\\Core\\Feature\\NodeDuplication\\Command\\CopyNodesRecursively') {
                 continue;
             }
 
@@ -900,7 +899,7 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
         foreach ($eventStream as $eventEnvelope) {
             $eventMetaData = $eventEnvelope->event->metadata?->value;
             // a copy is basically a NodeAggregateWithNodeWasCreated with CopyNodesRecursively command, so we skip others:
-            if (!$eventMetaData || ($eventMetaData['commandClass'] ?? null) !== CopyNodesRecursively::class) {
+            if (!$eventMetaData || ($eventMetaData['commandClass'] ?? null) !== 'Neos\\ContentRepository\\Core\\Feature\\NodeDuplication\\Command\\CopyNodesRecursively') {
                 continue;
             }
 
