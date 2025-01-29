@@ -64,6 +64,8 @@ use Neos\Neos\FrontendRouting\SiteDetection\SiteDetectionResult;
 use Neos\Neos\PendingChangesProjection\ChangeFinder;
 use Neos\Neos\PendingChangesProjection\Changes;
 use Neos\Neos\Security\Authorization\ContentRepositoryAuthorizationService;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\ConflictingEvent;
+use Neos\Neos\Ui\Infrastructure\ContentRepository\ConflictsFactory;
 use Neos\Neos\Utility\NodeTypeWithFallbackProvider;
 use Neos\Workspace\Ui\ViewModel\ChangeItem;
 use Neos\Workspace\Ui\ViewModel\ContentChangeItem;
@@ -728,10 +730,48 @@ class WorkspaceController extends AbstractModuleController
                 $this->addFlashMessage($this->getModuleLabel('workspaces.ForceRebaseWorkspaceFailed'));
                 $this->forward('index');
             }
+            $conflictInformation = array_map(fn (ConflictingEvent $conflictingEvent) => [
+                'error' => $conflictingEvent->getException()->getMessage(),
+                'affectedNode' => $conflictingEvent->getAffectedNodeAggregateId(),
+                'event' => $conflictingEvent->getSequenceNumber()->value . '@' . (new \ReflectionClass($conflictingEvent->getEvent()))->getShortName(),
+                'eventPayload' => htmlentities(json_encode($conflictingEvent->getEvent()), ENT_NOQUOTES),
+            ], iterator_to_array($e->conflictingEvents));
+
         }
+        $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
+        $workspace = $contentRepository->findWorkspaceByName($workspaceName);
+        $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspace->workspaceName);
+        $baseWorkspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspace->baseWorkspaceName);
         $this->response->addHttpHeader('HX-Retarget', '#popover-container');
         $this->response->addHttpHeader('HX-ReSwap', 'innerHTML');
-        $this->view->assign('workspaceName', $workspaceName->value);
+
+        $this->view->assignMultiple([
+            'workspaceName' => $workspaceName->value,
+            'workspaceTitle' => $workspaceMetadata->title->value,
+            'baseWorkspaceTitle' => $baseWorkspaceMetadata->title->value,
+            'conflictCount' => $e->conflictingEvents->count(),
+            'conflictInformation' => $conflictInformation,
+        ]);
+
+
+    }
+
+    /**
+     * Confirm force rebase a workspace
+     */
+    public function rebaseConfirmAction(WorkspaceName $workspaceName, int $conflictCount): void
+    {
+        $contentRepositoryId = SiteDetectionResult::fromRequest($this->request->getHttpRequest())->contentRepositoryId;
+
+        $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
+        $workspace = $contentRepository->findWorkspaceByName($workspaceName);
+        $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspace->workspaceName);
+
+        $this->view->assignMultiple([
+            'workspaceName' => $workspaceName->value,
+            'workspaceTitle' => $workspaceMetadata->title->value,
+            'conflictCount' => $conflictCount
+        ]);
     }
 
     /**

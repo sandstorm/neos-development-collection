@@ -1,10 +1,21 @@
 Neos.Workspace.Ui.WorkspaceController.rebase = Neos.Fusion:Component {
   /// string
   workspaceName = ${workspaceName}
+  /// string
+  workspaceTitle = ${workspaceTitle}
+  /// string
+  baseWorkspaceTitle = ${baseWorkspaceTitle}
+  /// array
+  conflictInformation = ${conflictInformation}
+
 
   renderer = afx`
     <Neos.Workspace.Ui:Component.Modal.Rebase
       workspaceName={props.workspaceName}
+      workspaceTitle={props.workspaceTitle}
+      baseWorkspaceTitle={props.baseWorkspaceTitle}
+      conflictCount={conflictCount}
+      conflictInformation={conflictInformation}
     />
   `
 }
