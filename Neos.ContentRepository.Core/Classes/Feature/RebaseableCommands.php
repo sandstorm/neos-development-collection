@@ -23,7 +23,7 @@ use Neos\ContentRepository\Core\Feature\RootNodeCreation\Command\UpdateRootNodeA
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Command\TagSubtree;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Command\UntagSubtree;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
-use Neos\EventStore\Model\EventEnvelope;
+use Neos\EventStore\Model\EventStream\EventStreamInterface;
 
 /**
  * @internal
@@ -42,14 +42,16 @@ class RebaseableCommands implements \IteratorAggregate
         $this->items = $items;
     }
 
-    /**
-     * @param iterable<EventEnvelope> $eventStream
-     */
-    public static function extractFromEventStream(iterable $eventStream): self
+    public static function extractFromEventStream(EventStreamInterface $eventStream): self
     {
         $commands = [];
         foreach ($eventStream as $eventEnvelope) {
             if (isset($eventEnvelope->event->metadata?->value['commandClass'])) {
+                if ($eventEnvelope->event->metadata->value['commandClass'] === 'Neos\\ContentRepository\\Core\\Feature\\NodeDuplication\\Command\\CopyNodesRecursively') {
+                    // The original draft of the CopyNodesRecursively command was removed with Beta 16. In case events that are created via that command are attempted to be
+                    // normally rebased, published, or discarded we instead silently drop these events as announced.
+                    continue;
+                }
                 $commands[] = RebaseableCommand::extractFromEventEnvelope($eventEnvelope);
             }
         }
