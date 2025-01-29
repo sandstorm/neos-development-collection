@@ -732,8 +732,8 @@ class WorkspaceController extends AbstractModuleController
             $conflictInformation = array_map(fn (ConflictingEvent $conflictingEvent) => [
                 'error' => $conflictingEvent->getException()->getMessage(),
                 'affectedNode' => $conflictingEvent->getAffectedNodeAggregateId(),
-                'event' => $conflictingEvent->getSequenceNumber()->value . '@' . (new \ReflectionClass($conflictingEvent->getEvent()))->getShortName(),
-                'eventPayload' => htmlentities((json_encode($conflictingEvent->getEvent()) !== false ? json_encode($conflictingEvent->getEvent()) : ''), ENT_NOQUOTES),
+                'event' => (new \ReflectionClass($conflictingEvent->getEvent()))->getShortName() . ' ' . $conflictingEvent->getSequenceNumber()->value,
+                'eventPayload' => htmlentities(json_encode($conflictingEvent->getEvent(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT), ENT_NOQUOTES),
             ], iterator_to_array($e->conflictingEvents));
 
         }
