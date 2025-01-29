@@ -733,7 +733,7 @@ class WorkspaceController extends AbstractModuleController
                 'error' => $conflictingEvent->getException()->getMessage(),
                 'affectedNode' => $conflictingEvent->getAffectedNodeAggregateId(),
                 'event' => $conflictingEvent->getSequenceNumber()->value . '@' . (new \ReflectionClass($conflictingEvent->getEvent()))->getShortName(),
-                'eventPayload' => htmlentities(json_encode($conflictingEvent->getEvent()), ENT_NOQUOTES ?? ''),
+                'eventPayload' => htmlentities((json_encode($conflictingEvent->getEvent()) ?? ''), ENT_NOQUOTES),
             ], iterator_to_array($e->conflictingEvents));
 
         }
@@ -771,6 +771,14 @@ class WorkspaceController extends AbstractModuleController
 
         $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
         $workspace = $contentRepository->findWorkspaceByName($workspaceName);
+        if ($workspace === null) {
+            $this->addFlashMessage(
+                $this->getModuleLabel('workspaces.workspaceDoesNotExist'),
+                '',
+                Message::SEVERITY_ERROR
+            );
+            $this->throwStatus(404, 'Workspace does not exist');
+        }
         $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepositoryId, $workspace->workspaceName);
 
         $this->view->assignMultiple([
