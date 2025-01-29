@@ -47,22 +47,22 @@ prototype(Neos.Workspace.Ui:Component.Modal.Rebase) < prototype(Neos.Fusion:Comp
             <table class="neos-table">
               <tbody>
             <tr>
-              <td>Error:</td>
+              <td>{private.i18n.id('workspaces.dialog.rebase.error')}:</td>
               <td><b>{conflict.error}</b></td>
             </tr>
               <tr>
-                <td>Node:</td>
+                <td>{private.i18n.id('workspaces.dialog.rebase.node')}:</td>
                 <td>
                   {conflict.affectedNode}
                 </td>
               </tr>
               <tr>
-                <td>Event:</td>
+                <td>{private.i18n.id('workspaces.dialog.rebase.event')}:</td>
                 <td>{conflict.event}</td>
               </tr>
 
             <tr>
-              <td>Event details:</td>
+              <td>{private.i18n.id('workspaces.dialog.rebase.eventDetails')}:</td>
               <td>{Json.stringify(conflict.eventPayload, ['JSON_PRETTY_PRINT'])}</td>
             </tr>
               </tbody>

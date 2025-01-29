@@ -195,6 +195,18 @@
       <trans-unit id="workspaces.dialog.ConfirmationDropConflictingChangesText" xml:space="preserve">
 				<source>This can not be undone! Do you wish to proceed?</source>
 			</trans-unit>
+      <trans-unit id="workspaces.dialog.rebase.error" xml:space="preserve">
+				<source>Error</source>
+			</trans-unit>
+      <trans-unit id="workspaces.dialog.rebase.node" xml:space="preserve">
+				<source>Node</source>
+			</trans-unit>
+      <trans-unit id="workspaces.dialog.rebase.event" xml:space="preserve">
+				<source>Event</source>
+			</trans-unit>
+      <trans-unit id="workspaces.dialog.rebase.eventDetails" xml:space="preserve">
+				<source>Event details</source>
+			</trans-unit>
       <trans-unit id="workspaces.modal.yesRebaseWorkspace" xml:space="preserve">
 				<source>Yes, drop changes</source>
 			</trans-unit>
