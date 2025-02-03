@@ -107,7 +107,7 @@ trait CRTestSuiteTrait
      */
     public function iExpectTheContentStreamToExist(string $rawContentStreamId): void
     {
-        $contentStream = $this->currentContentRepository->findContentStreamById(ContentStreamId::fromString($rawContentStreamId));
+        $contentStream = $this->getContentGraphReadModel()->findContentStreamById(ContentStreamId::fromString($rawContentStreamId));
         Assert::assertNotNull($contentStream, sprintf('Content stream "%s" was expected to exist, but it does not', $rawContentStreamId));
     }
 
@@ -116,7 +116,7 @@ trait CRTestSuiteTrait
      */
     public function iExpectTheContentStreamToNotExist(string $rawContentStreamId, string $not = ''): void
     {
-        $contentStream = $this->currentContentRepository->findContentStreamById(ContentStreamId::fromString($rawContentStreamId));
+        $contentStream = $this->getContentGraphReadModel()->findContentStreamById(ContentStreamId::fromString($rawContentStreamId));
         Assert::assertNull($contentStream, sprintf('Content stream "%s" was not expected to exist, but it does', $rawContentStreamId));
     }
 
@@ -141,20 +141,7 @@ trait CRTestSuiteTrait
      */
     public function iExpectTheGraphProjectionToConsistOfExactlyNodes(int $expectedNumberOfNodes): void
     {
-        // HACK to access
-        $contentGraphReadModelAccess = new class implements ContentRepositoryServiceFactoryInterface {
-            public ContentGraphReadModelInterface|null $instance;
-            public function build(ContentRepositoryServiceFactoryDependencies $serviceFactoryDependencies): ContentRepositoryServiceInterface
-            {
-                $this->instance = $serviceFactoryDependencies->contentGraphReadModel;
-                return new class implements ContentRepositoryServiceInterface
-                {
-                };
-            }
-        };
-        $this->getContentRepositoryService($contentGraphReadModelAccess);
-
-        $actualNumberOfNodes = $contentGraphReadModelAccess->instance->countNodes();
+        $actualNumberOfNodes = $this->getContentGraphReadModel()->countNodes();
         Assert::assertSame($expectedNumberOfNodes, $actualNumberOfNodes, 'Content graph consists of ' . $actualNumberOfNodes . ' nodes, expected were ' . $expectedNumberOfNodes . '.');
     }
 
@@ -250,6 +237,22 @@ trait CRTestSuiteTrait
     abstract protected function getContentRepositoryService(
         ContentRepositoryServiceFactoryInterface $factory
     ): ContentRepositoryServiceInterface;
+
+    final protected function getContentGraphReadModel(): ContentGraphReadModelInterface
+    {
+        return $this->getContentRepositoryService(new class implements ContentRepositoryServiceFactoryInterface {
+            public function build(ContentRepositoryServiceFactoryDependencies $serviceFactoryDependencies): ContentRepositoryServiceInterface
+            {
+                $contentGraphReadModel = $serviceFactoryDependencies->contentGraphReadModel;
+                return new class ($contentGraphReadModel) implements ContentRepositoryServiceInterface {
+                    public function __construct(
+                        public ContentGraphReadModelInterface $contentGraphReadModel,
+                    ) {
+                    }
+                };
+            }
+        })->contentGraphReadModel;
+    }
 
     /**
      * @When I replay the :projectionName projection

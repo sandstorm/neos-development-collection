@@ -20,7 +20,10 @@ use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionSourceInterface;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
+use Neos\ContentRepository\Core\EventStore\DecoratedEvent;
+use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
+use Neos\ContentRepository\Core\EventStore\Events as DomainEvents;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\EventStore\InitiatingEventMetadata;
 use Neos\ContentRepository\Core\Feature\Security\AuthProviderInterface;
@@ -34,8 +37,7 @@ use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStates;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceDoesNotExist;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStream;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
+use Neos\ContentRepository\Core\SharedModel\Id\UuidFactory;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreams;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
@@ -44,6 +46,8 @@ use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\ContentRepository\Core\Subscription\Exception\CatchUpHadErrors;
 use Neos\EventStore\EventStoreInterface;
 use Neos\EventStore\Exception\ConcurrencyException;
+use Neos\EventStore\Model\Event\CorrelationId;
+use Neos\EventStore\Model\Events;
 use Psr\Clock\ClockInterface;
 
 /**
@@ -93,11 +97,11 @@ final class ContentRepository
         }
 
         $toPublish = $this->commandBus->handle($command);
+        $correlationId = CorrelationId::fromString(sprintf('%s_%s', substr($command::class, strrpos($command::class, '\\') + 1, 20), bin2hex(random_bytes(9))));
 
         // simple case
         if ($toPublish instanceof EventsToPublish) {
-            $eventsToPublish = $this->enrichEventsToPublishWithMetadata($toPublish);
-            $this->eventStore->commit($eventsToPublish->streamName, $this->eventNormalizer->normalizeEvents($eventsToPublish->events), $eventsToPublish->expectedVersion);
+            $this->eventStore->commit($toPublish->streamName, $this->enrichAndNormalizeEvents($toPublish->events, $correlationId), $toPublish->expectedVersion);
             $fullCatchUpResult = $this->subscriptionEngine->catchUpActive(); // NOTE: we don't batch here, to ensure the catchup is run completely and any errors don't stop it.
             if ($fullCatchUpResult->hadErrors()) {
                 throw CatchUpHadErrors::createFromErrors($fullCatchUpResult->errors);
@@ -107,10 +111,9 @@ final class ContentRepository
 
         // control-flow aware command handling via generator
         try {
-            foreach ($toPublish as $yieldedEventsToPublish) {
-                $eventsToPublish = $this->enrichEventsToPublishWithMetadata($yieldedEventsToPublish);
+            foreach ($toPublish as $eventsToPublish) {
                 try {
-                    $this->eventStore->commit($eventsToPublish->streamName, $this->eventNormalizer->normalizeEvents($eventsToPublish->events), $eventsToPublish->expectedVersion);
+                    $this->eventStore->commit($eventsToPublish->streamName, $this->enrichAndNormalizeEvents($eventsToPublish->events, $correlationId), $eventsToPublish->expectedVersion);
                 } catch (ConcurrencyException $concurrencyException) {
                     // we pass the exception into the generator (->throw), so it could be try-caught and reacted upon:
                     //
@@ -122,7 +125,7 @@ final class ContentRepository
                     //   }
                     $yieldedErrorStrategy = $toPublish->throw($concurrencyException);
                     if ($yieldedErrorStrategy instanceof EventsToPublish) {
-                        $this->eventStore->commit($yieldedErrorStrategy->streamName, $this->eventNormalizer->normalizeEvents($yieldedErrorStrategy->events), $yieldedErrorStrategy->expectedVersion);
+                        $this->eventStore->commit($yieldedErrorStrategy->streamName, $this->enrichAndNormalizeEvents($yieldedErrorStrategy->events, $correlationId), $yieldedErrorStrategy->expectedVersion);
                     }
                     throw $concurrencyException;
                 }
@@ -192,16 +195,6 @@ final class ContentRepository
         return $this->contentGraphReadModel->findWorkspaces();
     }
 
-    public function findContentStreamById(ContentStreamId $contentStreamId): ?ContentStream
-    {
-        return $this->contentGraphReadModel->findContentStreamById($contentStreamId);
-    }
-
-    public function findContentStreams(): ContentStreams
-    {
-        return $this->contentGraphReadModel->findContentStreams();
-    }
-
     public function getNodeTypeManager(): NodeTypeManager
     {
         return $this->nodeTypeManager;
@@ -217,19 +210,20 @@ final class ContentRepository
         return $this->contentDimensionSource;
     }
 
-    private function enrichEventsToPublishWithMetadata(EventsToPublish $eventsToPublish): EventsToPublish
+    private function enrichAndNormalizeEvents(DomainEvents $events, CorrelationId $correlationId): Events
     {
         $initiatingUserId = $this->authProvider->getAuthenticatedUserId() ?? UserId::forSystemUser();
         $initiatingTimestamp = $this->clock->now();
 
-        return new EventsToPublish(
-            $eventsToPublish->streamName,
-            InitiatingEventMetadata::enrichEventsWithInitiatingMetadata(
-                $eventsToPublish->events,
-                $initiatingUserId,
-                $initiatingTimestamp
-            ),
-            $eventsToPublish->expectedVersion,
+        $eventsWithMetaData = InitiatingEventMetadata::enrichEventsWithInitiatingMetadata(
+            $events,
+            $initiatingUserId,
+            $initiatingTimestamp
         );
+
+        return Events::fromArray($eventsWithMetaData->map(function (EventInterface|DecoratedEvent $event) use ($correlationId) {
+            $decoratedEvent = DecoratedEvent::create($event, correlationId: $correlationId);
+            return $this->eventNormalizer->normalize($decoratedEvent);
+        }));
     }
 }

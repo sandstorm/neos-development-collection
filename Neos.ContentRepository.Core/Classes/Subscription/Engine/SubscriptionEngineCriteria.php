@@ -21,7 +21,7 @@ final class SubscriptionEngineCriteria
      * @param SubscriptionIds|array<string|SubscriptionId>|null $ids
      */
     public static function create(
-        SubscriptionIds|array $ids = null
+        SubscriptionIds|array|null $ids = null
     ): self {
         if (is_array($ids)) {
             $ids = SubscriptionIds::fromArray($ids);

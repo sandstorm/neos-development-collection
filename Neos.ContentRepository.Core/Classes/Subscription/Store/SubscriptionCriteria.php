@@ -26,8 +26,8 @@ final readonly class SubscriptionCriteria
      * @param SubscriptionStatusFilter|null $status
      */
     public static function create(
-        SubscriptionIds|array $ids = null,
-        SubscriptionStatusFilter $status = null,
+        SubscriptionIds|array|null $ids = null,
+        ?SubscriptionStatusFilter $status = null,
     ): self {
         if (is_array($ids)) {
             $ids = SubscriptionIds::fromArray($ids);

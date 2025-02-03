@@ -16,10 +16,12 @@ namespace Neos\Media\Browser\Controller;
 
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindClosestNodeFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
+use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Mvc\Controller\ActionController;
-use Neos\Flow\Security\Context as SecurityContext;
+use Neos\Flow\Security\Authorization\PrivilegeManagerInterface;
+use Neos\Flow\Security\Context;
 use Neos\Media\Domain\Model\AssetInterface;
 use Neos\Media\Domain\Service\AssetService;
 use Neos\Neos\AssetUsage\Dto\AssetUsageReference;
@@ -69,7 +71,7 @@ class UsageController extends ActionController
 
     /**
      * @Flow\Inject
-     * @var SecurityContext
+     * @var Context
      */
     protected $securityContext;
 
@@ -78,6 +80,12 @@ class UsageController extends ActionController
      * @var ContentRepositoryAuthorizationService
      */
     protected $contentRepositoryAuthorizationService;
+
+    /**
+     * @Flow\Inject
+     * @var PrivilegeManagerInterface
+     */
+    protected $privilegeManager;
 
     /**
      * Get Related Nodes for an asset
@@ -120,6 +128,7 @@ class UsageController extends ActionController
             $workspacePermissions = $this->contentRepositoryAuthorizationService->getWorkspacePermissions($currentContentRepositoryId, $usage->getWorkspaceName(), $this->securityContext->getRoles(), $this->userService->getBackendUser()?->getId());
             $workspace = $contentRepository->findWorkspaceByName($usage->getWorkspaceName());
 
+            $inaccessibleRelation['label'] = $workspace && $this->getLabelForInaccessibleWorkspace($workspace);
             $inaccessibleRelation['nodeIdentifier'] = $usage->getNodeAggregateId()->value;
             $inaccessibleRelation['workspaceName'] = $usage->getWorkspaceName()->value;
             $inaccessibleRelation['workspace'] = $workspace;
@@ -183,7 +192,28 @@ class UsageController extends ActionController
             'inaccessibleRelations' => $inaccessibleRelations,
             'relatedNodes' => $relatedNodes,
             'contentDimensions' => $currentContentRepository->getContentDimensionSource()->getContentDimensionsOrderedByPriority(),
-            'userWorkspace' => $userWorkspace
+            'userWorkspace' => $userWorkspace,
         ]);
+    }
+
+    private function getLabelForInaccessibleWorkspace(Workspace $workspace): string
+    {
+        /*
+        TODO: Needs to get re-implemented for Neos 9.
+              See: https://github.com/neos/neos-development-collection/pull/5182
+
+        $currentAccount = $this->securityContext->getAccount();
+
+        if ($currentAccount != null && $this->privilegeManager->isPrivilegeTargetGranted('Neos.Media.Browser:WorkspaceName')) {
+            if ($workspace->isPrivateWorkspace()) {
+                $owner = $workspace->getOwner();
+                return '(' . $owner->getLabel() . ')';
+            } else {
+                return '(' . $workspace->getTitle() . ')';
+            }
+        }
+        */
+
+        return '';
     }
 }

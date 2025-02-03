@@ -15,10 +15,6 @@
         <source>Workspaces</source>
         <target state="translated">Werkruimten</target>
       </trans-unit>
-      <trans-unit id="workspaces.detailsForWorkspace" xml:space="preserve" approved="yes">
-        <source>Details for "{0}"</source>
-        <target state="final">Details voor "{0}"</target>
-      </trans-unit>
       <trans-unit id="workspaces.createNewWorkspace" xml:space="preserve" approved="yes">
         <source>Create new workspace</source>
         <target state="final">Maak nieuwe workspace aan</target>
@@ -27,9 +23,9 @@
         <source>Create workspace</source>
         <target state="final">Maak workspace aan</target>
       </trans-unit>
-      <trans-unit id="workspaces.deleteWorkspace" xml:space="preserve" approved="yes">
-        <source>Delete workspace</source>
-        <target state="final">Verwijder workspace</target>
+      <trans-unit id="workspaces.deleteWorkspace" xml:space="preserve" approved="no">
+        <source>Delete workspace "{0}"</source>
+        <target state="needs-translation">Verwijder workspace</target>
       </trans-unit>
       <trans-unit id="workspaces.editWorkspace" xml:space="preserve" approved="yes">
         <source>Edit workspace</source>
@@ -51,8 +47,8 @@
         <source>Private workspace</source>
         <target state="final">Privé workspace</target>
       </trans-unit>
-      <trans-unit id="workspaces.internalWorkspace" xml:space="preserve">
-        <source>Internal workspace</source>
+      <trans-unit id="workspaces.sharedWorkspace" xml:space="preserve">
+        <source>Shared workspace</source>
         <target state="translated">Interne workspace</target>
       </trans-unit>
       <trans-unit id="workspaces.readonlyWorkspace" xml:space="preserve" approved="yes">
@@ -87,11 +83,11 @@
         <source>Only reviewers and administrators can access and modify this workspace</source>
         <target state="translated">Alleen reviewers en administrators hebben toegang en kunnen wijzigingen aanbrengen in deze workspace</target>
       </trans-unit>
-      <trans-unit id="workspaces.workspace.visibility.internal" xml:space="preserve">
-        <source>Internal</source>
+      <trans-unit id="workspaces.workspace.visibility.shared" xml:space="preserve">
+        <source>Shared</source>
         <target state="translated">Intern</target>
       </trans-unit>
-      <trans-unit id="workspaces.workspace.visibility.internal.help" xml:space="preserve">
+      <trans-unit id="workspaces.workspace.visibility.shared.help" xml:space="preserve">
         <source>Any logged in editor can see and modify this workspace.</source>
         <target state="translated">Iedere ingelogde redacteur kan deze workspace bekijken en wijzigen.</target>
       </trans-unit>
@@ -268,6 +264,22 @@
       <trans-unit id="workspaces.publishSelectedChangesTo" xml:space="preserve">
         <source>Publish selected changes to {0}</source>
         <target state="needs-translation">Publiceer geselecteerde wijzigingen naar {0}</target>
+      </trans-unit>
+      <trans-unit id="applyChanges" xml:space="preserve">
+        <source>Apply changes</source>
+        <target state="needs-translation">Wijzigingen toepassen</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.lastModified" xml:space="preserve">
+        <source>Last modified</source>
+        <target state="needs-translation">Laatst bewerkt</target>
+      </trans-unit>
+      <trans-unit id="workspaces.reviewWorkspace.label" xml:space="preserve">
+        <source>Review</source>
+        <target state="needs-translation">Herziening</target>
+      </trans-unit>
+      <trans-unit id="workspaces.workspace.status" xml:space="preserve">
+        <source>Status</source>
+        <target state="needs-translation">Status</target>
       </trans-unit>
     </body>
   </file>
