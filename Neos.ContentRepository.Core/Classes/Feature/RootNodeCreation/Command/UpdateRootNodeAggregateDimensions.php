@@ -21,8 +21,9 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 
 /**
- * change visibility of the root node aggregate. A root node aggregate must be visible in all
+ * Change visibility of the root node aggregate. A root node aggregate must be visible in all
  * configured dimensions.
+ *
  * Needed when configured dimensions change.
  *
  * @api commands are the write-API of the ContentRepository
