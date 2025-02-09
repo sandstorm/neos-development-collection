@@ -52,6 +52,11 @@ final class SubtreeTag implements \JsonSerializable
         return self::instance('disabled');
     }
 
+    public static function deleted(): self
+    {
+        return self::instance('deleted');
+    }
+
     public function equals(self $other): bool
     {
         return $this === $other;
