@@ -13,9 +13,9 @@ use Neos\ContentRepository\NodeMigration\Filter\NodeTypeFilterFactory;
 use Neos\ContentRepository\NodeMigration\Filter\PropertyNotEmptyFilterFactory;
 use Neos\ContentRepository\NodeMigration\Filter\PropertyValueFilterFactory;
 use Neos\ContentRepository\NodeMigration\Transformation\AddDimensionShineThroughTransformationFactory;
-use Neos\ContentRepository\NodeMigration\Transformation\AddNewPropertyTransformationFactory;
+use Neos\ContentRepository\NodeMigration\Transformation\AddNewPropertyConverterAwareTransformationFactory;
 use Neos\ContentRepository\NodeMigration\Transformation\ChangeNodeTypeTransformationFactory;
-use Neos\ContentRepository\NodeMigration\Transformation\ChangePropertyValueTransformationFactory;
+use Neos\ContentRepository\NodeMigration\Transformation\ChangePropertyValueConverterAwareTransformationFactory;
 use Neos\ContentRepository\NodeMigration\Transformation\MoveDimensionSpacePointTransformationFactory;
 use Neos\ContentRepository\NodeMigration\Transformation\RemoveNodeTransformationFactory;
 use Neos\ContentRepository\NodeMigration\Transformation\RemovePropertyTransformationFactory;
@@ -41,9 +41,9 @@ class NodeMigrationServiceFactory implements ContentRepositoryServiceFactoryInte
 
         $transformationsFactory = new TransformationsFactory($serviceFactoryDependencies->contentRepository, $serviceFactoryDependencies->propertyConverter);
         $transformationsFactory->registerTransformation('AddDimensionShineThrough', new AddDimensionShineThroughTransformationFactory());
-        $transformationsFactory->registerTransformation('AddNewProperty', new AddNewPropertyTransformationFactory());
+        $transformationsFactory->registerTransformation('AddNewProperty', new AddNewPropertyConverterAwareTransformationFactory());
         $transformationsFactory->registerTransformation('ChangeNodeType', new ChangeNodeTypeTransformationFactory());
-        $transformationsFactory->registerTransformation('ChangePropertyValue', new ChangePropertyValueTransformationFactory());
+        $transformationsFactory->registerTransformation('ChangePropertyValue', new ChangePropertyValueConverterAwareTransformationFactory());
         $transformationsFactory->registerTransformation('MoveDimensionSpacePoint', new MoveDimensionSpacePointTransformationFactory());
         $transformationsFactory->registerTransformation('RemoveNode', new RemoveNodeTransformationFactory());
         $transformationsFactory->registerTransformation('RemoveProperty', new RemovePropertyTransformationFactory());
