@@ -6,6 +6,9 @@ namespace Neos\ContentRepository\NodeMigration\Filter;
 
 use Neos\ContentRepository\Core\ContentRepository;
 
+/**
+ * Factory to build a filter
+ */
 interface FilterFactoryInterface
 {
     /**

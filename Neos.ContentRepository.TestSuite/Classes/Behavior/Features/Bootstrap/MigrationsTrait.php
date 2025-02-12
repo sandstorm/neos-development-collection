@@ -45,7 +45,7 @@ trait MigrationsTrait
         );
 
         /** @var NodeMigrationService $nodeMigrationService */
-        $nodeMigrationService = $this->getContentRepositoryService(new NodeMigrationServiceFactory());
+        $nodeMigrationService = $this->getContentRepositoryService(NodeMigrationServiceFactory::createDefault());
         $nodeMigrationService->executeMigration($command);
     }
 
