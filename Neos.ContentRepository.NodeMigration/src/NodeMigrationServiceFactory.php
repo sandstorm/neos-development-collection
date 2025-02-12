@@ -32,10 +32,10 @@ class NodeMigrationServiceFactory implements ContentRepositoryServiceFactoryInte
 {
     public function build(ContentRepositoryServiceFactoryDependencies $serviceFactoryDependencies): NodeMigrationService
     {
-        $filtersFactory = new FiltersFactory();
-        $filtersFactory->registerFilter('DimensionSpacePoints', new DimensionSpacePointsFilterFactory($serviceFactoryDependencies->interDimensionalVariationGraph));
+        $filtersFactory = new FiltersFactory($serviceFactoryDependencies->contentRepository);
+        $filtersFactory->registerFilter('DimensionSpacePoints', new DimensionSpacePointsFilterFactory());
         $filtersFactory->registerFilter('NodeName', new NodeNameFilterFactory());
-        $filtersFactory->registerFilter('NodeType', new NodeTypeFilterFactory($serviceFactoryDependencies->nodeTypeManager));
+        $filtersFactory->registerFilter('NodeType', new NodeTypeFilterFactory());
         $filtersFactory->registerFilter('PropertyNotEmpty', new PropertyNotEmptyFilterFactory());
         $filtersFactory->registerFilter('PropertyValue', new PropertyValueFilterFactory());
 
