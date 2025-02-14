@@ -53,4 +53,13 @@ final readonly class CommandHooks implements CommandHookInterface, \IteratorAggr
         }
         return $command;
     }
+
+    public function onAfterHandle(CommandInterface $command): Commands
+    {
+        $commands = Commands::createEmpty();
+        foreach ($this->commandHooks as $commandHook) {
+            $commands = $commands->merge($commandHook->onAfterHandle($command));
+        }
+        return $commands;
+    }
 }

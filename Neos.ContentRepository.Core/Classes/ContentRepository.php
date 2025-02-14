@@ -106,6 +106,10 @@ final class ContentRepository
             if ($fullCatchUpResult->hadErrors()) {
                 throw CatchUpHadErrors::createFromErrors($fullCatchUpResult->errors);
             }
+            $additionalCommands = $this->commandHook->onAfterHandle($command);
+            foreach ($additionalCommands as $additionalCommand) {
+                $this->handle($additionalCommand);
+            }
             return;
         }
 
@@ -136,6 +140,10 @@ final class ContentRepository
             $fullCatchUpResult = $this->subscriptionEngine->catchUpActive(); // NOTE: we don't batch here, to ensure the catchup is run completely and any errors don't stop it.
             if ($fullCatchUpResult->hadErrors()) {
                 throw CatchUpHadErrors::createFromErrors($fullCatchUpResult->errors);
+            }
+            $additionalCommands = $this->commandHook->onAfterHandle($command);
+            foreach ($additionalCommands as $additionalCommand) {
+                $this->handle($additionalCommand);
             }
         }
     }

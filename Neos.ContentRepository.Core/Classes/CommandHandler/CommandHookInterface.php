@@ -22,4 +22,10 @@ interface CommandHookInterface
      * @return CommandInterface This hook must return a command instance. It can be the unaltered incoming $command or a new instance
      */
     public function onBeforeHandle(CommandInterface $command): CommandInterface;
+
+    /**
+     * @param CommandInterface $command The command that was just handled
+     * @return Commands This hook must return Commands that will be handled after the incoming $command. The Commands can be empty.
+     */
+    public function onAfterHandle(CommandInterface $command): Commands;
 }
