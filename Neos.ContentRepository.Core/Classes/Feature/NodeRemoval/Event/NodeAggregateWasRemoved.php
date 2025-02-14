@@ -21,7 +21,6 @@ use Neos\ContentRepository\Core\Feature\Common\EmbedsContentStreamId;
 use Neos\ContentRepository\Core\Feature\Common\EmbedsNodeAggregateId;
 use Neos\ContentRepository\Core\Feature\Common\EmbedsWorkspaceName;
 use Neos\ContentRepository\Core\Feature\Common\PublishableToWorkspaceInterface;
-use Neos\ContentRepository\Core\Feature\NodeRemoval\Command\RemoveNodeAggregate;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
@@ -41,9 +40,7 @@ final readonly class NodeAggregateWasRemoved implements
         public ContentStreamId $contentStreamId,
         public NodeAggregateId $nodeAggregateId,
         public OriginDimensionSpacePointSet $affectedOccupiedDimensionSpacePoints,
-        public DimensionSpacePointSet $affectedCoveredDimensionSpacePoints,
-        /** {@see RemoveNodeAggregate::$removalAttachmentPoint} for detailed docs what this is used for. */
-        public ?NodeAggregateId $removalAttachmentPoint = null
+        public DimensionSpacePointSet $affectedCoveredDimensionSpacePoints
     ) {
     }
 
@@ -64,13 +61,12 @@ final readonly class NodeAggregateWasRemoved implements
 
     public function withWorkspaceNameAndContentStreamId(WorkspaceName $targetWorkspaceName, ContentStreamId $contentStreamId): self
     {
-        return new NodeAggregateWasRemoved(
+        return new self(
             $targetWorkspaceName,
             $contentStreamId,
             $this->nodeAggregateId,
             $this->affectedOccupiedDimensionSpacePoints,
-            $this->affectedCoveredDimensionSpacePoints,
-            $this->removalAttachmentPoint
+            $this->affectedCoveredDimensionSpacePoints
         );
     }
 
@@ -81,10 +77,7 @@ final readonly class NodeAggregateWasRemoved implements
             ContentStreamId::fromString($values['contentStreamId']),
             NodeAggregateId::fromString($values['nodeAggregateId']),
             OriginDimensionSpacePointSet::fromArray($values['affectedOccupiedDimensionSpacePoints']),
-            DimensionSpacePointSet::fromArray($values['affectedCoveredDimensionSpacePoints']),
-            isset($values['removalAttachmentPoint'])
-                ? NodeAggregateId::fromString($values['removalAttachmentPoint'])
-                : null,
+            DimensionSpacePointSet::fromArray($values['affectedCoveredDimensionSpacePoints'])
         );
     }
 

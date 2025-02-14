@@ -34,14 +34,12 @@ final readonly class RemoveNodeAggregate implements
      * @param NodeAggregateId $nodeAggregateId The identifier of the node aggregate to remove
      * @param DimensionSpacePoint $coveredDimensionSpacePoint One of the dimension space points covered by the node aggregate in which the user intends to remove it
      * @param NodeVariantSelectionStrategy $nodeVariantSelectionStrategy The strategy the user chose to determine which specialization variants will also be removed
-     * @param NodeAggregateId|null $removalAttachmentPoint Internal. It stores the document node id of the removed node, as that is what the UI needs later on for the change display. {@see self::withRemovalAttachmentPoint()}
      */
     private function __construct(
         public WorkspaceName $workspaceName,
         public NodeAggregateId $nodeAggregateId,
         public DimensionSpacePoint $coveredDimensionSpacePoint,
-        public NodeVariantSelectionStrategy $nodeVariantSelectionStrategy,
-        public ?NodeAggregateId $removalAttachmentPoint
+        public NodeVariantSelectionStrategy $nodeVariantSelectionStrategy
     ) {
     }
 
@@ -53,7 +51,7 @@ final readonly class RemoveNodeAggregate implements
      */
     public static function create(WorkspaceName $workspaceName, NodeAggregateId $nodeAggregateId, DimensionSpacePoint $coveredDimensionSpacePoint, NodeVariantSelectionStrategy $nodeVariantSelectionStrategy): self
     {
-        return new self($workspaceName, $nodeAggregateId, $coveredDimensionSpacePoint, $nodeVariantSelectionStrategy, null);
+        return new self($workspaceName, $nodeAggregateId, $coveredDimensionSpacePoint, $nodeVariantSelectionStrategy);
     }
 
     public static function fromArray(array $array): self
@@ -62,28 +60,8 @@ final readonly class RemoveNodeAggregate implements
             WorkspaceName::fromString($array['workspaceName']),
             NodeAggregateId::fromString($array['nodeAggregateId']),
             DimensionSpacePoint::fromArray($array['coveredDimensionSpacePoint']),
-            NodeVariantSelectionStrategy::from($array['nodeVariantSelectionStrategy']),
-            isset($array['removalAttachmentPoint'])
-                ? NodeAggregateId::fromString($array['removalAttachmentPoint'])
-                : null
+            NodeVariantSelectionStrategy::from($array['nodeVariantSelectionStrategy'])
         );
-    }
-
-    /**
-     * This adds usually the NodeAggregateId of the parent document node of the deleted node.
-     * It is needed for instance in the Neos UI for the following scenario:
-     * - when removing a node, you still need to be able to publish the removal.
-     * - For this to work, the Neos UI needs to know the id of the removed Node, **on the page where the removal happened**
-     *   (so that the user can decide to publish a single page INCLUDING the removal on the page)
-     * - Because this command will *remove* the edge,
-     *   we cannot know the position in the tree after doing the removal anymore.
-     *
-     * @param NodeAggregateId $removalAttachmentPoint
-     * @internal
-     */
-    public function withRemovalAttachmentPoint(NodeAggregateId $removalAttachmentPoint): self
-    {
-        return new self($this->workspaceName, $this->nodeAggregateId, $this->coveredDimensionSpacePoint, $this->nodeVariantSelectionStrategy, $removalAttachmentPoint);
     }
 
     /**
@@ -101,8 +79,7 @@ final readonly class RemoveNodeAggregate implements
             $targetWorkspaceName,
             $this->nodeAggregateId,
             $this->coveredDimensionSpacePoint,
-            $this->nodeVariantSelectionStrategy,
-            $this->removalAttachmentPoint,
+            $this->nodeVariantSelectionStrategy
         );
     }
 }
