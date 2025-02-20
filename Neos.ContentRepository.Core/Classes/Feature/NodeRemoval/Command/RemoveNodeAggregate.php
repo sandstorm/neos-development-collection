@@ -16,20 +16,19 @@ namespace Neos\ContentRepository\Core\Feature\NodeRemoval\Command;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
-use Neos\ContentRepository\Core\Feature\Common\MatchableWithNodeIdToPublishOrDiscardInterface;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
-use Neos\ContentRepository\Core\Feature\WorkspacePublication\Dto\NodeIdToPublishOrDiscard;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeVariantSelectionStrategy;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 
 /**
+ * The "Remove node aggregate" command
+ *
  * @api commands are the write-API of the ContentRepository
  */
 final readonly class RemoveNodeAggregate implements
     CommandInterface,
     \JsonSerializable,
-    MatchableWithNodeIdToPublishOrDiscardInterface,
     RebasableToOtherWorkspaceInterface
 {
     /**
@@ -59,9 +58,6 @@ final readonly class RemoveNodeAggregate implements
         return new self($workspaceName, $nodeAggregateId, $coveredDimensionSpacePoint, $nodeVariantSelectionStrategy, null);
     }
 
-    /**
-     * @param array<string,mixed> $array
-     */
     public static function fromArray(array $array): self
     {
         return new self(
@@ -98,14 +94,6 @@ final readonly class RemoveNodeAggregate implements
     public function jsonSerialize(): array
     {
         return get_object_vars($this);
-    }
-
-    public function matchesNodeId(NodeIdToPublishOrDiscard $nodeIdToPublish): bool
-    {
-        return (
-            $this->nodeAggregateId->equals($nodeIdToPublish->nodeAggregateId)
-                && $this->coveredDimensionSpacePoint === $nodeIdToPublish->dimensionSpacePoint
-        );
     }
 
     public function createCopyForWorkspace(

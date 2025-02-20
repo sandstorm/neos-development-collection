@@ -21,7 +21,7 @@ use Neos\Flow\Annotations as Flow;
 final class EventMigrationServiceFactory implements ContentRepositoryServiceFactoryInterface
 {
     public function __construct(
-        private readonly Connection $connection,
+        private readonly Connection $connection
     ) {
     }
 
@@ -32,6 +32,7 @@ final class EventMigrationServiceFactory implements ContentRepositoryServiceFact
         }
 
         return new EventMigrationService(
+            $serviceFactoryDependencies->subscriptionEngine,
             $serviceFactoryDependencies->contentRepositoryId,
             $serviceFactoryDependencies->eventStore,
             $this->connection

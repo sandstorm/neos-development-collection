@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\NodeMigration\Transformation;
 
 use Neos\ContentRepository\Core\ContentRepository;
+use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\NodeMigration\MigrationException;
 use Neos\ContentRepository\NodeMigration\NodeMigrationService;
 
@@ -19,7 +20,8 @@ class TransformationsFactory
     private array $transformationFactories = [];
 
     public function __construct(
-        private readonly ContentRepository $contentRepository
+        private readonly ContentRepository $contentRepository,
+        private readonly PropertyConverter $propertyConverter,
     ) {
     }
 
@@ -58,7 +60,7 @@ class TransformationsFactory
     ): GlobalTransformationInterface|NodeAggregateBasedTransformationInterface|NodeBasedTransformationInterface
     {
         $transformationFactory = $this->resolveTransformationFactory($transformationConfiguration['type']);
-        return $transformationFactory->build($transformationConfiguration['settings'] ?? [], $this->contentRepository);
+        return $transformationFactory->build($transformationConfiguration['settings'] ?? [], $this->contentRepository, $this->propertyConverter);
     }
 
     /**
@@ -79,7 +81,7 @@ class TransformationsFactory
         if ($transformationName === 'AddDimensions') {
             throw new MigrationException(
                 'The "AddDimensions" transformation from the legacy content repository has been replaced'
-                . ' by the "AddDimensionSpecialization" transformation in the event-sourced content repository.'
+                . ' by the "MoveDimensionSpacePoint" transformation in the event-sourced content repository.'
                 . ' Please adjust your node migrations.',
                 1637178179
             );
@@ -88,7 +90,7 @@ class TransformationsFactory
         if ($transformationName === 'RenameDimension') {
             throw new MigrationException(
                 'The "RenameDimension" transformation from the legacy content repository has been replaced'
-                . ' by the "MoveToDimensionSpacePoints" transformation in the event-sourced content repository.'
+                . ' by the "MoveDimensionSpacePoint" transformation in the event-sourced content repository.'
                 . ' Please adjust your node migrations.',
                 1637178184
             );
@@ -106,7 +108,7 @@ class TransformationsFactory
         if ($transformationName === 'SetDimensions') {
             throw new MigrationException(
                 'The "SetDimensions" transformation from the legacy content repository has been replaced'
-                . ' by the "AddDimensionSpecialization" and "MoveToDimensionSpacePoints" transformation'
+                . ' by the "MoveDimensionSpacePoint" transformation'
                 . ' in the event-sourced content repository. Please adjust your node migrations.',
                 1637178280
             );

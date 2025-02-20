@@ -23,8 +23,6 @@ Feature: Rename Node Aggregate
     And the command CreateRootWorkspace is executed with payload:
       | Key                  | Value                |
       | workspaceName        | "live"               |
-      | workspaceTitle       | "Live"               |
-      | workspaceDescription | "The live workspace" |
       | newContentStreamId   | "cs-identifier"      |
     And I am in workspace "live"
     And the command CreateRootNodeAggregateWithNode is executed with payload:
@@ -50,7 +48,7 @@ Feature: Rename Node Aggregate
 
 
   Scenario: Rename Node Aggregate
-    When I run the following node migration for workspace "live", creating content streams "migration-cs":
+    When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs", without publishing on success:
     """yaml
     migration:
       -
@@ -75,18 +73,18 @@ Feature: Rename Node Aggregate
     Then I expect the node "sir-david-nodenborough" to have the name "foo"
 
     # the node was changed inside the new content stream, across all dimensions
-    When I am in content stream "migration-cs" and dimension space point {"language": "de"}
+    When I am in workspace "migration-workspace" and dimension space point {"language": "de"}
     Then I expect the node "sir-david-nodenborough" to have the name "other"
 
-    When I am in content stream "migration-cs" and dimension space point {"language": "ch"}
+    When I am in workspace "migration-workspace" and dimension space point {"language": "ch"}
     Then I expect the node "sir-david-nodenborough" to have the name "other"
 
-    When I am in content stream "migration-cs" and dimension space point {"language": "en"}
+    When I am in workspace "migration-workspace" and dimension space point {"language": "en"}
     Then I expect the node "sir-david-nodenborough" to have the name "other"
 
 
   Scenario: Rename Node Aggregate will fail when restricted to a single Dimension
-    When I run the following node migration for workspace "live", creating content streams "migration-cs" and exceptions are caught:
+    When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs" and exceptions are caught:
     """yaml
     migration:
       -

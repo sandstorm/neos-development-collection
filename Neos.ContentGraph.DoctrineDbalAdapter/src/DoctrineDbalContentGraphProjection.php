@@ -4,24 +4,32 @@ declare(strict_types=1);
 
 namespace Neos\ContentGraph\DoctrineDbalAdapter;
 
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Schema\AbstractSchemaManager;
-use Doctrine\DBAL\Types\Types;
+use Doctrine\DBAL\Exception as DBALException;
+use Neos\ContentGraph\DoctrineDbalAdapter\Domain\Projection\Feature\ContentStream;
 use Neos\ContentGraph\DoctrineDbalAdapter\Domain\Projection\Feature\NodeMove;
 use Neos\ContentGraph\DoctrineDbalAdapter\Domain\Projection\Feature\NodeRemoval;
 use Neos\ContentGraph\DoctrineDbalAdapter\Domain\Projection\Feature\NodeVariation;
 use Neos\ContentGraph\DoctrineDbalAdapter\Domain\Projection\Feature\SubtreeTagging;
+use Neos\ContentGraph\DoctrineDbalAdapter\Domain\Projection\Feature\Workspace;
 use Neos\ContentGraph\DoctrineDbalAdapter\Domain\Projection\HierarchyRelation;
 use Neos\ContentGraph\DoctrineDbalAdapter\Domain\Projection\NodeRecord;
 use Neos\ContentGraph\DoctrineDbalAdapter\Domain\Projection\NodeRelationAnchorPoint;
 use Neos\ContentGraph\DoctrineDbalAdapter\Domain\Repository\DimensionSpacePointsRepository;
 use Neos\ContentGraph\DoctrineDbalAdapter\Domain\Repository\ProjectionContentGraph;
-use Neos\ContentRepository\Core\ContentGraphFinder;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
 use Neos\ContentRepository\Core\EventStore\EventInterface;
+use Neos\ContentRepository\Core\EventStore\InitiatingEventMetadata;
+use Neos\ContentRepository\Core\Feature\Common\EmbedsContentStreamId;
 use Neos\ContentRepository\Core\Feature\Common\InterdimensionalSiblings;
+use Neos\ContentRepository\Core\Feature\Common\PublishableToWorkspaceInterface;
+use Neos\ContentRepository\Core\Feature\ContentStreamClosing\Event\ContentStreamWasClosed;
+use Neos\ContentRepository\Core\Feature\ContentStreamClosing\Event\ContentStreamWasReopened;
+use Neos\ContentRepository\Core\Feature\ContentStreamCreation\Event\ContentStreamWasCreated;
+use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\ContentStreamForking\Event\ContentStreamWasForked;
 use Neos\ContentRepository\Core\Feature\ContentStreamRemoval\Event\ContentStreamWasRemoved;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Event\DimensionShineThroughWasAdded;
@@ -30,7 +38,7 @@ use Neos\ContentRepository\Core\Feature\NodeCreation\Event\NodeAggregateWithNode
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\SerializedPropertyValues;
 use Neos\ContentRepository\Core\Feature\NodeModification\Event\NodePropertiesWereSet;
 use Neos\ContentRepository\Core\Feature\NodeMove\Event\NodeAggregateWasMoved;
-use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\SerializedNodeReference;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\SerializedNodeReferences;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Event\NodeReferencesWereSet;
 use Neos\ContentRepository\Core\Feature\NodeRemoval\Event\NodeAggregateWasRemoved;
 use Neos\ContentRepository\Core\Feature\NodeRenaming\Event\NodeAggregateNameWasChanged;
@@ -43,89 +51,69 @@ use Neos\ContentRepository\Core\Feature\RootNodeCreation\Event\RootNodeAggregate
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTags;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Event\SubtreeWasTagged;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Event\SubtreeWasUntagged;
-use Neos\ContentRepository\Core\Infrastructure\DbalCheckpointStorage;
+use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Event\RootWorkspaceWasCreated;
+use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Event\WorkspaceWasCreated;
+use Neos\ContentRepository\Core\Feature\WorkspaceModification\Event\WorkspaceBaseWorkspaceWasChanged;
+use Neos\ContentRepository\Core\Feature\WorkspaceModification\Event\WorkspaceWasRemoved;
+use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasDiscarded;
+use Neos\ContentRepository\Core\Feature\WorkspacePublication\Event\WorkspaceWasPublished;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Event\WorkspaceRebaseFailed;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Event\WorkspaceWasRebased;
 use Neos\ContentRepository\Core\Infrastructure\DbalSchemaDiff;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
-use Neos\ContentRepository\Core\Projection\CheckpointStorageStatusType;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphProjectionInterface;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodeTags;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Timestamps;
-use Neos\ContentRepository\Core\Projection\ProjectionInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStatus;
-use Neos\ContentRepository\Core\Projection\WithMarkStaleInterface;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateClassification;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
+use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
-use Neos\EventStore\Model\Event\SequenceNumber;
 use Neos\EventStore\Model\EventEnvelope;
 
 /**
- * @implements ProjectionInterface<ContentGraphFinder>
  * @internal but the graph projection is api
  */
-final class DoctrineDbalContentGraphProjection implements ProjectionInterface, WithMarkStaleInterface
+final class DoctrineDbalContentGraphProjection implements ContentGraphProjectionInterface
 {
+    use ContentStream;
+    use NodeMove;
+    use NodeRemoval;
     use NodeVariation;
     use SubtreeTagging;
-    use NodeRemoval;
-    use NodeMove;
+    use Workspace;
 
 
     public const RELATION_DEFAULT_OFFSET = 128;
-
-    private DbalCheckpointStorage $checkpointStorage;
 
     public function __construct(
         private readonly Connection $dbal,
         private readonly ProjectionContentGraph $projectionContentGraph,
         private readonly ContentGraphTableNames $tableNames,
         private readonly DimensionSpacePointsRepository $dimensionSpacePointsRepository,
-        private readonly ContentGraphFinder $contentGraphFinder
+        private readonly ContentGraphReadModelInterface $contentGraphReadModel
     ) {
-        $this->checkpointStorage = new DbalCheckpointStorage(
-            $this->dbal,
-            $this->tableNames->checkpoint(),
-            self::class
-        );
-    }
-
-    protected function getProjectionContentGraph(): ProjectionContentGraph
-    {
-        return $this->projectionContentGraph;
     }
 
     public function setUp(): void
     {
-        foreach ($this->determineRequiredSqlStatements() as $statement) {
-            $this->getDatabaseConnection()->executeStatement($statement);
-        }
-        $this->checkpointStorage->setUp();
-    }
+        $statements = $this->determineRequiredSqlStatements();
 
-    /**
-     * @return array<string>
-     */
-    private function determineRequiredSqlStatements(): array
-    {
-        $schemaManager = $this->dbal->getSchemaManager();
-        if (!$schemaManager instanceof AbstractSchemaManager) {
-            throw new \RuntimeException('Failed to retrieve Schema Manager', 1625653914);
+        foreach ($statements as $statement) {
+            try {
+                $this->dbal->executeStatement($statement);
+            } catch (DBALException $e) {
+                throw new \RuntimeException(sprintf('Failed to setup projection %s: %s', self::class, $e->getMessage()), 1716478255, $e);
+            }
         }
-        $schema = (new DoctrineDbalContentGraphSchemaBuilder($this->tableNames))->buildSchema($schemaManager);
-        return DbalSchemaDiff::determineRequiredSqlStatements($this->dbal, $schema);
     }
 
     public function status(): ProjectionStatus
     {
-        $checkpointStorageStatus = $this->checkpointStorage->status();
-        if ($checkpointStorageStatus->type === CheckpointStorageStatusType::ERROR) {
-            return ProjectionStatus::error($checkpointStorageStatus->details);
-        }
-        if ($checkpointStorageStatus->type === CheckpointStorageStatusType::SETUP_REQUIRED) {
-            return ProjectionStatus::setupRequired($checkpointStorageStatus->details);
-        }
         try {
-            $this->getDatabaseConnection()->connect();
+            $this->dbal->connect();
         } catch (\Throwable $e) {
             return ProjectionStatus::error(sprintf('Failed to connect to database: %s', $e->getMessage()));
         }
@@ -137,184 +125,276 @@ final class DoctrineDbalContentGraphProjection implements ProjectionInterface, W
         if ($requiredSqlStatements !== []) {
             return ProjectionStatus::setupRequired(sprintf('The following SQL statement%s required: %s', count($requiredSqlStatements) !== 1 ? 's are' : ' is', implode(chr(10), $requiredSqlStatements)));
         }
+
         return ProjectionStatus::ok();
     }
 
-    public function reset(): void
+    public function resetState(): void
     {
         $this->truncateDatabaseTables();
-
-        $this->checkpointStorage->acquireLock();
-        $this->checkpointStorage->updateAndReleaseLock(SequenceNumber::none());
-        $this->getState()->forgetInstances();
     }
 
-    public function markStale(): void
+    public function getState(): ContentGraphReadModelInterface
     {
-        $this->getState()->forgetInstances();
-    }
-
-    private function truncateDatabaseTables(): void
-    {
-        $this->dbal->executeQuery('TRUNCATE table ' . $this->tableNames->node());
-        $this->dbal->executeQuery('TRUNCATE table ' . $this->tableNames->hierarchyRelation());
-        $this->dbal->executeQuery('TRUNCATE table ' . $this->tableNames->referenceRelation());
-        $this->dbal->executeQuery('TRUNCATE table ' . $this->tableNames->dimensionSpacePoints());
-    }
-
-    public function canHandle(EventInterface $event): bool
-    {
-        return in_array($event::class, [
-            RootNodeAggregateWithNodeWasCreated::class,
-            RootNodeAggregateDimensionsWereUpdated::class,
-            NodeAggregateWithNodeWasCreated::class,
-            NodeAggregateNameWasChanged::class,
-            ContentStreamWasForked::class,
-            ContentStreamWasRemoved::class,
-            NodePropertiesWereSet::class,
-            NodeReferencesWereSet::class,
-            NodeAggregateTypeWasChanged::class,
-            DimensionSpacePointWasMoved::class,
-            DimensionShineThroughWasAdded::class,
-            NodeAggregateWasRemoved::class,
-            NodeAggregateWasMoved::class,
-            NodeSpecializationVariantWasCreated::class,
-            NodeGeneralizationVariantWasCreated::class,
-            NodePeerVariantWasCreated::class,
-            SubtreeWasTagged::class,
-            SubtreeWasUntagged::class,
-        ]);
+        return $this->contentGraphReadModel;
     }
 
     public function apply(EventInterface $event, EventEnvelope $eventEnvelope): void
     {
         match ($event::class) {
-            RootNodeAggregateWithNodeWasCreated::class => $this->whenRootNodeAggregateWithNodeWasCreated($event, $eventEnvelope),
-            RootNodeAggregateDimensionsWereUpdated::class => $this->whenRootNodeAggregateDimensionsWereUpdated($event),
-            NodeAggregateWithNodeWasCreated::class => $this->whenNodeAggregateWithNodeWasCreated($event, $eventEnvelope),
-            NodeAggregateNameWasChanged::class => $this->whenNodeAggregateNameWasChanged($event, $eventEnvelope),
+            ContentStreamWasClosed::class => $this->whenContentStreamWasClosed($event),
+            ContentStreamWasCreated::class => $this->whenContentStreamWasCreated($event),
             ContentStreamWasForked::class => $this->whenContentStreamWasForked($event),
             ContentStreamWasRemoved::class => $this->whenContentStreamWasRemoved($event),
-            NodePropertiesWereSet::class => $this->whenNodePropertiesWereSet($event, $eventEnvelope),
-            NodeReferencesWereSet::class => $this->whenNodeReferencesWereSet($event, $eventEnvelope),
-            NodeAggregateTypeWasChanged::class => $this->whenNodeAggregateTypeWasChanged($event, $eventEnvelope),
-            DimensionSpacePointWasMoved::class => $this->whenDimensionSpacePointWasMoved($event),
+            ContentStreamWasReopened::class => $this->whenContentStreamWasReopened($event),
             DimensionShineThroughWasAdded::class => $this->whenDimensionShineThroughWasAdded($event),
-            NodeAggregateWasRemoved::class => $this->whenNodeAggregateWasRemoved($event),
+            DimensionSpacePointWasMoved::class => $this->whenDimensionSpacePointWasMoved($event),
+            NodeAggregateNameWasChanged::class => $this->whenNodeAggregateNameWasChanged($event, $eventEnvelope),
+            NodeAggregateTypeWasChanged::class => $this->whenNodeAggregateTypeWasChanged($event, $eventEnvelope),
             NodeAggregateWasMoved::class => $this->whenNodeAggregateWasMoved($event),
-            NodeSpecializationVariantWasCreated::class => $this->whenNodeSpecializationVariantWasCreated($event, $eventEnvelope),
+            NodeAggregateWasRemoved::class => $this->whenNodeAggregateWasRemoved($event),
+            NodeAggregateWithNodeWasCreated::class => $this->whenNodeAggregateWithNodeWasCreated($event, $eventEnvelope),
             NodeGeneralizationVariantWasCreated::class => $this->whenNodeGeneralizationVariantWasCreated($event, $eventEnvelope),
             NodePeerVariantWasCreated::class => $this->whenNodePeerVariantWasCreated($event, $eventEnvelope),
+            NodePropertiesWereSet::class => $this->whenNodePropertiesWereSet($event, $eventEnvelope),
+            NodeReferencesWereSet::class => $this->whenNodeReferencesWereSet($event, $eventEnvelope),
+            NodeSpecializationVariantWasCreated::class => $this->whenNodeSpecializationVariantWasCreated($event, $eventEnvelope),
+            RootNodeAggregateDimensionsWereUpdated::class => $this->whenRootNodeAggregateDimensionsWereUpdated($event),
+            RootNodeAggregateWithNodeWasCreated::class => $this->whenRootNodeAggregateWithNodeWasCreated($event, $eventEnvelope),
+            RootWorkspaceWasCreated::class => $this->whenRootWorkspaceWasCreated($event),
             SubtreeWasTagged::class => $this->whenSubtreeWasTagged($event),
             SubtreeWasUntagged::class => $this->whenSubtreeWasUntagged($event),
-            default => throw new \InvalidArgumentException(sprintf('Unsupported event %s', get_debug_type($event))),
+            WorkspaceBaseWorkspaceWasChanged::class => $this->whenWorkspaceBaseWorkspaceWasChanged($event),
+            WorkspaceRebaseFailed::class => $this->whenWorkspaceRebaseFailed($event),
+            WorkspaceWasCreated::class => $this->whenWorkspaceWasCreated($event),
+            WorkspaceWasDiscarded::class => $this->whenWorkspaceWasDiscarded($event),
+            WorkspaceWasPublished::class => $this->whenWorkspaceWasPublished($event),
+            WorkspaceWasRebased::class => $this->whenWorkspaceWasRebased($event),
+            WorkspaceWasRemoved::class => $this->whenWorkspaceWasRemoved($event),
+            default => null,
         };
+        if (
+            $event instanceof EmbedsContentStreamId
+            && ContentStreamEventStreamName::isContentStreamStreamName($eventEnvelope->streamName)
+            && !(
+                // special case as we dont need to update anything. The handling above takes care of setting the version to 0
+                $event instanceof ContentStreamWasForked
+                || $event instanceof ContentStreamWasCreated
+            )
+        ) {
+            $this->updateContentStreamVersion($event->getContentStreamId(), $eventEnvelope->version, $event instanceof PublishableToWorkspaceInterface);
+        }
     }
 
-    public function getCheckpointStorage(): DbalCheckpointStorage
+    public function inSimulation(\Closure $fn): mixed
     {
-        return $this->checkpointStorage;
+        if ($this->dbal->isTransactionActive()) {
+            throw new \RuntimeException(sprintf('Invoking %s is not allowed to be invoked recursively. Current transaction nesting %d.', __FUNCTION__, $this->dbal->getTransactionNestingLevel()));
+        }
+        $this->dbal->beginTransaction();
+        $this->dbal->setRollbackOnly();
+        try {
+            return $fn();
+        } finally {
+            // unsets rollback only flag and allows the connection to work regular again
+            $this->dbal->rollBack();
+        }
     }
 
-    public function getState(): ContentGraphFinder
+    private function whenContentStreamWasClosed(ContentStreamWasClosed $event): void
     {
-        return $this->contentGraphFinder;
+        $this->closeContentStream($event->contentStreamId);
     }
 
-    /**
-     * @throws \Throwable
-     */
-    private function whenRootNodeAggregateWithNodeWasCreated(RootNodeAggregateWithNodeWasCreated $event, EventEnvelope $eventEnvelope): void
+    private function whenContentStreamWasCreated(ContentStreamWasCreated $event): void
     {
-        $originDimensionSpacePoint = OriginDimensionSpacePoint::createWithoutDimensions();
-        $node = NodeRecord::createNewInDatabase(
-            $this->getDatabaseConnection(),
-            $this->tableNames,
-            $event->nodeAggregateId,
-            $originDimensionSpacePoint->coordinates,
-            $originDimensionSpacePoint->hash,
-            SerializedPropertyValues::createEmpty(),
-            $event->nodeTypeName,
-            $event->nodeAggregateClassification,
-            null,
-            Timestamps::create(
-                $eventEnvelope->recordedAt,
-                self::initiatingDateTime($eventEnvelope),
-                null,
-                null,
-            ),
-        );
-
-        $this->connectHierarchy(
-            $event->contentStreamId,
-            NodeRelationAnchorPoint::forRootEdge(),
-            $node->relationAnchorPoint,
-            $event->coveredDimensionSpacePoints,
-            null
-        );
+        $this->createContentStream($event->contentStreamId);
     }
 
-    /**
-     * @throws \Throwable
-     */
-    private function whenRootNodeAggregateDimensionsWereUpdated(RootNodeAggregateDimensionsWereUpdated $event): void
+    private function whenContentStreamWasForked(ContentStreamWasForked $event): void
     {
-        $rootNodeAnchorPoint = $this->projectionContentGraph
-            ->getAnchorPointForNodeAndOriginDimensionSpacePointAndContentStream(
-                $event->nodeAggregateId,
-                /** the origin DSP of the root node is always the empty dimension ({@see whenRootNodeAggregateWithNodeWasCreated}) */
-                OriginDimensionSpacePoint::createWithoutDimensions(),
-                $event->contentStreamId
-            );
-        if ($rootNodeAnchorPoint === null) {
-            // should never happen.
-            return;
+        //
+        // 1) Copy HIERARCHY RELATIONS (this is the MAIN OPERATION here)
+        //
+        $insertRelationStatement = <<<SQL
+            INSERT INTO {$this->tableNames->hierarchyRelation()} (
+              parentnodeanchor,
+              childnodeanchor,
+              position,
+              dimensionspacepointhash,
+              subtreetags,
+              contentstreamid
+            )
+            SELECT
+              h.parentnodeanchor,
+              h.childnodeanchor,
+              h.position,
+              h.dimensionspacepointhash,
+              h.subtreetags,
+              "{$event->newContentStreamId->value}" AS contentstreamid
+            FROM
+                {$this->tableNames->hierarchyRelation()} h
+                WHERE h.contentstreamid = :sourceContentStreamId
+        SQL;
+        try {
+            $this->dbal->executeStatement($insertRelationStatement, [
+                'sourceContentStreamId' => $event->sourceContentStreamId->value
+            ]);
+        } catch (DBALException $e) {
+            throw new \RuntimeException(sprintf('Failed to insert hierarchy relation: %s', $e->getMessage()), 1716489211, $e);
         }
 
-        // delete all hierarchy edges of the root node
-        $this->getDatabaseConnection()->executeUpdate('
-                DELETE FROM ' . $this->tableNames->hierarchyRelation() . '
-                WHERE
-                    parentnodeanchor = :parentNodeAnchor
-                    AND childnodeanchor = :childNodeAnchor
-                    AND contentstreamid = :contentStreamId
-            ', [
-            'parentNodeAnchor' => NodeRelationAnchorPoint::forRootEdge()->value,
-            'childNodeAnchor' => $rootNodeAnchorPoint->value,
-            'contentStreamId' => $event->contentStreamId->value,
-        ]);
-        // recreate hierarchy edges for the root node
-        $this->connectHierarchy(
-            $event->contentStreamId,
-            NodeRelationAnchorPoint::forRootEdge(),
-            $rootNodeAnchorPoint,
-            $event->coveredDimensionSpacePoints,
-            null
-        );
+        // NOTE: as reference edges are attached to Relation Anchor Points (and they are lazily copy-on-written),
+        // we do not need to copy reference edges here (but we need to do it during copy on write).
+
+        $this->createContentStream($event->newContentStreamId, $event->sourceContentStreamId, $event->versionOfSourceContentStream);
     }
 
-    /**
-     * @throws \Throwable
-     */
-    private function whenNodeAggregateWithNodeWasCreated(NodeAggregateWithNodeWasCreated $event, EventEnvelope $eventEnvelope): void
+    private function whenContentStreamWasRemoved(ContentStreamWasRemoved $event): void
     {
-        $this->createNodeWithHierarchy(
-            $event->contentStreamId,
-            $event->nodeAggregateId,
-            $event->nodeTypeName,
-            $event->parentNodeAggregateId,
-            $event->originDimensionSpacePoint,
-            $event->succeedingSiblingsForCoverage,
-            $event->initialPropertyValues,
-            $event->nodeAggregateClassification,
-            $event->nodeName,
-            $eventEnvelope,
-        );
+        // Drop hierarchy relations
+        $deleteHierarchyRelationStatement = <<<SQL
+            DELETE FROM {$this->tableNames->hierarchyRelation()} WHERE contentstreamid = :contentStreamId
+        SQL;
+        try {
+            $this->dbal->executeStatement($deleteHierarchyRelationStatement, [
+                'contentStreamId' => $event->contentStreamId->value
+            ]);
+        } catch (DBALException $e) {
+            throw new \RuntimeException(sprintf('Failed to delete hierarchy relations: %s', $e->getMessage()), 1716489265, $e);
+        }
+
+        // Drop non-referenced nodes (which do not have a hierarchy relation anymore)
+        $deleteNodesStatement = <<<SQL
+            DELETE FROM {$this->tableNames->node()}
+            WHERE NOT EXISTS (
+                SELECT 1 FROM {$this->tableNames->hierarchyRelation()}
+                WHERE {$this->tableNames->hierarchyRelation()}.childnodeanchor = {$this->tableNames->node()}.relationanchorpoint
+            )
+        SQL;
+        try {
+            $this->dbal->executeStatement($deleteNodesStatement);
+        } catch (DBALException $e) {
+            throw new \RuntimeException(sprintf('Failed to delete non-referenced nodes: %s', $e->getMessage()), 1716489294, $e);
+        }
+
+        // Drop non-referenced reference relations (i.e. because the referenced nodes are gone by now)
+        $deleteReferenceRelationsStatement = <<<SQL
+            DELETE FROM {$this->tableNames->referenceRelation()}
+            WHERE NOT EXISTS (
+                SELECT 1 FROM {$this->tableNames->node()}
+                WHERE {$this->tableNames->node()}.relationanchorpoint = {$this->tableNames->referenceRelation()}.nodeanchorpoint
+            )
+        SQL;
+        try {
+            $this->dbal->executeStatement($deleteReferenceRelationsStatement);
+        } catch (DBALException $e) {
+            throw new \RuntimeException(sprintf('Failed to delete non-referenced reference relations: %s', $e->getMessage()), 1716489328, $e);
+        }
+
+        $this->removeContentStream($event->contentStreamId);
     }
 
-    /**
-     * @throws \Throwable
-     */
+    private function whenContentStreamWasReopened(ContentStreamWasReopened $event): void
+    {
+        $this->reopenContentStream($event->contentStreamId);
+    }
+
+    private function whenDimensionShineThroughWasAdded(DimensionShineThroughWasAdded $event): void
+    {
+        $this->dimensionSpacePointsRepository->insertDimensionSpacePoint($event->target);
+
+        // 1) hierarchy relations
+        $insertHierarchyRelationsStatement = <<<SQL
+            INSERT INTO {$this->tableNames->hierarchyRelation()} (
+              parentnodeanchor,
+              childnodeanchor,
+              position,
+              subtreetags,
+              dimensionspacepointhash,
+              contentstreamid
+            )
+            SELECT
+              h.parentnodeanchor,
+              h.childnodeanchor,
+              h.position,
+              h.subtreetags,
+             :newDimensionSpacePointHash AS dimensionspacepointhash,
+              h.contentstreamid
+            FROM
+                {$this->tableNames->hierarchyRelation()} h
+                WHERE h.contentstreamid = :contentStreamId
+                AND h.dimensionspacepointhash = :sourceDimensionSpacePointHash
+        SQL;
+        try {
+            $this->dbal->executeStatement($insertHierarchyRelationsStatement, [
+                'contentStreamId' => $event->contentStreamId->value,
+                'sourceDimensionSpacePointHash' => $event->source->hash,
+                'newDimensionSpacePointHash' => $event->target->hash,
+            ]);
+        } catch (DBALException $e) {
+            throw new \RuntimeException(sprintf('Failed to insert hierarchy relations: %s', $e->getMessage()), 1716490758, $e);
+        }
+    }
+
+    private function whenDimensionSpacePointWasMoved(DimensionSpacePointWasMoved $event): void
+    {
+        $this->dimensionSpacePointsRepository->insertDimensionSpacePoint($event->target);
+
+        // the ordering is important - we first update the OriginDimensionSpacePoints, as we need the
+        // hierarchy relations for this query. Then, we update the Hierarchy Relations.
+
+        // 1) originDimensionSpacePoint on Node
+        $selectRelationsStatement = <<<SQL
+            SELECT n.relationanchorpoint
+            FROM {$this->tableNames->node()} n
+            INNER JOIN {$this->tableNames->hierarchyRelation()} h
+                ON h.childnodeanchor = n.relationanchorpoint
+                AND h.contentstreamid = :contentStreamId
+                AND h.dimensionspacepointhash = :dimensionSpacePointHash
+                -- find only nodes which have their ORIGIN at the source DimensionSpacePoint,
+                -- as we need to rewrite these origins (using copy on write)
+                AND n.origindimensionspacepointhash = :dimensionSpacePointHash
+        SQL;
+        try {
+            $relationAnchorPoints = $this->dbal->fetchFirstColumn($selectRelationsStatement, [
+                'dimensionSpacePointHash' => $event->source->hash,
+                'contentStreamId' => $event->contentStreamId->value
+            ]);
+        } catch (DBALException $e) {
+            throw new \RuntimeException(sprintf('Failed to load relation anchor points: %s', $e->getMessage()), 1716489628, $e);
+        }
+        foreach ($relationAnchorPoints as $relationAnchorPoint) {
+            $this->updateNodeRecordWithCopyOnWrite(
+                $event->contentStreamId,
+                NodeRelationAnchorPoint::fromInteger($relationAnchorPoint),
+                function (NodeRecord $nodeRecord) use ($event) {
+                    $nodeRecord->originDimensionSpacePoint = $event->target->coordinates;
+                    $nodeRecord->originDimensionSpacePointHash = $event->target->hash;
+                }
+            );
+        }
+
+        // 2) hierarchy relations
+        $updateHierarchyRelationsStatement = <<<SQL
+            UPDATE {$this->tableNames->hierarchyRelation()} h
+            SET
+                h.dimensionspacepointhash = :newDimensionSpacePointHash
+            WHERE
+              h.dimensionspacepointhash = :originalDimensionSpacePointHash
+              AND h.contentstreamid = :contentStreamId
+        SQL;
+        try {
+            $this->dbal->executeStatement($updateHierarchyRelationsStatement, [
+                'originalDimensionSpacePointHash' => $event->source->hash,
+                'newDimensionSpacePointHash' => $event->target->hash,
+                'contentStreamId' => $event->contentStreamId->value,
+            ]);
+        } catch (DBALException $e) {
+            throw new \RuntimeException(sprintf('Failed to update hierarchy relations: %s', $e->getMessage()), 1716489951, $e);
+        }
+    }
+
     private function whenNodeAggregateNameWasChanged(NodeAggregateNameWasChanged $event, EventEnvelope $eventEnvelope): void
     {
         foreach (
@@ -337,9 +417,443 @@ final class DoctrineDbalContentGraphProjection implements ProjectionInterface, W
         }
     }
 
+    private function whenNodeAggregateTypeWasChanged(NodeAggregateTypeWasChanged $event, EventEnvelope $eventEnvelope): void
+    {
+        $anchorPoints = $this->projectionContentGraph->getAnchorPointsForNodeAggregateInContentStream($event->nodeAggregateId, $event->contentStreamId);
+        foreach ($anchorPoints as $anchorPoint) {
+            $this->updateNodeRecordWithCopyOnWrite(
+                $event->contentStreamId,
+                $anchorPoint,
+                function (NodeRecord $node) use ($event, $eventEnvelope) {
+                    $node->nodeTypeName = $event->newNodeTypeName;
+                    $node->timestamps = $node->timestamps->with(
+                        lastModified: $eventEnvelope->recordedAt,
+                        originalLastModified: self::initiatingDateTime($eventEnvelope)
+                    );
+                }
+            );
+        }
+    }
+
+    private function whenNodeAggregateWasMoved(NodeAggregateWasMoved $event): void
+    {
+        $this->moveNodeAggregate($event->contentStreamId, $event->nodeAggregateId, $event->newParentNodeAggregateId, $event->succeedingSiblingsForCoverage);
+    }
+
+    private function whenNodeAggregateWasRemoved(NodeAggregateWasRemoved $event): void
+    {
+        $this->removeNodeAggregate($event->contentStreamId, $event->nodeAggregateId, $event->affectedCoveredDimensionSpacePoints);
+    }
+
+    private function whenNodeAggregateWithNodeWasCreated(NodeAggregateWithNodeWasCreated $event, EventEnvelope $eventEnvelope): void
+    {
+        $this->createNodeWithHierarchy(
+            $event->contentStreamId,
+            $event->nodeAggregateId,
+            $event->nodeTypeName,
+            $event->parentNodeAggregateId,
+            $event->originDimensionSpacePoint,
+            $event->succeedingSiblingsForCoverage,
+            $event->initialPropertyValues,
+            $event->nodeReferences,
+            $event->nodeAggregateClassification,
+            $event->nodeName,
+            $eventEnvelope,
+        );
+    }
+
+    private function whenNodeGeneralizationVariantWasCreated(NodeGeneralizationVariantWasCreated $event, EventEnvelope $eventEnvelope): void
+    {
+        $this->createNodeGeneralizationVariant($event->contentStreamId, $event->nodeAggregateId, $event->sourceOrigin, $event->generalizationOrigin, $event->variantSucceedingSiblings, $eventEnvelope);
+    }
+
+    private function whenNodePeerVariantWasCreated(NodePeerVariantWasCreated $event, EventEnvelope $eventEnvelope): void
+    {
+        $this->createNodePeerVariant($event->contentStreamId, $event->nodeAggregateId, $event->sourceOrigin, $event->peerOrigin, $event->peerSucceedingSiblings, $eventEnvelope);
+    }
+
+    private function whenNodePropertiesWereSet(NodePropertiesWereSet $event, EventEnvelope $eventEnvelope): void
+    {
+        $anchorPoint = $this->projectionContentGraph
+            ->getAnchorPointForNodeAndOriginDimensionSpacePointAndContentStream(
+                $event->getNodeAggregateId(),
+                $event->getOriginDimensionSpacePoint(),
+                $event->getContentStreamId()
+            );
+        if (is_null($anchorPoint)) {
+            throw new \InvalidArgumentException(
+                'Cannot update node with copy on write since no anchor point could be resolved for node '
+                . $event->getNodeAggregateId()->value . ' in content stream '
+                . $event->getContentStreamId()->value,
+                1645303332
+            );
+        }
+        $this->updateNodeRecordWithCopyOnWrite(
+            $event->getContentStreamId(),
+            $anchorPoint,
+            function (NodeRecord $node) use ($event, $eventEnvelope) {
+                $node->properties = $node->properties
+                    ->merge($event->propertyValues)
+                    ->unsetProperties($event->propertiesToUnset);
+                $node->timestamps = $node->timestamps->with(
+                    lastModified: $eventEnvelope->recordedAt,
+                    originalLastModified: self::initiatingDateTime($eventEnvelope)
+                );
+            }
+        );
+    }
+
+    private function whenNodeReferencesWereSet(NodeReferencesWereSet $event, EventEnvelope $eventEnvelope): void
+    {
+        foreach ($event->affectedSourceOriginDimensionSpacePoints as $originDimensionSpacePoint) {
+            $nodeAnchorPoint = $this->projectionContentGraph
+                ->getAnchorPointForNodeAndOriginDimensionSpacePointAndContentStream(
+                    $event->nodeAggregateId,
+                    $originDimensionSpacePoint,
+                    $event->contentStreamId
+                );
+
+            if (is_null($nodeAnchorPoint)) {
+                throw new \InvalidArgumentException(
+                    'Could not apply event of type "' . get_class($event)
+                    . '" since no anchor point could be resolved for node '
+                    . $event->getNodeAggregateId()->value . ' in content stream '
+                    . $event->getContentStreamId()->value,
+                    1658580583
+                );
+            }
+
+            $this->updateNodeRecordWithCopyOnWrite(
+                $event->contentStreamId,
+                $nodeAnchorPoint,
+                function (NodeRecord $node) use ($eventEnvelope) {
+                    $node->timestamps = $node->timestamps->with(
+                        lastModified: $eventEnvelope->recordedAt,
+                        originalLastModified: self::initiatingDateTime($eventEnvelope)
+                    );
+                }
+            );
+
+            $nodeAnchorPoint = $this->projectionContentGraph
+                ->getAnchorPointForNodeAndOriginDimensionSpacePointAndContentStream(
+                    $event->nodeAggregateId,
+                    $originDimensionSpacePoint,
+                    $event->contentStreamId
+                );
+
+
+            // remove old
+            $deleteOldReferencesSql = <<<SQL
+            DELETE FROM {$this->tableNames->referenceRelation()}
+                WHERE nodeanchorpoint = :nodeanchorpoint
+                AND name in (:names)
+            SQL;
+            try {
+                $this->dbal->executeStatement(
+                    $deleteOldReferencesSql,
+                    [
+                        'nodeanchorpoint' => $nodeAnchorPoint?->value,
+                        'names' => array_map(fn (ReferenceName $name) => $name->value, $event->references->getReferenceNames())
+                    ],
+                    [
+                        'names' => ArrayParameterType::STRING
+                    ]
+                );
+            } catch (DbalException $e) {
+                throw new \RuntimeException(sprintf('Failed to remove reference relation: %s', $e->getMessage()), 1716486309, $e);
+            }
+
+            // set new
+            $nodeAnchorPoint && $this->writeReferencesForTargetAnchorPoint($event->references, $nodeAnchorPoint);
+        }
+    }
+
+    private function writeReferencesForTargetAnchorPoint(SerializedNodeReferences $nodeReferences, NodeRelationAnchorPoint $nodeAnchorPoint): void
+    {
+        $position = 0;
+        foreach ($nodeReferences as $referencesByProperty) {
+            foreach ($referencesByProperty->references as $reference) {
+                $referencePropertiesJson = null;
+                if ($reference->properties !== null && $reference->properties->count() > 0) {
+                    try {
+                        $referencePropertiesJson = \json_encode($reference->properties, JSON_THROW_ON_ERROR | JSON_FORCE_OBJECT);
+                    } catch (\JsonException $e) {
+                        throw new \RuntimeException(sprintf('Failed to JSON-encode reference properties: %s', $e->getMessage()), 1716486271, $e);
+                    }
+                }
+                try {
+                    $this->dbal->insert($this->tableNames->referenceRelation(), [
+                        'name' => $referencesByProperty->referenceName->value,
+                        'position' => $position,
+                        'nodeanchorpoint' => $nodeAnchorPoint->value,
+                        'destinationnodeaggregateid' => $reference->targetNodeAggregateId->value,
+                        'properties' => $referencePropertiesJson,
+                    ]);
+                } catch (DbalException $e) {
+                    throw new \RuntimeException(sprintf('Failed to insert reference relation: %s', $e->getMessage()), 1716486309, $e);
+                }
+                $position++;
+            }
+        }
+    }
+
+    private function whenNodeSpecializationVariantWasCreated(NodeSpecializationVariantWasCreated $event, EventEnvelope $eventEnvelope): void
+    {
+        $this->createNodeSpecializationVariant($event->contentStreamId, $event->nodeAggregateId, $event->sourceOrigin, $event->specializationOrigin, $event->specializationSiblings, $eventEnvelope);
+    }
+
+    private function whenRootNodeAggregateDimensionsWereUpdated(RootNodeAggregateDimensionsWereUpdated $event): void
+    {
+        $rootNodeAnchorPoint = $this->projectionContentGraph
+            ->getAnchorPointForNodeAndOriginDimensionSpacePointAndContentStream(
+                $event->nodeAggregateId,
+                /** the origin DSP of the root node is always the empty dimension ({@see whenRootNodeAggregateWithNodeWasCreated}) */
+                OriginDimensionSpacePoint::createWithoutDimensions(),
+                $event->contentStreamId
+            );
+        if ($rootNodeAnchorPoint === null) {
+            // should never happen.
+            return;
+        }
+
+        // delete all hierarchy edges of the root node
+        $deleteHierarchyRelationsStatement = <<<SQL
+            DELETE FROM {$this->tableNames->hierarchyRelation()}
+            WHERE
+                parentnodeanchor = :parentNodeAnchor
+                AND childnodeanchor = :childNodeAnchor
+                AND contentstreamid = :contentStreamId
+        SQL;
+        try {
+            $this->dbal->executeStatement($deleteHierarchyRelationsStatement, [
+                'parentNodeAnchor' => NodeRelationAnchorPoint::forRootEdge()->value,
+                'childNodeAnchor' => $rootNodeAnchorPoint->value,
+                'contentStreamId' => $event->contentStreamId->value,
+            ]);
+        } catch (DBALException $e) {
+            throw new \RuntimeException(sprintf('Failed to delete hierarchy relation: %s', $e->getMessage()), 1716488943, $e);
+        }
+        // recreate hierarchy edges for the root node
+        $this->connectHierarchy(
+            $event->contentStreamId,
+            NodeRelationAnchorPoint::forRootEdge(),
+            $rootNodeAnchorPoint,
+            $event->coveredDimensionSpacePoints,
+            null
+        );
+    }
+
+    private function whenRootNodeAggregateWithNodeWasCreated(RootNodeAggregateWithNodeWasCreated $event, EventEnvelope $eventEnvelope): void
+    {
+        $originDimensionSpacePoint = OriginDimensionSpacePoint::createWithoutDimensions();
+        $node = NodeRecord::createNewInDatabase(
+            $this->dbal,
+            $this->tableNames,
+            $event->nodeAggregateId,
+            $originDimensionSpacePoint->coordinates,
+            $originDimensionSpacePoint->hash,
+            SerializedPropertyValues::createEmpty(),
+            $event->nodeTypeName,
+            $event->nodeAggregateClassification,
+            null,
+            Timestamps::create($eventEnvelope->recordedAt, self::initiatingDateTime($eventEnvelope), null, null),
+        );
+
+        $this->connectHierarchy(
+            $event->contentStreamId,
+            NodeRelationAnchorPoint::forRootEdge(),
+            $node->relationAnchorPoint,
+            $event->coveredDimensionSpacePoints,
+            null
+        );
+    }
+
+    private function whenRootWorkspaceWasCreated(RootWorkspaceWasCreated $event): void
+    {
+        $this->createWorkspace($event->workspaceName, null, $event->newContentStreamId);
+    }
+
+    private function whenSubtreeWasTagged(SubtreeWasTagged $event): void
+    {
+        $this->addSubtreeTag($event->contentStreamId, $event->nodeAggregateId, $event->affectedDimensionSpacePoints, $event->tag);
+    }
+
+    private function whenSubtreeWasUntagged(SubtreeWasUntagged $event): void
+    {
+        $this->removeSubtreeTag($event->contentStreamId, $event->nodeAggregateId, $event->affectedDimensionSpacePoints, $event->tag);
+    }
+
+    private function whenWorkspaceBaseWorkspaceWasChanged(WorkspaceBaseWorkspaceWasChanged $event): void
+    {
+        $this->updateBaseWorkspace($event->workspaceName, $event->baseWorkspaceName, $event->newContentStreamId);
+    }
+
+    private function whenWorkspaceRebaseFailed(WorkspaceRebaseFailed $event): void
+    {
+        // legacy handling:
+        // before https://github.com/neos/neos-development-collection/pull/4965 this event was emitted and set the content stream status to `REBASE_ERROR`
+        // instead of setting the error state on replay for old events we make it almost behave like if the rebase had failed today: reopen the workspaces content stream id
+        // the candidateContentStreamId will be removed by the ContentStreamPruner
+        $this->reopenContentStream($event->sourceContentStreamId);
+    }
+
+    private function whenWorkspaceWasCreated(WorkspaceWasCreated $event): void
+    {
+        $this->createWorkspace($event->workspaceName, $event->baseWorkspaceName, $event->newContentStreamId);
+    }
+
+    private function whenWorkspaceWasDiscarded(WorkspaceWasDiscarded $event): void
+    {
+        $this->updateWorkspaceContentStreamId($event->workspaceName, $event->newContentStreamId);
+    }
+
+    private function whenWorkspaceWasPublished(WorkspaceWasPublished $event): void
+    {
+        $this->updateWorkspaceContentStreamId($event->sourceWorkspaceName, $event->newSourceContentStreamId);
+    }
+
+    private function whenWorkspaceWasRebased(WorkspaceWasRebased $event): void
+    {
+        $this->updateWorkspaceContentStreamId($event->workspaceName, $event->newContentStreamId);
+    }
+
+    private function whenWorkspaceWasRemoved(WorkspaceWasRemoved $event): void
+    {
+        $this->removeWorkspace($event->workspaceName);
+    }
+
+    /** --------------------------------- */
+
     /**
-     * @throws \Doctrine\DBAL\DBALException
+     * @return array<string>
      */
+    private function determineRequiredSqlStatements(): array
+    {
+        $schema = (new DoctrineDbalContentGraphSchemaBuilder($this->tableNames))->buildSchema($this->dbal);
+        return DbalSchemaDiff::determineRequiredSqlStatements($this->dbal, $schema);
+    }
+
+    private function truncateDatabaseTables(): void
+    {
+        try {
+            $this->dbal->executeQuery('TRUNCATE table ' . $this->tableNames->node());
+            $this->dbal->executeQuery('TRUNCATE table ' . $this->tableNames->hierarchyRelation());
+            $this->dbal->executeQuery('TRUNCATE table ' . $this->tableNames->referenceRelation());
+            $this->dbal->executeQuery('TRUNCATE table ' . $this->tableNames->dimensionSpacePoints());
+            $this->dbal->executeQuery('TRUNCATE table ' . $this->tableNames->workspace());
+            $this->dbal->executeQuery('TRUNCATE table ' . $this->tableNames->contentStream());
+        } catch (DBALException $e) {
+            throw new \RuntimeException(sprintf('Failed to truncate database tables for projection %s: %s', self::class, $e->getMessage()), 1716478318, $e);
+        }
+    }
+
+    /**
+     * @param callable(NodeRecord): T $operations
+     * @return T
+     * @template T
+     */
+    private function updateNodeRecordWithCopyOnWrite(
+        ContentStreamId $contentStreamIdWhereWriteOccurs,
+        NodeRelationAnchorPoint $anchorPoint,
+        callable $operations
+    ): mixed {
+        $contentStreamIds = $this->projectionContentGraph->getAllContentStreamIdsAnchorPointIsContainedIn($anchorPoint);
+        if (count($contentStreamIds) > 1) {
+            // Copy on Write needed!
+            // Copy on Write is a purely "Content Stream" related concept;
+            // thus we do not care about different DimensionSpacePoints here (but we copy all edges)
+
+            // 1) fetch node, adjust properties, assign new Relation Anchor Point
+            /** @var NodeRecord $originalNode The anchor point appears in a content stream, so there must be a node */
+            $originalNode = $this->projectionContentGraph->getNodeByAnchorPoint($anchorPoint);
+            $copiedNode = NodeRecord::createCopyFromNodeRecord($this->dbal, $this->tableNames, $originalNode);
+            $result = $operations($copiedNode);
+            $copiedNode->updateToDatabase($this->dbal, $this->tableNames);
+
+            // 2) reconnect all edges belonging to this content stream to the new "copied node".
+            // IMPORTANT: We need to reconnect BOTH the incoming and outgoing edges.
+            $updateHierarchyRelationStatement = <<<SQL
+                UPDATE {$this->tableNames->hierarchyRelation()} h
+                SET
+                    -- if our (copied) node is the child, we update h.childNodeAnchor
+                    h.childnodeanchor = IF(h.childnodeanchor = :originalNodeAnchor, :newNodeAnchor, h.childnodeanchor),
+
+                    -- if our (copied) node is the parent, we update h.parentNodeAnchor
+                    h.parentnodeanchor = IF(h.parentnodeanchor = :originalNodeAnchor, :newNodeAnchor, h.parentnodeanchor)
+                WHERE
+                  :originalNodeAnchor IN (h.childnodeanchor, h.parentnodeanchor)
+                  AND h.contentstreamid = :contentStreamId
+            SQL;
+            try {
+                $this->dbal->executeStatement($updateHierarchyRelationStatement, [
+                    'newNodeAnchor' => $copiedNode->relationAnchorPoint->value,
+                    'originalNodeAnchor' => $anchorPoint->value,
+                    'contentStreamId' => $contentStreamIdWhereWriteOccurs->value,
+                ]);
+            } catch (DBALException $e) {
+                throw new \RuntimeException(sprintf('Failed to update hierarchy relation: %s', $e->getMessage()), 1716486444, $e);
+            }
+            // reference relation rows need to be copied as well!
+            $this->copyReferenceRelations(
+                $anchorPoint,
+                $copiedNode->relationAnchorPoint
+            );
+            return $result;
+        }
+
+        // else: No copy on write needed :)
+
+        $node = $this->projectionContentGraph->getNodeByAnchorPoint($anchorPoint);
+        if (!$node) {
+            throw new \RuntimeException(sprintf('Failed to find node for anchor point %s. This is probably a bug in the %s', $anchorPoint->value, self::class), 1716488997);
+        }
+        $result = $operations($node);
+        $node->updateToDatabase($this->dbal, $this->tableNames);
+        return $result;
+    }
+
+    private function copyReferenceRelations(
+        NodeRelationAnchorPoint $sourceRelationAnchorPoint,
+        NodeRelationAnchorPoint $destinationRelationAnchorPoint
+    ): void {
+        $copyReferenceRelationStatement = <<<SQL
+            INSERT INTO {$this->tableNames->referenceRelation()} (
+              nodeanchorpoint,
+              name,
+              position,
+              destinationnodeaggregateid
+            )
+            SELECT
+              :destinationRelationAnchorPoint AS nodeanchorpoint,
+              ref.name,
+              ref.position,
+              ref.destinationnodeaggregateid
+            FROM
+                {$this->tableNames->referenceRelation()} ref
+                WHERE ref.nodeanchorpoint = :sourceNodeAnchorPoint
+        SQL;
+        try {
+            $this->dbal->executeStatement($copyReferenceRelationStatement, [
+                'sourceNodeAnchorPoint' => $sourceRelationAnchorPoint->value,
+                'destinationRelationAnchorPoint' => $destinationRelationAnchorPoint->value
+            ]);
+        } catch (DBALException $e) {
+            throw new \RuntimeException(sprintf('Failed to copy reference relations: %s', $e->getMessage()), 1716489394, $e);
+        }
+    }
+
+    private static function initiatingDateTime(EventEnvelope $eventEnvelope): \DateTimeImmutable
+    {
+        if ($eventEnvelope->event->metadata?->has(InitiatingEventMetadata::INITIATING_TIMESTAMP) !== true) {
+            return $eventEnvelope->recordedAt;
+        }
+        $initiatingTimestamp = InitiatingEventMetadata::getInitiatingTimestamp($eventEnvelope->event->metadata);
+        if ($initiatingTimestamp === null) {
+            throw new \RuntimeException(sprintf('Failed to extract initiating timestamp from event "%s"', $eventEnvelope->event->id->value), 1678902291);
+        }
+        return $initiatingTimestamp;
+    }
+
     private function createNodeWithHierarchy(
         ContentStreamId $contentStreamId,
         NodeAggregateId $nodeAggregateId,
@@ -348,12 +862,13 @@ final class DoctrineDbalContentGraphProjection implements ProjectionInterface, W
         OriginDimensionSpacePoint $originDimensionSpacePoint,
         InterdimensionalSiblings $coverageSucceedingSiblings,
         SerializedPropertyValues $propertyDefaultValuesAndTypes,
+        SerializedNodeReferences $references,
         NodeAggregateClassification $nodeAggregateClassification,
         ?NodeName $nodeName,
         EventEnvelope $eventEnvelope,
     ): void {
         $node = NodeRecord::createNewInDatabase(
-            $this->getDatabaseConnection(),
+            $this->dbal,
             $this->tableNames,
             $nodeAggregateId,
             $originDimensionSpacePoint->jsonSerialize(),
@@ -403,16 +918,10 @@ final class DoctrineDbalContentGraphProjection implements ProjectionInterface, W
                 }
             }
         }
+
+        $this->writeReferencesForTargetAnchorPoint($references, $node->relationAnchorPoint);
     }
 
-    /**
-     * @param NodeRelationAnchorPoint $parentNodeAnchorPoint
-     * @param NodeRelationAnchorPoint $childNodeAnchorPoint
-     * @param NodeRelationAnchorPoint|null $succeedingSiblingNodeAnchorPoint
-     * @param ContentStreamId $contentStreamId
-     * @param DimensionSpacePointSet $dimensionSpacePointSet
-     * @throws \Doctrine\DBAL\DBALException
-     */
     private function connectHierarchy(
         ContentStreamId $contentStreamId,
         NodeRelationAnchorPoint $parentNodeAnchorPoint,
@@ -442,13 +951,10 @@ final class DoctrineDbalContentGraphProjection implements ProjectionInterface, W
                 $inheritedSubtreeTags,
             );
 
-            $hierarchyRelation->addToDatabase($this->getDatabaseConnection(), $this->tableNames);
+            $hierarchyRelation->addToDatabase($this->dbal, $this->tableNames);
         }
     }
 
-    /**
-     * @throws \Doctrine\DBAL\DBALException
-     */
     private function getRelationPosition(
         ?NodeRelationAnchorPoint $parentAnchorPoint,
         ?NodeRelationAnchorPoint $childAnchorPoint,
@@ -477,15 +983,6 @@ final class DoctrineDbalContentGraphProjection implements ProjectionInterface, W
         return $position;
     }
 
-    /**
-     * @param NodeRelationAnchorPoint|null $parentAnchorPoint
-     * @param NodeRelationAnchorPoint|null $childAnchorPoint
-     * @param NodeRelationAnchorPoint|null $succeedingSiblingAnchorPoint
-     * @param ContentStreamId $contentStreamId
-     * @param DimensionSpacePoint $dimensionSpacePoint
-     * @return int
-     * @throws \Doctrine\DBAL\DBALException
-     */
     private function getRelationPositionAfterRecalculation(
         ?NodeRelationAnchorPoint $parentAnchorPoint,
         ?NodeRelationAnchorPoint $childAnchorPoint,
@@ -516,8 +1013,7 @@ final class DoctrineDbalContentGraphProjection implements ProjectionInterface, W
 
         usort(
             $hierarchyRelations,
-            fn (HierarchyRelation $relationA, HierarchyRelation $relationB): int
-                => $relationA->position <=> $relationB->position
+            static fn (HierarchyRelation $relationA, HierarchyRelation $relationB): int => $relationA->position <=> $relationB->position
         );
 
         foreach ($hierarchyRelations as $relation) {
@@ -529,184 +1025,13 @@ final class DoctrineDbalContentGraphProjection implements ProjectionInterface, W
                 $position = $offset;
                 $offset += self::RELATION_DEFAULT_OFFSET;
             }
-            $relation->assignNewPosition($offset, $this->getDatabaseConnection(), $this->tableNames);
+            $relation->assignNewPosition($offset, $this->dbal, $this->tableNames);
         }
 
         return $position;
     }
 
-    /**
-     * @throws \Throwable
-     */
-    private function whenContentStreamWasForked(ContentStreamWasForked $event): void
-    {
-        //
-        // 1) Copy HIERARCHY RELATIONS (this is the MAIN OPERATION here)
-        //
-        $this->getDatabaseConnection()->executeUpdate('
-            INSERT INTO ' . $this->tableNames->hierarchyRelation() . ' (
-              parentnodeanchor,
-              childnodeanchor,
-              position,
-              dimensionspacepointhash,
-              subtreetags,
-              contentstreamid
-            )
-            SELECT
-              h.parentnodeanchor,
-              h.childnodeanchor,
-              h.position,
-              h.dimensionspacepointhash,
-              h.subtreetags,
-              "' . $event->newContentStreamId->value . '" AS contentstreamid
-            FROM
-                ' . $this->tableNames->hierarchyRelation() . ' h
-                WHERE h.contentstreamid = :sourceContentStreamId
-        ', [
-            'sourceContentStreamId' => $event->sourceContentStreamId->value
-        ]);
-
-        // NOTE: as reference edges are attached to Relation Anchor Points (and they are lazily copy-on-written),
-        // we do not need to copy reference edges here (but we need to do it during copy on write).
-    }
-
-    private function whenContentStreamWasRemoved(ContentStreamWasRemoved $event): void
-    {
-        // Drop hierarchy relations
-        $this->getDatabaseConnection()->executeUpdate('
-            DELETE FROM ' . $this->tableNames->hierarchyRelation() . '
-            WHERE
-                contentstreamid = :contentStreamId
-        ', [
-            'contentStreamId' => $event->contentStreamId->value
-        ]);
-
-        // Drop non-referenced nodes (which do not have a hierarchy relation anymore)
-        $this->getDatabaseConnection()->executeUpdate('
-            DELETE FROM ' . $this->tableNames->node() . '
-            WHERE NOT EXISTS
-                (
-                    SELECT 1 FROM ' . $this->tableNames->hierarchyRelation() . '
-                    WHERE ' . $this->tableNames->hierarchyRelation() . '.childnodeanchor
-                              = ' . $this->tableNames->node() . '.relationanchorpoint
-                )
-        ');
-
-        // Drop non-referenced reference relations (i.e. because the referenced nodes are gone by now)
-        $this->getDatabaseConnection()->executeUpdate('
-            DELETE FROM ' . $this->tableNames->referenceRelation() . '
-            WHERE NOT EXISTS
-                (
-                    SELECT 1 FROM ' . $this->tableNames->node() . '
-                    WHERE ' . $this->tableNames->node() . '.relationanchorpoint
-                              = ' . $this->tableNames->referenceRelation() . '.nodeanchorpoint
-                )
-        ');
-    }
-
-    /**
-     * @throws \Throwable
-     */
-    private function whenNodePropertiesWereSet(NodePropertiesWereSet $event, EventEnvelope $eventEnvelope): void
-    {
-        $anchorPoint = $this->projectionContentGraph
-            ->getAnchorPointForNodeAndOriginDimensionSpacePointAndContentStream(
-                $event->getNodeAggregateId(),
-                $event->getOriginDimensionSpacePoint(),
-                $event->getContentStreamId()
-            );
-        if (is_null($anchorPoint)) {
-            throw new \InvalidArgumentException(
-                'Cannot update node with copy on write since no anchor point could be resolved for node '
-                . $event->getNodeAggregateId()->value . ' in content stream '
-                . $event->getContentStreamId()->value,
-                1645303332
-            );
-        }
-        $this->updateNodeRecordWithCopyOnWrite(
-            $event->getContentStreamId(),
-            $anchorPoint,
-            function (NodeRecord $node) use ($event, $eventEnvelope) {
-                $node->properties = $node->properties
-                    ->merge($event->propertyValues)
-                    ->unsetProperties($event->propertiesToUnset);
-                $node->timestamps = $node->timestamps->with(
-                    lastModified: $eventEnvelope->recordedAt,
-                    originalLastModified: self::initiatingDateTime($eventEnvelope)
-                );
-            }
-        );
-    }
-
-    /**
-     * @throws \Throwable
-     */
-    private function whenNodeReferencesWereSet(NodeReferencesWereSet $event, EventEnvelope $eventEnvelope): void
-    {
-        foreach ($event->affectedSourceOriginDimensionSpacePoints as $originDimensionSpacePoint) {
-            $nodeAnchorPoint = $this->projectionContentGraph
-                ->getAnchorPointForNodeAndOriginDimensionSpacePointAndContentStream(
-                    $event->sourceNodeAggregateId,
-                    $originDimensionSpacePoint,
-                    $event->contentStreamId
-                );
-
-            if (is_null($nodeAnchorPoint)) {
-                throw new \InvalidArgumentException(
-                    'Could not apply event of type "' . get_class($event)
-                    . '" since no anchor point could be resolved for node '
-                    . $event->getNodeAggregateId()->value . ' in content stream '
-                    . $event->getContentStreamId()->value,
-                    1658580583
-                );
-            }
-
-            $this->updateNodeRecordWithCopyOnWrite(
-                $event->contentStreamId,
-                $nodeAnchorPoint,
-                function (NodeRecord $node) use ($eventEnvelope) {
-                    $node->timestamps = $node->timestamps->with(
-                        lastModified: $eventEnvelope->recordedAt,
-                        originalLastModified: self::initiatingDateTime($eventEnvelope)
-                    );
-                }
-            );
-
-            $nodeAnchorPoint = $this->projectionContentGraph
-                ->getAnchorPointForNodeAndOriginDimensionSpacePointAndContentStream(
-                    $event->sourceNodeAggregateId,
-                    $originDimensionSpacePoint,
-                    $event->contentStreamId
-                );
-
-            // remove old
-            $this->getDatabaseConnection()->delete($this->tableNames->referenceRelation(), [
-                'nodeanchorpoint' => $nodeAnchorPoint?->value,
-                'name' => $event->referenceName->value
-            ]);
-
-            // set new
-            $position = 0;
-            /** @var SerializedNodeReference $reference */
-            foreach ($event->references as $reference) {
-                $this->getDatabaseConnection()->insert($this->tableNames->referenceRelation(), [
-                    'name' => $event->referenceName->value,
-                    'position' => $position,
-                    'nodeanchorpoint' => $nodeAnchorPoint?->value,
-                    'destinationnodeaggregateid' => $reference->targetNodeAggregateId->value,
-                    'properties' => $reference->properties
-                        ? \json_encode($reference->properties, JSON_THROW_ON_ERROR & JSON_FORCE_OBJECT)
-                        : null
-                ]);
-                $position++;
-            }
-        }
-    }
-
-    /**
-     * @throws \Doctrine\DBAL\DBALException
-     */
-    protected function copyHierarchyRelationToDimensionSpacePoint(
+    private function copyHierarchyRelationToDimensionSpacePoint(
         HierarchyRelation $sourceHierarchyRelation,
         ContentStreamId $contentStreamId,
         DimensionSpacePoint $dimensionSpacePoint,
@@ -731,21 +1056,18 @@ final class DoctrineDbalContentGraphProjection implements ProjectionInterface, W
             ),
             $inheritedSubtreeTags,
         );
-        $copy->addToDatabase($this->getDatabaseConnection(), $this->tableNames);
+        $copy->addToDatabase($this->dbal, $this->tableNames);
 
         return $copy;
     }
 
-    /**
-     * @throws \Doctrine\DBAL\DBALException
-     */
-    protected function copyNodeToDimensionSpacePoint(
+    private function copyNodeToDimensionSpacePoint(
         NodeRecord $sourceNode,
         OriginDimensionSpacePoint $originDimensionSpacePoint,
         EventEnvelope $eventEnvelope,
     ): NodeRecord {
         return NodeRecord::createNewInDatabase(
-            $this->getDatabaseConnection(),
+            $this->dbal,
             $this->tableNames,
             $sourceNode->nodeAggregateId,
             $originDimensionSpacePoint->coordinates,
@@ -761,214 +1083,5 @@ final class DoctrineDbalContentGraphProjection implements ProjectionInterface, W
                 null,
             ),
         );
-    }
-
-    private function whenNodeAggregateTypeWasChanged(NodeAggregateTypeWasChanged $event, EventEnvelope $eventEnvelope): void
-    {
-        $anchorPoints = $this->projectionContentGraph->getAnchorPointsForNodeAggregateInContentStream($event->nodeAggregateId, $event->contentStreamId);
-        foreach ($anchorPoints as $anchorPoint) {
-            $this->updateNodeRecordWithCopyOnWrite(
-                $event->contentStreamId,
-                $anchorPoint,
-                function (NodeRecord $node) use ($event, $eventEnvelope) {
-                    $node->nodeTypeName = $event->newNodeTypeName;
-                    $node->timestamps = $node->timestamps->with(
-                        lastModified: $eventEnvelope->recordedAt,
-                        originalLastModified: self::initiatingDateTime($eventEnvelope)
-                    );
-                }
-            );
-        }
-    }
-
-    private function updateNodeRecordWithCopyOnWrite(
-        ContentStreamId $contentStreamIdWhereWriteOccurs,
-        NodeRelationAnchorPoint $anchorPoint,
-        callable $operations
-    ): mixed {
-        $contentStreamIds = $this->projectionContentGraph
-            ->getAllContentStreamIdsAnchorPointIsContainedIn($anchorPoint);
-        if (count($contentStreamIds) > 1) {
-            // Copy on Write needed!
-            // Copy on Write is a purely "Content Stream" related concept;
-            // thus we do not care about different DimensionSpacePoints here (but we copy all edges)
-
-            // 1) fetch node, adjust properties, assign new Relation Anchor Point
-            /** @var NodeRecord $originalNode The anchor point appears in a content stream, so there must be a node */
-            $originalNode = $this->projectionContentGraph->getNodeByAnchorPoint($anchorPoint);
-            $copiedNode = NodeRecord::createCopyFromNodeRecord($this->getDatabaseConnection(), $this->tableNames, $originalNode);
-            $result = $operations($copiedNode);
-            $copiedNode->updateToDatabase($this->getDatabaseConnection(), $this->tableNames);
-
-            // 2) reconnect all edges belonging to this content stream to the new "copied node".
-            // IMPORTANT: We need to reconnect BOTH the incoming and outgoing edges.
-            $this->getDatabaseConnection()->executeStatement(
-                '
-                UPDATE ' . $this->tableNames->hierarchyRelation() . ' h
-                    SET
-                        -- if our (copied) node is the child, we update h.childNodeAnchor
-                        h.childnodeanchor
-                            = IF(h.childnodeanchor = :originalNodeAnchor, :newNodeAnchor, h.childnodeanchor),
-
-                        -- if our (copied) node is the parent, we update h.parentNodeAnchor
-                        h.parentnodeanchor
-                            = IF(h.parentnodeanchor = :originalNodeAnchor, :newNodeAnchor, h.parentnodeanchor)
-                    WHERE
-                      :originalNodeAnchor IN (h.childnodeanchor, h.parentnodeanchor)
-                      AND h.contentstreamid = :contentStreamId',
-                [
-                    'newNodeAnchor' => $copiedNode->relationAnchorPoint->value,
-                    'originalNodeAnchor' => $anchorPoint->value,
-                    'contentStreamId' => $contentStreamIdWhereWriteOccurs->value,
-                ]
-            );
-
-            // reference relation rows need to be copied as well!
-            $this->copyReferenceRelations(
-                $anchorPoint,
-                $copiedNode->relationAnchorPoint
-            );
-        } else {
-            // No copy on write needed :)
-
-            $node = $this->projectionContentGraph->getNodeByAnchorPoint($anchorPoint);
-            if (!$node) {
-                throw new \Exception("TODO NODE NOT FOUND - shall never happen");
-            }
-
-            $result = $operations($node);
-            $node->updateToDatabase($this->getDatabaseConnection(), $this->tableNames);
-        }
-        return $result;
-    }
-
-
-    private function copyReferenceRelations(
-        NodeRelationAnchorPoint $sourceRelationAnchorPoint,
-        NodeRelationAnchorPoint $destinationRelationAnchorPoint
-    ): void {
-        $this->getDatabaseConnection()->executeStatement('
-                INSERT INTO ' . $this->tableNames->referenceRelation() . ' (
-                  nodeanchorpoint,
-                  name,
-                  position,
-                  destinationnodeaggregateid
-                )
-                SELECT
-                  :destinationRelationAnchorPoint AS nodeanchorpoint,
-                  ref.name,
-                  ref.position,
-                  ref.destinationnodeaggregateid
-                FROM
-                    ' . $this->tableNames->referenceRelation() . ' ref
-                    WHERE ref.nodeanchorpoint = :sourceNodeAnchorPoint
-            ', [
-            'sourceNodeAnchorPoint' => $sourceRelationAnchorPoint->value,
-            'destinationRelationAnchorPoint' => $destinationRelationAnchorPoint->value
-        ]);
-    }
-
-    private function whenDimensionSpacePointWasMoved(DimensionSpacePointWasMoved $event): void
-    {
-        $this->dimensionSpacePointsRepository->insertDimensionSpacePoint($event->target);
-
-        // the ordering is important - we first update the OriginDimensionSpacePoints, as we need the
-        // hierarchy relations for this query. Then, we update the Hierarchy Relations.
-
-        // 1) originDimensionSpacePoint on Node
-        $rel = $this->getDatabaseConnection()->executeQuery(
-            'SELECT n.relationanchorpoint, n.origindimensionspacepointhash
-                 FROM ' . $this->tableNames->node() . ' n
-                 INNER JOIN ' . $this->tableNames->hierarchyRelation() . ' h
-                    ON h.childnodeanchor = n.relationanchorpoint
-
-                 AND h.contentstreamid = :contentStreamId
-                 AND h.dimensionspacepointhash = :dimensionSpacePointHash
-                 -- find only nodes which have their ORIGIN at the source DimensionSpacePoint,
-                 -- as we need to rewrite these origins (using copy on write)
-                 AND n.origindimensionspacepointhash = :dimensionSpacePointHash
-            ',
-            [
-                'dimensionSpacePointHash' => $event->source->hash,
-                'contentStreamId' => $event->contentStreamId->value
-            ]
-        );
-        while ($res = $rel->fetchAssociative()) {
-            $relationAnchorPoint = NodeRelationAnchorPoint::fromInteger($res['relationanchorpoint']);
-            $this->updateNodeRecordWithCopyOnWrite(
-                $event->contentStreamId,
-                $relationAnchorPoint,
-                function (NodeRecord $nodeRecord) use ($event) {
-                    $nodeRecord->originDimensionSpacePoint = $event->target->coordinates;
-                    $nodeRecord->originDimensionSpacePointHash = $event->target->hash;
-                }
-            );
-        }
-
-        // 2) hierarchy relations
-        $this->getDatabaseConnection()->executeStatement(
-            '
-            UPDATE ' . $this->tableNames->hierarchyRelation() . ' h
-                SET
-                    h.dimensionspacepointhash = :newDimensionSpacePointHash
-                WHERE
-                  h.dimensionspacepointhash = :originalDimensionSpacePointHash
-                  AND h.contentstreamid = :contentStreamId
-                  ',
-            [
-                'originalDimensionSpacePointHash' => $event->source->hash,
-                'newDimensionSpacePointHash' => $event->target->hash,
-                'contentStreamId' => $event->contentStreamId->value
-            ]
-        );
-    }
-
-    private function whenDimensionShineThroughWasAdded(DimensionShineThroughWasAdded $event): void
-    {
-        $this->dimensionSpacePointsRepository->insertDimensionSpacePoint($event->target);
-
-        // 1) hierarchy relations
-        $this->getDatabaseConnection()->executeStatement(
-            '
-            INSERT INTO ' . $this->tableNames->hierarchyRelation() . ' (
-              parentnodeanchor,
-              childnodeanchor,
-              position,
-              subtreetags,
-              dimensionspacepointhash,
-              contentstreamid
-            )
-            SELECT
-              h.parentnodeanchor,
-              h.childnodeanchor,
-              h.position,
-              h.subtreetags,
-             :newDimensionSpacePointHash AS dimensionspacepointhash,
-              h.contentstreamid
-            FROM
-                ' . $this->tableNames->hierarchyRelation() . ' h
-                WHERE h.contentstreamid = :contentStreamId
-                AND h.dimensionspacepointhash = :sourceDimensionSpacePointHash',
-            [
-                'contentStreamId' => $event->contentStreamId->value,
-                'sourceDimensionSpacePointHash' => $event->source->hash,
-                'newDimensionSpacePointHash' => $event->target->hash,
-            ]
-        );
-    }
-
-    private function getDatabaseConnection(): Connection
-    {
-        return $this->dbal;
-    }
-
-    private static function initiatingDateTime(EventEnvelope $eventEnvelope): \DateTimeImmutable
-    {
-        $initiatingTimestamp = $eventEnvelope->event->metadata?->get('initiatingTimestamp');
-        $result = $initiatingTimestamp !== null ? \DateTimeImmutable::createFromFormat(\DateTimeInterface::ATOM, $initiatingTimestamp) : $eventEnvelope->recordedAt;
-        if (!$result instanceof \DateTimeImmutable) {
-            throw new \RuntimeException(sprintf('Failed to extract initiating timestamp from event "%s"', $eventEnvelope->event->id->value), 1678902291);
-        }
-        return $result;
     }
 }

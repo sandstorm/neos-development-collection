@@ -14,12 +14,14 @@ namespace Neos\ContentRepository\Core\Feature\NodeDisabling;
  * source code.
  */
 
-use Neos\ContentRepository\Core\CommandHandlingDependencies;
+use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\DimensionSpace;
 use Neos\ContentRepository\Core\DimensionSpace\Exception\DimensionSpacePointNotFound;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
-use Neos\ContentRepository\Core\Feature\Common\NodeAggregateEventPublisher;
+use Neos\ContentRepository\Core\Feature\NodeDisabling\Exception\NodeAggregateIsAlreadyDisabled;
+use Neos\ContentRepository\Core\Feature\NodeDisabling\Exception\NodeAggregateIsAlreadyEnabled;
+use Neos\ContentRepository\Core\Feature\RebaseableCommand;
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\DisableNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\EnableNodeAggregate;
@@ -58,8 +60,7 @@ trait NodeDisabling
             $command->coveredDimensionSpacePoint
         );
         if ($nodeAggregate->getDimensionSpacePointsTaggedWith(SubtreeTag::disabled())->contains($command->coveredDimensionSpacePoint)) {
-            // already disabled, so we can return a no-operation.
-            return EventsToPublish::empty();
+            throw new NodeAggregateIsAlreadyDisabled(sprintf('Node aggregate "%s" cannot be disabled because it is already explicitly disabled for dimension space point %s', $nodeAggregate->nodeAggregateId->value, $command->coveredDimensionSpacePoint->toJson()), 1731166196);
         }
 
         $affectedDimensionSpacePoints = $command->nodeVariantSelectionStrategy
@@ -82,7 +83,7 @@ trait NodeDisabling
         return new EventsToPublish(
             ContentStreamEventStreamName::fromContentStreamId($contentGraph->getContentStreamId())
                 ->getEventStreamName(),
-            NodeAggregateEventPublisher::enrichWithCommand(
+            RebaseableCommand::enrichWithCommand(
                 $command,
                 $events
             ),
@@ -114,8 +115,7 @@ trait NodeDisabling
             $command->coveredDimensionSpacePoint
         );
         if (!$nodeAggregate->getDimensionSpacePointsTaggedWith(SubtreeTag::disabled())->contains($command->coveredDimensionSpacePoint)) {
-            // already enabled, so we can return a no-operation.
-            return EventsToPublish::empty();
+            throw new NodeAggregateIsAlreadyEnabled(sprintf('Node aggregate "%s" cannot be enabled because is not explicitly disabled for dimension space point %s', $nodeAggregate->nodeAggregateId->value, $command->coveredDimensionSpacePoint->toJson()), 1731166142);
         }
 
         $affectedDimensionSpacePoints = $command->nodeVariantSelectionStrategy
@@ -137,7 +137,7 @@ trait NodeDisabling
 
         return new EventsToPublish(
             ContentStreamEventStreamName::fromContentStreamId($contentGraph->getContentStreamId())->getEventStreamName(),
-            NodeAggregateEventPublisher::enrichWithCommand($command, $events),
+            RebaseableCommand::enrichWithCommand($command, $events),
             $expectedVersion
         );
     }

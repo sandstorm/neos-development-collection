@@ -1,0 +1,426 @@
+.workspace-table {
+  --column-color: var(--grayMedium);
+  --indent-level: 0;
+
+  margin-top: 1em;
+  border-spacing: 0;
+  position: relative;
+  width: 100%;
+}
+
+.workspace-table th {
+  padding: 0.5em;
+  position: sticky;
+  top: 40px;
+  user-select: none;
+  background: var(--grayDark);
+  border-bottom: 1px solid var(--grayDark);
+  z-index: 1;
+}
+
+.workspace-table td {
+  padding: 0 0.5em;
+  border-top: 1px solid var(--grayDark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background-color: var(--column-color);
+  min-height: 40px;
+}
+
+.workspace-type-column {
+  padding: 0 0.5ch;
+  text-align: center;
+  width: 20px;
+}
+
+.workspace-type-column > * {
+  width: 20px !important;
+}
+
+/**
+ * The arrow icon to show sub-workspace indentation
+ */
+td.workspace-description-column,
+td.workspace-label-column {
+  width: 25%;
+}
+
+td.workspace-label-column .fas {
+  transform: rotate(90deg);
+  vertical-align: middle;
+  margin-left: calc((var(--indent-level, 0) - 2) * 1.2ch);
+  margin-right: 0.5ch;
+}
+
+td.workspace-action-column {
+  background-color: var(--grayMedium);
+  width: 1%;
+  white-space: nowrap;
+}
+
+.workspace__info-text {
+  font-size: 0.8em;
+  font-style: italic;
+  margin-left: 0.5ch;
+  user-select: none;
+}
+
+.workspace-count {
+  display: inline-block;
+  color: var(--textSubtleLight);
+  font-size: var(--generalFontSize);
+  line-height: var(--unit);
+  vertical-align: middle;
+  margin-left: var(--spacing-Full);
+}
+
+.icon-button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  outline: none;
+  color: var(--textOnGray);
+}
+
+.icon--secondary {
+  left: 0.5em;
+  top: 0.5em;
+  text-shadow: -1px -1px 0 rgba(0, 0, 0, 0.4);
+}
+
+/* Add space after icon in button if there is a label */
+button .icon:not(:last-child) {
+  margin-right: 1ch;
+}
+
+/**
+ * Badges
+ */
+.badge {
+  background-color: var(--grayLight);
+  border-radius: 15%;
+  color: var(--textOnGray);
+  padding: 0.2em 0.5em;
+  user-select: none;
+  cursor: help;
+}
+
+.badge:not(:last-child) {
+  margin-right: 1ch;
+}
+
+.badge--success {
+  background-color: var(--green);
+}
+
+.badge--warning {
+  background-color: var(--warningText);
+}
+
+.badge--danger {
+  background-color: var(--errorText);
+}
+
+/**
+ * Workspace entry states and types
+ */
+.workspace--stale {
+  --column-color: var(--grayDark);
+}
+
+.workspace--personal-workspace {
+  --column-color: var(--blueDark);
+}
+
+/**
+ * Popover styles
+ */
+[popover] {
+  /* Undo css reset */
+  margin: auto;
+
+  /* Component styles */
+  color: white;
+  background: var(--grayDark);
+  border: 1px solid var(--grayLight);
+  padding: 0;
+  border-radius: 0;
+  outline: none;
+}
+
+[popover]::backdrop {
+  backdrop-filter: blur(3px);
+}
+
+[popover] header {
+  font-size: calc(var(--generalFontSize) + 2px);
+  margin: var(--defaultMargin);
+  line-height: calc(var(--generalFontSize) + 4px);
+  box-sizing: border-box;
+}
+
+[popover] section {
+  margin: var(--defaultMargin);
+  color: var(--textSubtleLight);
+}
+
+[popover] form {
+  width: 400px;
+  max-width: 90vw;
+}
+
+[popover] .neos-close {
+  color: white;
+  font-size: calc(var(--generalFontSize) + 4px);
+  background: transparent;
+  width: var(--unit);
+  height: var(--unit);
+  position: absolute;
+  right: 0;
+  top: 0;
+  border-left: none;
+  text-shadow: none;
+}
+
+[popover] footer {
+  background: transparent;
+  margin: var(--defaultMargin);
+  display: flex;
+  gap: var(--spacing-Full);
+  justify-content: flex-end;
+}
+
+/**
+ * Form styles
+ */
+.neos-control-label {
+  margin-bottom: var(--spacing-Full);
+}
+
+.neos-control-group textarea,
+.neos-control-group select,
+.neos-control-group input[type="text"] {
+  width: 100%;
+  max-width: 500px;
+}
+
+/**
+ * Indicator styles
+ */
+.loadingIndicator__container {
+  left: 0;
+  top: var(--unit);
+  height: 2px;
+  position: fixed;
+  width: 100vw;
+  z-index: var(--zIndex-LoadingIndicatorContainer);
+}
+
+.loadingIndicator {
+  height: 2px;
+  position: relative;
+  width: 100%;
+}
+
+.loadingIndicator__bar {
+  height: 100%;
+  position: relative;
+  background-color: #ff8700;
+  animation: cssload-width 2s cubic-bezier(.45, 0, 1, 1) infinite;
+}
+
+@keyframes cssload-width {
+  0%,
+  100% {
+    transition-timing-function: cubic-bezier(1, 0, .65, .85);
+  }
+  0% {
+    width: 0;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+.neos.neos-module #workspaceReview table.neos-table td:not(.diff-property-label):not(.neos-content-change) {
+  border-top-width: 0;
+}
+
+.neos-content-diff {
+  width: 100%;
+  margin: 0 var(--spacing-Full);
+}
+
+#workspaceReview .diff-property-label,
+#workspaceReview .diff-node-details {
+  padding-left: var(--spacing-Half) !important;
+}
+
+#workspaceReview .diff-node-details .neos-label {
+  margin-top: 11px;
+}
+
+#workspaceReview .diff-property-label {
+  height: auto !important;
+  padding-bottom: 0 !important;
+}
+
+#workspaceReview .neos-content-change {
+  padding-left: 0 !important;
+}
+
+#workspaceReview i + span {
+  padding-left: var(--spacing-Half);
+}
+
+#workspaceReview .neos-document,
+tr.neos-change + tr.neos-change td.neos-content-change {
+  border-top: 1px solid var(--grayDark);
+}
+
+#workspaceReview .workspace-action i {
+  padding-right: var(--spacing-Half);
+}
+
+#workspaceReview .toggle-document {
+  display: inline-block;
+  padding: 0 var(--spacing-Full);
+  cursor: pointer;
+}
+
+#workspaceReview .document-details > i {
+  padding: 0 var(--spacing-Half);
+}
+
+#workspaceReview .document-details > span > i {
+  padding-right: var(--spacing-Half);
+}
+
+#workspaceReview thead th,
+#workspaceReview .neos-document td {
+  padding: 0 !important;
+}
+
+#workspaceReview .check-document + span {
+  margin-right: 0;
+}
+
+#workspaceReview .table-action {
+  padding: 0 var(--spacing-Full);
+}
+
+#workspaceReview .table-action:hover {
+  color: var(--blue);
+  cursor: pointer;
+}
+
+#workspaceReview .document-actions {
+  width: 184px;
+}
+
+#workspaceReview .neos-content-diff table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.neos.neos-module .neos-content-diff td {
+  height: auto;
+  width: 50%;
+  vertical-align: top;
+  line-height: 20px;
+  padding: 10px 20px 10px 10px !important;
+  border-top: none;
+  white-space: normal;
+}
+
+.neos-content-diff table.neos-content-diff td img,
+.neos-content-diff table.neos-content-diff th img {
+  max-width: 100%;
+  min-width: 50%;
+  max-height: 500px;
+  border: 20px solid var(--white);
+  box-sizing: border-box;
+}
+
+#workspaceReview .document-details {
+  padding-left: 0 !important;
+  padding-right: 0;
+}
+
+.neos-content-change,
+.neos-document{
+  border-left: 4px solid var(--orange);
+}
+
+#workspaceReview .legend-deleted {
+  border-left: 4px solid var(--warning);
+}
+
+#workspaceReview .legend-created {
+  border-left: 4px solid var(--green);
+}
+
+#workspaceReview .legend-moved {
+  border-left: 4px solid var(--blue);
+}
+
+#workspaceReview .legend-hidden {
+  border-left: 4px solid var(--grayLighter)
+}
+
+#workspaceReview td.actions {
+  width: 144px;
+}
+
+#workspaceReview ins,
+#workspaceReview ins a {
+  color: var(--green);
+  text-decoration: none;
+}
+
+#workspaceReview del,
+#workspaceReview del a {
+  color: var(--warning);
+  text-decoration: none;
+}
+
+#workspaceReview .diff-property-content td:first-child,
+#workspaceReview th.neos-action {
+  width: 30px
+}
+
+#workspaceReview tr.diff-property-content > td {
+  line-height: 20px !important;
+}
+
+  #workspaceReview .fa-level-up-alt {
+  transform: rotate(90deg);
+}
+
+#workspaceReview .node-icons {
+  display: inline-block;
+  position: relative;
+}
+
+#workspaceReview .node-icons .icon-red {
+  position: absolute;
+  top: 50%;
+  left: 40%;
+  color: var(--warning);
+  font-size: 12px;
+}
+
+#workspaceReview .node-icons {
+  margin-right: 7px;
+}
+
+#workspaceReview #publishOrDiscardNodesForm {
+  min-width: 100%;
+}
+
+#workspaceReview .no-unpublished-changes {
+  margin-top: 1em;
+}

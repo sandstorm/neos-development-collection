@@ -13,6 +13,9 @@ namespace Neos\SiteKickstarter\Service;
  * source code.
  */
 
+/**
+ * @internal
+ */
 class SimpleTemplateRenderer
 {
     /**
@@ -20,12 +23,15 @@ class SimpleTemplateRenderer
      * contextVariables array
      *
      * @param string $templatePathAndFilename
-     * @param array $contextVariables
+     * @param array<string, string> $contextVariables
      * @return string
      */
     public function render(string $templatePathAndFilename, array $contextVariables) : string
     {
         $content = file_get_contents($templatePathAndFilename);
+        if ($content === false) {
+            throw new \RuntimeException(sprintf('Could not read template file "%s".', $templatePathAndFilename));
+        }
         foreach ($contextVariables as $key => $value) {
             $content = str_replace('{' . $key . '}', $value, $content);
         }

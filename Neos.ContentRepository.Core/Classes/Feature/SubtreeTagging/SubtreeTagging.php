@@ -14,17 +14,19 @@ namespace Neos\ContentRepository\Core\Feature\SubtreeTagging;
  * source code.
  */
 
-use Neos\ContentRepository\Core\CommandHandlingDependencies;
+use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\DimensionSpace;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Feature\Common\ConstraintChecks;
-use Neos\ContentRepository\Core\Feature\Common\NodeAggregateEventPublisher;
+use Neos\ContentRepository\Core\Feature\RebaseableCommand;
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Command\TagSubtree;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Command\UntagSubtree;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Event\SubtreeWasTagged;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Event\SubtreeWasUntagged;
+use Neos\ContentRepository\Core\Feature\SubtreeTagging\Exception\SubtreeIsAlreadyTagged;
+use Neos\ContentRepository\Core\Feature\SubtreeTagging\Exception\SubtreeIsNotTagged;
 use Neos\EventStore\Model\EventStream\ExpectedVersion;
 
 /**
@@ -47,8 +49,7 @@ trait SubtreeTagging
         );
 
         if ($nodeAggregate->getDimensionSpacePointsTaggedWith($command->tag)->contains($command->coveredDimensionSpacePoint)) {
-            // already explicitly tagged with the same Subtree Tag, so we can return a no-operation.
-            return EventsToPublish::empty();
+            throw new SubtreeIsAlreadyTagged(sprintf('Cannot add subtree tag "%s" because node aggregate "%s" is already explicitly tagged with that tag in dimension space point %s', $command->tag->value, $nodeAggregate->nodeAggregateId->value, $command->coveredDimensionSpacePoint->toJson()), 1731167142);
         }
 
         $affectedDimensionSpacePoints = $command->nodeVariantSelectionStrategy
@@ -71,7 +72,7 @@ trait SubtreeTagging
         return new EventsToPublish(
             ContentStreamEventStreamName::fromContentStreamId($contentGraph->getContentStreamId())
                 ->getEventStreamName(),
-            NodeAggregateEventPublisher::enrichWithCommand(
+            RebaseableCommand::enrichWithCommand(
                 $command,
                 $events
             ),
@@ -93,8 +94,7 @@ trait SubtreeTagging
         );
 
         if (!$nodeAggregate->getDimensionSpacePointsTaggedWith($command->tag)->contains($command->coveredDimensionSpacePoint)) {
-            // not explicitly tagged with the given Subtree Tag, so we can return a no-operation.
-            return EventsToPublish::empty();
+            throw new SubtreeIsNotTagged(sprintf('Cannot remove subtree tag "%s" because node aggregate "%s" is not explicitly tagged with that tag in dimension space point %s', $command->tag->value, $nodeAggregate->nodeAggregateId->value, $command->coveredDimensionSpacePoint->toJson()), 1731167464);
         }
 
         $affectedDimensionSpacePoints = $command->nodeVariantSelectionStrategy
@@ -116,7 +116,7 @@ trait SubtreeTagging
 
         return new EventsToPublish(
             ContentStreamEventStreamName::fromContentStreamId($contentGraph->getContentStreamId())->getEventStreamName(),
-            NodeAggregateEventPublisher::enrichWithCommand($command, $events),
+            RebaseableCommand::enrichWithCommand($command, $events),
             ExpectedVersion::ANY()
         );
     }

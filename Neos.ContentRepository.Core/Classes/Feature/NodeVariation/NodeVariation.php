@@ -14,11 +14,11 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Feature\NodeVariation;
 
-use Neos\ContentRepository\Core\CommandHandlingDependencies;
+use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\DimensionSpace\Exception\DimensionSpacePointNotFound;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Feature\Common\ConstraintChecks;
-use Neos\ContentRepository\Core\Feature\Common\NodeAggregateEventPublisher;
+use Neos\ContentRepository\Core\Feature\RebaseableCommand;
 use Neos\ContentRepository\Core\Feature\Common\NodeVariationInternals;
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\NodeVariation\Command\CreateNodeVariant;
@@ -59,7 +59,7 @@ trait NodeVariation
         );
         // we do this check first, because it gives a more meaningful error message on what you need to do.
         // we cannot use sentences with "." because the UI will only print the 1st sentence :/
-        $this->requireNodeAggregateToNotBeRoot($nodeAggregate, 'and Root Node Aggregates cannot be varied; If this error happens, you most likely need to run ./flow content:refreshRootNodeDimensions to update the root node dimensions.');
+        $this->requireNodeAggregateToNotBeRoot($nodeAggregate, 'and Root Node Aggregates cannot be varied; If this error happens, you most likely need to run a node migration "UpdateRootNodeAggregateDimensions" to update the root node dimensions.');
         $this->requireDimensionSpacePointToExist($command->sourceOrigin->toDimensionSpacePoint());
         $this->requireDimensionSpacePointToExist($command->targetOrigin->toDimensionSpacePoint());
         $this->requireNodeAggregateToBeUntethered($nodeAggregate);
@@ -84,7 +84,7 @@ trait NodeVariation
 
         return new EventsToPublish(
             ContentStreamEventStreamName::fromContentStreamId($contentGraph->getContentStreamId())->getEventStreamName(),
-            NodeAggregateEventPublisher::enrichWithCommand(
+            RebaseableCommand::enrichWithCommand(
                 $command,
                 $events
             ),

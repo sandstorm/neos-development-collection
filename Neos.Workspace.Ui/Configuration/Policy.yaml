@@ -1,0 +1,23 @@
+privilegeTargets:
+
+  'Neos\Flow\Security\Authorization\Privilege\Method\MethodPrivilege':
+
+    'Neos.Workspace.Ui:Backend.CreateWorkspaces':
+      label: Allowed to create a workspace
+      matcher: 'method(Neos\Workspace\Ui\Controller\WorkspaceController->(create|new)Action())'
+
+  'Neos\Neos\Security\Authorization\Privilege\ModulePrivilege':
+    'Neos.Workspace.Ui:Backend.Module.Management.Workspace':
+      label: General access to the workspace module
+      matcher: 'management/workspace'
+
+roles:
+  'Neos.Neos:AbstractEditor':
+    privileges:
+      -
+        privilegeTarget: 'Neos.Workspace.Ui:Backend.CreateWorkspaces'
+        permission: GRANT
+
+      -
+        privilegeTarget: 'Neos.Workspace.Ui:Backend.Module.Management.Workspace'
+        permission: GRANT

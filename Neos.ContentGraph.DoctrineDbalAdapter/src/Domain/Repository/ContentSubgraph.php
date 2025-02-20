@@ -15,17 +15,15 @@ declare(strict_types=1);
 namespace Neos\ContentGraph\DoctrineDbalAdapter\Domain\Repository;
 
 use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Driver\Exception as DbalDriverException;
-use Doctrine\DBAL\Exception as DbalException;
-use Doctrine\DBAL\ForwardCompatibility\Result;
+use Doctrine\DBAL\Exception as DBALException;
 use Doctrine\DBAL\Query\QueryBuilder;
+use Doctrine\DBAL\Result;
 use Neos\ContentGraph\DoctrineDbalAdapter\ContentGraphTableNames;
 use Neos\ContentGraph\DoctrineDbalAdapter\NodeQueryBuilder;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
 use Neos\ContentRepository\Core\Projection\ContentGraph\AbsoluteNodePath;
-use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphIdentity;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\CountAncestorNodesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\CountBackReferencesFilter;
@@ -51,6 +49,7 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\NodePath;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Nodes;
 use Neos\ContentRepository\Core\Projection\ContentGraph\References;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Subtree;
+use Neos\ContentRepository\Core\Projection\ContentGraph\Subtrees;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateClassification;
@@ -76,6 +75,7 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
  *   - cn -> child node
  *   - h -> the hierarchy edge connecting parent and child
  *   - ph -> the hierarchy edge incoming to the parent (sometimes relevant)
+ *   - ch -> the hierarchy edge of the child (sometimes relevant)
  *
  *  - if more than one node (source-destination)
  *   - sn -> source node
@@ -302,11 +302,14 @@ final class ContentSubgraph implements ContentSubgraphInterface
             $node = $this->nodeFactory->mapNodeRowToNode(
                 $nodeData,
                 $this->workspaceName,
-                $this->contentStreamId,
                 $this->dimensionSpacePoint,
                 $this->visibilityConstraints
             );
-            $subtree = new Subtree((int)$nodeData['level'], $node, array_key_exists($nodeAggregateId, $subtreesByParentNodeId) ? array_reverse($subtreesByParentNodeId[$nodeAggregateId]) : []);
+            $subtree = Subtree::create(
+                (int)$nodeData['level'],
+                $node,
+                array_key_exists($nodeAggregateId, $subtreesByParentNodeId) ? Subtrees::fromArray(array_reverse($subtreesByParentNodeId[$nodeAggregateId])) : Subtrees::createEmpty()
+            );
             if ($subtree->level === 0) {
                 return $subtree;
             }
@@ -335,7 +338,6 @@ final class ContentSubgraph implements ContentSubgraphInterface
         return $this->nodeFactory->mapNodeRowsToNodes(
             $nodeRows,
             $this->workspaceName,
-            $this->contentStreamId,
             $this->dimensionSpacePoint,
             $this->visibilityConstraints
         );
@@ -379,9 +381,7 @@ final class ContentSubgraph implements ContentSubgraphInterface
         $this->addSubtreeTagConstraints($queryBuilderRecursive);
 
         $queryBuilderCte = $this->nodeQueryBuilder->buildBasicNodesCteQuery($entryNodeAggregateId, $this->contentStreamId, $this->dimensionSpacePoint);
-        if ($filter->nodeTypes !== null) {
-            $this->nodeQueryBuilder->addNodeTypeCriteria($queryBuilderCte, ExpandedNodeTypeCriteria::create($filter->nodeTypes, $this->nodeTypeManager), 'pn');
-        }
+        $this->nodeQueryBuilder->addNodeTypeCriteria($queryBuilderCte, ExpandedNodeTypeCriteria::create($filter->nodeTypes, $this->nodeTypeManager), 'pn');
         $nodeRows = $this->fetchCteResults(
             $queryBuilderInitial,
             $queryBuilderRecursive,
@@ -391,7 +391,6 @@ final class ContentSubgraph implements ContentSubgraphInterface
         return $this->nodeFactory->mapNodeRowsToNodes(
             $nodeRows,
             $this->workspaceName,
-            $this->contentStreamId,
             $this->dimensionSpacePoint,
             $this->visibilityConstraints
         )->first();
@@ -411,7 +410,6 @@ final class ContentSubgraph implements ContentSubgraphInterface
         return $this->nodeFactory->mapNodeRowsToNodes(
             $nodeRows,
             $this->workspaceName,
-            $this->contentStreamId,
             $this->dimensionSpacePoint,
             $this->visibilityConstraints
         );
@@ -428,7 +426,7 @@ final class ContentSubgraph implements ContentSubgraphInterface
         $queryBuilder = $this->nodeQueryBuilder->buildBasicNodeQuery($this->contentStreamId, $this->dimensionSpacePoint, 'n', 'COUNT(*)');
         try {
             $result = $this->executeQuery($queryBuilder)->fetchOne();
-        } catch (DbalDriverException | DbalException $e) {
+        } catch (DBALException $e) {
             throw new \RuntimeException(sprintf('Failed to count all nodes: %s', $e->getMessage()), 1678364741, $e);
         }
 
@@ -578,8 +576,8 @@ final class ContentSubgraph implements ContentSubgraphInterface
 
         $queryBuilderRecursive = $this->createQueryBuilder()
             ->select('pn.*, h.subtreetags, h.parentnodeanchor')
-            ->from('ancestry', 'cn')
-            ->innerJoin('cn', $this->nodeQueryBuilder->tableNames->node(), 'pn', 'pn.relationanchorpoint = cn.parentnodeanchor')
+            ->from('ancestry', 'ch')
+            ->innerJoin('ch', $this->nodeQueryBuilder->tableNames->node(), 'pn', 'pn.relationanchorpoint = ch.parentnodeanchor')
             ->innerJoin('pn', $this->nodeQueryBuilder->tableNames->hierarchyRelation(), 'h', 'h.childnodeanchor = pn.relationanchorpoint')
             ->where('h.contentstreamid = :contentStreamId')
             ->andWhere('h.dimensionspacepointhash = :dimensionSpacePointHash');
@@ -662,23 +660,19 @@ final class ContentSubgraph implements ContentSubgraphInterface
 
     /**
      * @param QueryBuilder $queryBuilder
-     * @return Result<mixed>
-     * @throws DbalException
+     * @return Result
+     * @throws DBALException
      */
     private function executeQuery(QueryBuilder $queryBuilder): Result
     {
-        $result = $queryBuilder->execute();
-        if (!$result instanceof Result) {
-            throw new \RuntimeException(sprintf('Expected instance of %s, got %s', Result::class, get_debug_type($result)), 1678370012);
-        }
-        return $result;
+        return $queryBuilder->executeQuery();
     }
 
     private function fetchNode(QueryBuilder $queryBuilder): ?Node
     {
         try {
             $nodeRow = $this->executeQuery($queryBuilder)->fetchAssociative();
-        } catch (DbalDriverException | DbalException $e) {
+        } catch (DBALException $e) {
             throw new \RuntimeException(sprintf('Failed to fetch node: %s', $e->getMessage()), 1678286030, $e);
         }
         if ($nodeRow === false) {
@@ -687,7 +681,6 @@ final class ContentSubgraph implements ContentSubgraphInterface
         return $this->nodeFactory->mapNodeRowToNode(
             $nodeRow,
             $this->workspaceName,
-            $this->contentStreamId,
             $this->dimensionSpacePoint,
             $this->visibilityConstraints
         );
@@ -697,13 +690,12 @@ final class ContentSubgraph implements ContentSubgraphInterface
     {
         try {
             $nodeRows = $this->executeQuery($queryBuilder)->fetchAllAssociative();
-        } catch (DbalDriverException | DbalException $e) {
+        } catch (DBALException $e) {
             throw new \RuntimeException(sprintf('Failed to fetch nodes: %s', $e->getMessage()), 1678292896, $e);
         }
         return $this->nodeFactory->mapNodeRowsToNodes(
             $nodeRows,
             $this->workspaceName,
-            $this->contentStreamId,
             $this->dimensionSpacePoint,
             $this->visibilityConstraints
         );
@@ -712,8 +704,8 @@ final class ContentSubgraph implements ContentSubgraphInterface
     private function fetchCount(QueryBuilder $queryBuilder): int
     {
         try {
-            return (int)$this->executeQuery($queryBuilder->select('COUNT(*)')->resetQueryPart('orderBy')->setFirstResult(0)->setMaxResults(1))->fetchOne();
-        } catch (DbalDriverException | DbalException $e) {
+            return (int)$this->executeQuery($queryBuilder->select('COUNT(*)')->resetOrderBy()->setFirstResult(0)->setMaxResults(1))->fetchOne();
+        } catch (DBALException $e) {
             throw new \RuntimeException(sprintf('Failed to fetch count: %s', $e->getMessage()), 1679048349, $e);
         }
     }
@@ -722,10 +714,15 @@ final class ContentSubgraph implements ContentSubgraphInterface
     {
         try {
             $referenceRows = $this->executeQuery($queryBuilder)->fetchAllAssociative();
-        } catch (DbalDriverException | DbalException $e) {
+        } catch (DBALException $e) {
             throw new \RuntimeException(sprintf('Failed to fetch references: %s', $e->getMessage()), 1678364944, $e);
         }
-        return $this->nodeFactory->mapReferenceRowsToReferences($referenceRows, $this->workspaceName, $this->contentStreamId, $this->dimensionSpacePoint, $this->visibilityConstraints);
+        return $this->nodeFactory->mapReferenceRowsToReferences(
+            $referenceRows,
+            $this->workspaceName,
+            $this->dimensionSpacePoint,
+            $this->visibilityConstraints
+        );
     }
 
     /**
@@ -733,24 +730,38 @@ final class ContentSubgraph implements ContentSubgraphInterface
      */
     private function fetchCteResults(QueryBuilder $queryBuilderInitial, QueryBuilder $queryBuilderRecursive, QueryBuilder $queryBuilderCte, string $cteTableName = 'cte'): array
     {
-        $query = 'WITH RECURSIVE ' . $cteTableName . ' AS (' . $queryBuilderInitial->getSQL() . ' UNION ' . $queryBuilderRecursive->getSQL() . ') ' . $queryBuilderCte->getSQL();
+        $query = <<<SQL
+            WITH RECURSIVE {$cteTableName} AS (
+                {$queryBuilderInitial->getSQL()}
+                UNION
+                {$queryBuilderRecursive->getSQL()}
+            )
+            {$queryBuilderCte->getSQL()}
+        SQL;
         $parameters = array_merge($queryBuilderInitial->getParameters(), $queryBuilderRecursive->getParameters(), $queryBuilderCte->getParameters());
         $parameterTypes = array_merge($queryBuilderInitial->getParameterTypes(), $queryBuilderRecursive->getParameterTypes(), $queryBuilderCte->getParameterTypes());
         try {
             return $this->dbal->fetchAllAssociative($query, $parameters, $parameterTypes);
-        } catch (DbalException $e) {
+        } catch (DBALException $e) {
             throw new \RuntimeException(sprintf('Failed to fetch CTE result: %s', $e->getMessage()), 1678358108, $e);
         }
     }
 
     private function fetchCteCountResult(QueryBuilder $queryBuilderInitial, QueryBuilder $queryBuilderRecursive, QueryBuilder $queryBuilderCte, string $cteTableName = 'cte'): int
     {
-        $query = 'WITH RECURSIVE ' . $cteTableName . ' AS (' . $queryBuilderInitial->getSQL() . ' UNION ' . $queryBuilderRecursive->getSQL() . ') ' . $queryBuilderCte->select('COUNT(*)')->resetQueryPart('orderBy')->setFirstResult(0)->setMaxResults(1);
+        $query = <<<SQL
+            WITH RECURSIVE {$cteTableName} AS (
+                {$queryBuilderInitial->getSQL()}
+                UNION
+                {$queryBuilderRecursive->getSQL()}
+            )
+            {$queryBuilderCte->select('COUNT(*)')->resetOrderBy()->setFirstResult(0)->setMaxResults(1)}
+        SQL;
         $parameters = array_merge($queryBuilderInitial->getParameters(), $queryBuilderRecursive->getParameters(), $queryBuilderCte->getParameters());
         $parameterTypes = array_merge($queryBuilderInitial->getParameterTypes(), $queryBuilderRecursive->getParameterTypes(), $queryBuilderCte->getParameterTypes());
         try {
             return (int)$this->dbal->fetchOne($query, $parameters, $parameterTypes);
-        } catch (DbalException $e) {
+        } catch (DBALException $e) {
             throw new \RuntimeException(sprintf('Failed to fetch CTE count result: %s', $e->getMessage()), 1679047841, $e);
         }
     }

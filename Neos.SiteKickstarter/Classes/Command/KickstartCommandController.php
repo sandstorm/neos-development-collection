@@ -15,6 +15,7 @@ namespace Neos\SiteKickstarter\Command;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Cli\CommandController;
 use Neos\Flow\Package\PackageManager;
+use Neos\SiteKickstarter\Generator\AfxTemplateGenerator;
 use Neos\SiteKickstarter\Service\SiteGeneratorCollectingService;
 use Neos\SiteKickstarter\Service\SitePackageGeneratorNameService;
 
@@ -44,12 +45,11 @@ class KickstartCommandController extends CommandController
     /**
      * Kickstart a new site package
      *
-     * This command generates a new site package with basic Fusion and Sites.xml
+     * This command generates a new site package with basic Fusion
      *
      * @param string $packageKey The packageKey for your site
-     * @param string $siteName The siteName of your site
      */
-    public function siteCommand($packageKey, $siteName)
+    public function siteCommand($packageKey): void
     {
         if (!$this->packageManager->isPackageKeyValid($packageKey)) {
             $this->outputLine('Package key "%s" is not valid. Only UpperCamelCase in the format "Vendor.PackageKey", please!', [$packageKey]);
@@ -63,26 +63,40 @@ class KickstartCommandController extends CommandController
 
         $generatorClasses = $this->siteGeneratorCollectingService->getAllGenerators();
 
-        $selection = [];
-        $nameToClassMap = [];
-        foreach ($generatorClasses as $generatorClass) {
-            $name = $this->sitePackageGeneratorNameService->getNameOfSitePackageGenerator($generatorClass);
+        if (count($generatorClasses) > 1) {
+            // legacy custom additional generators installed, so we need to show the select box
+            $selection = [];
+            $nameToClassMap = [];
+            foreach ($generatorClasses as $generatorClass) {
+                $name = $this->sitePackageGeneratorNameService->getNameOfSitePackageGenerator($generatorClass);
 
-            $selection[] = $name;
-            $nameToClassMap[$name] = $generatorClass;
+                $selection[] = $name;
+                $nameToClassMap[$name] = $generatorClass;
+            }
+
+            /** @var string $generatorName */
+            $generatorName = $this->output->select(
+                sprintf('What generator do you want to use? (<info>%s</info>): ', array_key_first($selection)),
+                $selection,
+                array_key_first($selection)
+            );
+            $generatorClass = $nameToClassMap[$generatorName];
+        } else {
+            // default happy case, only one generator which MUST be the afx default
+            $generatorClass = AfxTemplateGenerator::class;
         }
-
-        $generatorName = $this->output->select(
-            sprintf('What generator do you want to use? (<info>%s</info>): ', array_key_first($selection)),
-            $selection,
-            array_key_first($selection)
-        );
-
-        $generatorClass = $nameToClassMap[$generatorName];
 
         $generatorService = $this->objectManager->get($generatorClass);
 
-        $generatedFiles = $generatorService->generateSitePackage($packageKey, $siteName);
+        $generatedFiles = $generatorService->generateSitePackage($packageKey);
         $this->outputLine(implode(PHP_EOL, $generatedFiles));
+
+        $this->outputLine();
+        $this->outputLine(sprintf('Create a new site based on the new package "%s" by running the site create command', $packageKey));
+
+        if ($generatorClass === AfxTemplateGenerator::class) {
+            $guessedSiteName = strtolower(str_replace('.', '-', $packageKey));
+            $this->outputLine(sprintf('./flow site:create %1$s %2$s %2$s:Document.Homepage', $guessedSiteName, $packageKey));
+        }
     }
 }

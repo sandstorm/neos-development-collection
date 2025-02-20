@@ -13,19 +13,21 @@ namespace Neos\SiteKickstarter\Generator;
  * source code.
  */
 
+/**
+ * @deprecated with Neos 9. Custom generators for "kickstart:site" are discouraged.
+ */
 interface SitePackageGeneratorInterface
 {
     /**
      * returns generated files as an array
      *
      * @param string $packageKey
-     * @param string $siteName
-     * @return array
+     * @return list<string>
      */
-    public function generateSitePackage(string $packageKey, string $siteName): array;
+    public function generateSitePackage(string $packageKey): array;
 
     /**
-     * returns the human readable name of the generator
+     * returns the human-readable name of the generator
      *
      * @return string
      */

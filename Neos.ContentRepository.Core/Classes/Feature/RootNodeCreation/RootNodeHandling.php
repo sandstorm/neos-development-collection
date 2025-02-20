@@ -14,17 +14,19 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Feature\RootNodeCreation;
 
-use Neos\ContentRepository\Core\CommandHandlingDependencies;
+use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
+use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Feature\Common\InterdimensionalSiblings;
-use Neos\ContentRepository\Core\Feature\Common\NodeAggregateEventPublisher;
+use Neos\ContentRepository\Core\Feature\RebaseableCommand;
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Dto\NodeAggregateIdsByNodePaths;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Event\NodeAggregateWithNodeWasCreated;
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\SerializedPropertyValues;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\SerializedNodeReferences;
 use Neos\ContentRepository\Core\Feature\RootNodeCreation\Command\CreateRootNodeAggregateWithNode;
 use Neos\ContentRepository\Core\Feature\RootNodeCreation\Command\UpdateRootNodeAggregateDimensions;
 use Neos\ContentRepository\Core\Feature\RootNodeCreation\Event\RootNodeAggregateDimensionsWereUpdated;
@@ -103,7 +105,7 @@ trait RootNodeHandling
         ];
 
         foreach ($this->getInterDimensionalVariationGraph()->getRootGeneralizations() as $rootGeneralization) {
-            array_push($events, ...iterator_to_array($this->handleTetheredRootChildNodes(
+            array_push($events, ...$this->handleTetheredRootChildNodes(
                 $contentGraph->getWorkspaceName(),
                 $contentGraph->getContentStreamId(),
                 $nodeType,
@@ -112,13 +114,13 @@ trait RootNodeHandling
                 $command->nodeAggregateId,
                 $command->tetheredDescendantNodeAggregateIds,
                 null
-            )));
+            ));
         }
 
         $contentStreamEventStream = ContentStreamEventStreamName::fromContentStreamId($contentGraph->getContentStreamId());
         return new EventsToPublish(
             $contentStreamEventStream->getEventStreamName(),
-            NodeAggregateEventPublisher::enrichWithCommand(
+            RebaseableCommand::enrichWithCommand(
                 $command,
                 Events::fromArray($events)
             ),
@@ -173,7 +175,7 @@ trait RootNodeHandling
         );
         return new EventsToPublish(
             $contentStreamEventStream->getEventStreamName(),
-            NodeAggregateEventPublisher::enrichWithCommand(
+            RebaseableCommand::enrichWithCommand(
                 $command,
                 $events
             ),
@@ -184,6 +186,7 @@ trait RootNodeHandling
     /**
      * @throws ContentStreamDoesNotExistYet
      * @throws NodeTypeNotFound
+     * @return array<EventInterface>
      */
     private function handleTetheredRootChildNodes(
         WorkspaceName $workspaceName,
@@ -194,7 +197,7 @@ trait RootNodeHandling
         NodeAggregateId $parentNodeAggregateId,
         NodeAggregateIdsByNodePaths $nodeAggregateIdsByNodePath,
         ?NodePath $nodePath
-    ): Events {
+    ): array {
         $events = [];
         foreach ($nodeType->tetheredNodeTypeDefinitions as $tetheredNodeTypeDefinition) {
             $childNodeType = $this->requireNodeType($tetheredNodeTypeDefinition->nodeTypeName);
@@ -217,7 +220,7 @@ trait RootNodeHandling
                 $initialPropertyValues
             );
 
-            array_push($events, ...iterator_to_array($this->handleTetheredRootChildNodes(
+            array_push($events, ...$this->handleTetheredRootChildNodes(
                 $workspaceName,
                 $contentStreamId,
                 $childNodeType,
@@ -226,10 +229,10 @@ trait RootNodeHandling
                 $childNodeAggregateId,
                 $nodeAggregateIdsByNodePath,
                 $childNodePath
-            )));
+            ));
         }
 
-        return Events::fromArray($events);
+        return $events;
     }
 
     private function createTetheredWithNodeForRoot(
@@ -254,6 +257,7 @@ trait RootNodeHandling
             $nodeName,
             $initialPropertyValues,
             NodeAggregateClassification::CLASSIFICATION_TETHERED,
+            SerializedNodeReferences::createEmpty(),
         );
     }
 }

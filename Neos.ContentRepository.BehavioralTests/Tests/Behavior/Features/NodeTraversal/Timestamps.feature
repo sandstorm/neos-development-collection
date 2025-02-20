@@ -73,7 +73,6 @@ Feature: Behavior of Node timestamp properties "created", "originalCreated", "la
       | workspaceName      | "user-test" |
       | baseWorkspaceName  | "review"    |
       | newContentStreamId | "cs-user"   |
-      | workspaceOwner     | "some-user" |
     And I am in workspace "user-test" and dimension space point {"language":"de"}
     And the command CreateRootNodeAggregateWithNode is executed with payload:
       | Key             | Value                         |
@@ -178,8 +177,7 @@ Feature: Behavior of Node timestamp properties "created", "originalCreated", "la
       | workspaceName                   | "user-test"        |
       | sourceOriginDimensionSpacePoint | {"language": "ch"} |
       | sourceNodeAggregateId           | "a"                |
-      | referenceName                   | "ref"              |
-      | references                      | [{"target": "b"}]  |
+      | references                      | [{"referenceName": "ref", "references": [{"target": "b"}]}]  |
     And I am in workspace "user-test" and dimension space point {"language":"de"}
     Then I expect the node "a" to have the following timestamps:
       | created             | originalCreated     | lastModified | originalLastModified |
@@ -360,3 +358,19 @@ Feature: Behavior of Node timestamp properties "created", "originalCreated", "la
     And I expect the node "b" to have the following timestamps:
       | created             | originalCreated     | lastModified | originalLastModified |
       | 2023-03-16 15:00:00 | 2023-03-16 12:00:00 |              |                      |
+
+  Scenario: Original created when rebasing and partially publishing nodes
+    And I am in workspace "user-test" and dimension space point {"language":"de"}
+    Then I expect the node "a" to have the following timestamps:
+      | created             | originalCreated     | lastModified        | originalLastModified |
+      | 2023-03-16 12:00:00 | 2023-03-16 12:00:00 | null                | null                 |
+
+    Given the current date and time is "2023-03-16T14:00:00+01:00"
+    When the command RebaseWorkspace is executed with payload:
+      | Key                         | Value       |
+      | workspaceName               | "user-test" |
+      | rebaseErrorHandlingStrategy | "force"     |
+
+    Then I expect the node "a" to have the following timestamps:
+      | created             | originalCreated     | lastModified        | originalLastModified |
+      | 2023-03-16 14:00:00 | 2023-03-16 12:00:00 | null                | null                 |

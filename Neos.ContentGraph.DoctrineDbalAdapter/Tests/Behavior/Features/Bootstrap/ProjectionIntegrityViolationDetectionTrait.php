@@ -16,7 +16,7 @@ namespace Neos\ContentGraph\DoctrineDbalAdapter\Tests\Behavior\Features\Bootstra
 
 use Behat\Gherkin\Node\TableNode;
 use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\DBALException;
+use Doctrine\DBAL\Exception as DBALException;
 use Doctrine\DBAL\Exception\InvalidArgumentException;
 use Neos\ContentGraph\DoctrineDbalAdapter\ContentGraphTableNames;
 use Neos\ContentGraph\DoctrineDbalAdapter\DoctrineDbalProjectionIntegrityViolationDetectionRunnerFactory;
@@ -99,6 +99,31 @@ trait ProjectionIntegrityViolationDetectionTrait
         $record = $this->transformDatasetToHierarchyRelationRecord($dataset);
         $this->dbal->insert(
             $this->tableNames()->hierarchyRelation(),
+            $record
+        );
+    }
+
+    /**
+     * @When /^I change the following hierarchy relation's parent:$/
+     * @throws DBALException
+     */
+    public function iChangeTheFollowingHierarchyRelationsParent(TableNode $payloadTable): void
+    {
+        $dataset = $this->transformPayloadTableToDataset($payloadTable);
+        $record = $this->transformDatasetToHierarchyRelationRecord($dataset);
+        unset($record['position']);
+
+        $newParentHierarchyRelation = $this->findHierarchyRelationByIds(
+            ContentStreamId::fromString($dataset['contentStreamId']),
+            DimensionSpacePoint::fromArray($dataset['dimensionSpacePoint']),
+            NodeAggregateId::fromString($dataset['newParentNodeAggregateId'])
+        );
+
+        $this->dbal->update(
+            $this->tableNames()->hierarchyRelation(),
+            [
+                'parentnodeanchor' => $newParentHierarchyRelation['childnodeanchor']
+            ],
             $record
         );
     }

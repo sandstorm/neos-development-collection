@@ -6,11 +6,12 @@ namespace Neos\ContentRepository\Core\Feature\NodeReferencing\Event;
 
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePointSet;
 use Neos\ContentRepository\Core\EventStore\EventInterface;
-use Neos\ContentRepository\Core\Feature\Common\EmbedsContentStreamAndNodeAggregateId;
+use Neos\ContentRepository\Core\Feature\Common\EmbedsContentStreamId;
+use Neos\ContentRepository\Core\Feature\Common\EmbedsNodeAggregateId;
+use Neos\ContentRepository\Core\Feature\Common\EmbedsWorkspaceName;
 use Neos\ContentRepository\Core\Feature\Common\PublishableToWorkspaceInterface;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\SerializedNodeReferences;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
-use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 
@@ -24,12 +25,14 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 final readonly class NodeReferencesWereSet implements
     EventInterface,
     PublishableToWorkspaceInterface,
-    EmbedsContentStreamAndNodeAggregateId
+    EmbedsContentStreamId,
+    EmbedsNodeAggregateId,
+    EmbedsWorkspaceName
 {
     public function __construct(
         public WorkspaceName $workspaceName,
         public ContentStreamId $contentStreamId,
-        public NodeAggregateId $sourceNodeAggregateId,
+        public NodeAggregateId $nodeAggregateId,
         /**
          * While only one origin dimension space point is selected when initializing the command,
          * a whole set of origin dimension space points might be affected depending on the
@@ -37,7 +40,6 @@ final readonly class NodeReferencesWereSet implements
          * declared for the given reference in the node aggregate's type
          */
         public OriginDimensionSpacePointSet $affectedSourceOriginDimensionSpacePoints,
-        public ReferenceName $referenceName,
         public SerializedNodeReferences $references,
     ) {
     }
@@ -47,15 +49,14 @@ final readonly class NodeReferencesWereSet implements
         return $this->contentStreamId;
     }
 
-    /**
-     * this method is implemented for fulfilling the {@see EmbedsContentStreamAndNodeAggregateId} interface,
-     * needed for proper content cache flushing in Neos.
-     *
-     * @return NodeAggregateId
-     */
     public function getNodeAggregateId(): NodeAggregateId
     {
-        return $this->sourceNodeAggregateId;
+        return $this->nodeAggregateId;
+    }
+
+    public function getWorkspaceName(): WorkspaceName
+    {
+        return $this->workspaceName;
     }
 
     public function withWorkspaceNameAndContentStreamId(WorkspaceName $targetWorkspaceName, ContentStreamId $contentStreamId): self
@@ -63,9 +64,8 @@ final readonly class NodeReferencesWereSet implements
         return new self(
             $targetWorkspaceName,
             $contentStreamId,
-            $this->sourceNodeAggregateId,
+            $this->nodeAggregateId,
             $this->affectedSourceOriginDimensionSpacePoints,
-            $this->referenceName,
             $this->references,
         );
     }
@@ -75,9 +75,10 @@ final readonly class NodeReferencesWereSet implements
         return new self(
             WorkspaceName::fromString($values['workspaceName']),
             ContentStreamId::fromString($values['contentStreamId']),
-            NodeAggregateId::fromString($values['sourceNodeAggregateId']),
+            array_key_exists('sourceNodeAggregateId', $values)
+                ? NodeAggregateId::fromString($values['sourceNodeAggregateId'])
+                : NodeAggregateId::fromString($values['nodeAggregateId']),
             OriginDimensionSpacePointSet::fromArray($values['affectedSourceOriginDimensionSpacePoints']),
-            ReferenceName::fromString($values['referenceName']),
             SerializedNodeReferences::fromArray($values['references']),
         );
     }

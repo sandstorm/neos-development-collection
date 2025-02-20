@@ -14,9 +14,9 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap;
 
-use Neos\ContentRepository\Core\ContentGraphFinder;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
+use Neos\ContentRepository\Core\Feature\Security\Dto\UserId;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregate;
@@ -24,11 +24,9 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\NodePath;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
-use Neos\ContentRepository\Core\SharedModel\User\UserId;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
-use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Helpers\FakeClock;
-use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Helpers\FakeUserIdProvider;
+use Neos\ContentRepository\TestSuite\Fakes\FakeAuthProvider;
+use Neos\ContentRepository\TestSuite\Fakes\FakeClock;
 
 /**
  * The node creation trait for behavioral tests
@@ -36,8 +34,6 @@ use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Helpers\FakeUse
 trait CRTestSuiteRuntimeVariables
 {
     protected ?ContentRepository $currentContentRepository = null;
-
-    protected ?ContentStreamId $currentContentStreamId = null;
 
     protected ?WorkspaceName $currentWorkspaceName = null;
 
@@ -76,7 +72,7 @@ trait CRTestSuiteRuntimeVariables
      */
     public function iAmUserIdentifiedBy(string $userId): void
     {
-        FakeUserIdProvider::setUserId(UserId::fromString($userId));
+        FakeAuthProvider::setDefaultUserId(UserId::fromString($userId));
     }
 
     /**
@@ -88,24 +84,11 @@ trait CRTestSuiteRuntimeVariables
     }
 
     /**
-     * @Given /^I am in content stream "([^"]*)"$/
-     */
-    public function iAmInContentStream(string $contentStreamId): void
-    {
-        $this->currentContentStreamId = ContentStreamId::fromString($contentStreamId);
-    }
-
-    /**
      * @Given /^I am in workspace "([^"]*)"$/
      */
     public function iAmInWorkspace(string $workspaceName): void
     {
-        $workspace = $this->currentContentRepository->getWorkspaceFinder()->findOneByName(WorkspaceName::fromString($workspaceName));
-        if ($workspace === null) {
-            throw new \Exception(sprintf('Workspace "%s" does not exist, projection not yet up to date?', $workspaceName), 1548149355);
-        }
         $this->currentWorkspaceName = WorkspaceName::fromString($workspaceName);
-        $this->currentContentStreamId = $workspace->currentContentStreamId;
     }
 
     /**
@@ -127,36 +110,20 @@ trait CRTestSuiteRuntimeVariables
     }
 
     /**
-     * @Given /^I am in content stream "([^"]*)" and dimension space point (.*)$/
-     */
-    public function iAmInContentStreamAndDimensionSpacePoint(string $contentStreamId, string $dimensionSpacePoint): void
-    {
-        $this->iAmInContentStream($contentStreamId);
-        $this->iAmInDimensionSpacePoint($dimensionSpacePoint);
-    }
-
-    /**
-     * @When /^VisibilityConstraints are set to "(withoutRestrictions|frontend)"$/
+     * @When /^VisibilityConstraints are set to "(withoutRestrictions|default)"$/
      */
     public function visibilityConstraintsAreSetTo(string $restrictionType): void
     {
         $this->currentVisibilityConstraints = match ($restrictionType) {
             'withoutRestrictions' => VisibilityConstraints::withoutRestrictions(),
-            'frontend' => VisibilityConstraints::frontend(),
+            'default' => VisibilityConstraints::default(),
             default => throw new \InvalidArgumentException('Visibility constraint "' . $restrictionType . '" not supported.'),
         };
     }
 
     public function getCurrentSubgraph(): ContentSubgraphInterface
     {
-        $contentGraphFinder = $this->currentContentRepository->projectionState(ContentGraphFinder::class);
-        $contentGraphFinder->forgetInstances();
-        if (isset($this->currentContentStreamId)) {
-            // This must still be supported for low level tests, e.g. for content stream forking
-            return $contentGraphFinder->getByWorkspaceNameAndContentStreamId($this->currentWorkspaceName, $this->currentContentStreamId)->getSubgraph($this->currentDimensionSpacePoint, $this->currentVisibilityConstraints);
-        }
-
-        return $contentGraphFinder->getByWorkspaceName($this->currentWorkspaceName)->getSubgraph(
+        return $this->currentContentRepository->getContentGraph($this->currentWorkspaceName)->getSubgraph(
             $this->currentDimensionSpacePoint,
             $this->currentVisibilityConstraints
         );
@@ -173,9 +140,8 @@ trait CRTestSuiteRuntimeVariables
         )->aggregateId;
     }
 
-    protected function getCurrentNodeAggregateId(): NodeAggregateId
+    protected function getCurrentNodeAggregateId(): ?NodeAggregateId
     {
-        assert($this->currentNode instanceof Node);
-        return $this->currentNode->aggregateId;
+        return $this->currentNode?->aggregateId;
     }
 }

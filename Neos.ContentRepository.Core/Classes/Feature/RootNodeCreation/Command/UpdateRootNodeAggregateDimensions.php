@@ -17,12 +17,12 @@ namespace Neos\ContentRepository\Core\Feature\RootNodeCreation\Command;
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 
 /**
- * change visibility of the root node aggregate. A root node aggregate must be visible in all
+ * Change visibility of the root node aggregate. A root node aggregate must be visible in all
  * configured dimensions.
+ *
  * Needed when configured dimensions change.
  *
  * @api commands are the write-API of the ContentRepository
@@ -51,9 +51,6 @@ final readonly class UpdateRootNodeAggregateDimensions implements
         return new self($workspaceName, $nodeAggregateId);
     }
 
-    /**
-     * @param array<string,string> $array
-     */
     public static function fromArray(array $array): self
     {
         return new self(

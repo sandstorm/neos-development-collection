@@ -23,6 +23,7 @@ use Neos\ContentRepository\NodeMigration\Transformation\RenameNodeAggregateTrans
 use Neos\ContentRepository\NodeMigration\Transformation\RenamePropertyTransformationFactory;
 use Neos\ContentRepository\NodeMigration\Transformation\StripTagsOnPropertyTransformationFactory;
 use Neos\ContentRepository\NodeMigration\Transformation\TransformationsFactory;
+use Neos\ContentRepository\NodeMigration\Transformation\UpdateRootNodeAggregateDimensionsTransformationFactory;
 
 /**
  * @implements ContentRepositoryServiceFactoryInterface<NodeMigrationService>
@@ -38,7 +39,7 @@ class NodeMigrationServiceFactory implements ContentRepositoryServiceFactoryInte
         $filtersFactory->registerFilter('PropertyNotEmpty', new PropertyNotEmptyFilterFactory());
         $filtersFactory->registerFilter('PropertyValue', new PropertyValueFilterFactory());
 
-        $transformationsFactory = new TransformationsFactory($serviceFactoryDependencies->contentRepository);
+        $transformationsFactory = new TransformationsFactory($serviceFactoryDependencies->contentRepository, $serviceFactoryDependencies->propertyConverter);
         $transformationsFactory->registerTransformation('AddDimensionShineThrough', new AddDimensionShineThroughTransformationFactory());
         $transformationsFactory->registerTransformation('AddNewProperty', new AddNewPropertyTransformationFactory());
         $transformationsFactory->registerTransformation('ChangeNodeType', new ChangeNodeTypeTransformationFactory());
@@ -49,6 +50,7 @@ class NodeMigrationServiceFactory implements ContentRepositoryServiceFactoryInte
         $transformationsFactory->registerTransformation('RenameNodeAggregate', new RenameNodeAggregateTransformationFactory());
         $transformationsFactory->registerTransformation('RenameProperty', new RenamePropertyTransformationFactory());
         $transformationsFactory->registerTransformation('StripTagsOnProperty', new StripTagsOnPropertyTransformationFactory());
+        $transformationsFactory->registerTransformation('UpdateRootNodeAggregateDimensions', new UpdateRootNodeAggregateDimensionsTransformationFactory());
 
         return new NodeMigrationService(
             $serviceFactoryDependencies->contentRepository,

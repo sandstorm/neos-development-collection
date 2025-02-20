@@ -14,7 +14,7 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Feature\Common;
 
-use Neos\ContentRepository\Core\CommandHandlingDependencies;
+use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
 use Neos\ContentRepository\Core\DimensionSpace\Exception\DimensionSpacePointNotFound;
@@ -45,6 +45,7 @@ use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateIsNoChild;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateIsNoSibling;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateIsRoot;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateIsTethered;
+use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateIsUntethered;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregatesTypeIsAmbiguous;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeConstraintException;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeNameIsAlreadyCovered;
@@ -54,14 +55,12 @@ use Neos\ContentRepository\Core\SharedModel\Exception\NodeTypeIsOfTypeRoot;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeTypeNotFound;
 use Neos\ContentRepository\Core\SharedModel\Exception\PropertyCannotBeSet;
 use Neos\ContentRepository\Core\SharedModel\Exception\ReferenceCannotBeSet;
-use Neos\ContentRepository\Core\SharedModel\Exception\RootNodeAggregateDoesNotExist;
 use Neos\ContentRepository\Core\SharedModel\Exception\RootNodeAggregateTypeIsAlreadyOccupied;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
 use Neos\ContentRepository\Core\SharedModel\Node\PropertyName;
 use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamState;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\EventStore\Model\EventStream\ExpectedVersion;
 
@@ -82,15 +81,9 @@ trait ConstraintChecks
         CommandHandlingDependencies $commandHandlingDependencies
     ): ContentStreamId {
         $contentStreamId = $commandHandlingDependencies->getContentGraph($workspaceName)->getContentStreamId();
-        $state = $commandHandlingDependencies->getContentStreamFinder()->findStateForContentStream($contentStreamId);
-        if ($state === null) {
-            throw new ContentStreamDoesNotExistYet(
-                'Content stream for "' . $workspaceName->value . '" does not exist yet.',
-                1521386692
-            );
-        }
+        $isContentStreamClosed = $commandHandlingDependencies->isContentStreamClosed($contentStreamId);
 
-        if ($state === ContentStreamState::STATE_CLOSED) {
+        if ($isContentStreamClosed) {
             throw new ContentStreamIsClosed(
                 'Content stream "' . $contentStreamId->value . '" is closed.',
                 1710260081
@@ -160,12 +153,9 @@ trait ConstraintChecks
         ContentGraphInterface $contentGraph,
         NodeTypeName $nodeTypeName
     ): void {
-        try {
-            $contentGraph->findRootNodeAggregateByType($nodeTypeName);
-        } catch (RootNodeAggregateDoesNotExist $_) {
+        if ($contentGraph->findRootNodeAggregateByType($nodeTypeName) === null) {
             return;
         }
-
         throw RootNodeAggregateTypeIsAlreadyOccupied::butWasExpectedNotTo($nodeTypeName);
     }
 
@@ -196,6 +186,30 @@ trait ConstraintChecks
                 );
             }
             $this->requireTetheredDescendantNodeTypesToNotBeOfTypeRoot($tetheredChildNodeType);
+        }
+    }
+
+    /**
+     * @throws NodeAggregateIsUntethered
+     */
+    protected function requireExistingDeclaredTetheredDescendantsToBeTethered(
+        ContentGraphInterface $contentGraph,
+        NodeAggregate $nodeAggregate,
+        NodeType $nodeType
+    ): void {
+        foreach ($nodeType->tetheredNodeTypeDefinitions as $tetheredNodeTypeDefinition) {
+            $tetheredNodeAggregate = $contentGraph->findChildNodeAggregateByName($nodeAggregate->nodeAggregateId, $tetheredNodeTypeDefinition->name);
+            if ($tetheredNodeAggregate === null) {
+                continue;
+            }
+            if (!$tetheredNodeAggregate->classification->isTethered()) {
+                throw new NodeAggregateIsUntethered(
+                    'Node name ' . $tetheredNodeTypeDefinition->name->value . ' is occupied by untethered node aggregate ' . $tetheredNodeAggregate->nodeAggregateId->value,
+                    1729592202
+                );
+            }
+            $tetheredNodeType = $this->requireNodeType($tetheredNodeTypeDefinition->nodeTypeName);
+            $this->requireExistingDeclaredTetheredDescendantsToBeTethered($contentGraph, $tetheredNodeAggregate, $tetheredNodeType);
         }
     }
 
@@ -247,21 +261,23 @@ trait ConstraintChecks
         }
     }
 
-    protected function requireNodeTypeToAllowNumberOfReferencesInReference(SerializedNodeReferences $nodeReferences, ReferenceName $referenceName, NodeTypeName $nodeTypeName): void
+    protected function requireNodeTypeToAllowNumberOfReferencesInReference(SerializedNodeReferences $nodeReferences, NodeTypeName $nodeTypeName): void
     {
         $nodeType = $this->requireNodeType($nodeTypeName);
 
-        $maxItems = $nodeType->getReferences()[$referenceName->value]['constraints']['maxItems'] ?? null;
-        if ($maxItems === null) {
-            return;
-        }
+        foreach ($nodeReferences->references as $referencesByName) {
+            $maxItems = $nodeType->getReferences()[$referencesByName->referenceName->value]['constraints']['maxItems'] ?? null;
+            if ($maxItems === null) {
+                continue;
+            }
 
-        if ($maxItems < count($nodeReferences)) {
-            throw ReferenceCannotBeSet::becauseTheItemsCountConstraintsAreNotMatched(
-                $referenceName,
-                $nodeTypeName,
-                count($nodeReferences)
-            );
+            if ($maxItems < $referencesByName->count()) {
+                throw ReferenceCannotBeSet::becauseTheItemsCountConstraintsAreNotMatched(
+                    $referencesByName->referenceName,
+                    $nodeTypeName,
+                    $referencesByName->count()
+                );
+            }
         }
     }
 
@@ -680,7 +696,7 @@ trait ConstraintChecks
     ): ExpectedVersion {
 
         return ExpectedVersion::fromVersion(
-            $commandHandlingDependencies->getContentStreamFinder()->findVersionForContentStream($contentStreamId)->unwrap()
+            $commandHandlingDependencies->getContentStreamVersion($contentStreamId)
         );
     }
 }

@@ -38,7 +38,7 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
  * The system guarantees the following invariants:
  *
  * - Inside a NodeAggregate, each DimensionSpacePoint has at most one Node which covers it.
- *   To check this, the ReadableNodeAggregateInterface is used (mainly in constraint checks).
+ *   To check this, this class is used (mainly in constraint checks).
  * - The NodeType is always the same for all Nodes in a NodeAggregate
  * - all Nodes inside the NodeAggregate always have the same NodeName.
  * - all nodes inside a NodeAggregate are all of the same *classification*, which can be:
@@ -46,19 +46,10 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
  *   - *tethered*: for nodes "attached" to the parent node (i.e. the old "AutoCreatedChildNodes")
  *   - *regular*: for all other nodes.
  *
- * This interface is called *Readable* because it exposes read operations on the set of nodes inside
- * a single NodeAggregate; often used for constraint checks (in command handlers).
- *
  * @api Note: The constructor is not part of the public API
  */
 final readonly class NodeAggregate
 {
-    /**
-     * This was intermediate part of the node aggregate. Please use {@see $workspaceName} instead.
-     * @deprecated will be removed before the final 9.0 release
-     */
-    public ContentStreamId $contentStreamId;
-
     /**
      * @param ContentRepositoryId $contentRepositoryId The content-repository this node aggregate belongs to
      * @param WorkspaceName $workspaceName The workspace of this node aggregate
@@ -83,14 +74,12 @@ final readonly class NodeAggregate
         public ?NodeName $nodeName,
         public OriginDimensionSpacePointSet $occupiedDimensionSpacePoints,
         private array $nodesByOccupiedDimensionSpacePoint,
-        private CoverageByOrigin $coverageByOccupant,
+        public CoverageByOrigin $coverageByOccupant,
         public DimensionSpacePointSet $coveredDimensionSpacePoints,
         private array $nodesByCoveredDimensionSpacePoint,
         private OriginByCoverage $occupationByCovered,
         private DimensionSpacePointsBySubtreeTags $dimensionSpacePointsBySubtreeTags,
-        ContentStreamId $contentStreamId,
     ) {
-        $this->contentStreamId = $contentStreamId;
     }
 
     /**
@@ -112,7 +101,6 @@ final readonly class NodeAggregate
         array $nodesByCoveredDimensionSpacePoint,
         OriginByCoverage $occupationByCovered,
         DimensionSpacePointsBySubtreeTags $dimensionSpacePointsBySubtreeTags,
-        ContentStreamId $contentStreamId,
     ): self {
         return new self(
             $contentRepositoryId,
@@ -128,7 +116,6 @@ final readonly class NodeAggregate
             $nodesByCoveredDimensionSpacePoint,
             $occupationByCovered,
             $dimensionSpacePointsBySubtreeTags,
-            $contentStreamId,
         );
     }
 

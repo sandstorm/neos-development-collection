@@ -15,8 +15,8 @@ namespace Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment;
  */
 
 use Neos\ContentRepository\Core\CommandHandler\CommandHandlerInterface;
+use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
-use Neos\ContentRepository\Core\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\DimensionSpace\ContentDimensionZookeeper;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
@@ -26,12 +26,14 @@ use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
 use Neos\ContentRepository\Core\DimensionSpace\VariantType;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
+use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\AddDimensionShineThrough;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\MoveDimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Event\DimensionShineThroughWasAdded;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Event\DimensionSpacePointWasMoved;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Exception\DimensionSpacePointAlreadyExists;
+use Neos\ContentRepository\Core\Feature\RebaseableCommand;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\EventStore\Model\EventStream\ExpectedVersion;
@@ -47,12 +49,12 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
     ) {
     }
 
-    public function canHandle(CommandInterface $command): bool
+    public function canHandle(CommandInterface|RebasableToOtherWorkspaceInterface $command): bool
     {
         return method_exists($this, 'handle' . (new \ReflectionClass($command))->getShortName());
     }
 
-    public function handle(CommandInterface $command, CommandHandlingDependencies $commandHandlingDependencies): EventsToPublish
+    public function handle(CommandInterface|RebasableToOtherWorkspaceInterface $command, CommandHandlingDependencies $commandHandlingDependencies): EventsToPublish
     {
         /** @phpstan-ignore-next-line */
         return match ($command::class) {
@@ -77,13 +79,16 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
 
         return new EventsToPublish(
             $streamName,
-            Events::with(
-                new DimensionSpacePointWasMoved(
-                    $contentGraph->getWorkspaceName(),
-                    $contentGraph->getContentStreamId(),
-                    $command->source,
-                    $command->target
-                ),
+            RebaseableCommand::enrichWithCommand(
+                $command,
+                Events::with(
+                    new DimensionSpacePointWasMoved(
+                        $contentGraph->getWorkspaceName(),
+                        $contentGraph->getContentStreamId(),
+                        $command->source,
+                        $command->target
+                    ),
+                )
             ),
             ExpectedVersion::ANY()
         );
@@ -107,12 +112,15 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
 
         return new EventsToPublish(
             $streamName,
-            Events::with(
-                new DimensionShineThroughWasAdded(
-                    $contentGraph->getWorkspaceName(),
-                    $contentGraph->getContentStreamId(),
-                    $command->source,
-                    $command->target
+            RebaseableCommand::enrichWithCommand(
+                $command,
+                Events::with(
+                    new DimensionShineThroughWasAdded(
+                        $contentGraph->getWorkspaceName(),
+                        $contentGraph->getContentStreamId(),
+                        $command->source,
+                        $command->target
+                    )
                 )
             ),
             ExpectedVersion::ANY()

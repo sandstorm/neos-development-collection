@@ -52,6 +52,9 @@ final class FusionSourceCodeCollection implements \IteratorAggregate, \Countable
         return self::fromFilePath($filePath);
     }
 
+    /**
+     * @deprecated with Neos 9, remove me :)
+     */
     public static function tryFromPackageRootFusion(string $packageKey): self
     {
         $fusionPathAndFilename = sprintf('resource://%s/Private/Fusion/Root.fusion', $packageKey);
@@ -68,9 +71,6 @@ final class FusionSourceCodeCollection implements \IteratorAggregate, \Countable
         return new self(...$this->fusionCodeCollection, ...$other->fusionCodeCollection);
     }
 
-    /**
-     * @return \Traversable<int,FusionSourceCode>
-     */
     public function getIterator(): \Traversable
     {
         yield from $this->fusionCodeCollection;

@@ -14,11 +14,11 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\NodeMigration\Transformation;
 
-use Neos\ContentRepository\Core\CommandHandler\CommandResult;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
 use Neos\ContentRepository\Core\Feature\NodeRemoval\Command\RemoveNodeAggregate;
+use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeVariantSelectionStrategy;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
@@ -34,7 +34,8 @@ class RemoveNodeTransformationFactory implements TransformationFactoryInterface
      */
     public function build(
         array $settings,
-        ContentRepository $contentRepository
+        ContentRepository $contentRepository,
+        PropertyConverter $propertyConverter,
     ): GlobalTransformationInterface|NodeAggregateBasedTransformationInterface|NodeBasedTransformationInterface {
         $strategy = null;
         if (isset($settings['strategy'])) {
@@ -66,7 +67,7 @@ class RemoveNodeTransformationFactory implements TransformationFactoryInterface
                 DimensionSpacePointSet $coveredDimensionSpacePoints,
                 WorkspaceName $workspaceNameForWriting,
                 ContentStreamId $contentStreamForWriting
-            ): ?CommandResult {
+            ): void {
                 if ($this->strategy === null) {
                     $this->strategy = NodeVariantSelectionStrategy::STRATEGY_ALL_SPECIALIZATIONS;
                 }
@@ -84,10 +85,10 @@ class RemoveNodeTransformationFactory implements TransformationFactoryInterface
                 if (!$coveredDimensionSpacePoints->contains($coveredDimensionSpacePoint)) {
                     // we are currently in a Node which has other covered dimension space points than the target ones,
                     // so we do not need to do anything.
-                    return null;
+                    return;
                 }
 
-                return $this->contentRepository->handle(RemoveNodeAggregate::create(
+                $this->contentRepository->handle(RemoveNodeAggregate::create(
                     $workspaceNameForWriting,
                     $node->aggregateId,
                     $coveredDimensionSpacePoint,
