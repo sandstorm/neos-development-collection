@@ -143,10 +143,10 @@ final class ContentRepository
             if ($fullCatchUpResult->hadErrors()) {
                 throw CatchUpHadErrors::createFromErrors($fullCatchUpResult->errors);
             }
-            $additionalCommands = $this->commandHook->onAfterHandle($command, $events);
-            foreach ($additionalCommands as $additionalCommand) {
-                $this->handle($additionalCommand);
-            }
+        }
+        $additionalCommands = $this->commandHook->onAfterHandle($command, $events);
+        foreach ($additionalCommands as $additionalCommand) {
+            $this->handle($additionalCommand);
         }
     }
 

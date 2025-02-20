@@ -26,6 +26,7 @@ interface CommandHookInterface
 
     /**
      * @param CommandInterface $command The command that was just handled
+     * TODO Events is not API! And contains the Decorated Event which is not api either ... also the time stamps etc might be cool to have.
      * @param Events $events The events that resulted from the handled command
      * @return Commands This hook must return Commands that will be handled after the incoming $command. The Commands can be empty.
      */
