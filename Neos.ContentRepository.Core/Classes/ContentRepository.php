@@ -106,7 +106,7 @@ final class ContentRepository
             if ($fullCatchUpResult->hadErrors()) {
                 throw CatchUpHadErrors::createFromErrors($fullCatchUpResult->errors);
             }
-            $additionalCommands = $this->commandHook->onAfterHandle($command);
+            $additionalCommands = $this->commandHook->onAfterHandle($command, $toPublish->events);
             foreach ($additionalCommands as $additionalCommand) {
                 $this->handle($additionalCommand);
             }
@@ -114,10 +114,12 @@ final class ContentRepository
         }
 
         // control-flow aware command handling via generator
+        $events = DomainEvents::createEmpty();
         try {
             foreach ($toPublish as $eventsToPublish) {
                 try {
                     $this->eventStore->commit($eventsToPublish->streamName, $this->enrichAndNormalizeEvents($eventsToPublish->events, $correlationId), $eventsToPublish->expectedVersion);
+                    $events = $events->withAppendedEvents($eventsToPublish->events);
                 } catch (ConcurrencyException $concurrencyException) {
                     // we pass the exception into the generator (->throw), so it could be try-caught and reacted upon:
                     //
@@ -141,7 +143,7 @@ final class ContentRepository
             if ($fullCatchUpResult->hadErrors()) {
                 throw CatchUpHadErrors::createFromErrors($fullCatchUpResult->errors);
             }
-            $additionalCommands = $this->commandHook->onAfterHandle($command);
+            $additionalCommands = $this->commandHook->onAfterHandle($command, $events);
             foreach ($additionalCommands as $additionalCommand) {
                 $this->handle($additionalCommand);
             }

@@ -52,6 +52,14 @@ final readonly class Events implements \IteratorAggregate, \Countable
         return new self(...$events);
     }
 
+    /**
+     * @return static
+     */
+    public static function createEmpty(): self
+    {
+        return new self();
+    }
+
     public function getIterator(): \Traversable
     {
         yield from $this->items;

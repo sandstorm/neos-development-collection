@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\CommandHandler;
 
 use Neos\ContentRepository\Core\ContentRepository;
+use Neos\ContentRepository\Core\EventStore\Events;
 
 /**
  * Contract for a hook that is invoked just before any command is processed via {@see ContentRepository::handle()}
@@ -25,7 +26,8 @@ interface CommandHookInterface
 
     /**
      * @param CommandInterface $command The command that was just handled
+     * @param Events $events The events that resulted from the handled command
      * @return Commands This hook must return Commands that will be handled after the incoming $command. The Commands can be empty.
      */
-    public function onAfterHandle(CommandInterface $command): Commands;
+    public function onAfterHandle(CommandInterface $command, Events $events): Commands;
 }
