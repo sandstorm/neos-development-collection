@@ -11,7 +11,6 @@ use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\MoveDim
 use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNodeAndSerializedProperties;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\DisableNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\EnableNodeAggregate;
-use Neos\ContentRepository\Core\Feature\NodeDuplication\Command\CopyNodesRecursively;
 use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetSerializedNodeProperties;
 use Neos\ContentRepository\Core\Feature\NodeMove\Command\MoveNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Command\SetSerializedNodeReferences;
@@ -47,7 +46,12 @@ class RebaseableCommands implements \IteratorAggregate
     {
         $commands = [];
         foreach ($eventStream as $eventEnvelope) {
-            if ($eventEnvelope->event->metadata && isset($eventEnvelope->event->metadata?->value['commandClass'])) {
+            if (isset($eventEnvelope->event->metadata?->value['commandClass'])) {
+                if ($eventEnvelope->event->metadata->value['commandClass'] === 'Neos\\ContentRepository\\Core\\Feature\\NodeDuplication\\Command\\CopyNodesRecursively') {
+                    // The original draft of the CopyNodesRecursively command was removed with Beta 16. In case events that are created via that command are attempted to be
+                    // normally rebased, published, or discarded we instead silently drop these events as announced.
+                    continue;
+                }
                 $commands[] = RebaseableCommand::extractFromEventEnvelope($eventEnvelope);
             }
         }
@@ -105,9 +109,6 @@ class RebaseableCommands implements \IteratorAggregate
                 UntagSubtree::class,
                 UpdateRootNodeAggregateDimensions::class,
                     => $command->nodeAggregateId->equals($nodeId),
-                CopyNodesRecursively::class => $command->nodeAggregateIdMapping->getNewNodeAggregateId(
-                    $command->nodeTreeToInsert->nodeAggregateId
-                )?->equals($nodeId),
                 SetSerializedNodeReferences::class => $command->sourceNodeAggregateId->equals($nodeId),
                 // for non node-aggregate-changes we return false, so they are kept as remainder:
                 AddDimensionShineThrough::class,

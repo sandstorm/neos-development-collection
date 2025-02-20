@@ -24,7 +24,6 @@ use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\DimensionSpaceCommandHandler;
 use Neos\ContentRepository\Core\Feature\NodeAggregateCommandHandler;
-use Neos\ContentRepository\Core\Feature\NodeDuplication\NodeDuplicationCommandHandler;
 use Neos\ContentRepository\Core\Feature\WorkspaceCommandHandler;
 use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
@@ -156,11 +155,6 @@ final class ContentRepositoryFactory
                 $this->propertyConverter,
             ),
             new DimensionSpaceCommandHandler(
-                $this->contentDimensionZookeeper,
-                $this->interDimensionalVariationGraph,
-            ),
-            new NodeDuplicationCommandHandler(
-                $this->nodeTypeManager,
                 $this->contentDimensionZookeeper,
                 $this->interDimensionalVariationGraph,
             )
