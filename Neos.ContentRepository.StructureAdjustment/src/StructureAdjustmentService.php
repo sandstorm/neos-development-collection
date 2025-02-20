@@ -6,6 +6,8 @@ namespace Neos\ContentRepository\StructureAdjustment;
 
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
+use Neos\ContentRepository\Core\EventStore\DecoratedEvent;
+use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Factory\ContentRepositoryServiceInterface;
@@ -13,6 +15,7 @@ use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
+use Neos\ContentRepository\Core\SharedModel\Id\UuidFactory;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\ContentRepository\StructureAdjustment\Adjustment\DimensionAdjustment;
@@ -22,6 +25,7 @@ use Neos\ContentRepository\StructureAdjustment\Adjustment\StructureAdjustment;
 use Neos\ContentRepository\StructureAdjustment\Adjustment\TetheredNodeAdjustments;
 use Neos\ContentRepository\StructureAdjustment\Adjustment\UnknownNodeTypeAdjustment;
 use Neos\EventStore\EventStoreInterface;
+use Neos\EventStore\Model\Event\CorrelationId;
 use Neos\EventStore\Model\Events;
 
 class StructureAdjustmentService implements ContentRepositoryServiceInterface
@@ -109,14 +113,28 @@ class StructureAdjustmentService implements ContentRepositoryServiceInterface
         $remediation = $adjustment->remediation;
         $eventsToPublish = $remediation();
         assert($eventsToPublish instanceof EventsToPublish);
-        $normalizedEvents = Events::fromArray(
-            $eventsToPublish->events->map($this->eventNormalizer->normalize(...))
-        );
-        $this->eventStore->commit(
-            $eventsToPublish->streamName,
-            $normalizedEvents,
-            $eventsToPublish->expectedVersion
-        );
+
+        // set correlation id and add debug metadata
+        $correlationId = CorrelationId::fromString(sprintf('StructureAdjustment_%s', bin2hex(random_bytes(9))));
+        $isFirstEvent = true;
+        $normalizedEvents = Events::fromArray($eventsToPublish->events->map(function (EventInterface|DecoratedEvent $event) use (
+            &$isFirstEvent, $correlationId, $adjustment
+        ) {
+            $metadata = $event instanceof DecoratedEvent ? $event->eventMetadata?->value ?? [] : [];
+            if ($isFirstEvent) {
+                $metadata['debug_reason'] = mb_strimwidth($adjustment->render() , 0, 250, '…');
+                $isFirstEvent = false;
+            }
+            $decoratedEvent = DecoratedEvent::create(
+                event: $event,
+                metadata: $metadata,
+                correlationId: $correlationId,
+            );
+
+            return $this->eventNormalizer->normalize($decoratedEvent);
+        }));
+
+        $this->eventStore->commit($eventsToPublish->streamName, $normalizedEvents, $eventsToPublish->expectedVersion);
         $this->subscriptionEngine->catchUpActive();
     }
 }

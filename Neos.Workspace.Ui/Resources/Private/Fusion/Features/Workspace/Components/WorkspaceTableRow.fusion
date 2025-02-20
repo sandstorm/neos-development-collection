@@ -59,6 +59,15 @@ prototype(Neos.Workspace.Ui:Component.WorkspaceTableRow) < prototype(Neos.Fusion
         workspaceName = ${props.workspaceListItem.name}
       }
     }
+    rebaseWorkspaceUri = Neos.Fusion:ActionUri {
+      action = 'rebase'
+      format = 'htmx'
+      arguments {
+        workspaceName = ${props.workspaceListItem.name}
+        force = false
+      }
+    }
+    rebaseWorkspacePopoverId = 'workspace-rebase-modal'
     deleteWorkspacePopoverId = 'workspace-delete-modal'
     editWorkspacePopoverId = 'workspace-edit-modal'
   }
@@ -130,6 +139,16 @@ prototype(Neos.Workspace.Ui:Component.WorkspaceTableRow) < prototype(Neos.Fusion
           attributes.hx-target='#popover-container'
           attributes.hx-swap='innerHTML'
           attributes.hx-on--after-request={'document.getElementById("' + private.deleteWorkspacePopoverId + '").showPopover()'}
+        />
+        <Neos.Workspace.Ui:Component.Button
+          isDanger
+          title={private.i18n.id('workspaces.rebaseWorkspace').arguments([props.workspaceListItem.title])}
+          icon="sync icon-white"
+          disabled={props.workspaceListItem.status != 'OUTDATED' || props.workspaceListItem.permissions.edit == false}
+          attributes.hx-get={private.rebaseWorkspaceUri}
+          attributes.hx-target="#workspace-module-content"
+          attributes.hx-swap="outerHTML"
+          attributes.hx-on--after-request={'document.getElementById("' + private.rebaseWorkspacePopoverId + '")?.showPopover()'}
         />
       </td>
     </tr>
