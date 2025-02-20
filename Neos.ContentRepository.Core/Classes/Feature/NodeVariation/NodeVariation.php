@@ -66,11 +66,22 @@ trait NodeVariation
         $this->requireNodeAggregateToOccupyDimensionSpacePoint($nodeAggregate, $command->sourceOrigin);
         $this->requireNodeAggregateToNotOccupyDimensionSpacePoint($nodeAggregate, $command->targetOrigin);
 
+        if ($command->precedingSiblingNodeAggregateId) {
+            $this->requireProjectedNodeAggregate($contentGraph, $command->precedingSiblingNodeAggregateId);
+        }
         if ($command->succeedingSiblingNodeAggregateId) {
             $this->requireProjectedNodeAggregate($contentGraph, $command->succeedingSiblingNodeAggregateId);
         }
         if ($command->parentNodeAggregateId) {
             $parentNodeAggregate = $this->requireProjectedNodeAggregate($contentGraph, $command->parentNodeAggregateId);
+            if ($command->precedingSiblingNodeAggregateId) {
+                $this->requireNodeAggregateToBeChild(
+                    $contentGraph,
+                    $command->precedingSiblingNodeAggregateId,
+                    $command->parentNodeAggregateId,
+                    $command->targetOrigin->toDimensionSpacePoint(),
+                );
+            }
             if ($command->succeedingSiblingNodeAggregateId) {
                 $this->requireNodeAggregateToBeChild(
                     $contentGraph,
@@ -94,6 +105,14 @@ trait NodeVariation
                 $command->nodeAggregateId,
                 $command->sourceOrigin
             );
+            if ($command->precedingSiblingNodeAggregateId) {
+                $this->requireNodeAggregateToBeSibling(
+                    $contentGraph,
+                    $command->nodeAggregateId,
+                    $command->precedingSiblingNodeAggregateId,
+                    $command->targetOrigin->toDimensionSpacePoint(),
+                );
+            }
             if ($command->succeedingSiblingNodeAggregateId) {
                 $this->requireNodeAggregateToBeSibling(
                     $contentGraph,
@@ -113,6 +132,9 @@ trait NodeVariation
             $contentGraph,
             $command->sourceOrigin,
             $command->targetOrigin,
+            $command->parentNodeAggregateId,
+            $command->precedingSiblingNodeAggregateId,
+            $command->succeedingSiblingNodeAggregateId,
             $nodeAggregate
         );
 

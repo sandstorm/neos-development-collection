@@ -44,6 +44,7 @@ final readonly class NodeSpecializationVariantWasCreated implements
         public NodeAggregateId $nodeAggregateId,
         public OriginDimensionSpacePoint $sourceOrigin,
         public OriginDimensionSpacePoint $specializationOrigin,
+        public ?NodeAggregateId $parentNodeAggregateId,
         public InterdimensionalSiblings $specializationSiblings,
     ) {
     }
@@ -71,6 +72,7 @@ final readonly class NodeSpecializationVariantWasCreated implements
             $this->nodeAggregateId,
             $this->sourceOrigin,
             $this->specializationOrigin,
+            $this->parentNodeAggregateId,
             $this->specializationSiblings,
         );
     }
@@ -83,6 +85,9 @@ final readonly class NodeSpecializationVariantWasCreated implements
             NodeAggregateId::fromString($values['nodeAggregateId']),
             OriginDimensionSpacePoint::fromArray($values['sourceOrigin']),
             OriginDimensionSpacePoint::fromArray($values['specializationOrigin']),
+            ($parentNodeAggregateId = $values['parentNodeAggregateId'] ?? null)
+                ? NodeAggregateId::fromString($parentNodeAggregateId)
+                : null,
             array_key_exists('specializationSiblings', $values)
                 ? InterdimensionalSiblings::fromArray($values['specializationSiblings'])
                 : InterdimensionalSiblings::fromDimensionSpacePointSetWithoutSucceedingSiblings(

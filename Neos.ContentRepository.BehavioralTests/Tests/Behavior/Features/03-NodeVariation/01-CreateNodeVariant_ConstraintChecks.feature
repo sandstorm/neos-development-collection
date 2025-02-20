@@ -65,7 +65,7 @@ Feature: Create node variant
       | targetOrigin    | {"market":"DE", "language":"de"}  |
     Then the last command should have thrown an exception of type "WorkspaceDoesNotExist"
 
-  Scenario: Try to create a variant in a workspace that does not exist
+  Scenario: Try to create a variant in a workspace whose content stream is closed
     When the event ContentStreamWasClosed was published with payload:
       | Key             | Value           |
       | contentStreamId | "cs-identifier" |
@@ -149,7 +149,7 @@ Feature: Create node variant
       | parentNodeAggregateId | "i-do-not-exist"                  |
     Then the last command should have thrown an exception of type "NodeAggregateCurrentlyDoesNotExist"
 
-  Scenario: Try to create a variant as a sibling of a non-existing succeeding sibling
+  Scenario: Try to create a variant before a non-existing succeeding sibling
     When the command CreateNodeVariant is executed with payload and exceptions are caught:
       | Key                              | Value                             |
       | nodeAggregateId                  | "polyglot-mc-nodeface"            |
@@ -176,6 +176,35 @@ Feature: Create node variant
       | sourceOrigin                     | {"market":"DE", "language":"de"}  |
       | targetOrigin                     | {"market":"DE", "language":"gsw"} |
       | succeedingSiblingNodeAggregateId | "nody-mc-nodeface"                |
+    Then the last command should have thrown an exception of type "NodeAggregateIsNoSibling"
+
+  Scenario: Try to create a variant after a non-existing succeeding sibling
+    When the command CreateNodeVariant is executed with payload and exceptions are caught:
+      | Key                              | Value                             |
+      | nodeAggregateId                  | "polyglot-mc-nodeface"            |
+      | sourceOrigin                     | {"market":"DE", "language":"de"}  |
+      | targetOrigin                     | {"market":"DE", "language":"gsw"} |
+      | parentNodeAggregateId            | "nody-mc-nodeface"                |
+      | precedingSiblingNodeAggregateId  | "i-do-not-exist"                  |
+    Then the last command should have thrown an exception of type "NodeAggregateCurrentlyDoesNotExist"
+
+  Scenario: Try to create a variant after a sibling which is not a child of the new parent
+    When the command CreateNodeVariant is executed with payload and exceptions are caught:
+      | Key                              | Value                             |
+      | nodeAggregateId                  | "polyglot-mc-nodeface"            |
+      | sourceOrigin                     | {"market":"DE", "language":"de"}  |
+      | targetOrigin                     | {"market":"DE", "language":"gsw"} |
+      | parentNodeAggregateId            | "nody-mc-nodeface"                |
+      | precedingSiblingNodeAggregateId | "sir-david-nodenborough"          |
+    Then the last command should have thrown an exception of type "NodeAggregateIsNoChild"
+
+  Scenario: Try to create a variant after a sibling which is none (no new parent case)
+    When the command CreateNodeVariant is executed with payload and exceptions are caught:
+      | Key                              | Value                             |
+      | nodeAggregateId                  | "polyglot-mc-nodeface"            |
+      | sourceOrigin                     | {"market":"DE", "language":"de"}  |
+      | targetOrigin                     | {"market":"DE", "language":"gsw"} |
+      | precedingSiblingNodeAggregateId  | "nody-mc-nodeface"                |
     Then the last command should have thrown an exception of type "NodeAggregateIsNoSibling"
 
   Scenario: Try to create a variant as a child of a different parent aggregate that does not cover the requested DSP
