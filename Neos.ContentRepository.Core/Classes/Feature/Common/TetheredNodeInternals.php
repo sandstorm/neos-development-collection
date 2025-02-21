@@ -147,7 +147,7 @@ trait TetheredNodeInternals
             }
 
             $tetheredNodeType = $this->nodeTypeManager->getNodeType($tetheredNodeTypeDefinition->nodeTypeName);
-            foreach ($tetheredNodeType->tetheredNodeTypeDefinitions as $tetheredChildNodeTypeDefinition) {
+            foreach ($tetheredNodeType?->tetheredNodeTypeDefinitions ?: [] as $tetheredChildNodeTypeDefinition) {
                 $events = $events->withAppendedEvents($this->createEventsForMissingTetheredNode(
                     contentGraph: $contentGraph,
                     parentNodeAggregateId: $tetheredNodeAggregateId,
