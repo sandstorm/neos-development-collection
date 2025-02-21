@@ -5,7 +5,7 @@ Neos.Workspace.Ui.WorkspaceController.rebase = Neos.Fusion:Component {
   workspaceTitle = ${workspaceTitle}
   /// string
   baseWorkspaceTitle = ${baseWorkspaceTitle}
-  /// array
+  /// array{error: string, affectedNode: string, event: string, eventPayload: string}
   conflictInformation = ${conflictInformation}
 
 
