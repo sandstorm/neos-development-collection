@@ -184,4 +184,16 @@ class MigrateEventsCommandController extends CommandController
         $eventMigrationService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, $this->eventMigrationServiceFactory);
         $eventMigrationService->migrateCheckpointsToSubscriptions($this->outputLine(...));
     }
+
+    /**
+     * TODO Explain PLZ
+     *
+     * @param string $contentRepository Identifier of the Content Repository to migrate
+     */
+    public function migrateDuplicateNodeVariationsCommand(string $contentRepository = 'default'): void
+    {
+        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
+        $eventMigrationService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, $this->eventMigrationServiceFactory);
+        $eventMigrationService->migrateDuplicateNodeVariations($this->outputLine(...));
+    }
 }
