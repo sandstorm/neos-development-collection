@@ -52,14 +52,6 @@ final readonly class Events implements \IteratorAggregate, \Countable
         return new self(...$events);
     }
 
-    /**
-     * @return static
-     */
-    public static function createEmpty(): self
-    {
-        return new self();
-    }
-
     public function getIterator(): \Traversable
     {
         yield from $this->items;
@@ -73,6 +65,11 @@ final readonly class Events implements \IteratorAggregate, \Countable
     public function map(\Closure $callback): array
     {
         return array_map($callback, $this->items);
+    }
+
+    public function toInnerEvents(): PublishedEvents
+    {
+        return PublishedEvents::fromArray($this->map(fn (EventInterface|DecoratedEvent $event) => $event instanceof DecoratedEvent ? $event->innerEvent : $event));
     }
 
     public function count(): int

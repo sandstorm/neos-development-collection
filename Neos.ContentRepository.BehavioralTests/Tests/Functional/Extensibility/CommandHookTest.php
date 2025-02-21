@@ -8,8 +8,7 @@ use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\CommandHandler\Commands;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
-use Neos\ContentRepository\Core\EventStore\DecoratedEvent;
-use Neos\ContentRepository\Core\EventStore\Events;
+use Neos\ContentRepository\Core\EventStore\PublishedEvents;
 use Neos\ContentRepository\Core\Feature\ContentStreamClosing\Event\ContentStreamWasClosed;
 use Neos\ContentRepository\Core\Feature\ContentStreamCreation\Event\ContentStreamWasCreated;
 use Neos\ContentRepository\Core\Feature\ContentStreamForking\Event\ContentStreamWasForked;
@@ -37,7 +36,7 @@ class CommandHookTest extends AbstractExtensibilityTestCase
     public function testCommandHookReceivesCommandAndEvents(): void
     {
         $command = CreateRootWorkspace::create(WorkspaceName::forLive(), ContentStreamId::fromString('cs-live'));
-        $expectedEvents = Events::fromArray([
+        $expectedEvents = PublishedEvents::fromArray([
             new ContentStreamWasCreated(ContentStreamId::fromString('cs-live')),
             new RootWorkspaceWasCreated(WorkspaceName::forLive(), ContentStreamId::fromString('cs-live'))
         ]);
@@ -79,12 +78,12 @@ class CommandHookTest extends AbstractExtensibilityTestCase
             self::assertEquals($testCase['command'], $command, sprintf('The command at step %s doesnt match as expected', $caseIndex));
             return $testCase['command'];
         });
-        $this->fakeCommandHook->expects($i = self::exactly(count($testCases)))->method('onAfterHandle')->willReturnCallback(function (CommandInterface $command, Events $events) use ($i, $testCases) {
+        $this->fakeCommandHook->expects($i = self::exactly(count($testCases)))->method('onAfterHandle')->willReturnCallback(function (CommandInterface $command, PublishedEvents $events) use ($i, $testCases) {
             $caseIndex = $i->getInvocationCount() - 1;
 
             $testCase = $testCases[$caseIndex];
             self::assertEquals($testCase['command'], $command, sprintf('The command at step %s doesnt match as expected', $caseIndex));
-            self::assertEquals($testCase['eventClassNames'], $events->map(fn ($event) => DecoratedEvent::create($event)->innerEvent::class), sprintf('The events at step %s doesnt match as expected', $caseIndex));
+            self::assertEquals($testCase['eventClassNames'], $events->map(fn ($event) => $event::class), sprintf('The events at step %s doesnt match as expected', $caseIndex));
             return Commands::createEmpty();
         });
 
@@ -101,7 +100,7 @@ class CommandHookTest extends AbstractExtensibilityTestCase
         $command = CreateRootWorkspace::create(WorkspaceName::forLive(), ContentStreamId::fromString('cs-live'));
 
         $replacedCommand = CreateRootWorkspace::create(WorkspaceName::fromString('replaced'), ContentStreamId::fromString('cs-replaced'));
-        $expectedEvents = Events::fromArray([
+        $expectedEvents = PublishedEvents::fromArray([
             new ContentStreamWasCreated(ContentStreamId::fromString('cs-replaced')),
             new RootWorkspaceWasCreated(WorkspaceName::fromString('replaced'), ContentStreamId::fromString('cs-replaced'))
         ]);
@@ -121,10 +120,10 @@ class CommandHookTest extends AbstractExtensibilityTestCase
     public function testIssueFollowupCommandsSimpleCase(): void
     {
         $this->fakeCommandHook->expects(self::exactly(4))->method('onBeforeHandle')->willReturnArgument(0);
-        $this->fakeCommandHook->expects($i = self::exactly(4))->method('onAfterHandle')->willReturnCallback(function (CommandInterface $command, Events $events) use ($i) {
+        $this->fakeCommandHook->expects($i = self::exactly(4))->method('onAfterHandle')->willReturnCallback(function (CommandInterface $command, PublishedEvents $events) use ($i) {
             if ($i->getInvocationCount() === 3) {
                 self::assertInstanceOf(CreateNodeAggregateWithNode::class, $command);
-                self::assertEquals([NodeAggregateWithNodeWasCreated::class], $events->map(fn ($event) => DecoratedEvent::create($event)->innerEvent::class));
+                self::assertEquals([NodeAggregateWithNodeWasCreated::class], $events->map(fn ($event) => $event::class));
 
                 $subgraph = $this->contentRepository->getContentGraph(WorkspaceName::forLive())->getSubgraph(DimensionSpacePoint::createWithoutDimensions(), VisibilityConstraints::withoutRestrictions());
                 $node = $subgraph->findNodeById(NodeAggregateId::fromString('document-node'));
@@ -171,10 +170,10 @@ class CommandHookTest extends AbstractExtensibilityTestCase
     public function testIssueFollowupCommandOnPublish(): void
     {
         $this->fakeCommandHook->expects(self::exactly(6))->method('onBeforeHandle')->willReturnArgument(0);
-        $this->fakeCommandHook->expects($i = self::exactly(6))->method('onAfterHandle')->willReturnCallback(function (CommandInterface $command, Events $events) use ($i) {
+        $this->fakeCommandHook->expects($i = self::exactly(6))->method('onAfterHandle')->willReturnCallback(function (CommandInterface $command, PublishedEvents $events) use ($i) {
             if ($i->getInvocationCount() === 5) {
                 self::assertInstanceOf(PublishWorkspace::class, $command);
-                self::assertContains(NodeAggregateWithNodeWasCreated::class, $events->map(fn ($event) => DecoratedEvent::create($event)->innerEvent::class));
+                self::assertContains(NodeAggregateWithNodeWasCreated::class, $events->map(fn ($event) => $event::class));
 
                 $subgraph = $this->contentRepository->getContentGraph(WorkspaceName::forLive())->getSubgraph(DimensionSpacePoint::createWithoutDimensions(), VisibilityConstraints::withoutRestrictions());
                 $node = $subgraph->findNodeById(NodeAggregateId::fromString('document-node'));

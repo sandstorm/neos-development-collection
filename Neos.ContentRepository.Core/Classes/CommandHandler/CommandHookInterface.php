@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\CommandHandler;
 
 use Neos\ContentRepository\Core\ContentRepository;
-use Neos\ContentRepository\Core\EventStore\Events;
+use Neos\ContentRepository\Core\EventStore\PublishedEvents;
 
 /**
  * Contract for a hook that is invoked just before any command is processed via {@see ContentRepository::handle()}
@@ -26,9 +26,8 @@ interface CommandHookInterface
 
     /**
      * @param CommandInterface $command The command that was just handled
-     * TODO Events is not API! And contains the Decorated Event which is not api either ... also the time stamps etc might be cool to have.
-     * @param Events $events The events that resulted from the handled command
+     * @param PublishedEvents $events The events that resulted from the handled command
      * @return Commands This hook must return Commands that will be handled after the incoming $command. The Commands can be empty.
      */
-    public function onAfterHandle(CommandInterface $command, Events $events): Commands;
+    public function onAfterHandle(CommandInterface $command, PublishedEvents $events): Commands;
 }
