@@ -17,7 +17,7 @@ prototype(Neos.Workspace.Ui:Component.Modal.Rebase) < prototype(Neos.Fusion:Comp
       format = 'htmx'
       arguments {
         workspaceName = ${workspaceName}
-        conflictCount = ${Array.length(conflictInformation)}
+        conflictCount = ${Array.length(props.conflictInformation)}
       }
     }
   }

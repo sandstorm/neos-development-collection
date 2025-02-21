@@ -14,7 +14,7 @@ Neos.Workspace.Ui.WorkspaceController.rebase = Neos.Fusion:Component {
       workspaceName={props.workspaceName}
       workspaceTitle={props.workspaceTitle}
       baseWorkspaceTitle={props.baseWorkspaceTitle}
-      conflictInformation={conflictInformation}
+      conflictInformation={props.conflictInformation}
     />
   `
 }

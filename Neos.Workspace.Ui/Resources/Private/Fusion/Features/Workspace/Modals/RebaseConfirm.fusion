@@ -15,7 +15,7 @@ prototype(Neos.Workspace.Ui:Component.Modal.RebaseConfirm) < prototype(Neos.Fusi
       action = 'rebase'
       format = 'htmx'
       arguments {
-        workspaceName = ${workspaceName}
+        workspaceName = ${props.workspaceName}
         force = true
       }
     }
