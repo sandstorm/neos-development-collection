@@ -78,9 +78,9 @@ trait StructureAdjustmentsTrait
             if (!isset($row['Type']) || !isset($row['nodeAggregateId'])) {
                 Assert::fail('Type and nodeAggregateId must be specified in assertion!');
             }
-            $adjustment = $this->findAdjustmentsBasedOnTypeAndNodeAggregateId($actualAdjustments, $row['Type'], $row['nodeAggregateId']);
+            $adjustment = $this->findAdjustmentsBasedOnTypeAndNodeAggregateIdAndDimensionSpacePoint($actualAdjustments, $row['Type'], $row['nodeAggregateId'], $row['dimensionSpacePoint'] ?? null);
             foreach ($row as $k => $v) {
-                if (in_array($k, ['Type', 'nodeAggregateId'])) {
+                if (in_array($k, ['Type', 'nodeAggregateId', 'dimensionSpacePoint'])) {
                     continue;
                 }
 
@@ -89,14 +89,25 @@ trait StructureAdjustmentsTrait
         }
     }
 
-    private function findAdjustmentsBasedOnTypeAndNodeAggregateId(array $actualAdjustments, string $type, string $nodeAggregateId): StructureAdjustment
-    {
+    private function findAdjustmentsBasedOnTypeAndNodeAggregateIdAndDimensionSpacePoint(
+        array $actualAdjustments,
+        string $type,
+        string $nodeAggregateId,
+        ?string $dimensionSpacePointAsJSON
+    ): StructureAdjustment {
         foreach ($actualAdjustments as $adjustment) {
             assert($adjustment instanceof StructureAdjustment);
-            if ($adjustment->getType() === $type && $adjustment->getArguments()['nodeAggregateId'] === $nodeAggregateId) {
+            if (
+                $adjustment->getType() === $type
+                && $adjustment->getArguments()['nodeAggregateId'] === $nodeAggregateId
+                && ($dimensionSpacePointAsJSON === null || $adjustment->getArguments()['dimensionSpacePoint'] === $dimensionSpacePointAsJSON)
+            ) {
                 return $adjustment;
             }
         }
-        Assert::fail('Adjustment not found for type "' . $type . '" and node aggregate id "' . $nodeAggregateId . '"');
+        Assert::fail(
+            'Adjustment not found for type "' . $type . '", node aggregate id "' . $nodeAggregateId . '"'
+                ($dimensionSpacePointAsJSON ? ' and dimension space point "' . $dimensionSpacePointAsJSON . '"' : '')
+        );
     }
 }

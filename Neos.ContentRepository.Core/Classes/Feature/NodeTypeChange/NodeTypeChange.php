@@ -115,14 +115,6 @@ trait NodeTypeChange
         NodeAggregateIds $alreadyRemovedNodeAggregates,
     ): Events;
 
-    abstract protected function createEventsForMissingTetheredNode(
-        ContentGraphInterface $contentGraph,
-        NodeAggregate $parentNodeAggregate,
-        OriginDimensionSpacePoint $originDimensionSpacePoint,
-        TetheredNodeTypeDefinition $tetheredNodeTypeDefinition,
-        NodeAggregateId $tetheredNodeAggregateId
-    ): Events;
-
     /**
      * @throws NodeTypeNotFound
      * @throws NodeConstraintException

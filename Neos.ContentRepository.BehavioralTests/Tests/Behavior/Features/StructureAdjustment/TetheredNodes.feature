@@ -145,11 +145,15 @@ Feature: Tethered Nodes integrity violations
 
     When I am in workspace "live" and dimension space point {"market":"CH", "language":"gsw"}
     And I get the node at path "document/some-new-child"
-    And I expect this node to have the following properties:
+    Then I expect this node to have the following properties:
       | Key | Value                |
       | foo | "my default applied" |
-    And I get the node at path "tethered-node"
-    And I expect this node to have the following properties:
+
+    When I get the node at path "document/some-new-child/tethered-leaf"
+    Then I expect this node to be of type "Neos.ContentRepository.Testing:TetheredLeaf"
+
+    When I get the node at path "tethered-node"
+    Then I expect this node to have the following properties:
       | Key | Value                |
       | foo | "my default applied" |
 
@@ -173,9 +177,9 @@ Feature: Tethered Nodes integrity violations
     'Neos.ContentRepository.Testing:TetheredLeaf': []
     """
     When I adjust the node structure for node type "Neos.ContentRepository.Testing:Document"
-    Then I expect exactly 8 events to be published on stream "ContentStream:cs-identifier"
+    Then I expect exactly 9 events to be published on stream "ContentStream:cs-identifier"
     When I adjust the node structure for node type "Neos.ContentRepository.Testing:Document"
-    Then I expect exactly 8 events to be published on stream "ContentStream:cs-identifier"
+    Then I expect exactly 9 events to be published on stream "ContentStream:cs-identifier"
 
   Scenario: Adjusting the schema removing a tethered node leads to a DisallowedTetheredNode integrity violation (which can be fixed)
     Given I change the node types in content repository "default" to:
