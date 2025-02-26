@@ -122,6 +122,18 @@ trait NodeTraversalTrait
     }
 
     /**
+     * @When I execute the findNodesByIds query for node aggregate id :entryNodeIdsSerialized I expect the nodes :expectedNodeIdsSerialized to be returned
+     */
+    public function iExecuteTheFindNodeByIdsQueryIExpectTheFollowingNodes(string $entryNodeIdsSerialized, string $expectedNodeIdsSerialized): void
+    {
+        $entryNodeAggregateIds = NodeAggregateIds::fromArray(explode(',', $entryNodeIdsSerialized));
+        $expectedNodeAggregateIds = NodeAggregateIds::fromArray(explode(',', $expectedNodeIdsSerialized));
+
+        $actualNodes = $this->getCurrentSubgraph()->findNodesByIds($entryNodeAggregateIds);
+        Assert::assertEquals($actualNodes->toNodeAggregateIds(), $expectedNodeAggregateIds);
+    }
+
+    /**
      * @When I execute the findNodeAggregateById query for node aggregate id :entryNodeIdSerialized I expect the following node aggregates to be returned:
      */
     public function iExecuteTheFindNodeAggregateByIdQueryIExpectTheFollowingNodes(string $entryNodeIdSerialized, TableNode $expectedNodes): void

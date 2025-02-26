@@ -88,6 +88,7 @@ interface ContentGraphInterface extends ProjectionStateInterface
 
     /**
      * @api
+     * @return NodeAggregates the node aggregates that exist in this graph. The order is not defined.
      */
     public function findNodeAggregatesByIds(
         NodeAggregateIds $nodeAggregateIds

@@ -37,6 +37,7 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\Subtree;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
@@ -146,6 +147,11 @@ final readonly class ContentSubgraphWithRuntimeCaches implements ContentSubgraph
             $cache->add($nodeAggregateId, $node);
         }
         return $node;
+    }
+
+    public function findNodesByIds(NodeAggregateIds $nodeAggregateIds): Nodes
+    {
+        return $this->wrappedContentSubgraph->findNodesByIds($nodeAggregateIds);
     }
 
     public function findRootNodeByType(NodeTypeName $nodeTypeName): ?Node
