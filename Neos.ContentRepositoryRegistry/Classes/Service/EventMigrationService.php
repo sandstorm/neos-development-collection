@@ -1021,7 +1021,9 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
 
             if (array_key_exists($payloadHash, $legitVariantCreationsPerNodeAggregateIdAndDimensions)) {
                 if (
+                    // structure adjustments started to have a correlation id like StructureAdjustment_123
                     str_starts_with($eventEnvelope->event->correlationId?->value ?? '', 'StructureAdjustment_')
+                    // before that they can most likely be identified by having NO metadata
                     || $eventEnvelope->event->metadata === null
                 ) {
                     $eventsToDrop[] = $eventEnvelope->sequenceNumber->value;
@@ -1054,7 +1056,7 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
         $this->connection->commit();
 
         $outputFn();
-        $outputFn(sprintf('Migration applied to %s events. Please replay the projections `./flow cr:projectionReplayAll`', count($this->eventsModified)));
+        $outputFn(sprintf('Migration applied to %s events. Please replay the projections `./flow subscription:replayall`', count($eventsToDrop)));
     }
 
     /** ------------------------ */
