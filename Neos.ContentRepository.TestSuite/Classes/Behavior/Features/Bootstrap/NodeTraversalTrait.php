@@ -16,6 +16,8 @@ namespace Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap;
 
 use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
+use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
+use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
 use Neos\ContentRepository\Core\Projection\ContentGraph\AbsoluteNodePath;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\CountAncestorNodesFilter;
@@ -33,6 +35,8 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindReferencesFil
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindSubtreeFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindSucceedingSiblingNodesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
+use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregate;
+use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregates;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodePath;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Reference;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Subtree;
@@ -114,6 +118,18 @@ trait NodeTraversalTrait
 
         $actualNode = $this->getCurrentSubgraph()->findNodeById($nodeAggregateId);
         Assert::assertSame($actualNode?->aggregateId->value, $expectedNodeAggregateId?->value);
+    }
+
+    /**
+     * @When I execute the findNodeAggregateById query for node aggregate id :entryNodeIdSerialized I expect the following node aggregates to be returned:
+     */
+    public function iExecuteTheFindNodeAggregateByIdQueryIExpectTheFollowingNodes(string $entryNodeIdSerialized, TableNode $expectedNodes): void
+    {
+        $entryNodeAggregateId = NodeAggregateId::fromString($entryNodeIdSerialized);
+        $contentGraph = $this->currentContentRepository->getContentGraph($this->currentWorkspaceName);
+        $actualNodeAggregates = $contentGraph->findNodeAggregateById($entryNodeAggregateId);
+
+        self::assertNodeAggregatesEqualTable($expectedNodes->getHash(), NodeAggregates::fromArray([$actualNodeAggregates]), 'findNodeAggregateById returned an unexpected result');
     }
 
     /**
@@ -360,5 +376,28 @@ trait NodeTraversalTrait
 
         $actualNode = $this->getCurrentSubgraph()->findRootNodeByType(NodeTypeName::fromString($serializedNodeTypeName));
         Assert::assertSame($actualNode?->aggregateId->value, $expectedNodeAggregateId?->value);
+    }
+
+    private static function assertNodeAggregatesEqualTable(array $expectedNodeAggregates, NodeAggregates $actualNodeAggregates, string $message): void
+    {
+        $actualNodeAggregatesTable = array_map(static fn (NodeAggregate $nodeAggregate) => [
+            'nodeAggregateId' => $nodeAggregate->nodeAggregateId->value,
+            'nodeTypeName' => $nodeAggregate->nodeTypeName->value,
+            'coveredDimensionSpacePoints' => $nodeAggregate->coveredDimensionSpacePoints->toJson(),
+            'occupiedDimensionSpacePoints' => $nodeAggregate->occupiedDimensionSpacePoints->toJson(),
+            'explicitlyDisabledDimensions' => $nodeAggregate->getDimensionSpacePointsTaggedWith(SubtreeTag::disabled())->toJson(),
+        ], iterator_to_array($actualNodeAggregates));
+
+        $expectedNodeAggregatesWithNormalisedJson = array_map(
+            fn (array $row) => [
+                ...$row,
+                'coveredDimensionSpacePoints' => DimensionSpacePointSet::fromJsonString($row['coveredDimensionSpacePoints'])->toJson(),
+                'occupiedDimensionSpacePoints' => DimensionSpacePointSet::fromJsonString($row['occupiedDimensionSpacePoints'])->toJson(),
+                'explicitlyDisabledDimensions' => DimensionSpacePointSet::fromJsonString($row['explicitlyDisabledDimensions'])->toJson(),
+            ],
+            $expectedNodeAggregates
+        );
+
+        Assert::assertSame($expectedNodeAggregatesWithNormalisedJson, $actualNodeAggregatesTable, $message);
     }
 }
