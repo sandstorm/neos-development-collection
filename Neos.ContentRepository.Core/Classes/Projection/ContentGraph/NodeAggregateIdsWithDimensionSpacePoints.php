@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Projection\ContentGraph;
 
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 
 /**
  * @implements \IteratorAggregate<NodeAggregateIdWithDimensionSpacePoints>
@@ -38,11 +39,6 @@ final readonly class NodeAggregateIdsWithDimensionSpacePoints implements \Iterat
         return $this->items[$key->value] ?? null;
     }
 
-    public function has(NodeAggregateId $key): bool
-    {
-        return array_key_exists($key->value, $this->items);
-    }
-
     public function with(NodeAggregateIdWithDimensionSpacePoints $item): self
     {
         $items = $this->items;
@@ -53,6 +49,13 @@ final readonly class NodeAggregateIdsWithDimensionSpacePoints implements \Iterat
     public function merge(self $other): self
     {
         return new self(array_merge($this->items, $other->items));
+    }
+
+    public function toNodeAggregateIds(): NodeAggregateIds
+    {
+        return NodeAggregateIds::fromArray(
+            array_map(fn (NodeAggregateIdWithDimensionSpacePoints $node) => $node->nodeAggregateId, $this->items)
+        );
     }
 
     public function getIterator(): \Traversable
