@@ -75,6 +75,8 @@ trait TetheredNodeInternals
         TetheredNodeTypeDefinition $tetheredNodeTypeDefinition,
         ?NodeAggregateId $tetheredNodeAggregateId
     ): Events {
+        $tetheredNodeAggregateId ??= NodeAggregateId::create();
+
         $childNodeAggregate = $contentGraph->findChildNodeAggregateByName(
             $parentNodeAggregateId,
             $tetheredNodeTypeDefinition->name
@@ -88,7 +90,6 @@ trait TetheredNodeInternals
         if ($childNodeAggregate === null) {
             // there is no tethered child node aggregate yet; let's create it!
             $nodeType = $this->nodeTypeManager->getNodeType($parentNodeTypeName);
-            $tetheredNodeAggregateId = $tetheredNodeAggregateId ?: NodeAggregateId::create();
             if ($nodeType?->isOfType(NodeTypeName::ROOT_NODE_TYPE_NAME)) {
                 $eventsArray = [];
                 // we create in one origin DSP and vary in the others
@@ -128,14 +129,14 @@ trait TetheredNodeInternals
                 $events = Events::fromArray($eventsArray);
             } else {
                 $events = Events::with(
-                    event: new NodeAggregateWithNodeWasCreated(
+                    new NodeAggregateWithNodeWasCreated(
                         workspaceName: $contentGraph->getWorkspaceName(),
                         contentStreamId: $contentGraph->getContentStreamId(),
                         nodeAggregateId: $tetheredNodeAggregateId,
                         nodeTypeName: $tetheredNodeTypeDefinition->nodeTypeName,
                         originDimensionSpacePoint: $originDimensionSpacePoint,
                         succeedingSiblingsForCoverage: InterdimensionalSiblings::fromDimensionSpacePointSetWithoutSucceedingSiblings(
-                            dimensionSpacePointSet: $parentNodeAggregateCoverageByOccupant
+                            $parentNodeAggregateCoverageByOccupant
                         ),
                         parentNodeAggregateId: $parentNodeAggregateId,
                         nodeName: $tetheredNodeTypeDefinition->name,
@@ -147,7 +148,7 @@ trait TetheredNodeInternals
             }
 
             $tetheredNodeType = $this->nodeTypeManager->getNodeType($tetheredNodeTypeDefinition->nodeTypeName);
-            foreach ($tetheredNodeType?->tetheredNodeTypeDefinitions ?: [] as $tetheredChildNodeTypeDefinition) {
+            foreach ($tetheredNodeType?->tetheredNodeTypeDefinitions ?? [] as $tetheredChildNodeTypeDefinition) {
                 $events = $events->withAppendedEvents($this->createEventsForMissingTetheredNode(
                     contentGraph: $contentGraph,
                     parentNodeAggregateId: $tetheredNodeAggregateId,
