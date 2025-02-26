@@ -98,6 +98,9 @@ Feature: Find nodes using the findNodeById query
       | nodeAggregateId | nodeTypeName                        | coveredDimensionSpacePoints           | occupiedDimensionSpacePoints | explicitlyDisabledDimensions |
       | a               | Neos.ContentRepository.Testing:Page | [{"language":"de"},{"language":"ch"}] | [{"language":"de"}]          | []                           |
 
-    When I execute the findNodeAggregateById query for node aggregate id "a2a1" I expect the following node aggregates to be returned:
-      | nodeAggregateId | nodeTypeName                        | coveredDimensionSpacePoints           | occupiedDimensionSpacePoints | explicitlyDisabledDimensions          |
-      | a2a1            | Neos.ContentRepository.Testing:Page | [{"language":"de"},{"language":"ch"}] | [{"language":"de"}]          | [{"language":"de"},{"language":"ch"}] |
+    When I execute the findNodeAggregatesByIds query for node aggregate id "a,a2a1,b,home" I expect the following node aggregates to be returned:
+      | nodeAggregateId | nodeTypeName                            | coveredDimensionSpacePoints           | occupiedDimensionSpacePoints | explicitlyDisabledDimensions          |
+      | b               | Neos.ContentRepository.Testing:Page     | [{"language":"de"},{"language":"ch"}] | [{"language":"de"}]          | []                                    |
+      | a2a1            | Neos.ContentRepository.Testing:Page     | [{"language":"de"},{"language":"ch"}] | [{"language":"de"}]          | [{"language":"de"},{"language":"ch"}] |
+      | a               | Neos.ContentRepository.Testing:Page     | [{"language":"de"},{"language":"ch"}] | [{"language":"de"}]          | []                                    |
+      | home            | Neos.ContentRepository.Testing:Homepage | [{"language":"de"},{"language":"ch"}] | [{"language":"de"}]          | []                                    |

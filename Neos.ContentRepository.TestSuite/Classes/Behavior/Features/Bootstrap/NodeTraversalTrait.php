@@ -41,6 +41,7 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\NodePath;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Reference;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Subtree;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
 use PHPUnit\Framework\Assert;
 
@@ -127,10 +128,23 @@ trait NodeTraversalTrait
     {
         $entryNodeAggregateId = NodeAggregateId::fromString($entryNodeIdSerialized);
         $contentGraph = $this->currentContentRepository->getContentGraph($this->currentWorkspaceName);
-        $actualNodeAggregates = $contentGraph->findNodeAggregateById($entryNodeAggregateId);
+        $actualNodeAggregate = $contentGraph->findNodeAggregateById($entryNodeAggregateId);
 
-        self::assertNodeAggregatesEqualTable($expectedNodes->getHash(), NodeAggregates::fromArray([$actualNodeAggregates]), 'findNodeAggregateById returned an unexpected result');
+        self::assertNodeAggregatesEqualTable($expectedNodes->getHash(), NodeAggregates::fromArray([$actualNodeAggregate]), 'findNodeAggregateById returned an unexpected result');
     }
+
+    /**
+     * @When I execute the findNodeAggregatesByIds query for node aggregate id :entryNodeIdsSerialized I expect the following node aggregates to be returned:
+     */
+    public function iExecuteTheFindNodeAggregatesByIdsByIdsQueryIExpectTheFollowingNodes(string $entryNodeIdsSerialized, TableNode $expectedNodes): void
+    {
+        $entryNodeAggregateIds = NodeAggregateIds::fromArray(explode(',', $entryNodeIdsSerialized));
+        $contentGraph = $this->currentContentRepository->getContentGraph($this->currentWorkspaceName);
+        $actualNodeAggregates = $contentGraph->findNodeAggregatesByIds($entryNodeAggregateIds);
+
+        self::assertNodeAggregatesEqualTable($expectedNodes->getHash(), $actualNodeAggregates, 'findNodeAggregatesByIds returned an unexpected result');
+    }
+
 
     /**
      * @When I execute the findParentNode query for node aggregate id :nodeIdSerialized I expect no node to be returned
