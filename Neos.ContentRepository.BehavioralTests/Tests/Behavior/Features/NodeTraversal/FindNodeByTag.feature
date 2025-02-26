@@ -105,11 +105,11 @@ Feature: Find nodes using the findNodeById query
       | tag                          | "tag1"        |
 
   Scenario:
-    ContentGraph queries
+  ContentGraph queries
 
     When I execute the findNodeAggregatesTaggedWith query for tag "disabled" I expect the following node aggregates to be returned:
       | nodeAggregateId | nodeTypeName                               | coveredDimensionSpacePoints           | occupiedDimensionSpacePoints | explicitlyDisabledDimensions          |
-      | b1              | Neos.ContentRepository.Testing:Page        | [{"language":"ch"}]                   | [{"language":"de"}]          | [{"language":"ch"}]                   |
+      | b1              | Neos.ContentRepository.Testing:Page        | [{"language":"de"},{"language":"ch"}] | [{"language":"de"}]          | [{"language":"ch"}]                   |
       | a2a1            | Neos.ContentRepository.Testing:Page        | [{"language":"de"},{"language":"ch"}] | [{"language":"de"}]          | [{"language":"de"},{"language":"ch"}] |
       | a2a             | Neos.ContentRepository.Testing:SpecialPage | [{"language":"de"},{"language":"ch"}] | [{"language":"de"}]          | [{"language":"de"},{"language":"ch"}] |
 
