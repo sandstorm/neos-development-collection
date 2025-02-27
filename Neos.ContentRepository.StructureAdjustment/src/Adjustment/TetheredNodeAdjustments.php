@@ -84,11 +84,15 @@ class TetheredNodeAdjustments
                             'The tethered child node "' . $tetheredNodeTypeDefinition->name->value . '" is missing.',
                             function () use ($nodeAggregate, $originDimensionSpacePoint, $tetheredNodeTypeDefinition) {
                                 $events = $this->createEventsForMissingTetheredNode(
-                                    $this->contentGraph,
-                                    $nodeAggregate,
-                                    $originDimensionSpacePoint,
-                                    $tetheredNodeTypeDefinition,
-                                    null
+                                    contentGraph: $this->contentGraph,
+                                    parentNodeAggregateId: $nodeAggregate->nodeAggregateId,
+                                    parentNodeTypeName: $nodeAggregate->nodeTypeName,
+                                    parentNodeAggregateCoverageByOccupant: $nodeAggregate->classification->isRoot()
+                                        ? $nodeAggregate->coveredDimensionSpacePoints
+                                        : $nodeAggregate->getCoverageByOccupant($originDimensionSpacePoint),
+                                    originDimensionSpacePoint: $originDimensionSpacePoint,
+                                    tetheredNodeTypeDefinition: $tetheredNodeTypeDefinition,
+                                    tetheredNodeAggregateId: null
                                 );
 
                                 $streamName = ContentStreamEventStreamName::fromContentStreamId(

@@ -22,6 +22,8 @@ use Neos\ContentRepository\Core\SharedModel\Node\NodeVariantSelectionStrategy;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 
 /**
+ * The "Remove node aggregate" command
+ *
  * @api commands are the write-API of the ContentRepository
  */
 final readonly class RemoveNodeAggregate implements

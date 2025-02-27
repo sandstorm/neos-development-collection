@@ -19,8 +19,11 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\NodeMigration\Command\ExecuteMigration;
 use Neos\ContentRepository\NodeMigration\Command\MigrationConfiguration;
+use Neos\ContentRepository\NodeMigration\Filter\FilterFactoryInterface;
 use Neos\ContentRepository\NodeMigration\MigrationException;
 use Neos\ContentRepository\NodeMigration\NodeMigrationServiceFactory;
+use Neos\ContentRepository\NodeMigration\Transformation\PropertyConverterAwareTransformationFactoryInterface;
+use Neos\ContentRepository\NodeMigration\Transformation\TransformationFactoryInterface;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\ContentRepositoryRegistry\Migration\Factory\MigrationFactory;
 use Neos\ContentRepositoryRegistry\Service\NodeMigrationGeneratorService;
@@ -37,6 +40,18 @@ use Neos\Utility\Exception\FilesException;
 #[Flow\Scope('singleton')]
 class NodeMigrationCommandController extends CommandController
 {
+    /**
+     * @var array<string,class-string<FilterFactoryInterface>>
+     */
+    #[Flow\InjectConfiguration('nodeMigration.filterFactories')]
+    protected array $filterFactoriesConfiguration;
+
+    /**
+     * @var array<string,class-string<TransformationFactoryInterface|PropertyConverterAwareTransformationFactoryInterface>>
+     */
+    #[Flow\InjectConfiguration('nodeMigration.transformationFactories')]
+    protected array $transformationFactoriesConfiguration;
+
     public function __construct(
         private readonly MigrationFactory $migrationFactory,
         private readonly ContentRepositoryRegistry $contentRepositoryRegistry,
@@ -75,7 +90,10 @@ class NodeMigrationCommandController extends CommandController
                 $this->quit(1);
             }
 
-            $nodeMigrationService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new NodeMigrationServiceFactory());
+            $nodeMigrationService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new NodeMigrationServiceFactory(
+                filterFactories: $this->filterFactoriesConfiguration,
+                transformationFactories: $this->transformationFactoriesConfiguration
+            ));
             $nodeMigrationService->executeMigration(
                 new ExecuteMigration(
                     $migrationConfiguration,
