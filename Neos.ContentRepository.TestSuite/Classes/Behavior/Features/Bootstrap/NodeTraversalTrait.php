@@ -352,14 +352,14 @@ trait NodeTraversalTrait
     }
 
     /**
-     * @When I execute the findNodeAggregatesTaggedWith query for tag :subtreeTag I expect the following node aggregates to be returned:
+     * @When I execute the findNodeAggregatesTaggedBy query for tag :subtreeTag I expect the following node aggregates to be returned:
      */
-    public function iExecuteTheFindNodeAggregatesTaggedWithQueryIExpectTheFollowingNodes(string $subtreeTag, TableNode $expectedNodes): void
+    public function iExecuteTheFindNodeAggregatesTaggedByQueryIExpectTheFollowingNodes(string $subtreeTag, TableNode $expectedNodes): void
     {
         $contentGraph = $this->currentContentRepository->getContentGraph($this->currentWorkspaceName);
-        $actualNodeAggregates = $contentGraph->findNodeAggregatesTaggedWith(SubtreeTag::fromString($subtreeTag));
+        $actualNodeAggregates = $contentGraph->findNodeAggregatesTaggedBy(SubtreeTag::fromString($subtreeTag));
 
-        self::assertNodeAggregatesEqualTable($expectedNodes->getHash(), $actualNodeAggregates, 'findNodeAggregatesTaggedWith returned an unexpected result');
+        self::assertNodeAggregatesEqualTable($expectedNodes->getHash(), $actualNodeAggregates, 'findNodeAggregatesTaggedBy returned an unexpected result');
     }
 
     /**

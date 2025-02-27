@@ -155,7 +155,7 @@ interface ContentGraphInterface extends ProjectionStateInterface
     /**
      * @internal experimental api, the order of the returned node aggregates is undefined and does not follow the hierarchy
      */
-    public function findNodeAggregatesTaggedWith(SubtreeTag $subtreeTag): NodeAggregates;
+    public function findNodeAggregatesTaggedBy(SubtreeTag $subtreeTag): NodeAggregates;
 
     /** @internal The content stream id where the workspace name points to for this instance */
     public function getContentStreamId(): ContentStreamId;
