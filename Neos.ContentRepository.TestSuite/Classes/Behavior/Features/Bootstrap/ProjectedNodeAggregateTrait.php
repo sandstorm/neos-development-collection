@@ -20,6 +20,7 @@ use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregate;
+use Neos\ContentRepository\Core\Projection\ContentGraph\NodeTags;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregatesTypeIsAmbiguous;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateClassification;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
@@ -91,7 +92,7 @@ trait ProjectedNodeAggregateTrait
     {
         $expectedDisabledDimensionSpacePoints = DimensionSpacePointSet::fromJsonString($serializedExpectedDisabledDimensionSpacePoints);
         $this->assertOnCurrentNodeAggregate(function (NodeAggregate $nodeAggregate) use ($expectedDisabledDimensionSpacePoints) {
-            $actualDisabledDimensionSpacePoints = $nodeAggregate->getDimensionSpacePointsTaggedWith(SubtreeTag::disabled());
+            $actualDisabledDimensionSpacePoints = $nodeAggregate->filterCoveredDimensionsByNodeTags(fn (NodeTags $nodeTags) => $nodeTags->withoutInherited()->contain(SubtreeTag::disabled()));
             Assert::assertEquals(
                 $expectedDisabledDimensionSpacePoints,
                 $actualDisabledDimensionSpacePoints,

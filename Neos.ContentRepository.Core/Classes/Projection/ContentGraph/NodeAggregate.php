@@ -182,17 +182,6 @@ final readonly class NodeAggregate
     }
 
     /**
-     * Returns the dimension space points this aggregate is *explicitly* tagged in with the specified $subtreeTag
-     * NOTE: This won't respect inherited subtree tags!
-     *
-     * @internal This is a low level concept that is not meant to be used outside the core or tests
-     */
-    public function getDimensionSpacePointsTaggedWith(SubtreeTag $subtreeTag): DimensionSpacePointSet
-    {
-        return $this->filterCoveredDimensionsByNodeTags(fn (NodeTags $nodeTags) => $nodeTags->withoutInherited()->contain($subtreeTag));
-    }
-
-    /**
      * Get the dimensions this node aggregate is tagged according to the filter function
      *
      * Implementation note:
