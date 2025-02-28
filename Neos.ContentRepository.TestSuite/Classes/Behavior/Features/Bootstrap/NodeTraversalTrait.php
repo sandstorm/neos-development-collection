@@ -41,6 +41,7 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\NodePath;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Reference;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Subtree;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
 use PHPUnit\Framework\Assert;
 
@@ -119,6 +120,43 @@ trait NodeTraversalTrait
         $actualNode = $this->getCurrentSubgraph()->findNodeById($nodeAggregateId);
         Assert::assertSame($actualNode?->aggregateId->value, $expectedNodeAggregateId?->value);
     }
+
+    /**
+     * @When I execute the findNodesByIds query for node aggregate id :entryNodeIdsSerialized I expect the nodes :expectedNodeIdsSerialized to be returned
+     */
+    public function iExecuteTheFindNodeByIdsQueryIExpectTheFollowingNodes(string $entryNodeIdsSerialized, string $expectedNodeIdsSerialized): void
+    {
+        $entryNodeAggregateIds = NodeAggregateIds::fromArray(explode(',', $entryNodeIdsSerialized));
+        $expectedNodeAggregateIds = NodeAggregateIds::fromArray(explode(',', $expectedNodeIdsSerialized));
+
+        $actualNodes = $this->getCurrentSubgraph()->findNodesByIds($entryNodeAggregateIds);
+        Assert::assertEquals($actualNodes->toNodeAggregateIds(), $expectedNodeAggregateIds);
+    }
+
+    /**
+     * @When I execute the findNodeAggregateById query for node aggregate id :entryNodeIdSerialized I expect the following node aggregates to be returned:
+     */
+    public function iExecuteTheFindNodeAggregateByIdQueryIExpectTheFollowingNodes(string $entryNodeIdSerialized, TableNode $expectedNodes): void
+    {
+        $entryNodeAggregateId = NodeAggregateId::fromString($entryNodeIdSerialized);
+        $contentGraph = $this->currentContentRepository->getContentGraph($this->currentWorkspaceName);
+        $actualNodeAggregate = $contentGraph->findNodeAggregateById($entryNodeAggregateId);
+
+        self::assertNodeAggregatesEqualTable($expectedNodes->getHash(), NodeAggregates::fromArray([$actualNodeAggregate]), 'findNodeAggregateById returned an unexpected result');
+    }
+
+    /**
+     * @When I execute the findNodeAggregatesByIds query for node aggregate id :entryNodeIdsSerialized I expect the following node aggregates to be returned:
+     */
+    public function iExecuteTheFindNodeAggregatesByIdsByIdsQueryIExpectTheFollowingNodes(string $entryNodeIdsSerialized, TableNode $expectedNodes): void
+    {
+        $entryNodeAggregateIds = NodeAggregateIds::fromArray(explode(',', $entryNodeIdsSerialized));
+        $contentGraph = $this->currentContentRepository->getContentGraph($this->currentWorkspaceName);
+        $actualNodeAggregates = $contentGraph->findNodeAggregatesByIds($entryNodeAggregateIds);
+
+        self::assertNodeAggregatesEqualTable($expectedNodes->getHash(), $actualNodeAggregates, 'findNodeAggregatesByIds returned an unexpected result');
+    }
+
 
     /**
      * @When I execute the findParentNode query for node aggregate id :nodeIdSerialized I expect no node to be returned

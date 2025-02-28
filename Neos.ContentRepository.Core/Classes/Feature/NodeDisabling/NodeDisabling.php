@@ -29,7 +29,6 @@ use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Event\SubtreeWasTagged;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Event\SubtreeWasUntagged;
 use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamDoesNotExistYet;
-use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregatesTypeIsAmbiguous;
 
 /**
  * @internal implementation detail of Command Handlers
@@ -97,7 +96,6 @@ trait NodeDisabling
      * @return EventsToPublish
      * @throws ContentStreamDoesNotExistYet
      * @throws DimensionSpacePointNotFound
-     * @throws NodeAggregatesTypeIsAmbiguous
      */
     public function handleEnableNodeAggregate(
         EnableNodeAggregate $command,

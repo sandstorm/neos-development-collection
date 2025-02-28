@@ -46,7 +46,6 @@ use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateIsNoSibling;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateIsRoot;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateIsTethered;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateIsUntethered;
-use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregatesTypeIsAmbiguous;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeConstraintException;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeNameIsAlreadyCovered;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeTypeIsAbstract;
@@ -389,7 +388,6 @@ trait ConstraintChecks
     }
 
     /**
-     * @throws NodeAggregatesTypeIsAmbiguous
      * @throws NodeAggregateCurrentlyDoesNotExist
      */
     protected function requireProjectedNodeAggregate(
@@ -411,7 +409,6 @@ trait ConstraintChecks
     }
 
     /**
-     * @throws NodeAggregatesTypeIsAmbiguous
      * @throws NodeAggregateCurrentlyExists
      */
     protected function requireProjectedNodeAggregateToNotExist(
