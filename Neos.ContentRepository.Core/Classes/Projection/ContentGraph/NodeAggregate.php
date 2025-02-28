@@ -156,6 +156,18 @@ final readonly class NodeAggregate
         return $coverage;
     }
 
+    /**
+     * Returns the node for the dimension space point which is occupied
+     *
+     * The node aggregate does only know about nodes from dimensions where they originate in.
+     * Fallback nodes are not part of the node aggregate as there is currently no use-case.
+     *
+     * This means this logic can be substituted via
+     *
+     *     $node = $this->getNodeByOccupiedDimensionSpacePoint(
+     *         $this->getOccupationByCovered($coveredDimensionSpacePoint)
+     *     );
+     */
     public function getNodeByCoveredDimensionSpacePoint(DimensionSpacePoint $coveredDimensionSpacePoint): Node
     {
         if (!isset($this->coveredDimensionSpacePoints[$coveredDimensionSpacePoint->hash])) {
