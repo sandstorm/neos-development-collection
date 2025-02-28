@@ -36,6 +36,7 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindSubtreeFilter
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindSucceedingSiblingNodesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregate;
+use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregates;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodePath;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Reference;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Subtree;
@@ -141,25 +142,7 @@ trait NodeTraversalTrait
         $contentGraph = $this->currentContentRepository->getContentGraph($this->currentWorkspaceName);
         $actualNodeAggregates = $contentGraph->findParentNodeAggregates($entryNodeAggregateId);
 
-        $actualNodeAggregatesTable = array_map(static fn (NodeAggregate $nodeAggregate) => [
-            'nodeAggregateId' => $nodeAggregate->nodeAggregateId->value,
-            'nodeTypeName' => $nodeAggregate->nodeTypeName->value,
-            'coveredDimensionSpacePoints' => $nodeAggregate->coveredDimensionSpacePoints->toJson(),
-            'occupiedDimensionSpacePoints' => $nodeAggregate->occupiedDimensionSpacePoints->toJson(),
-            'explicitlyDisabledDimensions' => $nodeAggregate->getDimensionSpacePointsTaggedWith(SubtreeTag::disabled())->toJson(),
-        ], iterator_to_array($actualNodeAggregates));
-
-        $expectedNodeAggregatesWithNormalisedJson = array_map(
-            fn (array $row) => [
-                ...$row,
-                'coveredDimensionSpacePoints' => DimensionSpacePointSet::fromJsonString($row['coveredDimensionSpacePoints'])->toJson(),
-                'occupiedDimensionSpacePoints' => DimensionSpacePointSet::fromJsonString($row['occupiedDimensionSpacePoints'])->toJson(),
-                'explicitlyDisabledDimensions' => DimensionSpacePointSet::fromJsonString($row['explicitlyDisabledDimensions'])->toJson(),
-            ],
-            $expectedNodes->getHash()
-        );
-
-        Assert::assertSame($expectedNodeAggregatesWithNormalisedJson, $actualNodeAggregatesTable, 'findParentNodeAggregates returned an unexpected result');
+        self::assertNodeAggregatesEqualTable($expectedNodes->getHash(), $actualNodeAggregates, 'findParentNodeAggregates returned an unexpected result');
     }
 
     /**
@@ -393,5 +376,28 @@ trait NodeTraversalTrait
 
         $actualNode = $this->getCurrentSubgraph()->findRootNodeByType(NodeTypeName::fromString($serializedNodeTypeName));
         Assert::assertSame($actualNode?->aggregateId->value, $expectedNodeAggregateId?->value);
+    }
+
+    private static function assertNodeAggregatesEqualTable(array $expectedNodeAggregates, NodeAggregates $actualNodeAggregates, string $message): void
+    {
+        $actualNodeAggregatesTable = array_map(static fn (NodeAggregate $nodeAggregate) => [
+            'nodeAggregateId' => $nodeAggregate->nodeAggregateId->value,
+            'nodeTypeName' => $nodeAggregate->nodeTypeName->value,
+            'coveredDimensionSpacePoints' => $nodeAggregate->coveredDimensionSpacePoints->toJson(),
+            'occupiedDimensionSpacePoints' => $nodeAggregate->occupiedDimensionSpacePoints->toJson(),
+            'explicitlyDisabledDimensions' => $nodeAggregate->getDimensionSpacePointsTaggedWith(SubtreeTag::disabled())->toJson(),
+        ], iterator_to_array($actualNodeAggregates));
+
+        $expectedNodeAggregatesWithNormalisedJson = array_map(
+            fn (array $row) => [
+                ...$row,
+                'coveredDimensionSpacePoints' => DimensionSpacePointSet::fromJsonString($row['coveredDimensionSpacePoints'])->toJson(),
+                'occupiedDimensionSpacePoints' => DimensionSpacePointSet::fromJsonString($row['occupiedDimensionSpacePoints'])->toJson(),
+                'explicitlyDisabledDimensions' => DimensionSpacePointSet::fromJsonString($row['explicitlyDisabledDimensions'])->toJson(),
+            ],
+            $expectedNodeAggregates
+        );
+
+        Assert::assertSame($expectedNodeAggregatesWithNormalisedJson, $actualNodeAggregatesTable, $message);
     }
 }
