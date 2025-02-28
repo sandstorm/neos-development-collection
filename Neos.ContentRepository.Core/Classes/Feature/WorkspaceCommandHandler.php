@@ -270,7 +270,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                     partial: false
                 )
             ),
-            ExpectedVersion::ANY()
+            ExpectedVersion::fromVersion($workspace->version),
         );
 
         yield $this->removeContentStreamWithoutConstraintChecks($workspace->currentContentStreamId);
@@ -299,7 +299,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                     skippedEvents: []
                 ),
             ),
-            ExpectedVersion::ANY()
+            ExpectedVersion::fromVersion($workspace->version),
         );
 
         yield $this->removeContentStreamWithoutConstraintChecks($workspace->currentContentStreamId);
@@ -419,7 +419,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                             ->map(fn (ConflictingEvent $conflictingEvent) => $conflictingEvent->getSequenceNumber())
                     ),
                 ),
-                ExpectedVersion::ANY()
+                ExpectedVersion::fromVersion($workspace->version),
             ),
             $this->getCopiedEventsOfEventStream(
                 $command->workspaceName,
@@ -538,7 +538,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                         partial: !$remainingCommands->isEmpty()
                     )
                 ]),
-                ExpectedVersion::ANY()
+                ExpectedVersion::fromVersion($workspace->version),
             ),
             $this->getCopiedEventsOfEventStream(
                 $command->workspaceName,
@@ -645,7 +645,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                         partial: true
                     )
                 ),
-                ExpectedVersion::ANY()
+                ExpectedVersion::fromVersion($workspace->version),
             ),
             $this->getCopiedEventsOfEventStream(
                 $command->workspaceName,
@@ -711,7 +711,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                     partial: false
                 )
             ),
-            ExpectedVersion::ANY()
+            ExpectedVersion::fromVersion($workspace->version),
         );
 
         yield $this->removeContentStreamWithoutConstraintChecks($workspace->currentContentStreamId);
@@ -760,7 +760,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                     $command->newContentStreamId,
                 )
             ),
-            ExpectedVersion::ANY()
+            ExpectedVersion::fromVersion($workspace->version),
         );
     }
 
@@ -791,7 +791,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                     $command->workspaceName,
                 )
             ),
-            ExpectedVersion::ANY()
+            ExpectedVersion::fromVersion($workspace->version),
         );
     }
 
