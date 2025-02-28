@@ -58,7 +58,9 @@ trait NodeDisabling
             $nodeAggregate,
             $command->coveredDimensionSpacePoint
         );
-        if ($nodeAggregate->getDimensionSpacePointsTaggedWith(SubtreeTag::disabled())->contains($command->coveredDimensionSpacePoint)) {
+
+        $explicitlyDisabledDimensions = $nodeAggregate->getCoveredDimensionsTaggedBy(SubtreeTag::disabled(), withoutInherited: true);
+        if ($explicitlyDisabledDimensions->contains($command->coveredDimensionSpacePoint)) {
             throw new NodeAggregateIsAlreadyDisabled(sprintf('Node aggregate "%s" cannot be disabled because it is already explicitly disabled for dimension space point %s', $nodeAggregate->nodeAggregateId->value, $command->coveredDimensionSpacePoint->toJson()), 1731166196);
         }
 
@@ -112,7 +114,8 @@ trait NodeDisabling
             $nodeAggregate,
             $command->coveredDimensionSpacePoint
         );
-        if (!$nodeAggregate->getDimensionSpacePointsTaggedWith(SubtreeTag::disabled())->contains($command->coveredDimensionSpacePoint)) {
+        $explicitlyDisabledDimensions = $nodeAggregate->getCoveredDimensionsTaggedBy(SubtreeTag::disabled(), withoutInherited: true);
+        if (!$explicitlyDisabledDimensions->contains($command->coveredDimensionSpacePoint)) {
             throw new NodeAggregateIsAlreadyEnabled(sprintf('Node aggregate "%s" cannot be enabled because is not explicitly disabled for dimension space point %s', $nodeAggregate->nodeAggregateId->value, $command->coveredDimensionSpacePoint->toJson()), 1731166142);
         }
 
