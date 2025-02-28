@@ -982,6 +982,83 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
         }
     }
 
+    public function migrateDuplicateNodeVariations(\Closure $outputFn): void
+    {
+        $eventTableName = DoctrineEventStoreFactory::databaseTableName($this->contentRepositoryId);
+        $backupEventTableName = DoctrineEventStoreFactory::databaseTableName($this->contentRepositoryId)
+            . '_bkp_' . date('Y_m_d_H_i_s');
+        $outputFn(sprintf('Backup: copying events table to %s', $backupEventTableName));
+        $this->copyEventTable($backupEventTableName);
+
+        $legitVariantCreationsPerNodeAggregateIdAndDimensions = [];
+
+        $liveWorkspaceContentStreamId = null;
+        // hardcoded to LIVE
+        foreach ($this->eventStore->load(WorkspaceEventStreamName::fromWorkspaceName(WorkspaceName::forLive())->getEventStreamName(), EventStreamFilter::create(EventTypes::create(EventType::fromString('RootWorkspaceWasCreated')))) as $eventEnvelope) {
+            $rootWorkspaceWasCreated = self::decodeEventPayload($eventEnvelope);
+            $liveWorkspaceContentStreamId = ContentStreamId::fromString($rootWorkspaceWasCreated['newContentStreamId']);
+            break;
+        }
+
+        if (!$liveWorkspaceContentStreamId) {
+            throw new \RuntimeException('Workspace live does not exist. No migration necessary.');
+        }
+
+        $liveContentStreamName = ContentStreamEventStreamName::fromContentStreamId($liveWorkspaceContentStreamId)->getEventStreamName();
+
+        $eventsToDrop = [];
+
+        $eventStream = $this->eventStore->load($liveContentStreamName, EventStreamFilter::create(EventTypes::create(EventType::fromString('NodePeerVariantWasCreated'))));
+        foreach ($eventStream as $eventEnvelope) {
+            $outputRewriteNotice = fn(string $message) => $outputFn(sprintf('%s@%s %s', $eventEnvelope->sequenceNumber->value, $eventEnvelope->event->type->value, $message));
+            if ($eventEnvelope->event->type->value !== 'NodePeerVariantWasCreated') {
+                throw new \RuntimeException(sprintf('Unhandled event: %s', $eventEnvelope->event->type->value));
+            }
+
+            $eventData = self::decodeEventPayload($eventEnvelope);
+
+            $payloadHash = md5(json_encode([$eventData['nodeAggregateId'], $eventData['sourceOrigin'], $eventData['peerOrigin']], JSON_THROW_ON_ERROR));
+
+            if (array_key_exists($payloadHash, $legitVariantCreationsPerNodeAggregateIdAndDimensions)) {
+                if (
+                    // structure adjustments started to have a correlation id like StructureAdjustment_123
+                    str_starts_with($eventEnvelope->event->correlationId?->value ?? '', 'StructureAdjustment_')
+                    // before that they can most likely be identified by having NO metadata
+                    || $eventEnvelope->event->metadata === null
+                ) {
+                    $eventsToDrop[] = $eventEnvelope->sequenceNumber->value;
+                    $outputRewriteNotice(sprintf('Duplicate peer variant creation via structure adjustment for %s in dimension %s', $eventData['nodeAggregateId'], json_encode($eventData['peerOrigin'])));
+                    continue;
+                }
+
+                $outputRewriteNotice(sprintf('WARNING: Duplicate peer variant creation %s.', json_encode($eventData)));
+                continue;
+            }
+
+            $legitVariantCreationsPerNodeAggregateIdAndDimensions[$payloadHash] = true;
+        }
+
+        if (!count($eventsToDrop)) {
+            $outputFn('Migration was not necessary.');
+            return;
+        }
+
+        $this->connection->beginTransaction();
+        $this->connection->executeStatement(
+            'DELETE FROM ' . $eventTableName . ' WHERE sequencenumber IN (:sequenceNumbers)',
+            [
+                'sequenceNumbers' => $eventsToDrop
+            ],
+            [
+                'sequenceNumbers' => ArrayParameterType::STRING
+            ]
+        );
+        $this->connection->commit();
+
+        $outputFn();
+        $outputFn(sprintf('Migration applied to %s events. Please replay the projections `./flow subscription:replayall`', count($eventsToDrop)));
+    }
+
     /** ------------------------ */
 
     /**

@@ -269,6 +269,10 @@
         <source>Apply changes</source>
         <target state="needs-translation">أعتماد التغيرات</target>
       </trans-unit>
+      <trans-unit id="workspaces.dialog.rebase.node" xml:space="preserve">
+        <source>Node</source>
+        <target state="needs-translation">عقدة</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

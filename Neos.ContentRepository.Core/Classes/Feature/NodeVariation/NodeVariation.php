@@ -27,7 +27,6 @@ use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamDoesNotExistY
 use Neos\ContentRepository\Core\SharedModel\Exception\DimensionSpacePointIsNotYetOccupied;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateCurrentlyExists;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateDoesCurrentlyNotCoverDimensionSpacePoint;
-use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregatesTypeIsAmbiguous;
 
 /**
  * @internal implementation detail of Command Handlers
@@ -41,7 +40,6 @@ trait NodeVariation
      * @throws ContentStreamDoesNotExistYet
      * @throws NodeAggregateCurrentlyExists
      * @throws DimensionSpacePointNotFound
-     * @throws NodeAggregatesTypeIsAmbiguous
      * @throws DimensionSpacePointIsNotYetOccupied
      * @throws DimensionSpacePointIsAlreadyOccupied
      * @throws NodeAggregateDoesCurrentlyNotCoverDimensionSpacePoint

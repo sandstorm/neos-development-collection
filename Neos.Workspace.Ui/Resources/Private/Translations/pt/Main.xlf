@@ -405,6 +405,10 @@
         <source>Publish all changes in this document</source>
         <target state="translated">Publicar todas as alterações deste documento</target>
       </trans-unit>
+      <trans-unit id="workspaces.dialog.rebase.node" xml:space="preserve">
+        <source>Node</source>
+        <target state="needs-translation">Nó</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

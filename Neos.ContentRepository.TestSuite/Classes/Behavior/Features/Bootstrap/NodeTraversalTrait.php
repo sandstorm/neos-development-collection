@@ -16,6 +16,8 @@ namespace Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap;
 
 use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
+use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
+use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
 use Neos\ContentRepository\Core\Projection\ContentGraph\AbsoluteNodePath;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\CountAncestorNodesFilter;
@@ -33,10 +35,13 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindReferencesFil
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindSubtreeFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindSucceedingSiblingNodesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
+use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregate;
+use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregates;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodePath;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Reference;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Subtree;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
 use PHPUnit\Framework\Assert;
 
@@ -117,6 +122,43 @@ trait NodeTraversalTrait
     }
 
     /**
+     * @When I execute the findNodesByIds query for node aggregate id :entryNodeIdsSerialized I expect the nodes :expectedNodeIdsSerialized to be returned
+     */
+    public function iExecuteTheFindNodeByIdsQueryIExpectTheFollowingNodes(string $entryNodeIdsSerialized, string $expectedNodeIdsSerialized): void
+    {
+        $entryNodeAggregateIds = NodeAggregateIds::fromArray(explode(',', $entryNodeIdsSerialized));
+        $expectedNodeAggregateIds = NodeAggregateIds::fromArray(explode(',', $expectedNodeIdsSerialized));
+
+        $actualNodes = $this->getCurrentSubgraph()->findNodesByIds($entryNodeAggregateIds);
+        Assert::assertEquals($actualNodes->toNodeAggregateIds(), $expectedNodeAggregateIds);
+    }
+
+    /**
+     * @When I execute the findNodeAggregateById query for node aggregate id :entryNodeIdSerialized I expect the following node aggregates to be returned:
+     */
+    public function iExecuteTheFindNodeAggregateByIdQueryIExpectTheFollowingNodes(string $entryNodeIdSerialized, TableNode $expectedNodes): void
+    {
+        $entryNodeAggregateId = NodeAggregateId::fromString($entryNodeIdSerialized);
+        $contentGraph = $this->currentContentRepository->getContentGraph($this->currentWorkspaceName);
+        $actualNodeAggregate = $contentGraph->findNodeAggregateById($entryNodeAggregateId);
+
+        self::assertNodeAggregatesEqualTable($expectedNodes->getHash(), NodeAggregates::fromArray([$actualNodeAggregate]), 'findNodeAggregateById returned an unexpected result');
+    }
+
+    /**
+     * @When I execute the findNodeAggregatesByIds query for node aggregate id :entryNodeIdsSerialized I expect the following node aggregates to be returned:
+     */
+    public function iExecuteTheFindNodeAggregatesByIdsByIdsQueryIExpectTheFollowingNodes(string $entryNodeIdsSerialized, TableNode $expectedNodes): void
+    {
+        $entryNodeAggregateIds = NodeAggregateIds::fromArray(explode(',', $entryNodeIdsSerialized));
+        $contentGraph = $this->currentContentRepository->getContentGraph($this->currentWorkspaceName);
+        $actualNodeAggregates = $contentGraph->findNodeAggregatesByIds($entryNodeAggregateIds);
+
+        self::assertNodeAggregatesEqualTable($expectedNodes->getHash(), $actualNodeAggregates, 'findNodeAggregatesByIds returned an unexpected result');
+    }
+
+
+    /**
      * @When I execute the findParentNode query for node aggregate id :nodeIdSerialized I expect no node to be returned
      * @When I execute the findParentNode query for node aggregate id :nodeIdSerialized I expect the node :expectedNodeIdSerialized to be returned
      */
@@ -127,6 +169,18 @@ trait NodeTraversalTrait
 
         $actualParentNode = $this->getCurrentSubgraph()->findParentNode($nodeAggregateId);
         Assert::assertSame($actualParentNode?->aggregateId->value, $expectedNodeAggregateId?->value);
+    }
+
+    /**
+     * @When I execute the findParentNodeAggregates query for node aggregate id :entryNodeIdSerialized I expect the following node aggregates to be returned:
+     */
+    public function iExecuteTheFindParentNodeAggregatesQueryIExpectTheFollowingNodes(string $entryNodeIdSerialized, TableNode $expectedNodes): void
+    {
+        $entryNodeAggregateId = NodeAggregateId::fromString($entryNodeIdSerialized);
+        $contentGraph = $this->currentContentRepository->getContentGraph($this->currentWorkspaceName);
+        $actualNodeAggregates = $contentGraph->findParentNodeAggregates($entryNodeAggregateId);
+
+        self::assertNodeAggregatesEqualTable($expectedNodes->getHash(), $actualNodeAggregates, 'findParentNodeAggregates returned an unexpected result');
     }
 
     /**
@@ -347,6 +401,16 @@ trait NodeTraversalTrait
         Assert::assertEquals($expectedTimestamps, $actualTimestamps);
     }
 
+    /**
+     * @When I execute the findNodeAggregatesTaggedBy query for tag :subtreeTag I expect the following node aggregates to be returned:
+     */
+    public function iExecuteTheFindNodeAggregatesTaggedByQueryIExpectTheFollowingNodes(string $subtreeTag, TableNode $expectedNodes): void
+    {
+        $contentGraph = $this->currentContentRepository->getContentGraph($this->currentWorkspaceName);
+        $actualNodeAggregates = $contentGraph->findNodeAggregatesTaggedBy(SubtreeTag::fromString($subtreeTag));
+
+        self::assertNodeAggregatesEqualTable($expectedNodes->getHash(), $actualNodeAggregates, 'findNodeAggregatesTaggedBy returned an unexpected result');
+    }
 
     /**
      * @When I execute the findRootNodeByType query for node type :serializedNodeTypeName I expect no node to be returned
@@ -360,5 +424,28 @@ trait NodeTraversalTrait
 
         $actualNode = $this->getCurrentSubgraph()->findRootNodeByType(NodeTypeName::fromString($serializedNodeTypeName));
         Assert::assertSame($actualNode?->aggregateId->value, $expectedNodeAggregateId?->value);
+    }
+
+    private static function assertNodeAggregatesEqualTable(array $expectedNodeAggregates, NodeAggregates $actualNodeAggregates, string $message): void
+    {
+        $actualNodeAggregatesTable = array_map(static fn (NodeAggregate $nodeAggregate) => [
+            'nodeAggregateId' => $nodeAggregate->nodeAggregateId->value,
+            'nodeTypeName' => $nodeAggregate->nodeTypeName->value,
+            'coveredDimensionSpacePoints' => $nodeAggregate->coveredDimensionSpacePoints->toJson(),
+            'occupiedDimensionSpacePoints' => $nodeAggregate->occupiedDimensionSpacePoints->toJson(),
+            'explicitlyDisabledDimensions' => $nodeAggregate->getDimensionSpacePointsTaggedWith(SubtreeTag::disabled())->toJson(),
+        ], iterator_to_array($actualNodeAggregates));
+
+        $expectedNodeAggregatesWithNormalisedJson = array_map(
+            fn (array $row) => [
+                ...$row,
+                'coveredDimensionSpacePoints' => DimensionSpacePointSet::fromJsonString($row['coveredDimensionSpacePoints'])->toJson(),
+                'occupiedDimensionSpacePoints' => DimensionSpacePointSet::fromJsonString($row['occupiedDimensionSpacePoints'])->toJson(),
+                'explicitlyDisabledDimensions' => DimensionSpacePointSet::fromJsonString($row['explicitlyDisabledDimensions'])->toJson(),
+            ],
+            $expectedNodeAggregates
+        );
+
+        Assert::assertSame($expectedNodeAggregatesWithNormalisedJson, $actualNodeAggregatesTable, $message);
     }
 }

@@ -20,8 +20,6 @@ use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregate;
-use Neos\ContentRepository\Core\Projection\ContentGraph\NodeTags;
-use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregatesTypeIsAmbiguous;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateClassification;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
@@ -37,7 +35,6 @@ trait ProjectedNodeAggregateTrait
 
     /**
      * @Then /^I expect the node aggregate "([^"]*)" to exist$/
-     * @throws NodeAggregatesTypeIsAmbiguous
      */
     public function iExpectTheNodeAggregateToExist(string $serializedNodeAggregateId): void
     {
