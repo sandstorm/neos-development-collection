@@ -31,7 +31,7 @@ final class NodeAggregates implements \IteratorAggregate, \Countable
     private array $nodeAggregates;
 
     /**
-     * @param iterable<NodeAggregate> $items
+     * @param array<NodeAggregate> $items
      */
     private function __construct(array $items)
     {
