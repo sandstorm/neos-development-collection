@@ -12,6 +12,21 @@ use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
 /**
  * DTO that holds the dimension space points any subtree tag is explicitly set for in a {@see NodeAggregate}
  *
+ * We need to pass this explicit to the NodeAggregate as this information doesn't exist otherwise.
+ *
+ * Because $coveredDimensionSpacePoints only points to the occupying nodes there are no entries for specialisations,
+ * and we CANNOT replace {@see NodeAggregate::getDimensionSpacePointsTaggedWith()} by iterating over these as explicitly
+ * disabled specialisations will not show up as tagged:
+ *
+ *     foreach ($this->coveredDimensionSpacePoints as $dimensionSpacePoint) {
+ *         $node = $this->getNodeByCoveredDimensionSpacePoint($dimensionSpacePoint);
+ *         if ($node->tags->withoutInherited()->contain($subtreeTag)) {
+ *             $taggedDimensions[] = $dimensionSpacePoint;
+ *         }
+ *     }
+ *
+ * We could replace this object if we also add these specialisation node rows explicitly to the NodeAggregate.
+ *
  * @internal used by {@see NodeAggregate} but this is a low level concept that should not be relied upon outside the core and in tests
  */
 final readonly class DimensionSpacePointsBySubtreeTags implements JsonSerializable
