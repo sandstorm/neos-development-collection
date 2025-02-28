@@ -18,7 +18,6 @@ use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
 use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetNodeProperties;
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
-use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
@@ -34,7 +33,6 @@ class StripTagsOnPropertyTransformationFactory implements TransformationFactoryI
     public function build(
         array $settings,
         ContentRepository $contentRepository,
-        PropertyConverter $propertyConverter,
     ): GlobalTransformationInterface|NodeAggregateBasedTransformationInterface|NodeBasedTransformationInterface {
         return new class (
             $settings['property'],

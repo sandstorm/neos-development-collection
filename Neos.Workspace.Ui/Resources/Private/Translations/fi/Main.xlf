@@ -265,6 +265,14 @@
         <source>Last modified</source>
         <target state="needs-translation">Viimeksi muokattu</target>
       </trans-unit>
+      <trans-unit id="workspaces.workspace.status" xml:space="preserve">
+        <source>Status</source>
+        <target state="needs-translation">Tila</target>
+      </trans-unit>
+      <trans-unit id="workspaces.dialog.rebase.node" xml:space="preserve">
+        <source>Node</source>
+        <target state="needs-translation">Solmu</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

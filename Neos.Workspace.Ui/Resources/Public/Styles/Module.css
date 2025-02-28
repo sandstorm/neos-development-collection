@@ -193,6 +193,25 @@ button .icon:not(:last-child) {
   justify-content: flex-end;
 }
 
+[popover].error {
+  border: 1px solid var(--warning);
+}
+
+[popover].error .neos-header i {
+  color: var(--orange);
+}
+[popover].error p {
+  margin: var(--defaultMargin) 0;
+}
+[popover]#workspace-rebase-modal{
+  width: 50vw;
+}
+[popover] details[open] {
+  max-height: 50vh;
+  overflow: auto;
+  max-width: max-content;
+}
+
 /**
  * Form styles
  */

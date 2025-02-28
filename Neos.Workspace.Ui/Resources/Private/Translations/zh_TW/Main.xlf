@@ -265,6 +265,10 @@
         <source>Last modified</source>
         <target state="needs-translation">上次修改</target>
       </trans-unit>
+      <trans-unit id="workspaces.dialog.rebase.node" xml:space="preserve">
+        <source>Node</source>
+        <target state="needs-translation">節點</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

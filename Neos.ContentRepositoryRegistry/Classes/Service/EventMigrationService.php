@@ -13,7 +13,6 @@ use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNodeAndSerializedProperties;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\DisableNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\EnableNodeAggregate;
-use Neos\ContentRepository\Core\Feature\NodeDuplication\Command\CopyNodesRecursively;
 use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetSerializedNodeProperties;
 use Neos\ContentRepository\Core\Feature\NodeMove\Command\MoveNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Command\SetSerializedNodeReferences;
@@ -223,7 +222,7 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
                         $outputRewriteNotice(sprintf('Metadata: Removed %d $initialPropertyValues', $propertiesWithNullValues));
                         $this->updateEventMetaData($eventEnvelope->sequenceNumber, $eventMetaData);
                     }
-                } elseif ($eventMetaData['commandClass'] === CopyNodesRecursively::class) {
+                } elseif ($eventMetaData['commandClass'] === 'Neos\\ContentRepository\\Core\\Feature\\NodeDuplication\\Command\\CopyNodesRecursively') {
                     // nodes can be also created on copy, and in $nodeTreeToInsert, we have to also omit null values.
                     // NodeDuplicationCommandHandler::createEventsForNodeToInsert
 
@@ -411,7 +410,7 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
                 CreateNodeAggregateWithNodeAndSerializedProperties::class,
                 DisableNodeAggregate::class,
                 EnableNodeAggregate::class,
-                CopyNodesRecursively::class,
+                'Neos\\ContentRepository\\Core\\Feature\\NodeDuplication\\Command\\CopyNodesRecursively',
                 SetSerializedNodeProperties::class,
                 MoveNodeAggregate::class,
                 SetSerializedNodeReferences::class,
@@ -863,7 +862,7 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
 
             $eventMetaData = $eventEnvelope->event->metadata?->value;
             // a copy is basically a NodeAggregateWithNodeWasCreated with CopyNodesRecursively command, so we skip others:
-            if (!$eventMetaData || ($eventMetaData['commandClass'] ?? null) !== CopyNodesRecursively::class) {
+            if (!$eventMetaData || ($eventMetaData['commandClass'] ?? null) !== 'Neos\\ContentRepository\\Core\\Feature\\NodeDuplication\\Command\\CopyNodesRecursively') {
                 continue;
             }
 
@@ -900,7 +899,7 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
         foreach ($eventStream as $eventEnvelope) {
             $eventMetaData = $eventEnvelope->event->metadata?->value;
             // a copy is basically a NodeAggregateWithNodeWasCreated with CopyNodesRecursively command, so we skip others:
-            if (!$eventMetaData || ($eventMetaData['commandClass'] ?? null) !== CopyNodesRecursively::class) {
+            if (!$eventMetaData || ($eventMetaData['commandClass'] ?? null) !== 'Neos\\ContentRepository\\Core\\Feature\\NodeDuplication\\Command\\CopyNodesRecursively') {
                 continue;
             }
 
@@ -981,6 +980,83 @@ final class EventMigrationService implements ContentRepositoryServiceInterface
                 $outputFn(sprintf('<success>Updated subscriber %s to active and position %s</success>', $subscriberId, $first['appliedsequencenumber']));
             }
         }
+    }
+
+    public function migrateDuplicateNodeVariations(\Closure $outputFn): void
+    {
+        $eventTableName = DoctrineEventStoreFactory::databaseTableName($this->contentRepositoryId);
+        $backupEventTableName = DoctrineEventStoreFactory::databaseTableName($this->contentRepositoryId)
+            . '_bkp_' . date('Y_m_d_H_i_s');
+        $outputFn(sprintf('Backup: copying events table to %s', $backupEventTableName));
+        $this->copyEventTable($backupEventTableName);
+
+        $legitVariantCreationsPerNodeAggregateIdAndDimensions = [];
+
+        $liveWorkspaceContentStreamId = null;
+        // hardcoded to LIVE
+        foreach ($this->eventStore->load(WorkspaceEventStreamName::fromWorkspaceName(WorkspaceName::forLive())->getEventStreamName(), EventStreamFilter::create(EventTypes::create(EventType::fromString('RootWorkspaceWasCreated')))) as $eventEnvelope) {
+            $rootWorkspaceWasCreated = self::decodeEventPayload($eventEnvelope);
+            $liveWorkspaceContentStreamId = ContentStreamId::fromString($rootWorkspaceWasCreated['newContentStreamId']);
+            break;
+        }
+
+        if (!$liveWorkspaceContentStreamId) {
+            throw new \RuntimeException('Workspace live does not exist. No migration necessary.');
+        }
+
+        $liveContentStreamName = ContentStreamEventStreamName::fromContentStreamId($liveWorkspaceContentStreamId)->getEventStreamName();
+
+        $eventsToDrop = [];
+
+        $eventStream = $this->eventStore->load($liveContentStreamName, EventStreamFilter::create(EventTypes::create(EventType::fromString('NodePeerVariantWasCreated'))));
+        foreach ($eventStream as $eventEnvelope) {
+            $outputRewriteNotice = fn(string $message) => $outputFn(sprintf('%s@%s %s', $eventEnvelope->sequenceNumber->value, $eventEnvelope->event->type->value, $message));
+            if ($eventEnvelope->event->type->value !== 'NodePeerVariantWasCreated') {
+                throw new \RuntimeException(sprintf('Unhandled event: %s', $eventEnvelope->event->type->value));
+            }
+
+            $eventData = self::decodeEventPayload($eventEnvelope);
+
+            $payloadHash = md5(json_encode([$eventData['nodeAggregateId'], $eventData['sourceOrigin'], $eventData['peerOrigin']], JSON_THROW_ON_ERROR));
+
+            if (array_key_exists($payloadHash, $legitVariantCreationsPerNodeAggregateIdAndDimensions)) {
+                if (
+                    // structure adjustments started to have a correlation id like StructureAdjustment_123
+                    str_starts_with($eventEnvelope->event->correlationId?->value ?? '', 'StructureAdjustment_')
+                    // before that they can most likely be identified by having NO metadata
+                    || $eventEnvelope->event->metadata === null
+                ) {
+                    $eventsToDrop[] = $eventEnvelope->sequenceNumber->value;
+                    $outputRewriteNotice(sprintf('Duplicate peer variant creation via structure adjustment for %s in dimension %s', $eventData['nodeAggregateId'], json_encode($eventData['peerOrigin'])));
+                    continue;
+                }
+
+                $outputRewriteNotice(sprintf('WARNING: Duplicate peer variant creation %s.', json_encode($eventData)));
+                continue;
+            }
+
+            $legitVariantCreationsPerNodeAggregateIdAndDimensions[$payloadHash] = true;
+        }
+
+        if (!count($eventsToDrop)) {
+            $outputFn('Migration was not necessary.');
+            return;
+        }
+
+        $this->connection->beginTransaction();
+        $this->connection->executeStatement(
+            'DELETE FROM ' . $eventTableName . ' WHERE sequencenumber IN (:sequenceNumbers)',
+            [
+                'sequenceNumbers' => $eventsToDrop
+            ],
+            [
+                'sequenceNumbers' => ArrayParameterType::STRING
+            ]
+        );
+        $this->connection->commit();
+
+        $outputFn();
+        $outputFn(sprintf('Migration applied to %s events. Please replay the projections `./flow subscription:replayall`', count($eventsToDrop)));
     }
 
     /** ------------------------ */

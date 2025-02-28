@@ -6,7 +6,6 @@ namespace Neos\ContentRepository\NodeMigration\Transformation;
 
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Feature\RootNodeCreation\Command\UpdateRootNodeAggregateDimensions;
-use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\NodeMigration\MigrationException;
@@ -19,7 +18,6 @@ class UpdateRootNodeAggregateDimensionsTransformationFactory implements Transfor
     public function build(
         array $settings,
         ContentRepository $contentRepository,
-        PropertyConverter $propertyConverter,
     ): GlobalTransformationInterface|NodeAggregateBasedTransformationInterface|NodeBasedTransformationInterface {
         if (!isset($settings['nodeType'])) {
             throw new MigrationException(

@@ -13,7 +13,6 @@ use Neos\ContentRepository\Core\Subscription\Engine\Error;
 use Neos\ContentRepository\Core\Subscription\Engine\Errors;
 use Neos\ContentRepository\Core\Subscription\Engine\ProcessedResult;
 use Neos\ContentRepository\Core\Subscription\Engine\Result;
-use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngineCriteria;
 use Neos\ContentRepository\Core\Subscription\Exception\CatchUpHadErrors;
 use Neos\ContentRepository\Core\Subscription\ProjectionSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\SubscriptionError;
