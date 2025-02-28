@@ -89,7 +89,7 @@ trait ProjectedNodeAggregateTrait
     {
         $expectedDisabledDimensionSpacePoints = DimensionSpacePointSet::fromJsonString($serializedExpectedDisabledDimensionSpacePoints);
         $this->assertOnCurrentNodeAggregate(function (NodeAggregate $nodeAggregate) use ($expectedDisabledDimensionSpacePoints) {
-            $actualDisabledDimensionSpacePoints = $nodeAggregate->filterCoveredDimensionsByTag(SubtreeTag::disabled(), withoutInherited: true);
+            $actualDisabledDimensionSpacePoints = $nodeAggregate->getCoveredDimensionsTaggedBy(SubtreeTag::disabled(), withoutInherited: true);
             Assert::assertEquals(
                 $expectedDisabledDimensionSpacePoints,
                 $actualDisabledDimensionSpacePoints,

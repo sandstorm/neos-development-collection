@@ -48,7 +48,7 @@ trait SubtreeTagging
             $command->coveredDimensionSpacePoint
         );
 
-        $explicitlyTaggedDimensions = $nodeAggregate->filterCoveredDimensionsByTag($command->tag, withoutInherited: true);
+        $explicitlyTaggedDimensions = $nodeAggregate->getCoveredDimensionsTaggedBy($command->tag, withoutInherited: true);
         if ($explicitlyTaggedDimensions->contains($command->coveredDimensionSpacePoint)) {
             throw new SubtreeIsAlreadyTagged(sprintf('Cannot add subtree tag "%s" because node aggregate "%s" is already explicitly tagged with that tag in dimension space point %s', $command->tag->value, $nodeAggregate->nodeAggregateId->value, $command->coveredDimensionSpacePoint->toJson()), 1731167142);
         }
@@ -94,7 +94,7 @@ trait SubtreeTagging
             $command->coveredDimensionSpacePoint
         );
 
-        $explicitlyTaggedDimensions = $nodeAggregate->filterCoveredDimensionsByTag($command->tag, withoutInherited: true);
+        $explicitlyTaggedDimensions = $nodeAggregate->getCoveredDimensionsTaggedBy($command->tag, withoutInherited: true);
         if (!$explicitlyTaggedDimensions->contains($command->coveredDimensionSpacePoint)) {
             throw new SubtreeIsNotTagged(sprintf('Cannot remove subtree tag "%s" because node aggregate "%s" is not explicitly tagged with that tag in dimension space point %s', $command->tag->value, $nodeAggregate->nodeAggregateId->value, $command->coveredDimensionSpacePoint->toJson()), 1731167464);
         }

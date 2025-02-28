@@ -182,7 +182,7 @@ final readonly class NodeAggregate
     }
 
     /**
-     * Get the dimensions this node aggregate is tagged according to the provided tag
+     * Get the dimension space points this node aggregate is tagged according to the provided tag
      *
      * Implementation note:
      *
@@ -197,10 +197,10 @@ final readonly class NodeAggregate
      *
      * We could simplify this logic if we also add these specialisation node rows explicitly to the NodeAggregate, but currently there is no use for that.
      *
-     * @param bool $withoutInherited is set only explicitly set subtree tags are considered
+     * @param bool $withoutInherited only dimensions where the subtree tag was set explicitly will be returned, taking inheritance out of account {@see NodeTags::withoutInherited()}
      * @internal Experimental api, this is a low level concept that is mostly not meant to be used outside the core or tests
      */
-    public function filterCoveredDimensionsByTag(SubtreeTag $subtreeTag, bool $withoutInherited): DimensionSpacePointSet
+    public function getCoveredDimensionsTaggedBy(SubtreeTag $subtreeTag, bool $withoutInherited): DimensionSpacePointSet
     {
         $explicitlyTagged = [];
         foreach ($this->coveredDimensionSpacePoints as $coveredDimensionSpacePoint) {

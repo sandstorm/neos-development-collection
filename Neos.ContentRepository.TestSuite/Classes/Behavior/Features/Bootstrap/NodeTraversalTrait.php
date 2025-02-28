@@ -433,7 +433,7 @@ trait NodeTraversalTrait
             'nodeTypeName' => $nodeAggregate->nodeTypeName->value,
             'coveredDimensionSpacePoints' => $nodeAggregate->coveredDimensionSpacePoints->toJson(),
             'occupiedDimensionSpacePoints' => $nodeAggregate->occupiedDimensionSpacePoints->toJson(),
-            'explicitlyDisabledDimensions' => $nodeAggregate->filterCoveredDimensionsByTag(SubtreeTag::disabled(), withoutInherited: true)->toJson(),
+            'explicitlyDisabledDimensions' => $nodeAggregate->getCoveredDimensionsTaggedBy(SubtreeTag::disabled(), withoutInherited: true)->toJson(),
         ], iterator_to_array($actualNodeAggregates));
 
         $expectedNodeAggregatesWithNormalisedJson = array_map(
