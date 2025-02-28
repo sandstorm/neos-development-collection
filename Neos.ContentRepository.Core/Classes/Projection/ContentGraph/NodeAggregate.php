@@ -195,7 +195,7 @@ final readonly class NodeAggregate
      *         // ... use $node->tags
      *     }
      *
-     * We could simplify this logic if we also add these specialisation node rows explicitly to the NodeAggregate.
+     * We could simplify this logic if we also add these specialisation node rows explicitly to the NodeAggregate, but currently there is no use for that.
      *
      * @param bool $withoutInherited is set only explicitly set subtree tags are considered
      * @internal Experimental api, this is a low level concept that is mostly not meant to be used outside the core or tests
@@ -205,13 +205,15 @@ final readonly class NodeAggregate
         $explicitlyTagged = [];
         foreach ($this->coveredDimensionSpacePoints as $coveredDimensionSpacePoint) {
             $nodeTags = $this->nodeTagsByCoveredDimensionSpacePoint[$coveredDimensionSpacePoint->hash];
-            $explicitlyTagged[] = match(true) {
-                $withoutInherited && $nodeTags->withoutInherited()->contain($subtreeTag),
-                !$withoutInherited && $nodeTags->contain($subtreeTag) => $coveredDimensionSpacePoint,
-                default => null
+            $tagExistsInDimension = match ($withoutInherited) {
+                true => $nodeTags->withoutInherited()->contain($subtreeTag),
+                false => $nodeTags->contain($subtreeTag)
             };
+            if ($tagExistsInDimension) {
+                $explicitlyTagged[] = $coveredDimensionSpacePoint;
+            }
         }
-        return DimensionSpacePointSet::fromArray(array_filter($explicitlyTagged));
+        return DimensionSpacePointSet::fromArray($explicitlyTagged);
     }
 
     /**
