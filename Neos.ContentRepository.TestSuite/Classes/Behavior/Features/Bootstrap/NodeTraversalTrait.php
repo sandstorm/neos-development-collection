@@ -401,6 +401,16 @@ trait NodeTraversalTrait
         Assert::assertEquals($expectedTimestamps, $actualTimestamps);
     }
 
+    /**
+     * @When I execute the findNodeAggregatesTaggedBy query for tag :subtreeTag I expect the following node aggregates to be returned:
+     */
+    public function iExecuteTheFindNodeAggregatesTaggedByQueryIExpectTheFollowingNodes(string $subtreeTag, TableNode $expectedNodes): void
+    {
+        $contentGraph = $this->currentContentRepository->getContentGraph($this->currentWorkspaceName);
+        $actualNodeAggregates = $contentGraph->findNodeAggregatesTaggedBy(SubtreeTag::fromString($subtreeTag));
+
+        self::assertNodeAggregatesEqualTable($expectedNodes->getHash(), $actualNodeAggregates, 'findNodeAggregatesTaggedBy returned an unexpected result');
+    }
 
     /**
      * @When I execute the findRootNodeByType query for node type :serializedNodeTypeName I expect no node to be returned
