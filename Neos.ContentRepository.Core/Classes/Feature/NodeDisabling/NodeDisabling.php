@@ -28,7 +28,6 @@ use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\EnableNodeAggregat
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Event\SubtreeWasTagged;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Event\SubtreeWasUntagged;
-use Neos\ContentRepository\Core\Projection\ContentGraph\NodeTags;
 use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamDoesNotExistYet;
 
 /**
@@ -60,7 +59,7 @@ trait NodeDisabling
             $command->coveredDimensionSpacePoint
         );
 
-        $explicitlyDisabledDimensions = $nodeAggregate->filterCoveredDimensionsByNodeTags(fn (NodeTags $nodeTags) => $nodeTags->withoutInherited()->contain(SubtreeTag::disabled()));
+        $explicitlyDisabledDimensions = $nodeAggregate->filterCoveredDimensionsByTag(SubtreeTag::disabled(), withoutInherited: true);
         if ($explicitlyDisabledDimensions->contains($command->coveredDimensionSpacePoint)) {
             throw new NodeAggregateIsAlreadyDisabled(sprintf('Node aggregate "%s" cannot be disabled because it is already explicitly disabled for dimension space point %s', $nodeAggregate->nodeAggregateId->value, $command->coveredDimensionSpacePoint->toJson()), 1731166196);
         }
@@ -115,7 +114,7 @@ trait NodeDisabling
             $nodeAggregate,
             $command->coveredDimensionSpacePoint
         );
-        $explicitlyDisabledDimensions = $nodeAggregate->filterCoveredDimensionsByNodeTags(fn (NodeTags $nodeTags) => $nodeTags->withoutInherited()->contain(SubtreeTag::disabled()));
+        $explicitlyDisabledDimensions = $nodeAggregate->filterCoveredDimensionsByTag(SubtreeTag::disabled(), withoutInherited: true);
         if (!$explicitlyDisabledDimensions->contains($command->coveredDimensionSpacePoint)) {
             throw new NodeAggregateIsAlreadyEnabled(sprintf('Node aggregate "%s" cannot be enabled because is not explicitly disabled for dimension space point %s', $nodeAggregate->nodeAggregateId->value, $command->coveredDimensionSpacePoint->toJson()), 1731166142);
         }

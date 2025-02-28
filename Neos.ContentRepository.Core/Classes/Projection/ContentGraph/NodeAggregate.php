@@ -182,7 +182,7 @@ final readonly class NodeAggregate
     }
 
     /**
-     * Get the dimensions this node aggregate is tagged according to the filter function
+     * Get the dimensions this node aggregate is tagged according to the provided tag
      *
      * Implementation note:
      *
@@ -192,26 +192,26 @@ final readonly class NodeAggregate
      *
      *     foreach ($this->coveredDimensionSpacePoints as $coveredDimensionSpacePoint) {
      *         $node = $this->nodesByCoveredDimensionSpacePoint[$coveredDimensionSpacePoint->hash];
-     *         if ($nodeTagFilter($node->tags)) {
-     *             $explicitlyTagged[] = $coveredDimensionSpacePoint;
-     *         }
+     *         // ... use $node->tags
      *     }
      *
      * We could simplify this logic if we also add these specialisation node rows explicitly to the NodeAggregate.
      *
-     * @param \Closure(NodeTags):bool $nodeTagFilter
+     * @param bool $withoutInherited is set only explicitly set subtree tags are considered
      * @internal Experimental api, this is a low level concept that is mostly not meant to be used outside the core or tests
      */
-    public function filterCoveredDimensionsByNodeTags(\Closure $nodeTagFilter): DimensionSpacePointSet
+    public function filterCoveredDimensionsByTag(SubtreeTag $subtreeTag, bool $withoutInherited): DimensionSpacePointSet
     {
         $explicitlyTagged = [];
         foreach ($this->coveredDimensionSpacePoints as $coveredDimensionSpacePoint) {
             $nodeTags = $this->nodeTagsByCoveredDimensionSpacePoint[$coveredDimensionSpacePoint->hash];
-            if ($nodeTagFilter($nodeTags)) {
-                $explicitlyTagged[] = $coveredDimensionSpacePoint;
-            }
+            $explicitlyTagged[] = match(true) {
+                $withoutInherited && $nodeTags->withoutInherited()->contain($subtreeTag),
+                !$withoutInherited && $nodeTags->contain($subtreeTag) => $coveredDimensionSpacePoint,
+                default => null
+            };
         }
-        return DimensionSpacePointSet::fromArray($explicitlyTagged);
+        return DimensionSpacePointSet::fromArray(array_filter($explicitlyTagged));
     }
 
     /**
