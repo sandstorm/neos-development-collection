@@ -29,7 +29,7 @@ class InterDimensionalVariationGraphTest extends TestCase
 {
     protected DimensionSpace\InterDimensionalVariationGraph $subject;
 
-    public function testInitializeWeightedDimensionSpacePointsCorrectlyInitializesAllAvailableWeightedDimensionSpacePointsWithDimensionsWithVariationsGiven()
+    public function testInitializeWeightedDimensionSpacePointsCorrectlyInitializesAllAvailableWeightedDimensionSpacePointsWithDimensionsWithVariationsGiven(): void
     {
         $this->setUpVariationExample();
         $reflection = new \ReflectionClass($this->subject);
@@ -82,7 +82,7 @@ class InterDimensionalVariationGraphTest extends TestCase
         }
     }
 
-    public function testInitializeWeightedDimensionSpacePointsCorrectlyInitializesSingularWeightedDimensionSpacePointsWithNoDimensionsGiven()
+    public function testInitializeWeightedDimensionSpacePointsCorrectlyInitializesSingularWeightedDimensionSpacePointsWithNoDimensionsGiven(): void
     {
         $this->setUpNullExample();
         $reflection = new \ReflectionClass($this->subject);
@@ -95,7 +95,7 @@ class InterDimensionalVariationGraphTest extends TestCase
         );
     }
 
-    public function testGetWeightedDimensionSpacePointsByDimensionSpacePointReturnsNullForPointOutsideTheAllowedDimensionSpace()
+    public function testGetWeightedDimensionSpacePointsByDimensionSpacePointReturnsNullForPointOutsideTheAllowedDimensionSpace(): void
     {
         $this->setUpVariationExample();
 
@@ -107,7 +107,7 @@ class InterDimensionalVariationGraphTest extends TestCase
         );
     }
 
-    public function testInitializeVariationsCorrectlyInitializesSpecializations()
+    public function testInitializeVariationsCorrectlyInitializesSpecializations(): void
     {
         $this->setUpVariationExample();
         $reflection = new \ReflectionClass($this->subject);
@@ -270,7 +270,7 @@ class InterDimensionalVariationGraphTest extends TestCase
         }
     }
 
-    public function testInitializeVariationsCorrectlyInitializesGeneralizations()
+    public function testInitializeVariationsCorrectlyInitializesGeneralizations(): void
     {
         $this->setUpVariationExample();
         $reflection = new \ReflectionClass($this->subject);
@@ -436,7 +436,7 @@ class InterDimensionalVariationGraphTest extends TestCase
         }
     }
 
-    public function testInitializeVariationsCorrectlyInitializesPrimaryGeneralizations()
+    public function testInitializeVariationsCorrectlyInitializesPrimaryGeneralizations(): void
     {
         $this->setUpVariationExample();
         $reflection = new \ReflectionClass($this->subject);
@@ -529,7 +529,7 @@ class InterDimensionalVariationGraphTest extends TestCase
         }
     }
 
-    public function testGetSpecializationSetThrowsExceptionForDimensionSpacePointOutsideTheAllowedSubspace()
+    public function testGetSpecializationSetThrowsExceptionForDimensionSpacePointOutsideTheAllowedSubspace(): void
     {
         $this->expectException(DimensionSpace\Exception\DimensionSpacePointNotFound::class);
         $this->setUpVariationExample();
@@ -537,7 +537,7 @@ class InterDimensionalVariationGraphTest extends TestCase
         $this->subject->getSpecializationSet(DimensionSpace\DimensionSpacePoint::fromArray(['undefinedDimension' => 'undefinedDimensionValue']));
     }
 
-    public function testGetSpecializationSetReturnsEmptySetForOriginWithoutSpecializationsAndWithoutOriginInclusion()
+    public function testGetSpecializationSetReturnsEmptySetForOriginWithoutSpecializationsAndWithoutOriginInclusion(): void
     {
         $this->setUpVariationExample();
 
@@ -552,7 +552,7 @@ class InterDimensionalVariationGraphTest extends TestCase
         );
     }
 
-    public function testGetSpecializationSetReturnsSetConsistingOnlyOfOriginForOriginWithoutSpecializationsAndWithOriginInclusion()
+    public function testGetSpecializationSetReturnsSetConsistingOnlyOfOriginForOriginWithoutSpecializationsAndWithOriginInclusion(): void
     {
         $this->setUpVariationExample();
 
@@ -567,7 +567,7 @@ class InterDimensionalVariationGraphTest extends TestCase
         );
     }
 
-    public function testGetSpecializationSetReturnsCorrectSpecializationSetForOriginWithSpecializations()
+    public function testGetSpecializationSetReturnsCorrectSpecializationSetForOriginWithSpecializations(): void
     {
         $this->setUpVariationExample();
 
@@ -651,7 +651,7 @@ class InterDimensionalVariationGraphTest extends TestCase
         );
     }
 
-    public function testGetVariantTypeCorrectlyDeterminesTheVariantType()
+    public function testGetVariantTypeCorrectlyDeterminesTheVariantType(): void
     {
         $this->setUpVariationExample();
 
@@ -667,8 +667,246 @@ class InterDimensionalVariationGraphTest extends TestCase
     }
 
     /**
+     * @dataProvider generalizationSetSampleProvider
+     */
+    public function testGetGeneralizationSetForSet(
+        DimensionSpace\DimensionSpacePointSet $specializationSet,
+        bool $includeOrigins,
+        DimensionSpace\DimensionSpacePointSet $expectedGeneralizations
+    ): void {
+        $this->setUpVariationExample();
+
+        Assert::assertEquals($expectedGeneralizations, $this->subject->getGeneralizationSetForSet($specializationSet, $includeOrigins));
+    }
+
+    public static function generalizationSetSampleProvider(): iterable
+    {
+        yield 'empty set without origins' => [
+            'specializationSet' => DimensionSpace\DimensionSpacePointSet::fromArray([]),
+            'includeOrigins' => false,
+            'expectedGeneralizations' => DimensionSpace\DimensionSpacePointSet::fromArray([]),
+        ];
+
+        yield 'empty set with origins' => [
+            'specializationSet' => DimensionSpace\DimensionSpacePointSet::fromArray([]),
+            'includeOrigins' => true,
+            'expectedGeneralizations' => DimensionSpace\DimensionSpacePointSet::fromArray([]),
+        ];
+
+        yield 'root without origins' => [
+            'specializationSet' => DimensionSpace\DimensionSpacePointSet::fromArray([
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1',
+                    'dimensionB' => 'value1',
+                ])
+            ]),
+            'includeOrigins' => false,
+            'expectedGeneralizations' => DimensionSpace\DimensionSpacePointSet::fromArray([]),
+        ];
+
+        yield 'root with origins' => [
+            'specializationSet' => DimensionSpace\DimensionSpacePointSet::fromArray([
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1',
+                    'dimensionB' => 'value1',
+                ])
+            ]),
+            'includeOrigins' => true,
+            'expectedGeneralizations' => DimensionSpace\DimensionSpacePointSet::fromArray([
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1',
+                    'dimensionB' => 'value1',
+                ])
+            ]),
+        ];
+
+        yield 'non-root without origins' => [
+            'specializationSet' => DimensionSpace\DimensionSpacePointSet::fromArray([
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1.1',
+                ])
+            ]),
+            'includeOrigins' => false,
+            'expectedGeneralizations' => DimensionSpace\DimensionSpacePointSet::fromArray([
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1',
+                    'dimensionB' => 'value1.1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1',
+                    'dimensionB' => 'value1',
+                ]),
+            ]),
+        ];
+
+        yield 'non-root with origins' => [
+            'specializationSet' => DimensionSpace\DimensionSpacePointSet::fromArray([
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1.1',
+                ])
+            ]),
+            'includeOrigins' => true,
+            'expectedGeneralizations' => DimensionSpace\DimensionSpacePointSet::fromArray([
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1.1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1',
+                    'dimensionB' => 'value1.1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1',
+                    'dimensionB' => 'value1',
+                ]),
+            ]),
+        ];
+
+        yield 'mixed set without origins' => [
+            'specializationSet' => DimensionSpace\DimensionSpacePointSet::fromArray([
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1',
+                    'dimensionB' => 'value1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1.1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1.2',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1.1',
+                    'dimensionB' => 'value1.1.1',
+                ]),
+            ]),
+            'includeOrigins' => false,
+            'expectedGeneralizations' => DimensionSpace\DimensionSpacePointSet::fromArray([
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1',
+                    'dimensionB' => 'value1.1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1',
+                    'dimensionB' => 'value1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1',
+                    'dimensionB' => 'value1.2',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1.1.1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1',
+                    'dimensionB' => 'value1.1.1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1.1',
+                    'dimensionB' => 'value1.1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1.1',
+                    'dimensionB' => 'value1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1.1',
+                ]),
+            ]),
+        ];
+
+        yield 'mixed set with origins' => [
+            'specializationSet' => DimensionSpace\DimensionSpacePointSet::fromArray([
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1',
+                    'dimensionB' => 'value1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1.1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1.2',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1.1',
+                    'dimensionB' => 'value1.1.1',
+                ]),
+            ]),
+            'includeOrigins' => true,
+            'expectedGeneralizations' => DimensionSpace\DimensionSpacePointSet::fromArray([
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1',
+                    'dimensionB' => 'value1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1.1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1',
+                    'dimensionB' => 'value1.1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1.2',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1',
+                    'dimensionB' => 'value1.2',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1.1',
+                    'dimensionB' => 'value1.1.1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1.1.1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1',
+                    'dimensionB' => 'value1.1.1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1.1',
+                    'dimensionB' => 'value1.1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1.1',
+                    'dimensionB' => 'value1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1.1',
+                ]),
+            ]),
+        ];
+    }
+
+    /**
      * @dataProvider rootReductionSetProvider
-     * @return void
      */
     public function testReduceSetToRelativeRoots(
         DimensionSpace\DimensionSpacePointSet $dimensionSpacePointSet,

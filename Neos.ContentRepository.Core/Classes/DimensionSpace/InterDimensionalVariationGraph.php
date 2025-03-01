@@ -348,6 +348,31 @@ final class InterDimensionalVariationGraph
 
     /**
      * @api
+     * @throws Exception\DimensionSpacePointNotFound
+     */
+    public function getGeneralizationSetForSet(
+        DimensionSpacePointSet $origins,
+        bool $includeOrigins = true,
+    ): DimensionSpacePointSet {
+        $generalizations = [];
+        foreach ($origins as $origin) {
+            if (!$this->contentDimensionZookeeper->getAllowedDimensionSubspace()->contains($origin)) {
+                throw Exception\DimensionSpacePointNotFound::becauseItIsNotWithinTheAllowedDimensionSubspace($origin);
+            }
+            if ($includeOrigins) {
+                $generalizations[$origin->hash] = $origin;
+            }
+
+            foreach ($this->getIndexedGeneralizations($origin) as $generalization) {
+                $generalizations[$generalization->hash] = $generalization;
+            }
+        }
+
+        return new DimensionSpacePointSet($generalizations);
+    }
+
+    /**
+     * @api
      */
     public function reduceSetToRelativeRoots(
         DimensionSpacePointSet $dimensionSpacePointSet,
