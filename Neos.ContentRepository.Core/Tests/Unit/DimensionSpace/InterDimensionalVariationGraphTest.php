@@ -14,6 +14,7 @@ namespace Neos\ContentRepository\Core\Tests\Unit\DimensionSpace;
 
 use Neos\ContentRepository\Core\Dimension;
 use Neos\ContentRepository\Core\DimensionSpace;
+use PHPUnit\Framework\Assert;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -598,7 +599,7 @@ class InterDimensionalVariationGraphTest extends TestCase
         );
     }
 
-    protected function setUpVariationExample()
+    protected function setUpVariationExample(): void
     {
         $dimensionSource = new Fixtures\VariationExampleDimensionSource();
         $dimensionZookeeper = new DimensionSpace\ContentDimensionZookeeper($dimensionSource);
@@ -618,7 +619,7 @@ class InterDimensionalVariationGraphTest extends TestCase
         );
     }
 
-    public function testDetermineWeightNormalizationBaseEvaluatesToMaximumDimensionDepthPlusOne()
+    public function testDetermineWeightNormalizationBaseEvaluatesToMaximumDimensionDepthPlusOne(): void
     {
         $firstDepth = new Dimension\ContentDimensionValueSpecializationDepth(random_int(0, 100));
         $firstDummy = new Dimension\ContentDimensionValue('firstDummy', $firstDepth);
@@ -663,6 +664,107 @@ class InterDimensionalVariationGraphTest extends TestCase
         self::assertSame(DimensionSpace\VariantType::TYPE_PEER, $this->subject->getVariantType($specialization, $peer));
         self::assertSame(DimensionSpace\VariantType::TYPE_PEER, $this->subject->getVariantType($peer, $specialization));
         self::assertSame(DimensionSpace\VariantType::TYPE_SAME, $this->subject->getVariantType($peer, $peer));
+    }
+
+    /**
+     * @dataProvider rootReductionSetProvider
+     * @return void
+     */
+    public function testReduceSetToRelativeRoots(
+        DimensionSpace\DimensionSpacePointSet $dimensionSpacePointSet,
+        DimensionSpace\DimensionSpacePointSet $expectedRelativeRoots
+    ): void {
+        $this->setUpVariationExample();
+
+        Assert::assertEquals($expectedRelativeRoots, $this->subject->reduceSetToRelativeRoots($dimensionSpacePointSet));
+    }
+
+    public static function rootReductionSetProvider(): iterable
+    {
+        yield 'emptySet' => [
+            'dimensionSpacePointSet' => DimensionSpace\DimensionSpacePointSet::fromArray([]),
+            'expectedRelativeRoots' => DimensionSpace\DimensionSpacePointSet::fromArray([]),
+        ];
+
+        yield 'singleAbsoluteRoot' => [
+            'dimensionSpacePointSet' => DimensionSpace\DimensionSpacePointSet::fromArray([
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1',
+                    'dimensionB' => 'value1',
+                ])
+            ]),
+            'expectedRelativeRoots' => DimensionSpace\DimensionSpacePointSet::fromArray([
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1',
+                    'dimensionB' => 'value1',
+                ])
+            ]),
+        ];
+
+        yield 'singleNonAbsoluteRoot' => [
+            'dimensionSpacePointSet' => DimensionSpace\DimensionSpacePointSet::fromArray([
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1.1',
+                ])
+            ]),
+            'expectedRelativeRoots' => DimensionSpace\DimensionSpacePointSet::fromArray([
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1.1',
+                ])
+            ]),
+        ];
+
+        yield 'multipleNonAbsoluteRootPeers' => [
+            'dimensionSpacePointSet' => DimensionSpace\DimensionSpacePointSet::fromArray([
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1.2',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.2',
+                    'dimensionB' => 'value1.1',
+                ]),
+            ]),
+            'expectedRelativeRoots' => DimensionSpace\DimensionSpacePointSet::fromArray([
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1.2',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.2',
+                    'dimensionB' => 'value1.1',
+                ]),
+            ]),
+        ];
+
+        yield 'mixedSetWithRelativeRootsAndSpecializations' => [
+            'dimensionSpacePointSet' => DimensionSpace\DimensionSpacePointSet::fromArray([
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1.2',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.2',
+                    'dimensionB' => 'value1.1',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1.1',
+                    'dimensionB' => 'value1.2',
+                ]),
+            ]),
+            'expectedRelativeRoots' => DimensionSpace\DimensionSpacePointSet::fromArray([
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.1',
+                    'dimensionB' => 'value1.2',
+                ]),
+                DimensionSpace\DimensionSpacePoint::fromArray([
+                    'dimensionA' => 'value1.2',
+                    'dimensionB' => 'value1.1',
+                ]),
+            ]),
+        ];
     }
 
     /**

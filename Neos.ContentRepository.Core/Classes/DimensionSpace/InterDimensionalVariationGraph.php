@@ -349,6 +349,26 @@ final class InterDimensionalVariationGraph
     /**
      * @api
      */
+    public function reduceSetToRelativeRoots(
+        DimensionSpacePointSet $dimensionSpacePointSet,
+    ): DimensionSpacePointSet {
+        $rootGeneralizations = $dimensionSpacePointSet->points;
+        foreach ($dimensionSpacePointSet as $dimensionSpacePointA) {
+            foreach ($dimensionSpacePointSet as $dimensionSpacePointB) {
+                switch ($this->getVariantType($dimensionSpacePointA, $dimensionSpacePointB)) {
+                    case VariantType::TYPE_SPECIALIZATION:
+                        unset($rootGeneralizations[$dimensionSpacePointA->hash]);
+                        break;
+                    default:
+                }
+            }
+        }
+        return DimensionSpacePointSet::fromArray($rootGeneralizations);
+    }
+
+    /**
+     * @api
+     */
     public function getPrimaryGeneralization(DimensionSpacePoint $specialization): ?DimensionSpacePoint
     {
         if (!isset($this->primaryGeneralizations)) {
