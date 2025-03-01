@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\Core\Projection\ContentGraph;
+namespace Neos\Neos\Domain\SoftRemoval;
 
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 
-/** @api a simple set */
-final readonly class NodeAggregateIdWithDimensionSpacePoints
+/** @internal only to be used for hard removal conflict handling */
+final readonly class ImpendingHardRemovalConflict
 {
     private function __construct(
         public NodeAggregateId $nodeAggregateId,

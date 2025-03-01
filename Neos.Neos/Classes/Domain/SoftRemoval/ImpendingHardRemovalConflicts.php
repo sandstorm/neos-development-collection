@@ -2,24 +2,24 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\Core\Projection\ContentGraph;
+namespace Neos\Neos\Domain\SoftRemoval;
 
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 
 /**
- * @implements \IteratorAggregate<NodeAggregateIdWithDimensionSpacePoints>
- * @api a simple collection
+ * @implements \IteratorAggregate<ImpendingHardRemovalConflict>
+ * @internal only to be used for hard removal conflict handling
  */
-final readonly class NodeAggregateIdsWithDimensionSpacePoints implements \IteratorAggregate, \Countable
+final readonly class ImpendingHardRemovalConflicts implements \IteratorAggregate, \Countable
 {
     private function __construct(
-        /** @var array<string,NodeAggregateIdWithDimensionSpacePoints> indexed by NodeAggregateId */
+        /** @var array<string,ImpendingHardRemovalConflict> indexed by NodeAggregateId */
         private array $items
     ) {
     }
 
-    public static function create(NodeAggregateIdWithDimensionSpacePoints ...$items): self
+    public static function create(ImpendingHardRemovalConflict ...$items): self
     {
         $indexedItems = [];
         foreach ($items as $item) {
@@ -28,18 +28,18 @@ final readonly class NodeAggregateIdsWithDimensionSpacePoints implements \Iterat
         return new self($indexedItems);
     }
 
-    /** @param array<NodeAggregateIdWithDimensionSpacePoints> $items */
+    /** @param array<ImpendingHardRemovalConflict> $items */
     public static function fromArray(array $items): self
     {
         return self::create(...$items);
     }
 
-    public function get(NodeAggregateId $key): ?NodeAggregateIdWithDimensionSpacePoints
+    public function get(NodeAggregateId $key): ?ImpendingHardRemovalConflict
     {
         return $this->items[$key->value] ?? null;
     }
 
-    public function with(NodeAggregateIdWithDimensionSpacePoints $item): self
+    public function with(ImpendingHardRemovalConflict $item): self
     {
         $items = $this->items;
         $items[$item->nodeAggregateId->value] = $item;
@@ -54,7 +54,7 @@ final readonly class NodeAggregateIdsWithDimensionSpacePoints implements \Iterat
     public function toNodeAggregateIds(): NodeAggregateIds
     {
         return NodeAggregateIds::fromArray(
-            array_map(fn (NodeAggregateIdWithDimensionSpacePoints $node) => $node->nodeAggregateId, $this->items)
+            array_map(fn (ImpendingHardRemovalConflict $node) => $node->nodeAggregateId, $this->items)
         );
     }
 
