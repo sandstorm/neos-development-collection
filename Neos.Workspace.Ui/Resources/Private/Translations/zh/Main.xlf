@@ -265,6 +265,10 @@
         <source>Review</source>
         <target state="needs-translation">审查</target>
       </trans-unit>
+      <trans-unit id="workspaces.dialog.rebase.node" xml:space="preserve">
+        <source>Node</source>
+        <target state="needs-translation">节点</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

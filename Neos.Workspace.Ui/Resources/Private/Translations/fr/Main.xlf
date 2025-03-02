@@ -269,6 +269,10 @@
         <source>Last modified</source>
         <target state="needs-translation">Dernière modification</target>
       </trans-unit>
+      <trans-unit id="workspaces.dialog.rebase.node" xml:space="preserve">
+        <source>Node</source>
+        <target state="needs-translation">Noeud</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

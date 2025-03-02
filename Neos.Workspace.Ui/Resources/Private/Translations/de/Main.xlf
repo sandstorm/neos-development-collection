@@ -297,6 +297,10 @@
         <source>Actions</source>
         <target state="needs-translation">Aktionen</target>
       </trans-unit>
+      <trans-unit id="workspaces.dialog.rebase.node" xml:space="preserve">
+        <source>Node</source>
+        <target state="needs-translation">Knoten</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

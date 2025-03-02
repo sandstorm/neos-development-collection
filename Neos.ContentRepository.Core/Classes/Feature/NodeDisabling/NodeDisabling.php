@@ -29,7 +29,6 @@ use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Event\SubtreeWasTagged;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Event\SubtreeWasUntagged;
 use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamDoesNotExistYet;
-use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregatesTypeIsAmbiguous;
 
 /**
  * @internal implementation detail of Command Handlers
@@ -59,7 +58,9 @@ trait NodeDisabling
             $nodeAggregate,
             $command->coveredDimensionSpacePoint
         );
-        if ($nodeAggregate->getDimensionSpacePointsTaggedWith(SubtreeTag::disabled())->contains($command->coveredDimensionSpacePoint)) {
+
+        $explicitlyDisabledDimensions = $nodeAggregate->getCoveredDimensionsTaggedBy(SubtreeTag::disabled(), withoutInherited: true);
+        if ($explicitlyDisabledDimensions->contains($command->coveredDimensionSpacePoint)) {
             throw new NodeAggregateIsAlreadyDisabled(sprintf('Node aggregate "%s" cannot be disabled because it is already explicitly disabled for dimension space point %s', $nodeAggregate->nodeAggregateId->value, $command->coveredDimensionSpacePoint->toJson()), 1731166196);
         }
 
@@ -97,7 +98,6 @@ trait NodeDisabling
      * @return EventsToPublish
      * @throws ContentStreamDoesNotExistYet
      * @throws DimensionSpacePointNotFound
-     * @throws NodeAggregatesTypeIsAmbiguous
      */
     public function handleEnableNodeAggregate(
         EnableNodeAggregate $command,
@@ -114,7 +114,8 @@ trait NodeDisabling
             $nodeAggregate,
             $command->coveredDimensionSpacePoint
         );
-        if (!$nodeAggregate->getDimensionSpacePointsTaggedWith(SubtreeTag::disabled())->contains($command->coveredDimensionSpacePoint)) {
+        $explicitlyDisabledDimensions = $nodeAggregate->getCoveredDimensionsTaggedBy(SubtreeTag::disabled(), withoutInherited: true);
+        if (!$explicitlyDisabledDimensions->contains($command->coveredDimensionSpacePoint)) {
             throw new NodeAggregateIsAlreadyEnabled(sprintf('Node aggregate "%s" cannot be enabled because is not explicitly disabled for dimension space point %s', $nodeAggregate->nodeAggregateId->value, $command->coveredDimensionSpacePoint->toJson()), 1731166142);
         }
 
