@@ -249,7 +249,7 @@ trait NodeMove
     ): InterdimensionalSiblings {
         $selectedSubgraph = $contentGraph->getSubgraph(
             $selectedDimensionSpacePoint,
-            VisibilityConstraints::withoutRestrictions()
+            VisibilityConstraints::createEmpty()
         );
         $alternativeSucceedingSiblingIds = $succeedingSiblingId
             ? $selectedSubgraph->findSucceedingSiblingNodes(
@@ -268,7 +268,7 @@ trait NodeMove
         foreach ($affectedDimensionSpacePoints as $dimensionSpacePoint) {
             $variantSubgraph = $contentGraph->getSubgraph(
                 $dimensionSpacePoint,
-                VisibilityConstraints::withoutRestrictions()
+                VisibilityConstraints::createEmpty()
             );
             if ($succeedingSiblingId) {
                 $variantSucceedingSibling = $variantSubgraph->findNodeById($succeedingSiblingId);

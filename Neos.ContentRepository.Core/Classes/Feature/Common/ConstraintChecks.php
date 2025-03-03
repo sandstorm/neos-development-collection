@@ -551,7 +551,7 @@ trait ConstraintChecks
     ): void {
         $succeedingSiblings = $contentGraph->getSubgraph(
             $dimensionSpacePoint,
-            VisibilityConstraints::withoutRestrictions()
+            VisibilityConstraints::createEmpty()
         )->findSucceedingSiblingNodes($referenceNodeAggregateId, FindSucceedingSiblingNodesFilter::create());
         if ($succeedingSiblings->toNodeAggregateIds()->contain($siblingNodeAggregateId)) {
             return;
@@ -559,7 +559,7 @@ trait ConstraintChecks
 
         $precedingSiblings = $contentGraph->getSubgraph(
             $dimensionSpacePoint,
-            VisibilityConstraints::withoutRestrictions()
+            VisibilityConstraints::createEmpty()
         )->findPrecedingSiblingNodes($referenceNodeAggregateId, FindPrecedingSiblingNodesFilter::create());
         if ($precedingSiblings->toNodeAggregateIds()->contain($siblingNodeAggregateId)) {
             return;
@@ -583,7 +583,7 @@ trait ConstraintChecks
     ): void {
         $childNodes = $contentGraph->getSubgraph(
             $dimensionSpacePoint,
-            VisibilityConstraints::withoutRestrictions()
+            VisibilityConstraints::createEmpty()
         )->findChildNodes($parentNodeAggregateId, FindChildNodesFilter::create());
         if ($childNodes->toNodeAggregateIds()->contain($childNodeAggregateId)) {
             return;
