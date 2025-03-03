@@ -20,7 +20,7 @@ use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTags;
 /**
  * The visibility constraints define a context in which the content graph is accessed.
  *
- * For example: In the `frontend` context, nodes with the `disabled` tag are excluded. In the `backend` context {@see self::withoutRestrictions()} they are included
+ * For example: By default, nodes with the `disabled` tag are excluded. But to access them no constraints (empty) can be used includes those.
  *
  * @api
  */
@@ -59,12 +59,12 @@ final readonly class VisibilityConstraints implements \JsonSerializable
 
     public static function default(): VisibilityConstraints
     {
-        return new self(SubtreeTags::fromArray([SubtreeTag::disabled()]));
+        return new self(SubtreeTags::create(SubtreeTag::disabled()));
     }
 
     public function withAddedSubtreeTag(SubtreeTag $subtreeTag): self
     {
-        return new self($this->tagConstraints->merge(SubtreeTags::fromArray([$subtreeTag])));
+        return new self($this->tagConstraints->with($subtreeTag));
     }
 
     /**
@@ -78,6 +78,8 @@ final readonly class VisibilityConstraints implements \JsonSerializable
      * The classic Neos backend use-case previously used this method to be able to find also disabled nodes.
      * Now with the introduction of soft removed tags, empty constraints will cause nodes
      * to show up that were previously non-existent. Thus, this factory restricts 'removed' after all.
+     *
+     * Please use {@see \Neos\Neos\Security\Authorization\ContentRepositoryAuthorizationService::backendVisibilityConstraints()} instead.
      *
      * @deprecated with Neos 9 beta 19
      */
