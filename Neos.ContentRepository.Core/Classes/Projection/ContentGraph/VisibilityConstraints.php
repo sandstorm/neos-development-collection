@@ -79,7 +79,7 @@ final readonly class VisibilityConstraints implements \JsonSerializable
      * Now with the introduction of soft removed tags, empty constraints will cause nodes
      * to show up that were previously non-existent. Thus, this factory restricts 'removed' after all.
      *
-     * Please use {@see \Neos\Neos\Security\Authorization\ContentRepositoryAuthorizationService::backendVisibilityConstraints()} instead.
+     * Please use {@see \Neos\Neos\Domain\Service\NeosVisibilityConstraints::withoutRemoved()} instead.
      *
      * @deprecated with Neos 9 beta 19
      */
