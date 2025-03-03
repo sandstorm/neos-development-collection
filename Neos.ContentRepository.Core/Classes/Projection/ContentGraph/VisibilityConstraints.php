@@ -14,13 +14,27 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Projection\ContentGraph;
 
+use Neos\ContentRepository\Core\ContentRepository;
+use Neos\ContentRepository\Core\Feature\Security\AuthProviderInterface;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTags;
 
 /**
- * The visibility constraints define a context in which the content graph is accessed.
+ * The visibility constraints define how nodes in the content subgraph are accessed.
  *
- * For example: By default, nodes with the `disabled` tag are excluded. But to access them no constraints (empty) can be used includes those.
+ * For this the constraints need to be provided to {@see ContentGraphInterface::getSubgraph()}.
+ * Alternatively {@see ContentRepository::getContentSubgraph()} uses the implemented {@see AuthProviderInterface} to determine
+ * the visibility constraint the current applications state via {@see AuthProviderInterface::getVisibilityConstraints()}
+ *
+ * To have nodes with the `disabled` tag excluded use:
+ *
+ *     VisibilityConstraints::fromTagConstraints(SubtreeTags::create(
+ *         SubtreeTag::disabled())
+ *     );
+ *
+ * But to access them no constraints can be used includes those:
+ *
+ *     VisibilityConstraints::createEmpty();
  *
  * @api
  */
@@ -57,20 +71,27 @@ final readonly class VisibilityConstraints implements \JsonSerializable
         return md5(implode('|', $this->tagConstraints->toStringArray()));
     }
 
-    public static function default(): VisibilityConstraints
-    {
-        return new self(SubtreeTags::create(SubtreeTag::disabled()));
-    }
-
     public function withAddedSubtreeTag(SubtreeTag $subtreeTag): self
     {
         return new self($this->tagConstraints->with($subtreeTag));
     }
 
     /**
-     * A subgraph without constraints for finding all nodes without filtering
+     * Legacy, only for Neos.Neos context!, for standalone use please use {@see self::fromTagConstraints()}
      *
-     * Only for Neos.Neos context!
+     * Please use {@see \Neos\Neos\Domain\Service\NeosVisibilityConstraints::frontend()} instead.
+     *
+     * @deprecated with Neos 9 beta 19
+     */
+    public static function default(): VisibilityConstraints
+    {
+        return new self(SubtreeTags::create(SubtreeTag::disabled(), SubtreeTag::fromString('removed')));
+    }
+
+    /**
+     * Legacy, only for Neos.Neos context!, for standalone use please use {@see self::createEmpty()}
+     *
+     * A subgraph without constraints for finding all nodes without filtering
      *
      * Nodes for example with tag disabled will be findable but not soft removed nodes
      *
