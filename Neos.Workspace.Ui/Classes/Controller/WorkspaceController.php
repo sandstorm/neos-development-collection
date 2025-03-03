@@ -831,7 +831,7 @@ class WorkspaceController extends AbstractModuleController
         foreach ($changes as $change) {
             $subgraph = $contentRepository->getContentGraph($selectedWorkspace->workspaceName)->getSubgraph(
                 $change->originDimensionSpacePoint?->toDimensionSpacePoint() ?? $arbitraryDimensionSpacePoint,
-                VisibilityConstraints::withoutRestrictions()
+                VisibilityConstraints::createEmpty()
             );
 
             $node = $subgraph->findNodeById($change->nodeAggregateId);
@@ -980,7 +980,7 @@ class WorkspaceController extends AbstractModuleController
     ): ?Node {
         $baseSubgraph = $contentRepository->getContentGraph($baseWorkspaceName)->getSubgraph(
             $modifiedNode->dimensionSpacePoint,
-            VisibilityConstraints::withoutRestrictions()
+            VisibilityConstraints::createEmpty()
         );
         return $baseSubgraph->findNodeById($modifiedNode->aggregateId);
     }
