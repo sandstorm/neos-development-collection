@@ -52,14 +52,6 @@ final class SubtreeTag implements \JsonSerializable
         return self::instance('disabled');
     }
 
-    /**
-     * Todo, docs, when to use?!
-     */
-    public static function removed(): self
-    {
-        return self::instance('removed');
-    }
-
     public function equals(self $other): bool
     {
         return $this === $other;

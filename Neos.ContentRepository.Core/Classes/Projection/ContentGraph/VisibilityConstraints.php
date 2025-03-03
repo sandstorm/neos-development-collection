@@ -50,7 +50,7 @@ final readonly class VisibilityConstraints implements \JsonSerializable
     /**
      * A subgraph without constraints for finding all nodes without filtering
      *
-     * Nodes with tag disabled or removed will be findable
+     * Nodes for example with tag disabled will be findable
      */
     public static function withoutRestrictions(): self
     {
@@ -59,10 +59,7 @@ final readonly class VisibilityConstraints implements \JsonSerializable
 
     public static function default(): VisibilityConstraints
     {
-        return new self(SubtreeTags::fromArray([
-            SubtreeTag::removed(),
-            SubtreeTag::disabled(),
-        ]));
+        return new self(SubtreeTags::fromArray([SubtreeTag::disabled()]));
     }
 
     public function withAddedSubtreeTag(SubtreeTag $subtreeTag): self
