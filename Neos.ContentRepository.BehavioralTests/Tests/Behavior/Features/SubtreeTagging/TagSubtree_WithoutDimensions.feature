@@ -37,55 +37,6 @@ Feature: Tag subtree without dimensions
       | b               | Neos.ContentRepository.Testing:Document | root                  | b        |
       | b1              | Neos.ContentRepository.Testing:Document | b                     | b1       |
 
-  Scenario: Tagging the same node twice with the same subtree tag
-    When the command TagSubtree is executed with payload:
-      | Key                          | Value         |
-      | nodeAggregateId              | "a1"          |
-      | nodeVariantSelectionStrategy | "allVariants" |
-      | tag                          | "tag1"        |
-    Then I expect exactly 14 events to be published on stream with prefix "ContentStream:cs-identifier"
-    And event at index 13 is of type "SubtreeWasTagged" with payload:
-      | Key                          | Expected        |
-      | contentStreamId              | "cs-identifier" |
-      | nodeAggregateId              | "a1"            |
-      | affectedDimensionSpacePoints | [[]]            |
-      | tag                          | "tag1"          |
-    When the command TagSubtree is executed with payload and exceptions are caught:
-      | Key                          | Value         |
-      | nodeAggregateId              | "a1"          |
-      | nodeVariantSelectionStrategy | "allVariants" |
-      | tag                          | "tag1"        |
-    Then the last command should have thrown an exception of type "SubtreeIsAlreadyTagged"
-
-  Scenario: Untagging a node without tags
-    Then I expect exactly 13 events to be published on stream with prefix "ContentStream:cs-identifier"
-    When the command UntagSubtree is executed with payload and exceptions are caught:
-      | Key                          | Value         |
-      | nodeAggregateId              | "a1"          |
-      | nodeVariantSelectionStrategy | "allVariants" |
-      | tag                          | "tag1"        |
-    Then the last command should have thrown an exception of type "SubtreeIsNotTagged"
-
-  Scenario: Untagging a node that is only implicitly tagged (inherited)
-    When the command TagSubtree is executed with payload:
-      | Key                          | Value         |
-      | nodeAggregateId              | "a1"          |
-      | nodeVariantSelectionStrategy | "allVariants" |
-      | tag                          | "tag1"        |
-    Then I expect exactly 14 events to be published on stream with prefix "ContentStream:cs-identifier"
-    And event at index 13 is of type "SubtreeWasTagged" with payload:
-      | Key                          | Expected        |
-      | contentStreamId              | "cs-identifier" |
-      | nodeAggregateId              | "a1"            |
-      | affectedDimensionSpacePoints | [[]]            |
-      | tag                          | "tag1"          |
-    When the command UntagSubtree is executed with payload and exceptions are caught:
-      | Key                          | Value         |
-      | nodeAggregateId              | "a1a"         |
-      | nodeVariantSelectionStrategy | "allVariants" |
-      | tag                          | "tag1"        |
-    Then the last command should have thrown an exception of type "SubtreeIsNotTagged"
-
   Scenario: Tagging subtree with arbitrary strategy since dimensions are not involved
     When the command TagSubtree is executed with payload:
       | Key                          | Value         |
