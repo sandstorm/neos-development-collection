@@ -35,13 +35,20 @@ final readonly class NodeAggregateWasRemoved implements
     EmbedsNodeAggregateId,
     EmbedsWorkspaceName
 {
+    /**
+     * @deprecated with Neos 9 Beta 19. Must not be specified any longer. Might get removed at any point.
+     */
+    public ?NodeAggregateId $removalAttachmentPoint;
+
     public function __construct(
         public WorkspaceName $workspaceName,
         public ContentStreamId $contentStreamId,
         public NodeAggregateId $nodeAggregateId,
         public OriginDimensionSpacePointSet $affectedOccupiedDimensionSpacePoints,
-        public DimensionSpacePointSet $affectedCoveredDimensionSpacePoints
+        public DimensionSpacePointSet $affectedCoveredDimensionSpacePoints,
+        ?NodeAggregateId $removalAttachmentPoint = null
     ) {
+        $this->removalAttachmentPoint = $removalAttachmentPoint;
     }
 
     public function getContentStreamId(): ContentStreamId
@@ -66,7 +73,8 @@ final readonly class NodeAggregateWasRemoved implements
             $contentStreamId,
             $this->nodeAggregateId,
             $this->affectedOccupiedDimensionSpacePoints,
-            $this->affectedCoveredDimensionSpacePoints
+            $this->affectedCoveredDimensionSpacePoints,
+            $this->removalAttachmentPoint
         );
     }
 
@@ -77,7 +85,10 @@ final readonly class NodeAggregateWasRemoved implements
             ContentStreamId::fromString($values['contentStreamId']),
             NodeAggregateId::fromString($values['nodeAggregateId']),
             OriginDimensionSpacePointSet::fromArray($values['affectedOccupiedDimensionSpacePoints']),
-            DimensionSpacePointSet::fromArray($values['affectedCoveredDimensionSpacePoints'])
+            DimensionSpacePointSet::fromArray($values['affectedCoveredDimensionSpacePoints']),
+            isset($values['removalAttachmentPoint'])
+                ? NodeAggregateId::fromString($values['removalAttachmentPoint'])
+                : null,
         );
     }
 

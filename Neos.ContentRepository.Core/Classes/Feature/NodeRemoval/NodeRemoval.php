@@ -74,7 +74,8 @@ trait NodeRemoval
                     $command->coveredDimensionSpacePoint,
                     $nodeAggregate,
                     $this->getInterDimensionalVariationGraph()
-                )
+                ),
+                $command->removalAttachmentPoint
             )
         );
 
