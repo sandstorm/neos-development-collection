@@ -142,7 +142,7 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
         ContentGraphInterface $contentGraph,
         DimensionSpacePoint $dimensionSpacePoint
     ): void {
-        $hasNodes = $contentGraph->getSubgraph($dimensionSpacePoint, VisibilityConstraints::withoutRestrictions())->countNodes();
+        $hasNodes = $contentGraph->getSubgraph($dimensionSpacePoint, VisibilityConstraints::createEmpty())->countNodes();
         if ($hasNodes > 0) {
             throw new DimensionSpacePointAlreadyExists(sprintf(
                 'the content stream %s already contained nodes in dimension space point %s - this is not allowed.',

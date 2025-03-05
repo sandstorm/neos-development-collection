@@ -15,14 +15,13 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\NodeType\NodeType
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\PropertyValue\Criteria\OrCriteria;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\PropertyValue\Criteria\PropertyValueLessThanOrEqual;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
-use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
-use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeVariantSelectionStrategy;
 use Neos\ContentRepository\Core\SharedModel\Node\PropertyName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Annotations as Flow;
+use Neos\Neos\Domain\Service\NeosVisibilityConstraints;
 use Neos\TimeableNodeVisibility\Domain\ChangedVisibilities;
 use Neos\TimeableNodeVisibility\Domain\ChangedVisibility;
 use Psr\Log\LoggerInterface;
@@ -92,10 +91,9 @@ class TimeableNodeVisibilityService
 
             $contentGraph = $contentRepository->getContentGraph($workspaceName);
 
-            // We fetch without restriction to get also all disabled nodes
             $subgraph = $contentGraph->getSubgraph(
                 $dimensionSpacePoint,
-                VisibilityConstraints::withoutRestrictions()
+                NeosVisibilityConstraints::excludeRemoved()
             );
 
             $sitesNodeTypeName = NodeTypeName::fromString('Neos.Neos:Sites');
