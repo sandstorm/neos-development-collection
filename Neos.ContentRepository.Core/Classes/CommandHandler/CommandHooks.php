@@ -31,7 +31,7 @@ final readonly class CommandHooks implements CommandHookInterface, \IteratorAggr
         return new self(...$commandHooks);
     }
 
-    public static function none(): self
+    public static function createEmpty(): self
     {
         return new self();
     }
