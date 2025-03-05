@@ -184,4 +184,20 @@ class MigrateEventsCommandController extends CommandController
         $eventMigrationService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, $this->eventMigrationServiceFactory);
         $eventMigrationService->migrateCheckpointsToSubscriptions($this->outputLine(...));
     }
+
+    /**
+     * Migrates duplicate "NodePeerVariantWasCreated" on the same node which were created by faulty structure adjustments
+     *
+     * Needed for #4969: https://github.com/neos/neos-development-collection/pull/4969
+     *
+     * Included in February 2025 - before final Neos 9.0 release
+     *
+     * @param string $contentRepository Identifier of the Content Repository to migrate
+     */
+    public function migrateDuplicateNodeVariationsCommand(string $contentRepository = 'default'): void
+    {
+        $contentRepositoryId = ContentRepositoryId::fromString($contentRepository);
+        $eventMigrationService = $this->contentRepositoryRegistry->buildService($contentRepositoryId, $this->eventMigrationServiceFactory);
+        $eventMigrationService->migrateDuplicateNodeVariations($this->outputLine(...));
+    }
 }

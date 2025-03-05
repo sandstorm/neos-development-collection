@@ -261,6 +261,10 @@
         <source>Review</source>
         <target state="needs-translation">Επισκόπηση</target>
       </trans-unit>
+      <trans-unit id="workspaces.dialog.rebase.node" xml:space="preserve">
+        <source>Node</source>
+        <target state="needs-translation">Κόμβος</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>

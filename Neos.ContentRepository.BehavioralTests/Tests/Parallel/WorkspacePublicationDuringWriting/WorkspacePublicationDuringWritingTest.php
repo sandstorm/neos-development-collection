@@ -169,7 +169,7 @@ class WorkspacePublicationDuringWritingTest extends AbstractParallelTestCase
         $this->log('writing finished');
         Assert::assertTrue(true, 'No exception was thrown ;)');
 
-        $subgraph = $this->contentRepository->getContentGraph(WorkspaceName::forLive())->getSubgraph(DimensionSpacePoint::createWithoutDimensions(), VisibilityConstraints::withoutRestrictions());
+        $subgraph = $this->contentRepository->getContentGraph(WorkspaceName::forLive())->getSubgraph(DimensionSpacePoint::createWithoutDimensions(), VisibilityConstraints::createEmpty());
         $node = $subgraph->findNodeById(NodeAggregateId::fromString('nody-mc-nodeface'));
         Assert::assertNotNull($node);
         Assert::assertSame($node->getProperty('title'), 'changed-title-50');
@@ -253,7 +253,7 @@ class WorkspacePublicationDuringWritingTest extends AbstractParallelTestCase
         }
 
         $node = $this->contentRepository->getContentGraph(WorkspaceName::fromString('user-test'))
-            ->getSubgraph(DimensionSpacePoint::createWithoutDimensions(), VisibilityConstraints::withoutRestrictions())
+            ->getSubgraph(DimensionSpacePoint::createWithoutDimensions(), VisibilityConstraints::createEmpty())
             ->findNodeById(NodeAggregateId::fromString('nody-mc-nodeface'));
 
         Assert::assertSame('written-after-failed-publish', $node?->getProperty('title'));

@@ -330,12 +330,12 @@
         <target state="translated">Verouderd</target>
       </trans-unit>
       <trans-unit id="workspaces.dialog.forceSyncWorkspace" xml:space="preserve">
-        <source>Syncing has failed</source>
-        <target state="translated">Synchroniseren is mislukt</target>
+        <source>Conflicts between workspace "{0}" and "{1}"</source>
+        <target state="needs-translation">Synchroniseren is mislukt</target>
       </trans-unit>
       <trans-unit id="workspaces.dialog.thisCanLeadToLostChanges" xml:space="preserve">
-        <source>A conflict occured while syncing the workspace. Do you want to drop the conflicting changes?</source>
-        <target state="translated">Een conflict is opgetreden tijdens het synchroniseren van de worksapce. Weet je zeker dat je de conflicterende wijzigingen wilt verwijderen?</target>
+        <source>Workspace "{0}" contains modifications that are in conflict with the changes in workspace "{1}".</source>
+        <target state="needs-translation">Een conflict is opgetreden tijdens het synchroniseren van de worksapce. Weet je zeker dat je de conflicterende wijzigingen wilt verwijderen?</target>
       </trans-unit>
       <trans-unit id="workspaces.modal.yesRebaseWorkspace" xml:space="preserve">
         <source>Yes, drop changes</source>
@@ -428,6 +428,10 @@
       <trans-unit id="workspaces.publishAllChangesInWorkspaceConfirmation" xml:space="preserve">
         <source>Do you really want to publish all changes in the "{0}" workspace?</source>
         <target state="translated">Weet u zeker dat je alle wijzigingen in de "{0}" workspace wilt publiceren?</target>
+      </trans-unit>
+      <trans-unit id="workspaces.dialog.rebase.node" xml:space="preserve">
+        <source>Node</source>
+        <target state="needs-translation">Node</target>
       </trans-unit>
     </body>
   </file>

@@ -25,9 +25,7 @@ use Neos\ContentRepository\Core\Feature\NodeRemoval\Command\RemoveNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeRemoval\Event\NodeAggregateWasRemoved;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregate;
 use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamDoesNotExistYet;
-use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregatesTypeIsAmbiguous;
 use Neos\ContentRepository\Core\SharedModel\Exception\TetheredNodeAggregateCannotBeRemoved;
-use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 
 /**
  * @internal implementation detail of Command Handlers
@@ -41,7 +39,6 @@ trait NodeRemoval
     /**
      * @param RemoveNodeAggregate $command
      * @return EventsToPublish
-     * @throws NodeAggregatesTypeIsAmbiguous
      * @throws ContentStreamDoesNotExistYet
      * @throws DimensionSpacePointNotFound
      */
@@ -62,12 +59,6 @@ trait NodeRemoval
             $nodeAggregate,
             $command->coveredDimensionSpacePoint
         );
-        if ($command->removalAttachmentPoint instanceof NodeAggregateId) {
-            $this->requireProjectedNodeAggregate(
-                $contentGraph,
-                $command->removalAttachmentPoint
-            );
-        }
 
         $events = Events::with(
             new NodeAggregateWasRemoved(

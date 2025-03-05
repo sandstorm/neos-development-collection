@@ -46,7 +46,6 @@ use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateIsNoSibling;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateIsRoot;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateIsTethered;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateIsUntethered;
-use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregatesTypeIsAmbiguous;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeConstraintException;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeNameIsAlreadyCovered;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeTypeIsAbstract;
@@ -389,7 +388,6 @@ trait ConstraintChecks
     }
 
     /**
-     * @throws NodeAggregatesTypeIsAmbiguous
      * @throws NodeAggregateCurrentlyDoesNotExist
      */
     protected function requireProjectedNodeAggregate(
@@ -411,7 +409,6 @@ trait ConstraintChecks
     }
 
     /**
-     * @throws NodeAggregatesTypeIsAmbiguous
      * @throws NodeAggregateCurrentlyExists
      */
     protected function requireProjectedNodeAggregateToNotExist(
@@ -554,7 +551,7 @@ trait ConstraintChecks
     ): void {
         $succeedingSiblings = $contentGraph->getSubgraph(
             $dimensionSpacePoint,
-            VisibilityConstraints::withoutRestrictions()
+            VisibilityConstraints::createEmpty()
         )->findSucceedingSiblingNodes($referenceNodeAggregateId, FindSucceedingSiblingNodesFilter::create());
         if ($succeedingSiblings->toNodeAggregateIds()->contain($siblingNodeAggregateId)) {
             return;
@@ -562,7 +559,7 @@ trait ConstraintChecks
 
         $precedingSiblings = $contentGraph->getSubgraph(
             $dimensionSpacePoint,
-            VisibilityConstraints::withoutRestrictions()
+            VisibilityConstraints::createEmpty()
         )->findPrecedingSiblingNodes($referenceNodeAggregateId, FindPrecedingSiblingNodesFilter::create());
         if ($precedingSiblings->toNodeAggregateIds()->contain($siblingNodeAggregateId)) {
             return;
@@ -586,7 +583,7 @@ trait ConstraintChecks
     ): void {
         $childNodes = $contentGraph->getSubgraph(
             $dimensionSpacePoint,
-            VisibilityConstraints::withoutRestrictions()
+            VisibilityConstraints::createEmpty()
         )->findChildNodes($parentNodeAggregateId, FindChildNodesFilter::create());
         if ($childNodes->toNodeAggregateIds()->contain($childNodeAggregateId)) {
             return;
