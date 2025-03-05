@@ -9,8 +9,6 @@ use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterfac
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\AddDimensionShineThrough;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\MoveDimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNodeAndSerializedProperties;
-use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\DisableNodeAggregate;
-use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\EnableNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetSerializedNodeProperties;
 use Neos\ContentRepository\Core\Feature\NodeMove\Command\MoveNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Command\SetSerializedNodeReferences;
@@ -97,8 +95,6 @@ class RebaseableCommands implements \IteratorAggregate
             $matches = match ($command::class) {
                 CreateRootNodeAggregateWithNode::class,
                 CreateNodeAggregateWithNodeAndSerializedProperties::class,
-                DisableNodeAggregate::class,
-                EnableNodeAggregate::class,
                 SetSerializedNodeProperties::class,
                 MoveNodeAggregate::class,
                 RemoveNodeAggregate::class,
