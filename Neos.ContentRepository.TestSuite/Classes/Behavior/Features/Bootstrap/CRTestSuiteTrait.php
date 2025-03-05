@@ -114,10 +114,38 @@ trait CRTestSuiteTrait
     /**
      * @Then /^I expect the content stream "([^"]*)" to not exist$/
      */
-    public function iExpectTheContentStreamToNotExist(string $rawContentStreamId, string $not = ''): void
+    public function iExpectTheContentStreamToNotExist(string $rawContentStreamId): void
     {
         $contentStream = $this->getContentGraphReadModel()->findContentStreamById(ContentStreamId::fromString($rawContentStreamId));
         Assert::assertNull($contentStream, sprintf('Content stream "%s" was not expected to exist, but it does', $rawContentStreamId));
+    }
+
+    /**
+     * @Then /^I expect the workspace "([^"]*)" to not exist$/
+     */
+    public function iExpectTheWorkspaceToNotExist(string $rawWorkspaceName): void
+    {
+        $workspaceByName = $this->currentContentRepository->findWorkspaceByName(WorkspaceName::fromString($rawWorkspaceName));
+        Assert::assertNull($workspaceByName, sprintf('Workspace "%s" was not expected to exist, but it does', $rawWorkspaceName));
+    }
+
+    /**
+     * @Then I expect the following workspaces to exist:
+     */
+    public function iExpectTheFollowingWorkspaces(TableNode $payloadTable): void
+    {
+        $actualComparableHash = [];
+        $workspaces = $this->currentContentRepository->findWorkspaces();
+        foreach ($workspaces as $workspace) {
+            $actualComparableHash[] = array_map(json_encode(...), [
+                'name' => $workspace->workspaceName,
+                'base workspace' => $workspace->baseWorkspaceName,
+                'status' => $workspace->status,
+                'content stream' => $workspace->currentContentStreamId,
+                'publishable changes' => $workspace->hasPublishableChanges()
+            ]);
+        }
+        Assert::assertSame($payloadTable->getHash(), $actualComparableHash);
     }
 
     /**

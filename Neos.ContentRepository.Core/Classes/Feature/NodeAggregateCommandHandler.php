@@ -63,7 +63,6 @@ final class NodeAggregateCommandHandler implements CommandHandlerInterface
     use ConstraintChecks;
     use RootNodeHandling;
     use NodeCreation;
-    use NodeDisabling;
     use SubtreeTagging;
     use NodeModification;
     use NodeMove;
@@ -114,8 +113,6 @@ final class NodeAggregateCommandHandler implements CommandHandlerInterface
             => $this->handleCreateRootNodeAggregateWithNode($command, $commandHandlingDependencies),
             UpdateRootNodeAggregateDimensions::class
             => $this->handleUpdateRootNodeAggregateDimensions($command, $commandHandlingDependencies),
-            DisableNodeAggregate::class => $this->handleDisableNodeAggregate($command, $commandHandlingDependencies),
-            EnableNodeAggregate::class => $this->handleEnableNodeAggregate($command, $commandHandlingDependencies),
             TagSubtree::class => $this->handleTagSubtree($command, $commandHandlingDependencies),
             UntagSubtree::class => $this->handleUntagSubtree($command, $commandHandlingDependencies),
             ChangeNodeAggregateName::class => $this->handleChangeNodeAggregateName($command, $commandHandlingDependencies),

@@ -26,6 +26,7 @@ use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\EventStore\Events as DomainEvents;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\EventStore\InitiatingEventMetadata;
+use Neos\ContentRepository\Core\EventStore\PublishedEvents;
 use Neos\ContentRepository\Core\Feature\Security\AuthProviderInterface;
 use Neos\ContentRepository\Core\Feature\Security\Dto\UserId;
 use Neos\ContentRepository\Core\Feature\Security\Exception\AccessDenied;
@@ -37,8 +38,6 @@ use Neos\ContentRepository\Core\Projection\ProjectionStateInterface;
 use Neos\ContentRepository\Core\Projection\ProjectionStates;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceDoesNotExist;
-use Neos\ContentRepository\Core\SharedModel\Id\UuidFactory;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreams;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
@@ -106,14 +105,20 @@ final class ContentRepository
             if ($fullCatchUpResult->hadErrors()) {
                 throw CatchUpHadErrors::createFromErrors($fullCatchUpResult->errors);
             }
+            $additionalCommands = $this->commandHook->onAfterHandle($command, $toPublish->events->toInnerEvents());
+            foreach ($additionalCommands as $additionalCommand) {
+                $this->handle($additionalCommand);
+            }
             return;
         }
 
         // control-flow aware command handling via generator
+        $publishedEvents = PublishedEvents::createEmpty();
         try {
             foreach ($toPublish as $eventsToPublish) {
                 try {
                     $this->eventStore->commit($eventsToPublish->streamName, $this->enrichAndNormalizeEvents($eventsToPublish->events, $correlationId), $eventsToPublish->expectedVersion);
+                    $publishedEvents = $publishedEvents->withAppendedEvents($eventsToPublish->events->toInnerEvents());
                 } catch (ConcurrencyException $concurrencyException) {
                     // we pass the exception into the generator (->throw), so it could be try-caught and reacted upon:
                     //
@@ -137,6 +142,10 @@ final class ContentRepository
             if ($fullCatchUpResult->hadErrors()) {
                 throw CatchUpHadErrors::createFromErrors($fullCatchUpResult->errors);
             }
+        }
+        $additionalCommands = $this->commandHook->onAfterHandle($command, $publishedEvents);
+        foreach ($additionalCommands as $additionalCommand) {
+            $this->handle($additionalCommand);
         }
     }
 

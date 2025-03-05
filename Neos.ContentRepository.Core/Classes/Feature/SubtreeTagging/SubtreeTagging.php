@@ -40,7 +40,9 @@ trait SubtreeTagging
 
     private function handleTagSubtree(TagSubtree $command, CommandHandlingDependencies $commandHandlingDependencies): EventsToPublish
     {
+        $this->requireContentStream($command->workspaceName, $commandHandlingDependencies);
         $contentGraph = $commandHandlingDependencies->getContentGraph($command->workspaceName);
+        $expectedVersion = ExpectedVersion::fromVersion($commandHandlingDependencies->getContentStreamVersion($contentGraph->getContentStreamId()));
         $this->requireDimensionSpacePointToExist($command->coveredDimensionSpacePoint);
         $nodeAggregate = $this->requireProjectedNodeAggregate($contentGraph, $command->nodeAggregateId);
         $this->requireNodeAggregateToCoverDimensionSpacePoint(
@@ -77,13 +79,15 @@ trait SubtreeTagging
                 $command,
                 $events
             ),
-            ExpectedVersion::ANY()
+            $expectedVersion
         );
     }
 
     public function handleUntagSubtree(UntagSubtree $command, CommandHandlingDependencies $commandHandlingDependencies): EventsToPublish
     {
+        $this->requireContentStream($command->workspaceName, $commandHandlingDependencies);
         $contentGraph = $commandHandlingDependencies->getContentGraph($command->workspaceName);
+        $expectedVersion = ExpectedVersion::fromVersion($commandHandlingDependencies->getContentStreamVersion($contentGraph->getContentStreamId()));
         $this->requireDimensionSpacePointToExist($command->coveredDimensionSpacePoint);
         $nodeAggregate = $this->requireProjectedNodeAggregate(
             $contentGraph,
@@ -119,7 +123,7 @@ trait SubtreeTagging
         return new EventsToPublish(
             ContentStreamEventStreamName::fromContentStreamId($contentGraph->getContentStreamId())->getEventStreamName(),
             RebaseableCommand::enrichWithCommand($command, $events),
-            ExpectedVersion::ANY()
+            $expectedVersion
         );
     }
 }

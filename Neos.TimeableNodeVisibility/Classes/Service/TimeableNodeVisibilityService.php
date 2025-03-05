@@ -7,7 +7,6 @@ namespace Neos\TimeableNodeVisibility\Service;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\DisableNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\EnableNodeAggregate;
-use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
 use Neos\ContentRepository\Core\NodeType\NodeTypeNames;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindDescendantNodesFilter;
@@ -21,6 +20,7 @@ use Neos\ContentRepository\Core\SharedModel\Node\PropertyName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Annotations as Flow;
+use Neos\Neos\Domain\Service\NeosSubtreeTag;
 use Neos\Neos\Domain\Service\NeosVisibilityConstraints;
 use Neos\TimeableNodeVisibility\Domain\ChangedVisibilities;
 use Neos\TimeableNodeVisibility\Domain\ChangedVisibility;
@@ -48,7 +48,7 @@ class TimeableNodeVisibilityService
 
         /** @var Node $node */
         foreach ($nodes as $node) {
-            $nodeIsDisabled = $node->tags->contain(SubtreeTag::disabled());
+            $nodeIsDisabled = $node->tags->contain(NeosSubtreeTag::disabled());
             if ($this->needsEnabling($node, $now) && $nodeIsDisabled) {
                 $contentRepository->handle(
                     EnableNodeAggregate::create(

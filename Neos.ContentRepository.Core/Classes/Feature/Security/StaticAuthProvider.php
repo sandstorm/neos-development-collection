@@ -7,8 +7,6 @@ namespace Neos\ContentRepository\Core\Feature\Security;
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\Feature\Security\Dto\Privilege;
 use Neos\ContentRepository\Core\Feature\Security\Dto\UserId;
-use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
-use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTags;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 
@@ -31,7 +29,7 @@ final class StaticAuthProvider implements AuthProviderInterface
 
     public function getVisibilityConstraints(WorkspaceName $workspaceName): VisibilityConstraints
     {
-        return VisibilityConstraints::excludeSubtreeTags(SubtreeTags::create(SubtreeTag::disabled()));
+        return VisibilityConstraints::createEmpty();
     }
 
     public function canReadNodesFromWorkspace(WorkspaceName $workspaceName): Privilege
