@@ -71,15 +71,15 @@ final readonly class VisibilityConstraints implements \JsonSerializable
         return md5(implode('|', $this->tagConstraints->toStringArray()));
     }
 
-    public function withAddedSubtreeTag(SubtreeTag $subtreeTag): self
+    public function merge(VisibilityConstraints $other): self
     {
-        return new self($this->tagConstraints->with($subtreeTag));
+        return new self($this->tagConstraints->merge($other->tagConstraints));
     }
 
     /**
      * Legacy, only for Neos.Neos context!, for standalone use please use {@see self::fromTagConstraints()}
      *
-     * Please use {@see \Neos\Neos\Domain\Service\NeosVisibilityConstraints::frontend()} instead.
+     * Please look into {@see \Neos\Neos\Domain\Service\NeosVisibilityConstraints()} instead.
      *
      * @deprecated with Neos 9 beta 19
      */
