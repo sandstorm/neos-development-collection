@@ -60,7 +60,6 @@ final readonly class NodeAggregate
      * @param non-empty-array<string,Node> $nodesByOccupiedDimensionSpacePoint At least one node will be occupied.
      * @param CoverageByOrigin $coverageByOccupant
      * @param DimensionSpacePointSet $coveredDimensionSpacePoints This node aggregate will cover at least one dimension space.
-     * @param non-empty-array<string,Node> $nodesByCoveredDimensionSpacePoint At least one node will be covered.
      * @param OriginByCoverage $occupationByCovered
      * @param non-empty-array<string,NodeTags> $nodeTagsByCoveredDimensionSpacePoint node tags by every covered dimension space point
      */
@@ -75,7 +74,6 @@ final readonly class NodeAggregate
         private array $nodesByOccupiedDimensionSpacePoint,
         public CoverageByOrigin $coverageByOccupant,
         public DimensionSpacePointSet $coveredDimensionSpacePoints,
-        private array $nodesByCoveredDimensionSpacePoint,
         private OriginByCoverage $occupationByCovered,
         private array $nodeTagsByCoveredDimensionSpacePoint,
     ) {
@@ -83,7 +81,6 @@ final readonly class NodeAggregate
 
     /**
      * @param non-empty-array<string,Node> $nodesByOccupiedDimensionSpacePoint
-     * @param non-empty-array<string,Node> $nodesByCoveredDimensionSpacePoint
      * @param non-empty-array<string,NodeTags> $nodeTagsByCoveredDimensionSpacePoint
      * @internal The signature of this method can change in the future!
      */
@@ -98,7 +95,6 @@ final readonly class NodeAggregate
         array $nodesByOccupiedDimensionSpacePoint,
         CoverageByOrigin $coverageByOccupant,
         DimensionSpacePointSet $coveredDimensionSpacePoints,
-        array $nodesByCoveredDimensionSpacePoint,
         OriginByCoverage $occupationByCovered,
         array $nodeTagsByCoveredDimensionSpacePoint,
     ): self {
@@ -113,7 +109,6 @@ final readonly class NodeAggregate
             $nodesByOccupiedDimensionSpacePoint,
             $coverageByOccupant,
             $coveredDimensionSpacePoints,
-            $nodesByCoveredDimensionSpacePoint,
             $occupationByCovered,
             $nodeTagsByCoveredDimensionSpacePoint,
         );
@@ -124,6 +119,18 @@ final readonly class NodeAggregate
         return $this->occupiedDimensionSpacePoints->contains($originDimensionSpacePoint);
     }
 
+    /**
+     * Returns the node for the occupied dimension space point.
+     *
+     * The node aggregate does only know about nodes from dimensions where they originate in.
+     * Fallback nodes are not part of the node aggregate as there is currently no use-case.
+     *
+     * To fetch the occupying node by covered dimension space point use {@see self::getOccupationByCovered}:
+     *
+     *     $node = $this->getNodeByOccupiedDimensionSpacePoint(
+     *         $this->getOccupationByCovered($coveredDimensionSpacePoint)
+     *     );
+     */
     public function getNodeByOccupiedDimensionSpacePoint(
         OriginDimensionSpacePoint $occupiedDimensionSpacePoint
     ): Node {
@@ -156,18 +163,6 @@ final readonly class NodeAggregate
         return $coverage;
     }
 
-    public function getNodeByCoveredDimensionSpacePoint(DimensionSpacePoint $coveredDimensionSpacePoint): Node
-    {
-        if (!isset($this->coveredDimensionSpacePoints[$coveredDimensionSpacePoint->hash])) {
-            throw NodeAggregateDoesCurrentlyNotCoverDimensionSpacePoint::butWasSupposedTo(
-                $this->nodeAggregateId,
-                $coveredDimensionSpacePoint
-            );
-        }
-
-        return $this->nodesByCoveredDimensionSpacePoint[$coveredDimensionSpacePoint->hash];
-    }
-
     public function getOccupationByCovered(DimensionSpacePoint $coveredDimensionSpacePoint): OriginDimensionSpacePoint
     {
         $occupation = $this->occupationByCovered->getOrigin($coveredDimensionSpacePoint);
@@ -186,14 +181,9 @@ final readonly class NodeAggregate
      *
      * Implementation note:
      *
-     * We need to pass $nodeTagsByCoveredDimensionSpacePoint additionally to the NodeAggregate as this information doesn't exist otherwise.
-     * The nodes in $nodesByCoveredDimensionSpacePoint only point to the occupying nodes without entries for the specialisations.
-     * This means we CANNOT substitute this implementation by iterating over the occupied nodes as explicitly tagged specialisations will not show up as tagged:
-     *
-     *     foreach ($this->coveredDimensionSpacePoints as $coveredDimensionSpacePoint) {
-     *         $node = $this->nodesByCoveredDimensionSpacePoint[$coveredDimensionSpacePoint->hash];
-     *         // ... use $node->tags
-     *     }
+     * We need to pass ${@see $nodeTagsByCoveredDimensionSpacePoint} additionally to the NodeAggregate as this information doesn't exist otherwise.
+     * The node aggregate only knows about its occupying nodes {@see $nodesByOccupiedDimensionSpacePoint} - so no fallbacks.
+     * This means we CANNOT substitute this implementation by iterating over the occupied nodes as explicitly tagged specialisations will not show up as tagged.
      *
      * We could simplify this logic if we also add these specialisation node rows explicitly to the NodeAggregate, but currently there is no use for that.
      *
