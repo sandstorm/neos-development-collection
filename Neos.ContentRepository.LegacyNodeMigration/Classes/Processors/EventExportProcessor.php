@@ -52,8 +52,8 @@ use Neos\ContentRepository\LegacyNodeMigration\Helpers\VisitedNodeAggregates;
 use Neos\ContentRepository\LegacyNodeMigration\RootNodeTypeMapping;
 use Neos\Flow\Persistence\Doctrine\DataTypes\JsonArrayType;
 use Neos\Flow\Property\PropertyMapper;
-use Neos\Neos\Domain\Service\NeosSubtreeTag;
 use Neos\Neos\Domain\Service\NodeTypeNameFactory;
+use Neos\Neos\Domain\SubtreeTagging\NeosSubtreeTag;
 use Webmozart\Assert\Assert;
 
 final class EventExportProcessor implements ProcessorInterface
