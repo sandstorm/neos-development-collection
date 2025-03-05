@@ -40,6 +40,7 @@ trait SubtreeTagging
 
     private function handleTagSubtree(TagSubtree $command, CommandHandlingDependencies $commandHandlingDependencies): EventsToPublish
     {
+        $this->requireContentStream($command->workspaceName, $commandHandlingDependencies);
         $contentGraph = $commandHandlingDependencies->getContentGraph($command->workspaceName);
         $this->requireDimensionSpacePointToExist($command->coveredDimensionSpacePoint);
         $nodeAggregate = $this->requireProjectedNodeAggregate($contentGraph, $command->nodeAggregateId);
@@ -83,6 +84,7 @@ trait SubtreeTagging
 
     public function handleUntagSubtree(UntagSubtree $command, CommandHandlingDependencies $commandHandlingDependencies): EventsToPublish
     {
+        $this->requireContentStream($command->workspaceName, $commandHandlingDependencies);
         $contentGraph = $commandHandlingDependencies->getContentGraph($command->workspaceName);
         $this->requireDimensionSpacePointToExist($command->coveredDimensionSpacePoint);
         $nodeAggregate = $this->requireProjectedNodeAggregate(

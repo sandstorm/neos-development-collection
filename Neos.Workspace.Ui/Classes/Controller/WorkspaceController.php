@@ -17,8 +17,8 @@ namespace Neos\Workspace\Ui\Controller;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\Dimension\ContentDimensionId;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
-use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Exception\WorkspaceAlreadyExists;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\ConflictingEvent;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Dto\RebaseErrorHandlingStrategy;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\WorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindAncestorNodesFilter;
@@ -55,6 +55,7 @@ use Neos\Neos\Domain\Model\WorkspaceRoleSubject;
 use Neos\Neos\Domain\Model\WorkspaceTitle;
 use Neos\Neos\Domain\NodeLabel\NodeLabelGeneratorInterface;
 use Neos\Neos\Domain\Repository\SiteRepository;
+use Neos\Neos\Domain\Service\NeosSubtreeTag;
 use Neos\Neos\Domain\Service\NodeTypeNameFactory;
 use Neos\Neos\Domain\Service\UserService;
 use Neos\Neos\Domain\Service\WorkspacePublishingService;
@@ -64,7 +65,6 @@ use Neos\Neos\FrontendRouting\SiteDetection\SiteDetectionResult;
 use Neos\Neos\PendingChangesProjection\ChangeFinder;
 use Neos\Neos\PendingChangesProjection\Changes;
 use Neos\Neos\Security\Authorization\ContentRepositoryAuthorizationService;
-use Neos\ContentRepository\Core\Feature\WorkspaceRebase\ConflictingEvent;
 use Neos\Neos\Utility\NodeTypeWithFallbackProvider;
 use Neos\Workspace\Ui\ViewModel\ChangeItem;
 use Neos\Workspace\Ui\ViewModel\ContentChangeItem;
@@ -915,7 +915,7 @@ class WorkspaceController extends AbstractModuleController
                             isRemoved: $change->deleted,
                             isNew: $change->created,
                             isMoved: $change->moved,
-                            isHidden: $documentNode->tags->contain(SubtreeTag::disabled()),
+                            isHidden: $documentNode->tags->contain(NeosSubtreeTag::disabled()),
                         );
                     }
 
@@ -939,7 +939,7 @@ class WorkspaceController extends AbstractModuleController
                     }
                     $siteChanges[$siteNodeName]['documents'][$documentPath]['changes'][$node->dimensionSpacePoint->hash][$relativePath] = new ChangeItem(
                         serializedNodeAddress: $nodeAddress->toJson(),
-                        hidden: $node->tags->contain(SubtreeTag::disabled()),
+                        hidden: $node->tags->contain(NeosSubtreeTag::disabled()),
                         isRemoved: $change->deleted,
                         isNew: $change->created,
                         isMoved: $change->moved,
