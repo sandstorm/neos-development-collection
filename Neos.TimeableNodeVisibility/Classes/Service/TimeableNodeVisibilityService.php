@@ -93,7 +93,7 @@ class TimeableNodeVisibilityService
 
             $subgraph = $contentGraph->getSubgraph(
                 $dimensionSpacePoint,
-                NeosVisibilityConstraints::withoutRemoved()
+                NeosVisibilityConstraints::excludeRemoved()
             );
 
             $sitesNodeTypeName = NodeTypeName::fromString('Neos.Neos:Sites');
