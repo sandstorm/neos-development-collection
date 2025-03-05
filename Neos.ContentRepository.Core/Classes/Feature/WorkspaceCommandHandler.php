@@ -148,7 +148,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                     $command->newContentStreamId,
                 )
             ),
-            ExpectedVersion::ANY()
+            ExpectedVersion::ANY(),
         );
     }
 
