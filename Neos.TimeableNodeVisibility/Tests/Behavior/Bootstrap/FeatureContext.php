@@ -55,7 +55,7 @@ class FeatureContext implements Context
         Assert::assertNotNull($this->currentNode, 'No current node selected');
         $subgraph = $this->currentContentRepository->getContentGraph($this->currentWorkspaceName)->getSubgraph(
             $this->currentDimensionSpacePoint,
-            VisibilityConstraints::withoutRestrictions(),
+            VisibilityConstraints::createEmpty(),
         );
         $currentNode = $subgraph->findNodeById($this->currentNode->aggregateId);
         Assert::assertNotNull($currentNode, sprintf('Failed to find node with id "%s" in workspace %s and dimension %s', $this->currentNode->aggregateId->value, $subgraph->getWorkspaceName()->value, $subgraph->getDimensionSpacePoint()->toJson()));
@@ -70,7 +70,7 @@ class FeatureContext implements Context
         Assert::assertNotNull($this->currentNode, 'No current node selected');
         $subgraph = $this->currentContentRepository->getContentGraph($this->currentWorkspaceName)->getSubgraph(
             $this->currentDimensionSpacePoint,
-            VisibilityConstraints::withoutRestrictions(),
+            VisibilityConstraints::createEmpty(),
         );
         $currentNode = $subgraph->findNodeById($this->currentNode->aggregateId);
         Assert::assertNotNull($currentNode, sprintf('Failed to find node with id "%s" in workspace %s and dimension %s', $this->currentNode->aggregateId->value, $subgraph->getWorkspaceName()->value, $subgraph->getDimensionSpacePoint()->toJson()));

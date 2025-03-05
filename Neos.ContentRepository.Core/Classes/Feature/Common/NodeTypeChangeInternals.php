@@ -194,7 +194,7 @@ trait NodeTypeChangeInternals
     ): DimensionSpacePointSet {
         $points = [];
         foreach ($childNodeAggregate->coveredDimensionSpacePoints as $coveredDimensionSpacePoint) {
-            $parentNode = $contentGraph->getSubgraph($coveredDimensionSpacePoint, VisibilityConstraints::withoutRestrictions())->findParentNode(
+            $parentNode = $contentGraph->getSubgraph($coveredDimensionSpacePoint, VisibilityConstraints::createEmpty())->findParentNode(
                 $childNodeAggregate->nodeAggregateId
             );
             if (

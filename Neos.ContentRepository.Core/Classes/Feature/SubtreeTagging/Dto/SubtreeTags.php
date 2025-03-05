@@ -41,6 +41,11 @@ final readonly class SubtreeTags implements \IteratorAggregate, \Countable, \Jso
         return new self();
     }
 
+    public static function create(SubtreeTag ...$tags): self
+    {
+        return new self(...$tags);
+    }
+
     /**
      * @param array<SubtreeTag> $tags
      */

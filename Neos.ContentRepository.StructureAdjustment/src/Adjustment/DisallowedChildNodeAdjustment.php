@@ -54,7 +54,7 @@ class DisallowedChildNodeAdjustment
             foreach ($nodeAggregate->coveredDimensionSpacePoints as $coveredDimensionSpacePoint) {
                 $subgraph = $this->contentGraph->getSubgraph(
                     $coveredDimensionSpacePoint,
-                    VisibilityConstraints::withoutRestrictions()
+                    VisibilityConstraints::createEmpty()
                 );
 
                 $parentNode = $subgraph->findParentNode($nodeAggregate->nodeAggregateId);
