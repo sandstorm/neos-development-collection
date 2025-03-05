@@ -114,11 +114,11 @@ class ContextOperation extends AbstractOperation
                 $newWorkspaceName ?? $contextNode->workspaceName
             )->getSubgraph(
                 $newDimensions ?? $contextNode->dimensionSpacePoint,
-                VisibilityConstraints::fromTagConstraints(
+                VisibilityConstraints::excludeSubtreeTags(
                     match ($newInvisibleContentShown) {
-                        true => $contextNode->visibilityConstraints->tagConstraints->without(SubtreeTag::disabled()),
-                        false => $contextNode->visibilityConstraints->tagConstraints->with(SubtreeTag::disabled()),
-                        null => $contextNode->visibilityConstraints->tagConstraints
+                        true => $contextNode->visibilityConstraints->excludedSubtreeTags->without(SubtreeTag::disabled()),
+                        false => $contextNode->visibilityConstraints->excludedSubtreeTags->with(SubtreeTag::disabled()),
+                        null => $contextNode->visibilityConstraints->excludedSubtreeTags
                     }
                 )
             );

@@ -41,10 +41,10 @@ use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTags;
 final readonly class VisibilityConstraints implements \JsonSerializable
 {
     /**
-     * @param SubtreeTags $tagConstraints A set of {@see SubtreeTag} instances that will be _excluded_ from the results of any content graph query
+     * @param SubtreeTags $excludedSubtreeTags A set of {@see SubtreeTag} instances that will be _excluded_ from the results of any content graph query
      */
     private function __construct(
-        public SubtreeTags $tagConstraints,
+        public SubtreeTags $excludedSubtreeTags,
     ) {
     }
 
@@ -59,25 +59,25 @@ final readonly class VisibilityConstraints implements \JsonSerializable
     }
 
     /**
-     * @param SubtreeTags $tagConstraints A set of {@see SubtreeTag} instances that will be _excluded_ from the results of any content graph query
+     * @param SubtreeTags $subtreeTags A set of {@see SubtreeTag} instances that will be _excluded_ from the results of any content graph query
      */
-    public static function fromTagConstraints(SubtreeTags $tagConstraints): self
+    public static function excludeSubtreeTags(SubtreeTags $subtreeTags): self
     {
-        return new self($tagConstraints);
+        return new self($subtreeTags);
     }
 
     public function getHash(): string
     {
-        return md5(implode('|', $this->tagConstraints->toStringArray()));
+        return md5(implode('|', $this->excludedSubtreeTags->toStringArray()));
     }
 
     public function merge(VisibilityConstraints $other): self
     {
-        return new self($this->tagConstraints->merge($other->tagConstraints));
+        return new self($this->excludedSubtreeTags->merge($other->excludedSubtreeTags));
     }
 
     /**
-     * Legacy, only for Neos.Neos context!, for standalone use please use {@see self::fromTagConstraints()}
+     * Legacy, only for Neos.Neos context!, for standalone use please use {@see self::excludeSubtreeTags()}
      *
      * Please look into {@see \Neos\Neos\Domain\Service\NeosVisibilityConstraints()} instead.
      *
