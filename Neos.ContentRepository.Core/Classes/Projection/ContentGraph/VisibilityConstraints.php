@@ -26,11 +26,11 @@ use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTags;
  * Alternatively {@see ContentRepository::getContentSubgraph()} uses the implemented {@see AuthProviderInterface} to determine
  * the visibility constraint the current applications state via {@see AuthProviderInterface::getVisibilityConstraints()}
  *
- * To have nodes with the `disabled` tag excluded use:
+ * To have nodes for example with the tag `my-disabled` excluded use:
  *
- *     VisibilityConstraints::fromTagConstraints(SubtreeTags::create(
- *         SubtreeTag::disabled())
- *     );
+ *     VisibilityConstraints::excludeSubtreeTags(SubtreeTags::create(
+ *         SubtreeTag::fromString("my-disabled")
+ *     ));
  *
  * But to access them no constraints can be used includes those:
  *
@@ -74,6 +74,14 @@ final readonly class VisibilityConstraints implements \JsonSerializable
     public function merge(VisibilityConstraints $other): self
     {
         return new self($this->excludedSubtreeTags->merge($other->excludedSubtreeTags));
+    }
+
+    /**
+     * @deprecated with Neos 9 beta 19 please use {@see VisibilityConstraints::excludeSubtreeTags} instead.
+     */
+    public static function fromTagConstraints(SubtreeTags $tagConstraints): self
+    {
+        return self::excludeSubtreeTags($tagConstraints);
     }
 
     /**
