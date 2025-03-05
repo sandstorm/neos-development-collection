@@ -209,7 +209,7 @@ class WorkspaceWritingDuringRebaseTest extends AbstractParallelTestCase
         $this->log('write finished');
 
         $node = $this->contentRepository->getContentGraph(WorkspaceName::fromString('user-test'))
-            ->getSubgraph(DimensionSpacePoint::createWithoutDimensions(), VisibilityConstraints::withoutRestrictions())
+            ->getSubgraph(DimensionSpacePoint::createWithoutDimensions(), VisibilityConstraints::createEmpty())
             ->findNodeById(NodeAggregateId::fromString('nody-mc-nodeface'));
 
         if ($actualException === null) {

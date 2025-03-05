@@ -104,7 +104,7 @@ final class NodeSubjectProvider
                 new \DateTimeImmutable(),
                 new \DateTimeImmutable()
             ),
-            VisibilityConstraints::withoutRestrictions(),
+            VisibilityConstraints::createEmpty(),
         );
     }
 }

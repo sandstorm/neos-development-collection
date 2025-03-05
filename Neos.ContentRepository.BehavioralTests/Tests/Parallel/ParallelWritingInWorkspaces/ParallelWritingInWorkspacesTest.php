@@ -178,7 +178,7 @@ class ParallelWritingInWorkspacesTest extends AbstractParallelTestCase
         $this->log('1. writing finished');
         Assert::assertTrue(true, 'No exception was thrown ;)');
 
-        $subgraph = $this->contentRepository->getContentGraph(WorkspaceName::forLive())->getSubgraph(DimensionSpacePoint::createWithoutDimensions(), VisibilityConstraints::withoutRestrictions());
+        $subgraph = $this->contentRepository->getContentGraph(WorkspaceName::forLive())->getSubgraph(DimensionSpacePoint::createWithoutDimensions(), VisibilityConstraints::createEmpty());
         $node = $subgraph->findNodeById(NodeAggregateId::fromString('nody-mc-nodeface-100'));
         Assert::assertNotNull($node);
     }
@@ -220,7 +220,7 @@ class ParallelWritingInWorkspacesTest extends AbstractParallelTestCase
 
         Assert::assertTrue(true, 'No exception was thrown ;)');
 
-        $subgraph = $this->contentRepository->getContentGraph(WorkspaceName::fromString('user-test'))->getSubgraph(DimensionSpacePoint::createWithoutDimensions(), VisibilityConstraints::withoutRestrictions());
+        $subgraph = $this->contentRepository->getContentGraph(WorkspaceName::fromString('user-test'))->getSubgraph(DimensionSpacePoint::createWithoutDimensions(), VisibilityConstraints::createEmpty());
         $node = $subgraph->findNodeById(NodeAggregateId::fromString('user-nody-mc-nodeface-100'));
         Assert::assertNotNull($node);
     }

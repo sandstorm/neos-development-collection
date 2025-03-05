@@ -829,19 +829,9 @@ class WorkspaceController extends AbstractModuleController
         $arbitraryDimensionSpacePoint = reset($dimensionSpacePoints);
 
         foreach ($changes as $change) {
-            $workspaceName = $selectedWorkspace->workspaceName;
-            if ($change->deleted) {
-                // If we deleted a node, there is no way for us to anymore find the deleted node in the ContentStream
-                // where the node was deleted.
-                // Thus, to figure out the rootline for display, we check the *base workspace* Content Stream.
-                //
-                // This is safe because the UI basically shows what would be removed once the deletion is published.
-                $baseWorkspace = $this->requireBaseWorkspace($selectedWorkspace, $contentRepository);
-                $workspaceName = $baseWorkspace->workspaceName;
-            }
-            $subgraph = $contentRepository->getContentGraph($workspaceName)->getSubgraph(
+            $subgraph = $contentRepository->getContentGraph($selectedWorkspace->workspaceName)->getSubgraph(
                 $change->originDimensionSpacePoint?->toDimensionSpacePoint() ?? $arbitraryDimensionSpacePoint,
-                VisibilityConstraints::withoutRestrictions()
+                VisibilityConstraints::createEmpty()
             );
 
             $node = $subgraph->findNodeById($change->nodeAggregateId);
@@ -990,7 +980,7 @@ class WorkspaceController extends AbstractModuleController
     ): ?Node {
         $baseSubgraph = $contentRepository->getContentGraph($baseWorkspaceName)->getSubgraph(
             $modifiedNode->dimensionSpacePoint,
-            VisibilityConstraints::withoutRestrictions()
+            VisibilityConstraints::createEmpty()
         );
         return $baseSubgraph->findNodeById($modifiedNode->aggregateId);
     }
