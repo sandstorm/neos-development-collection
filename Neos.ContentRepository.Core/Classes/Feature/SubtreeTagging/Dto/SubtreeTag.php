@@ -50,7 +50,7 @@ final class SubtreeTag implements \JsonSerializable
     /**
      * Legacy, only for Neos.Neos context!, for standalone use please use {@see self::fromString()}
      *
-     * Please use {@see \Neos\Neos\Domain\Service\NeosSubtreeTag::disabled()} instead.
+     * Please use {@see \Neos\Neos\Domain\SubtreeTagging\NeosSubtreeTag::disabled()} instead.
      *
      * @deprecated with Neos 9 beta 19
      */
