@@ -26,6 +26,7 @@ use Neos\ContentRepository\Core\Feature\NodeRemoval\Event\NodeAggregateWasRemove
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregate;
 use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamDoesNotExistYet;
 use Neos\ContentRepository\Core\SharedModel\Exception\TetheredNodeAggregateCannotBeRemoved;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeVariantSelectionStrategy;
 
 /**
  * @internal implementation detail of Command Handlers
@@ -53,6 +54,9 @@ trait NodeRemoval
             $contentGraph,
             $command->nodeAggregateId
         );
+        if ($nodeAggregate->classification->isRoot() && $command->nodeVariantSelectionStrategy !== NodeVariantSelectionStrategy::STRATEGY_ALL_VARIANTS) {
+            throw new \RuntimeException(sprintf('Root node aggregates can only be removed by using node variant selection strategy "%s"', NodeVariantSelectionStrategy::STRATEGY_ALL_VARIANTS->value), 1740753598);
+        }
         $this->requireDimensionSpacePointToExist($command->coveredDimensionSpacePoint);
         $this->requireNodeAggregateNotToBeTethered($nodeAggregate);
         $this->requireNodeAggregateToCoverDimensionSpacePoint(
