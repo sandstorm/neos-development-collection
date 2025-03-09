@@ -30,6 +30,14 @@ class WorkspacesTest extends TestCase
             'baseWorkspaces' => [],
         ];
 
+        yield 'base not in set (b) -> ~a~' => [
+            'workspaces' => [
+                self::workspace('b', 'a'),
+            ],
+            'parameter' => 'b',
+            'baseWorkspaces' => [],
+        ];
+
         yield 'one deep (b) -> a' => [
             'workspaces' => [
                 self::workspace('a', null),

@@ -77,23 +77,16 @@ final readonly class Workspaces implements \IteratorAggregate, \Countable
      */
     public function getBaseWorkspaces(WorkspaceName $workspaceName): Workspaces
     {
-        $baseWorkspaces = [];
-
-        $workspace = $this->get($workspaceName);
-        if (!$workspace) {
-            return self::createEmpty();
-        }
-        $baseWorkspaceName = $workspace->baseWorkspaceName;
-        while ($baseWorkspaceName !== null) {
-            $baseWorkspace = $this->get($baseWorkspaceName);
-            if ($baseWorkspace) {
-                $baseWorkspaces[] = $baseWorkspace;
-                $baseWorkspaceName = $baseWorkspace->baseWorkspaceName;
-            } else {
-                $baseWorkspaceName = null;
+        $bases = [];
+        $workspace = $this->workspaces[$workspaceName->value] ?? null;
+        while ($workspace?->baseWorkspaceName !== null) {
+            $workspace = $this->workspaces[$workspace->baseWorkspaceName->value] ?? null;
+            // base workspace might not be in this set!
+            if ($workspace !== null) {
+                $bases[] = $workspace;
             }
         }
-        return self::fromArray($baseWorkspaces);
+        return Workspaces::fromArray($bases);
     }
 
     /**
