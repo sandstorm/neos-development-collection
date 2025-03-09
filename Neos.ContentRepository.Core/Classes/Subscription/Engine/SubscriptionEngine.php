@@ -7,6 +7,7 @@ namespace Neos\ContentRepository\Core\Subscription\Engine;
 use Doctrine\DBAL\Exception\TableNotFoundException;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
+use Neos\ContentRepository\Core\Projection\WithMarkStaleInterface;
 use Neos\ContentRepository\Core\Service\ContentRepositoryMaintainer;
 use Neos\ContentRepository\Core\Subscription\DetachedSubscriptionStatus;
 use Neos\ContentRepository\Core\Subscription\Exception\SubscriptionEngineAlreadyProcessingException;
@@ -375,6 +376,10 @@ final class SubscriptionEngine
                     // HAPPY Case:
                     $this->logger?->debug(sprintf('Subscription Engine: Subscriber "%s" for "%s" processed the event "%s" (sequence number: %d).', substr(strrchr($subscriber::class, '\\') ?: '', 1), $subscription->id->value, $eventEnvelope->event->type->value, $eventEnvelope->sequenceNumber->value));
                     $highestSequenceNumberForSubscriber[$subscription->id->value] = $eventEnvelope->sequenceNumber;
+
+                    if ($subscriber->projection instanceof WithMarkStaleInterface) {
+                        $subscriber->projection->markStale();
+                    }
 
                     try {
                         $subscriber->catchUpHook?->onAfterEvent($domainEvent, $eventEnvelope);
