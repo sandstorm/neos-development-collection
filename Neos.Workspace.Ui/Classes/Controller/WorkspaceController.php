@@ -828,8 +828,10 @@ class WorkspaceController extends AbstractModuleController
         /** @var DimensionSpacePoint $arbitraryDimensionSpacePoint */
         $arbitraryDimensionSpacePoint = reset($dimensionSpacePoints);
 
+        $contentGraph = $contentRepository->getContentGraph($selectedWorkspace->workspaceName);
+
         foreach ($changes as $change) {
-            $subgraph = $contentRepository->getContentGraph($selectedWorkspace->workspaceName)->getSubgraph(
+            $subgraph = $contentGraph->getSubgraph(
                 $change->originDimensionSpacePoint?->toDimensionSpacePoint() ?? $arbitraryDimensionSpacePoint,
                 VisibilityConstraints::createEmpty()
             );
