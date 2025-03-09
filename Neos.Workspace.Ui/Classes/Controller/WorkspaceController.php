@@ -822,21 +822,29 @@ class WorkspaceController extends AbstractModuleController
     {
         $siteChanges = [];
         $changes = $this->getChangesFromWorkspace($selectedWorkspace, $contentRepository);
-
-        // TODO hack for the case $change->originDimensionSpacePoint is NULL so we can fetch a subgraph still. This is the case for changes NodeAggregateNameWasChanged or NodeAggregateTypeWasChanged
-        $dimensionSpacePoints = iterator_to_array($contentRepository->getVariationGraph()->getDimensionSpacePoints());
-        /** @var DimensionSpacePoint $arbitraryDimensionSpacePoint */
-        $arbitraryDimensionSpacePoint = reset($dimensionSpacePoints);
-
         $contentGraph = $contentRepository->getContentGraph($selectedWorkspace->workspaceName);
-
         foreach ($changes as $change) {
-            $subgraph = $contentGraph->getSubgraph(
-                $change->originDimensionSpacePoint?->toDimensionSpacePoint() ?? $arbitraryDimensionSpacePoint,
-                VisibilityConstraints::createEmpty()
-            );
-
-            $node = $subgraph->findNodeById($change->nodeAggregateId);
+            if ($change->originDimensionSpacePoint) {
+                $subgraph = $contentGraph->getSubgraph(
+                    $change->originDimensionSpacePoint->toDimensionSpacePoint(),
+                    VisibilityConstraints::createEmpty()
+                );
+                $node = $subgraph->findNodeById($change->nodeAggregateId);
+            } else {
+                // for changes like NodeAggregateNameWasChanged or NodeAggregateTypeWasChanged, get a random occupying node:
+                $nodeAggregate = $contentGraph->findNodeAggregateById($change->nodeAggregateId);
+                if ($nodeAggregate === null) {
+                    continue;
+                }
+                $occupiedDimensionSpacePoints = $nodeAggregate->occupiedDimensionSpacePoints->getPoints();
+                assert($occupiedDimensionSpacePoints !== []);
+                $arbitraryDimensionSpacePoint = reset($occupiedDimensionSpacePoints);
+                $node = $nodeAggregate->getNodeByOccupiedDimensionSpacePoint($arbitraryDimensionSpacePoint);
+                $subgraph = $contentGraph->getSubgraph(
+                    $arbitraryDimensionSpacePoint->toDimensionSpacePoint(),
+                    VisibilityConstraints::createEmpty()
+                );
+            }
             if ($node) {
                 $documentNode = null;
                 $siteNode = null;
