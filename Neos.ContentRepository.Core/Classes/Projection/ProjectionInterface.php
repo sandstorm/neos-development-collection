@@ -33,7 +33,12 @@ interface ProjectionInterface
     public function apply(EventInterface $event, EventEnvelope $eventEnvelope): void;
 
     /**
-     * NOTE: The ProjectionStateInterface returned must be ALWAYS THE SAME INSTANCE.
+     * NOTE: The state will be accessed eagerly ONCE upon initialisation of the content repository
+     * and put into the immutable {@see ProjectionStates} collection.
+     * This ensures always the same instance is being returned when accessing it.
+     *
+     * Projections should on construction already have the state prepared, that also for internal
+     * use cases the SAME INSTANCE is always used.
      *
      * If the Projection needs to be notified that a catchup is about to happen, you can additionally
      * implement {@see WithMarkStaleInterface}. This is useful f.e. to disable runtime caches in the ProjectionState.
