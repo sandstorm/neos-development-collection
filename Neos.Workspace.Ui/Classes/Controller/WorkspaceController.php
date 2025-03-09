@@ -921,15 +921,7 @@ class WorkspaceController extends AbstractModuleController
                         );
                     }
 
-                    // As for changes of type `delete` we are using nodes from the live workspace
-                    // we can't create a serialized nodeAddress from the node.
-                    // Instead, we use the original stored values.
-                    $nodeAddress = NodeAddress::create(
-                        $contentRepository->id,
-                        $selectedWorkspace->workspaceName,
-                        $change->originDimensionSpacePoint?->toDimensionSpacePoint() ?? $arbitraryDimensionSpacePoint,
-                        $change->nodeAggregateId
-                    );
+                    $nodeAddress = NodeAddress::fromNode($node);
                     $nodeType = $contentRepository->getNodeTypeManager()->getNodeType($node->nodeTypeName);
                     $dimensions = [];
                     foreach ($node->dimensionSpacePoint->coordinates as $id => $coordinate) {
