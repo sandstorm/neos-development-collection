@@ -12,9 +12,6 @@ use Neos\EventStore\Model\EventEnvelope;
  * Common interface for a Content Repository projection. This API is NOT exposed to the outside world, but is
  * the contract between {@see ContentRepository} and the individual projections.
  *
- * If the Projection needs to be notified that a catchup is about to happen, you can additionally
- * implement {@see WithMarkStaleInterface}. This is useful f.e. to disable runtime caches in the ProjectionState.
- *
  * @template-covariant TState of ProjectionStateInterface
  * @api you can write custom projections
  */
@@ -39,9 +36,6 @@ interface ProjectionInterface
      *
      * Projections should on construction already have the state prepared, that also for internal
      * use cases the SAME INSTANCE is always used.
-     *
-     * If the Projection needs to be notified that a catchup is about to happen, you can additionally
-     * implement {@see WithMarkStaleInterface}. This is useful f.e. to disable runtime caches in the ProjectionState.
      *
      * @return TState
      */
