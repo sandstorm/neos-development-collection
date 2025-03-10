@@ -197,7 +197,7 @@ final class ContentRepository
 
     /**
      * Returns all workspaces of this content repository. To limit the set, {@see Workspaces::find()} and {@see Workspaces::filter()} can be used
-     * as well as {@see Workspaces::getBaseWorkspaces()} and {@see Workspaces::getDependantWorkspaces()}.
+     * as well as {@see Workspaces::getBaseWorkspaces()} and {@see Workspaces::getDependantWorkspacesRecursively()}.
      */
     public function findWorkspaces(): Workspaces
     {
