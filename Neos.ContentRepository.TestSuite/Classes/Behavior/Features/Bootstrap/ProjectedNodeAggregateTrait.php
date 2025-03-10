@@ -84,17 +84,18 @@ trait ProjectedNodeAggregateTrait
 
     /**
      * @Then /^I expect this node aggregate to disable dimension space points (.*)$/
+     * @Then /^I expect this node aggregate to have dimension space points (.*) tagged "([^"]+)"$/
      */
-    public function iExpectThisNodeAggregateToDisableDimensionSpacePoints(string $serializedExpectedDisabledDimensionSpacePoints): void
+    public function iExpectThisNodeAggregateToDisableDimensionSpacePoints(string $serializedDimensionSpacePoints, string $subtreeTag = 'disabled'): void
     {
-        $expectedDisabledDimensionSpacePoints = DimensionSpacePointSet::fromJsonString($serializedExpectedDisabledDimensionSpacePoints);
-        $this->assertOnCurrentNodeAggregate(function (NodeAggregate $nodeAggregate) use ($expectedDisabledDimensionSpacePoints) {
-            $actualDisabledDimensionSpacePoints = $nodeAggregate->getCoveredDimensionsTaggedBy(SubtreeTag::disabled(), withoutInherited: true);
+        $expectedDimensionSpacePoints = DimensionSpacePointSet::fromJsonString($serializedDimensionSpacePoints);
+        $this->assertOnCurrentNodeAggregate(function (NodeAggregate $nodeAggregate) use ($expectedDimensionSpacePoints, $subtreeTag) {
+            $actualDimensionSpacePoints = $nodeAggregate->getCoveredDimensionsTaggedBy(SubtreeTag::fromString($subtreeTag), withoutInherited: true);
             Assert::assertEquals(
-                $expectedDisabledDimensionSpacePoints,
-                $actualDisabledDimensionSpacePoints,
-                'Expected disabled dimension space point set ' . $expectedDisabledDimensionSpacePoints->toJson() . ', got ' .
-                $actualDisabledDimensionSpacePoints->toJson()
+                $expectedDimensionSpacePoints,
+                $actualDimensionSpacePoints,
+                'Expected tag ' . $subtreeTag . ' to tag dimension space point set ' . $expectedDimensionSpacePoints->toJson() . ', got ' .
+                $actualDimensionSpacePoints->toJson()
             );
         });
     }
