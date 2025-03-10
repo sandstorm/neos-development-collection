@@ -922,7 +922,7 @@ class WorkspaceController extends AbstractModuleController
 
                     if ($documentNode->equals($node)) {
                         $siteChanges[$siteNodeName]['documents'][$documentPath]['documentChanges'] = new DocumentChangeItem(
-                            isRemoved: $change->deleted || $documentNode->tags->contain(NeosSubtreeTag::removed()),
+                            isRemoved: $change->deleted,
                             isNew: $change->created,
                             isMoved: $change->moved,
                             isHidden: $documentNode->tags->contain(NeosSubtreeTag::disabled()),
@@ -942,7 +942,7 @@ class WorkspaceController extends AbstractModuleController
                     $siteChanges[$siteNodeName]['documents'][$documentPath]['changes'][$node->dimensionSpacePoint->hash][$relativePath] = new ChangeItem(
                         serializedNodeAddress: $nodeAddress->toJson(),
                         hidden: $node->tags->contain(NeosSubtreeTag::disabled()),
-                        isRemoved: $change->deleted || $node->tags->contain(NeosSubtreeTag::removed()),
+                        isRemoved: $change->deleted,
                         isNew: $change->created,
                         isMoved: $change->moved,
                         dimensions: $dimensions,
