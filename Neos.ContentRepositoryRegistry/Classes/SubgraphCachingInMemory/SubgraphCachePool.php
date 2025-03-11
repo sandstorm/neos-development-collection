@@ -101,13 +101,15 @@ final class SubgraphCachePool
      * Fetching a content graph requires a sql query. This is why we cache the actual subgraph instances here as well,
      * to avoid having each time fetched the content graph again.
      */
-    public function getUncachedContentSubgraph(ContentRepository $contentRepository, WorkspaceName $workspaceName, DimensionSpacePoint $dimensionSpacePoint, VisibilityConstraints $visibilityConstraints): ContentSubgraphInterface
+    public function getContentSubgraph(ContentRepository $contentRepository, WorkspaceName $workspaceName, DimensionSpacePoint $dimensionSpacePoint, VisibilityConstraints $visibilityConstraints): ContentSubgraphInterface
     {
         $cacheId = self::cacheIdForArguments($contentRepository->id, $workspaceName, $dimensionSpacePoint, $visibilityConstraints);
-        return $this->subgraphInstancesCache[$cacheId] ??= $contentRepository->getContentGraph($workspaceName)->getSubgraph(
+        $uncachedContentSubgraphInstance = $this->subgraphInstancesCache[$cacheId] ??= $contentRepository->getContentGraph($workspaceName)->getSubgraph(
             $dimensionSpacePoint,
             $visibilityConstraints
         );
+
+        return ContentSubgraphWithRuntimeCaches::decorate($uncachedContentSubgraphInstance, $this);
     }
 
     private static function cacheId(ContentSubgraphInterface $subgraph): string

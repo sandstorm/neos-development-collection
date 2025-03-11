@@ -19,6 +19,7 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
+use Neos\ContentRepositoryRegistry\SubgraphCachingInMemory\SubgraphCachePool;
 use Neos\Eel\FlowQuery\FlowQuery;
 use Neos\Eel\FlowQuery\FlowQueryException;
 use Neos\Eel\FlowQuery\Operations\AbstractOperation;
@@ -68,6 +69,9 @@ class ContextOperation extends AbstractOperation
     #[Flow\Inject()]
     protected ContentRepositoryRegistry $contentRepositoryRegistry;
 
+    #[Flow\Inject()]
+    protected SubgraphCachePool $subgraphCachePool;
+
     /**
      * {@inheritdoc}
      *
@@ -110,9 +114,9 @@ class ContextOperation extends AbstractOperation
         /** @var Node $contextNode */
         foreach ($flowQuery->getContext() as $contextNode) {
             $contentRepository = $this->contentRepositoryRegistry->get($contextNode->contentRepositoryId);
-            $newSubgraph = $contentRepository->getContentGraph(
-                $newWorkspaceName ?? $contextNode->workspaceName
-            )->getSubgraph(
+            $newSubgraph = $this->subgraphCachePool->getContentSubgraph(
+                $contentRepository,
+                $newWorkspaceName ?? $contextNode->workspaceName,
                 $newDimensions ?? $contextNode->dimensionSpacePoint,
                 VisibilityConstraints::excludeSubtreeTags(
                     match ($newInvisibleContentShown) {

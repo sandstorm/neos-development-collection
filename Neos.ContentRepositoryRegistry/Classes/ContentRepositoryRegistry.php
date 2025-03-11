@@ -117,14 +117,12 @@ final class ContentRepositoryRegistry
     {
         $contentRepository = $this->get($node->contentRepositoryId);
 
-        $uncachedSubgraph = $this->subgraphCachePool->getUncachedContentSubgraph(
+        return $this->subgraphCachePool->getContentSubgraph(
             $contentRepository,
             $node->workspaceName,
             $node->dimensionSpacePoint,
             $node->visibilityConstraints
         );
-
-        return ContentSubgraphWithRuntimeCaches::decorate($uncachedSubgraph, $this->subgraphCachePool);
     }
 
     /**
