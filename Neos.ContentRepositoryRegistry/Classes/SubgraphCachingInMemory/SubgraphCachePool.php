@@ -40,32 +40,27 @@ final class SubgraphCachePool
     /**
      * @var array<string,NodePathCache>
      */
-    private $nodePathCaches;
+    private array $nodePathCaches = [];
 
     /**
      * @var array<string,NodeByNodeAggregateIdCache>
      */
-    private $nodeByNodeAggregateIdCaches;
+    private array $nodeByNodeAggregateIdCaches = [];
 
     /**
      * @var array<string,AllChildNodesByNodeIdCache>
      */
-    private $allChildNodesByNodeIdCaches;
+    private array $allChildNodesByNodeIdCaches = [];
 
     /**
      * @var array<string,NamedChildNodeByNodeIdCache>
      */
-    private $namedChildNodeByNodeIdCaches;
+    private array $namedChildNodeByNodeIdCaches = [];
 
     /**
      * @var array<string,ParentNodeIdByChildNodeIdCache>
      */
-    private $parentNodeIdByChildNodeIdCaches;
-
-    public function __construct()
-    {
-        $this->reset();
-    }
+    private array $parentNodeIdByChildNodeIdCaches = [];
 
     private static function cacheId(ContentSubgraphInterface $subgraph): string
     {
@@ -75,9 +70,6 @@ final class SubgraphCachePool
             $subgraph->getVisibilityConstraints()->getHash();
     }
 
-    /**
-     * @return NodePathCache
-     */
     public function getNodePathCache(ContentSubgraphInterface $subgraph): NodePathCache
     {
         return $this->nodePathCaches[self::cacheId($subgraph)] ??= new NodePathCache();
@@ -88,25 +80,16 @@ final class SubgraphCachePool
         return $this->nodeByNodeAggregateIdCaches[self::cacheId($subgraph)] ??= new NodeByNodeAggregateIdCache();
     }
 
-    /**
-     * @return AllChildNodesByNodeIdCache
-     */
     public function getAllChildNodesByNodeIdCache(ContentSubgraphInterface $subgraph): AllChildNodesByNodeIdCache
     {
         return $this->allChildNodesByNodeIdCaches[self::cacheId($subgraph)] ??= new AllChildNodesByNodeIdCache();
     }
 
-    /**
-     * @return NamedChildNodeByNodeIdCache
-     */
     public function getNamedChildNodeByNodeIdCache(ContentSubgraphInterface $subgraph): NamedChildNodeByNodeIdCache
     {
         return $this->namedChildNodeByNodeIdCaches[self::cacheId($subgraph)] ??= new NamedChildNodeByNodeIdCache();
     }
 
-    /**
-     * @return ParentNodeIdByChildNodeIdCache
-     */
     public function getParentNodeIdByChildNodeIdCache(ContentSubgraphInterface $subgraph): ParentNodeIdByChildNodeIdCache
     {
         return $this->parentNodeIdByChildNodeIdCaches[self::cacheId($subgraph)] ??= new ParentNodeIdByChildNodeIdCache();

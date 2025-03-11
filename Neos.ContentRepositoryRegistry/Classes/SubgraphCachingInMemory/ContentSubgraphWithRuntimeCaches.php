@@ -41,6 +41,7 @@ use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
+use Neos\Flow\Annotations as Flow;
 
 /**
  * Wrapper for a concrete implementation of the {@see ContentSubgraphInterface} that
@@ -49,6 +50,7 @@ use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
  * It is a rather pragmatic way to speed up (uncached) rendering.
  *
  * @internal implementation detail of {@see ContentRepositoryRegistry::subgraphForNode()}
+ * @Flow\Proxy(false)
  */
 final readonly class ContentSubgraphWithRuntimeCaches implements ContentSubgraphInterface
 {
