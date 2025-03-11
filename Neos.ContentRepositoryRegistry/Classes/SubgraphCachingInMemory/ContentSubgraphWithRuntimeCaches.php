@@ -82,7 +82,7 @@ final readonly class ContentSubgraphWithRuntimeCaches implements ContentSubgraph
 
     public function findChildNodes(NodeAggregateId $parentNodeAggregateId, FindChildNodesFilter $filter): Nodes
     {
-        if (!self::isFilterEmpty($filter)) {
+        if (!$filter->isEmpty()) {
             return $this->wrappedContentSubgraph->findChildNodes($parentNodeAggregateId, $filter);
         }
         $childNodesCache = $this->subgraphCachePool->getAllChildNodesByNodeIdCache($this);
@@ -104,7 +104,7 @@ final readonly class ContentSubgraphWithRuntimeCaches implements ContentSubgraph
 
     public function countChildNodes(NodeAggregateId $parentNodeAggregateId, CountChildNodesFilter $filter): int
     {
-        if (!self::isFilterEmpty($filter)) {
+        if (!$filter->isEmpty()) {
             return $this->wrappedContentSubgraph->countChildNodes($parentNodeAggregateId, $filter);
         }
         $childNodesCache = $this->subgraphCachePool->getAllChildNodesByNodeIdCache($this);
@@ -250,10 +250,5 @@ final readonly class ContentSubgraphWithRuntimeCaches implements ContentSubgraph
     public function countNodes(): int
     {
         return $this->wrappedContentSubgraph->countNodes();
-    }
-
-    private static function isFilterEmpty(object $filter): bool
-    {
-        return array_filter(get_object_vars($filter), static fn ($value) => $value !== null) === [];
     }
 }
