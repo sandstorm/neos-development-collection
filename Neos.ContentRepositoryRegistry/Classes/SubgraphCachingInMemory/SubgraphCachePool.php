@@ -72,28 +72,50 @@ final class SubgraphCachePool
      */
     private array $subgraphInstancesCache = [];
 
+    private bool $isDisabled = false;
+
     public function getNodePathCache(ContentSubgraphInterface $subgraph): NodePathCache
     {
+        if ($this->isDisabled) {
+            // return empty cache which will be used as noop as we don't store the added cache values
+            return new NodePathCache();
+        }
         return $this->nodePathCaches[self::cacheId($subgraph)] ??= new NodePathCache();
     }
 
     public function getNodeByNodeAggregateIdCache(ContentSubgraphInterface $subgraph): NodeByNodeAggregateIdCache
     {
+        if ($this->isDisabled) {
+            // return empty cache which will be used as noop as we don't store the added cache values
+            return new NodeByNodeAggregateIdCache();
+        }
         return $this->nodeByNodeAggregateIdCaches[self::cacheId($subgraph)] ??= new NodeByNodeAggregateIdCache();
     }
 
     public function getAllChildNodesByNodeIdCache(ContentSubgraphInterface $subgraph): AllChildNodesByNodeIdCache
     {
+        if ($this->isDisabled) {
+            // return empty cache which will be used as noop as we don't store the added cache values
+            return new AllChildNodesByNodeIdCache();
+        }
         return $this->allChildNodesByNodeIdCaches[self::cacheId($subgraph)] ??= new AllChildNodesByNodeIdCache();
     }
 
     public function getNamedChildNodeByNodeIdCache(ContentSubgraphInterface $subgraph): NamedChildNodeByNodeIdCache
     {
+        if ($this->isDisabled) {
+            // return empty cache which will be used as noop as we don't store the added cache values
+            return new NamedChildNodeByNodeIdCache();
+        }
         return $this->namedChildNodeByNodeIdCaches[self::cacheId($subgraph)] ??= new NamedChildNodeByNodeIdCache();
     }
 
     public function getParentNodeIdByChildNodeIdCache(ContentSubgraphInterface $subgraph): ParentNodeIdByChildNodeIdCache
     {
+        if ($this->isDisabled) {
+            // return empty cache which will be used as noop as we don't store the added cache values
+            return new ParentNodeIdByChildNodeIdCache();
+        }
         return $this->parentNodeIdByChildNodeIdCaches[self::cacheId($subgraph)] ??= new ParentNodeIdByChildNodeIdCache();
     }
 
@@ -103,6 +125,10 @@ final class SubgraphCachePool
      */
     public function getContentSubgraph(ContentRepository $contentRepository, WorkspaceName $workspaceName, DimensionSpacePoint $dimensionSpacePoint, VisibilityConstraints $visibilityConstraints): ContentSubgraphInterface
     {
+        if ($this->isDisabled) {
+            // do not return decorated subgraphs, so the above cache methods are unlikely to be called
+            return $contentRepository->getContentGraph($workspaceName)->getSubgraph($dimensionSpacePoint, $visibilityConstraints);
+        }
         $cacheId = self::cacheIdForArguments($contentRepository->id, $workspaceName, $dimensionSpacePoint, $visibilityConstraints);
         $uncachedContentSubgraphInstance = $this->subgraphInstancesCache[$cacheId] ??= $contentRepository->getContentGraph($workspaceName)->getSubgraph(
             $dimensionSpacePoint,
@@ -125,8 +151,9 @@ final class SubgraphCachePool
             $visibilityConstraints->getHash();
     }
 
-    public function reset(): void
+    public function reset(bool $disable): void
     {
+        $this->isDisabled = $disable;
         $this->nodePathCaches = [];
         $this->nodeByNodeAggregateIdCaches = [];
         $this->allChildNodesByNodeIdCaches = [];
