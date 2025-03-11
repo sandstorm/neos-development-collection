@@ -94,7 +94,7 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
         assert($result instanceof Result);
         $rows = $result->fetchAllAssociative();
         if ($rows === []) {
-            return Subscriptions::none();
+            return Subscriptions::createEmpty();
         }
         return Subscriptions::fromArray(array_map(self::fromDatabase(...), $rows));
     }
