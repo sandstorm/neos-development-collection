@@ -14,6 +14,11 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepositoryRegistry\SubgraphCachingInMemory;
 
+use Neos\ContentRepository\Core\ContentRepository;
+use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
+use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
+use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
+use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\Flow\Annotations as Flow;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface;
 use Neos\ContentRepositoryRegistry\SubgraphCachingInMemory\InMemoryCache\AllChildNodesByNodeIdCache;
@@ -62,13 +67,10 @@ final class SubgraphCachePool
      */
     private array $parentNodeIdByChildNodeIdCaches = [];
 
-    private static function cacheId(ContentSubgraphInterface $subgraph): string
-    {
-        return $subgraph->getContentRepositoryId()->value . '#' .
-            $subgraph->getWorkspaceName()->value . '#' .
-            $subgraph->getDimensionSpacePoint()->hash . '#' .
-            $subgraph->getVisibilityConstraints()->getHash();
-    }
+    /**
+     * @var array<string,ContentSubgraphInterface>
+     */
+    private array $subgraphInstancesCache = [];
 
     public function getNodePathCache(ContentSubgraphInterface $subgraph): NodePathCache
     {
@@ -95,6 +97,32 @@ final class SubgraphCachePool
         return $this->parentNodeIdByChildNodeIdCaches[self::cacheId($subgraph)] ??= new ParentNodeIdByChildNodeIdCache();
     }
 
+    /**
+     * Fetching a content graph requires a sql query. This is why we cache the actual subgraph instances here as well,
+     * to avoid having each time fetched the content graph again.
+     */
+    public function getUncachedContentSubgraph(ContentRepository $contentRepository, WorkspaceName $workspaceName, DimensionSpacePoint $dimensionSpacePoint, VisibilityConstraints $visibilityConstraints): ContentSubgraphInterface
+    {
+        $cacheId = self::cacheIdForArguments($contentRepository->id, $workspaceName, $dimensionSpacePoint, $visibilityConstraints);
+        return $this->subgraphInstancesCache[$cacheId] ??= $contentRepository->getContentGraph($workspaceName)->getSubgraph(
+            $dimensionSpacePoint,
+            $visibilityConstraints
+        );
+    }
+
+    private static function cacheId(ContentSubgraphInterface $subgraph): string
+    {
+        return self::cacheIdForArguments($subgraph->getContentRepositoryId(), $subgraph->getWorkspaceName(), $subgraph->getDimensionSpacePoint(), $subgraph->getVisibilityConstraints());
+    }
+
+    private static function cacheIdForArguments(ContentRepositoryId $contentRepositoryId, WorkspaceName $workspaceName, DimensionSpacePoint $dimensionSpacePoint, VisibilityConstraints $visibilityConstraints): string
+    {
+        return $contentRepositoryId->value . '#' .
+            $workspaceName->value . '#' .
+            $dimensionSpacePoint->hash . '#' .
+            $visibilityConstraints->getHash();
+    }
+
     public function reset(): void
     {
         $this->nodePathCaches = [];
@@ -102,5 +130,6 @@ final class SubgraphCachePool
         $this->allChildNodesByNodeIdCaches = [];
         $this->namedChildNodeByNodeIdCaches = [];
         $this->parentNodeIdByChildNodeIdCaches = [];
+        $this->subgraphInstancesCache = [];
     }
 }

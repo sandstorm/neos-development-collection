@@ -117,7 +117,9 @@ final class ContentRepositoryRegistry
     {
         $contentRepository = $this->get($node->contentRepositoryId);
 
-        $uncachedSubgraph = $contentRepository->getContentGraph($node->workspaceName)->getSubgraph(
+        $uncachedSubgraph = $this->subgraphCachePool->getUncachedContentSubgraph(
+            $contentRepository,
+            $node->workspaceName,
             $node->dimensionSpacePoint,
             $node->visibilityConstraints
         );
