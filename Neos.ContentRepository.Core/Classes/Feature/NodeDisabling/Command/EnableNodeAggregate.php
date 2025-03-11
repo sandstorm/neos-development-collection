@@ -29,7 +29,7 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
  * The duplicated command implementation was removed with Neos 9 Beta 19 and its now discouraged to use these legacy commands
  * which now translate fully to their subtree counterparts.
  *
- * @deprecated please use {@see UntagSubtree} instead and specify as {@see SubtreeTag} "disabled"
+ * @deprecated please use {@see UntagSubtree} instead and specify as {@see SubtreeTag} "disabled", in neos via {@see \Neos\Neos\Domain\SubtreeTagging\NeosSubtreeTag::disabled()}. To be removed with Neos 10.
  * @internal
  */
 final readonly class EnableNodeAggregate
