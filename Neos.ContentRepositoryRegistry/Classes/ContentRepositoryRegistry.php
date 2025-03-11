@@ -122,7 +122,7 @@ final class ContentRepositoryRegistry
             $node->visibilityConstraints
         );
 
-        return new ContentSubgraphWithRuntimeCaches($uncachedSubgraph, $this->subgraphCachePool);
+        return ContentSubgraphWithRuntimeCaches::decorate($uncachedSubgraph, $this->subgraphCachePool);
     }
 
     /**

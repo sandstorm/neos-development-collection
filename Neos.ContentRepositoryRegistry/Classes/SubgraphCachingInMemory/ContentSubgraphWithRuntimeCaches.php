@@ -54,10 +54,18 @@ use Neos\Flow\Annotations as Flow;
  */
 final readonly class ContentSubgraphWithRuntimeCaches implements ContentSubgraphInterface
 {
-    public function __construct(
+    private function __construct(
         private ContentSubgraphInterface $wrappedContentSubgraph,
         private SubgraphCachePool $subgraphCachePool
     ) {
+    }
+
+    public static function decorate(ContentSubgraphInterface $uncachedSubgraph, SubgraphCachePool $subgraphCachePool): self
+    {
+        if ($uncachedSubgraph instanceof ContentSubgraphWithRuntimeCaches) {
+            return $uncachedSubgraph;
+        }
+        return new self($uncachedSubgraph, $subgraphCachePool);
     }
 
     public function getContentRepositoryId(): ContentRepositoryId
