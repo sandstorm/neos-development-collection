@@ -218,8 +218,8 @@ Feature: Remove NodeAggregate
     And I expect this node to have no references
     And I expect this node to not be referenced
 
-    And I expect node aggregate identifier "nodingers-cat" and node path "pet" to lead to no node
-    And I expect node aggregate identifier "nodingers-kitten" and node path "pet/kitten" to lead to no node
+    And I expect the node aggregate "nodingers-cat" to not exist
+    And I expect the node aggregate "nodingers-kitten" to not exist
 
     # Check the generalization
     When I am in dimension space point {"language":"en"}
@@ -290,6 +290,7 @@ Feature: Remove NodeAggregate
       | Key                          | Value           |
       | nodeAggregateId              | "nodingers-cat" |
       | nodeVariantSelectionStrategy | "allVariants"   |
+    And I expect the node aggregate "nodingers-cat" to not exist
     And the following CreateNodeAggregateWithNode commands are executed:
       | nodeAggregateId  | nodeTypeName                            | parentNodeAggregateId  | nodeName |
       | nodingers-cat    | Neos.ContentRepository.Testing:Document | lady-eleonode-rootford | pet      |
