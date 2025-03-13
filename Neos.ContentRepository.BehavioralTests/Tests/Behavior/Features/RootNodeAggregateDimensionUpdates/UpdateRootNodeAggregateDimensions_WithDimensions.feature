@@ -5,34 +5,40 @@ Feature: Update Root Node aggregate dimensions
 
   Background:
     Given using the following content dimensions:
-      | Identifier | Values  | Generalizations |
-      | language   | mul, de |                 |
+      | Identifier | Values | Generalizations |
+      | language   | fr, de |                 |
     And using the following node types:
     """yaml
+    Neos.ContentRepository.Testing:Document: {}
+    Neos.ContentRepository.Testing:RootWithTethered:
+      superTypes:
+        Neos.ContentRepository:Root: true
+      childNodes:
+        tethered:
+          type: "Neos.ContentRepository.Testing:Document"
     """
     And using identifier "default", I define a content repository
     And I am in content repository "default"
     And I am user identified by "initiating-user-identifier"
     And the command CreateRootWorkspace is executed with payload:
-      | Key                  | Value                |
-      | workspaceName        | "live"               |
-      | newContentStreamId   | "cs-identifier"      |
+      | Key                | Value           |
+      | workspaceName      | "live"          |
+      | newContentStreamId | "cs-identifier" |
     And I am in workspace "live"
     And the command CreateRootNodeAggregateWithNode is executed with payload:
       | Key             | Value                         |
       | nodeAggregateId | "lady-eleonode-rootford"      |
       | nodeTypeName    | "Neos.ContentRepository:Root" |
 
-
   Scenario: Initial setup of the root node (similar to 01/RootNodeCreation/03-...)
     Then I expect exactly 2 events to be published on stream "ContentStream:cs-identifier"
     And event at index 1 is of type "RootNodeAggregateWithNodeWasCreated" with payload:
-      | Key                         | Expected                               |
-      | contentStreamId             | "cs-identifier"                        |
-      | nodeAggregateId             | "lady-eleonode-rootford"               |
-      | nodeTypeName                | "Neos.ContentRepository:Root"          |
-      | coveredDimensionSpacePoints | [{"language":"mul"},{"language":"de"}] |
-      | nodeAggregateClassification | "root"                                 |
+      | Key                         | Expected                              |
+      | contentStreamId             | "cs-identifier"                       |
+      | nodeAggregateId             | "lady-eleonode-rootford"              |
+      | nodeTypeName                | "Neos.ContentRepository:Root"         |
+      | coveredDimensionSpacePoints | [{"language":"fr"},{"language":"de"}] |
+      | nodeAggregateClassification | "root"                                |
     And event metadata at index 1 is:
       | Key | Expected |
 
@@ -41,7 +47,7 @@ Feature: Update Root Node aggregate dimensions
     And I expect this node aggregate to be of type "Neos.ContentRepository:Root"
     And I expect this node aggregate to be unnamed
     And I expect this node aggregate to occupy dimension space points [[]]
-    And I expect this node aggregate to cover dimension space points [{"language":"mul"},{"language":"de"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"fr"},{"language":"de"}]
     And I expect this node aggregate to disable dimension space points []
     And I expect this node aggregate to have no parent node aggregates
     And I expect this node aggregate to have no child node aggregates
@@ -53,7 +59,7 @@ Feature: Update Root Node aggregate dimensions
     And I expect this node to be unnamed
     And I expect this node to have no properties
 
-    When I am in dimension space point {"language":"mul"}
+    When I am in dimension space point {"language":"fr"}
     Then I expect the subgraph projection to consist of exactly 1 node
     And I expect node aggregate identifier "lady-eleonode-rootford" to lead to node cs-identifier;lady-eleonode-rootford;{}
     And I expect this node to be classified as "root"
@@ -71,8 +77,8 @@ Feature: Update Root Node aggregate dimensions
 
   Scenario: Adding a dimension and updating the root node works
     Given I change the content dimensions in content repository "default" to:
-      | Identifier | Values      | Generalizations |
-      | language   | mul, de, en |                 |
+      | Identifier | Values     | Generalizations |
+      | language   | fr, de, en |                 |
 
     # in "en", the root node does not exist.
     When I am in dimension space point {"language":"en"}
@@ -86,10 +92,10 @@ Feature: Update Root Node aggregate dimensions
     Then I expect exactly 3 events to be published on stream "ContentStream:cs-identifier"
     # the updated dimension config is persisted in the event stream
     And event at index 2 is of type "RootNodeAggregateDimensionsWereUpdated" with payload:
-      | Key                         | Expected                                                 |
-      | contentStreamId             | "cs-identifier"                                          |
-      | nodeAggregateId             | "lady-eleonode-rootford"                                 |
-      | coveredDimensionSpacePoints | [{"language":"mul"},{"language":"de"},{"language":"en"}] |
+      | Key                         | Expected                                                |
+      | contentStreamId             | "cs-identifier"                                         |
+      | nodeAggregateId             | "lady-eleonode-rootford"                                |
+      | coveredDimensionSpacePoints | [{"language":"fr"},{"language":"de"},{"language":"en"}] |
     And event metadata at index 1 is:
       | Key | Expected |
 
@@ -98,7 +104,7 @@ Feature: Update Root Node aggregate dimensions
     And I expect this node aggregate to be of type "Neos.ContentRepository:Root"
     And I expect this node aggregate to be unnamed
     And I expect this node aggregate to occupy dimension space points [[]]
-    And I expect this node aggregate to cover dimension space points [{"language":"mul"},{"language":"de"},{"language":"en"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"fr"},{"language":"de"},{"language":"en"}]
     And I expect this node aggregate to disable dimension space points []
     And I expect this node aggregate to have no parent node aggregates
     And I expect this node aggregate to have no child node aggregates
@@ -110,7 +116,7 @@ Feature: Update Root Node aggregate dimensions
     And I expect this node to be unnamed
     And I expect this node to have no properties
 
-    When I am in dimension space point {"language":"mul"}
+    When I am in dimension space point {"language":"fr"}
     Then I expect the subgraph projection to consist of exactly 1 node
     And I expect node aggregate identifier "lady-eleonode-rootford" to lead to node cs-identifier;lady-eleonode-rootford;{}
     And I expect this node to be classified as "root"
@@ -130,11 +136,10 @@ Feature: Update Root Node aggregate dimensions
     Then I expect the subgraph projection to consist of exactly 1 node
     And I expect node aggregate identifier "lady-eleonode-rootford" to lead to node cs-identifier;lady-eleonode-rootford;{}
 
-
   Scenario: Adding a dimension updating the root node, removing dimension, updating the root node, works (dimension gone again)
     Given I change the content dimensions in content repository "default" to:
-      | Identifier | Values      | Generalizations |
-      | language   | mul, de, en |                 |
+      | Identifier | Values     | Generalizations |
+      | language   | fr, de, en |                 |
     And the command UpdateRootNodeAggregateDimensions is executed with payload:
       | Key             | Value                    |
       | nodeAggregateId | "lady-eleonode-rootford" |
@@ -146,8 +151,8 @@ Feature: Update Root Node aggregate dimensions
 
     # again, remove "en"
     Given I change the content dimensions in content repository "default" to:
-      | Identifier | Values   | Generalizations |
-      | language   | mul, de, |                 |
+      | Identifier | Values  | Generalizations |
+      | language   | fr, de, |                 |
     And the command UpdateRootNodeAggregateDimensions is executed with payload:
       | Key             | Value                    |
       | nodeAggregateId | "lady-eleonode-rootford" |
@@ -156,3 +161,101 @@ Feature: Update Root Node aggregate dimensions
     When I am in dimension space point {"language":"en"}
     Then I expect the subgraph projection to consist of exactly 0 nodes
     And I expect node aggregate identifier "lady-eleonode-rootford" to lead to no node
+
+  Scenario: Removing a dimension with content and update the root node
+    And the command CreateNodeAggregateWithNode is executed with payload:
+      | Key                       | Value                                     |
+      | nodeAggregateId           | "sir-david-nodenborough"                  |
+      | nodeTypeName              | "Neos.ContentRepository.Testing:Document" |
+      | originDimensionSpacePoint | {"language": "de"}                        |
+      | parentNodeAggregateId     | "lady-eleonode-rootford"                  |
+
+    And the command CreateNodeVariant is executed with payload:
+      | Key             | Value                    |
+      | nodeAggregateId | "sir-david-nodenborough" |
+      | sourceOrigin    | {"language":"de"}        |
+      | targetOrigin    | {"language":"fr"}        |
+
+    And the command CreateNodeAggregateWithNode is executed with payload:
+      | Key                       | Value                                     |
+      | nodeAggregateId           | "davids-son"                              |
+      | nodeTypeName              | "Neos.ContentRepository.Testing:Document" |
+      | originDimensionSpacePoint | {"language": "de"}                        |
+      | parentNodeAggregateId     | "sir-david-nodenborough"                  |
+
+
+    And the command CreateNodeVariant is executed with payload:
+      | Key             | Value             |
+      | nodeAggregateId | "davids-son"      |
+      | sourceOrigin    | {"language":"de"} |
+      | targetOrigin    | {"language":"fr"} |
+
+
+    And the command CreateNodeAggregateWithNode is executed with payload:
+      | Key                       | Value                                     |
+      | nodeAggregateId           | "davids-datter"                           |
+      | nodeTypeName              | "Neos.ContentRepository.Testing:Document" |
+      | originDimensionSpacePoint | {"language": "fr"}                        |
+      | parentNodeAggregateId     | "sir-david-nodenborough"                  |
+
+    Then I expect the node aggregate "lady-eleonode-rootford" to exist
+    And I expect this node aggregate to occupy dimension space points [[]]
+    And I expect this node aggregate to cover dimension space points [{"language":"fr"},{"language":"de"}]
+
+    Then I expect the node aggregate "sir-david-nodenborough" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"fr"},{"language":"de"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"fr"},{"language":"de"}]
+
+    # remove fr
+    Given I change the content dimensions in content repository "default" to:
+      | Identifier | Values | Generalizations |
+      | language   | de     |                 |
+
+    And the command UpdateRootNodeAggregateDimensions is executed with payload:
+      | Key             | Value                    |
+      | nodeAggregateId | "lady-eleonode-rootford" |
+
+    Then I expect the node aggregate "lady-eleonode-rootford" to exist
+    And I expect this node aggregate to occupy dimension space points [[]]
+    And I expect this node aggregate to cover dimension space points [{"language":"de"}]
+
+    Then I expect the node aggregate "sir-david-nodenborough" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"de"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"de"}]
+    Then I expect the node aggregate "davids-son" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"de"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"de"}]
+    And I expect the node aggregate "davids-datter" to not exist
+
+  Scenario: Removing a dimension of a root node with tethered nodes and update the root node
+    And the command CreateRootNodeAggregateWithNode is executed with payload:
+      | Key                                | Value                                             |
+      | nodeAggregateId                    | "root-zwo"                                        |
+      | nodeTypeName                       | "Neos.ContentRepository.Testing:RootWithTethered" |
+      | originDimensionSpacePoint          | {}                                                |
+      | tetheredDescendantNodeAggregateIds | { "tethered": "nodimus-tetherton"}                |
+
+    Then I expect the node aggregate "root-zwo" to exist
+    And I expect this node aggregate to occupy dimension space points [[]]
+    And I expect this node aggregate to cover dimension space points [{"language":"fr"},{"language":"de"}]
+
+    Then I expect the node aggregate "nodimus-tetherton" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"fr"},{"language":"de"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"fr"},{"language":"de"}]
+
+    # remove fr
+    Given I change the content dimensions in content repository "default" to:
+      | Identifier | Values | Generalizations |
+      | language   | de     |                 |
+
+    And the command UpdateRootNodeAggregateDimensions is executed with payload:
+      | Key             | Value      |
+      | nodeAggregateId | "root-zwo" |
+
+    Then I expect the node aggregate "root-zwo" to exist
+    And I expect this node aggregate to occupy dimension space points [[]]
+    And I expect this node aggregate to cover dimension space points [{"language":"de"}]
+
+    Then I expect the node aggregate "nodimus-tetherton" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"de"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"de"}]
