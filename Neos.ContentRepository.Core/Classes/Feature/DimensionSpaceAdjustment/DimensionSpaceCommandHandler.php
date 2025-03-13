@@ -17,28 +17,27 @@ namespace Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment;
 use Neos\ContentRepository\Core\CommandHandler\CommandHandlerInterface;
 use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
-use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\DimensionSpace\ContentDimensionZookeeper;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
-use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
 use Neos\ContentRepository\Core\DimensionSpace\Exception\DimensionSpacePointIsNoSpecialization;
 use Neos\ContentRepository\Core\DimensionSpace\Exception\DimensionSpacePointNotFound;
 use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
 use Neos\ContentRepository\Core\DimensionSpace\VariantType;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
-use Neos\ContentRepository\Core\Feature\Common\ConstraintChecks;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\AddDimensionShineThrough;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\MoveDimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Event\DimensionShineThroughWasAdded;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Event\DimensionSpacePointWasMoved;
+use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Exception\WorkspacesContainChanges;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Exception\DimensionSpacePointAlreadyExists;
 use Neos\ContentRepository\Core\Feature\RebaseableCommand;
-use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
+use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
+use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
 use Neos\EventStore\Model\EventStream\ExpectedVersion;
 
 /**
@@ -80,6 +79,7 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
             $command->target
         );
         $this->requireDimensionSpacePointToExist($command->target);
+        self::requireNoWorkspaceToHaveChanges($commandHandlingDependencies->findAllWorkspaces(), $command->workspaceName);
 
         return new EventsToPublish(
             $streamName,
@@ -168,6 +168,23 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
             ) !== VariantType::TYPE_SPECIALIZATION
         ) {
             throw DimensionSpacePointIsNoSpecialization::butWasSupposedToBe($target, $source);
+        }
+    }
+
+    private static function requireNoWorkspaceToHaveChanges(Workspaces $workspaces, WorkspaceName $excludedWorkspaceName): void
+    {
+        $conflictingWorkspaceNames = [];
+        foreach ($workspaces as $workspace) {
+            if ($workspace->workspaceName->equals($excludedWorkspaceName)) {
+                continue;
+            }
+            if ($workspace->hasPublishableChanges()) {
+                $conflictingWorkspaceNames[] = $workspace->workspaceName;
+            }
+        }
+
+        if ($conflictingWorkspaceNames !== []) {
+            throw WorkspacesContainChanges::butWasNotSupposedTo(...$conflictingWorkspaceNames);
         }
     }
 }

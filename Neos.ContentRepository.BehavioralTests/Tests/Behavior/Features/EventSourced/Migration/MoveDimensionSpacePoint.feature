@@ -23,7 +23,6 @@ Feature: Move dimension space point
         nodeTypes:
           'Neos.ContentRepository.Testing:Document': true
           'Neos.ContentRepository.Testing:OtherDocument': true
-
     'Neos.ContentRepository.Testing:Document': []
     'Neos.ContentRepository.Testing:OtherDocument': []
     """
@@ -130,36 +129,55 @@ Feature: Move dimension space point
     When I run integrity violation detection
     Then I expect the integrity violation detection result to contain exactly 0 errors
 
-  Scenario: Error case - there's already an edge in the target dimension
-    # we change the dimension configuration
-    When I change the content dimensions in content repository "default" to:
-      | Identifier | Values  | Generalizations |
-      | language   | mul, ch | ch->mul         |
+  Scenario: Success Case - other migrations do not block this with changes on this workspace
 
-    When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs" and exceptions are caught:
+    Given I change the node types in content repository "default" to:
+    """yaml
+    'Neos.ContentRepository:Root':
+      constraints:
+        nodeTypes:
+          'Neos.ContentRepository.Testing:OtherDocument': true
+
+    'Neos.ContentRepository.Testing:OtherDocument': []
+    """
+
+    And I change the content dimensions in content repository "default" to:
+      | Identifier | Values     | Generalizations |
+      | language   | mul, de_DE | de_DE->mul      |
+
+    When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs", without publishing on success:
     """yaml
     migration:
+      -
+        filters:
+          -
+            type: 'NodeType'
+            settings:
+              nodeType: 'Neos.ContentRepository.Testing:Document'
+        transformations:
+          -
+            type: 'ChangeNodeType'
+            settings:
+              newType: 'Neos.ContentRepository.Testing:OtherDocument'
       -
         transformations:
           -
             type: 'MoveDimensionSpacePoint'
             settings:
               from: { language: 'de' }
-              to: { language: 'ch' }
+              to: { language: 'de_DE' }
     """
-    Then the last command should have thrown an exception of type "DimensionSpacePointAlreadyExists"
+    # the original content stream has not been touched
+    When I am in workspace "live" and dimension space point {"language": "de"}
+    Then I expect a node identified by cs-identifier;sir-david-nodenborough;{"language": "de"} to exist in the content graph
+    And I expect this node to be of type "Neos.ContentRepository.Testing:Document"
 
-  Scenario: Error case - the target dimension is not configured
-    When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs" and exceptions are caught:
-    """yaml
-    migration:
-      -
-        transformations:
-          -
-            type: 'MoveDimensionSpacePoint'
-            settings:
-              from: { language: 'de' }
-              to: { language: 'notexisting' }
-    """
-    Then the last command should have thrown an exception of type "DimensionSpacePointNotFound"
+    # we find the node underneath the new DimensionSpacePoint, but not underneath the old.
+    When I am in workspace "migration-workspace" and dimension space point {"language": "de"}
+    Then I expect node aggregate identifier "sir-david-nodenborough" to lead to no node
+    When I am in workspace "migration-workspace" and dimension space point {"language": "de_DE"}
+    Then I expect a node identified by migration-cs;sir-david-nodenborough;{"language": "de_DE"} to exist in the content graph
+    And I expect this node to be of type "Neos.ContentRepository.Testing:OtherDocument"
 
+    When I run integrity violation detection
+    Then I expect the integrity violation detection result to contain exactly 0 errors
