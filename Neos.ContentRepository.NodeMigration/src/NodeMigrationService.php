@@ -11,7 +11,7 @@ use Neos\ContentRepository\Core\Feature\WorkspaceModification\Command\DeleteWork
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishWorkspace;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregate;
 use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceDoesNotExist;
-use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
+use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\NodeMigration\Command\ExecuteMigration;
 use Neos\ContentRepository\NodeMigration\Filter\FiltersFactory;
 use Neos\ContentRepository\NodeMigration\Filter\InvalidMigrationFilterSpecified;
@@ -83,15 +83,15 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
             $targetWorkspaceWasCreated = true;
         }
 
-        if($targetWorkspace === null) {
+        if ($targetWorkspace === null) {
             throw new MigrationException(sprintf('Target workspace "%s" could not loaded nor created.', $command->targetWorkspaceName->value));
         }
 
         foreach ($command->migrationConfiguration->getMigration() as $migrationDescription) {
             $this->executeSubMigration(
                 $migrationDescription,
-                $sourceWorkspace,
-                $targetWorkspace
+                $command->sourceWorkspaceName,
+                $command->targetWorkspaceName
             );
         }
 
@@ -116,8 +116,8 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
      */
     protected function executeSubMigration(
         array $migrationDescription,
-        Workspace $workspaceForReading,
-        Workspace $workspaceForWriting,
+        WorkspaceName $workspaceNameForReading,
+        WorkspaceName $workspaceNameForWriting
     ): void {
         $filters = $this->filterFactory->buildFilterConjunction($migrationDescription['filters'] ?? []);
         $transformations = $this->transformationFactory->buildTransformation(
@@ -146,9 +146,9 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
         }
 
         if ($transformations->containsGlobal()) {
-            $transformations->executeGlobal($workspaceForWriting->workspaceName);
+            $transformations->executeGlobal($workspaceNameForWriting);
         } elseif ($transformations->containsNodeAggregateBased()) {
-            $contentGraph = $this->contentRepository->getContentGraph($workspaceForReading->workspaceName);
+            $contentGraph = $this->contentRepository->getContentGraph($workspaceNameForReading);
             foreach ($contentGraph->findUsedNodeTypeNames() as $nodeTypeName) {
                 foreach (
                     $contentGraph->findNodeAggregatesByType(
@@ -156,12 +156,12 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
                     ) as $nodeAggregate
                 ) {
                     if ($filters->matchesNodeAggregate($nodeAggregate)) {
-                        $transformations->executeNodeAggregateBased($nodeAggregate, $workspaceForWriting->workspaceName, $workspaceForWriting->currentContentStreamId);
+                        $transformations->executeNodeAggregateBased($nodeAggregate, $workspaceNameForWriting);
                     }
                 }
             }
         } elseif ($transformations->containsNodeBased()) {
-            $contentGraph = $this->contentRepository->getContentGraph($workspaceForReading->workspaceName);
+            $contentGraph = $this->contentRepository->getContentGraph($workspaceNameForReading);
             foreach ($contentGraph->findUsedNodeTypeNames() as $nodeTypeName) {
                 foreach (
                     $contentGraph->findNodeAggregatesByType(
@@ -185,8 +185,7 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
                                 $transformations->executeNodeBased(
                                     $node,
                                     $coveredDimensionSpacePoints,
-                                    $workspaceForWriting->workspaceName,
-                                    $workspaceForWriting->currentContentStreamId
+                                    $workspaceNameForWriting
                                 );
                             }
                         }

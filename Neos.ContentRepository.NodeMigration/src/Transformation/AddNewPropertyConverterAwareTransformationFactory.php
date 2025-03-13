@@ -21,7 +21,6 @@ use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWri
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\SerializedPropertyValue;
 use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 
 class AddNewPropertyConverterAwareTransformationFactory implements PropertyConverterAwareTransformationFactoryInterface
@@ -59,8 +58,7 @@ class AddNewPropertyConverterAwareTransformationFactory implements PropertyConve
             public function execute(
                 Node $node,
                 DimensionSpacePointSet $coveredDimensionSpacePoints,
-                WorkspaceName $workspaceNameForWriting,
-                ContentStreamId $contentStreamForWriting
+                WorkspaceName $workspaceNameForWriting
             ): void {
                 if ($this->serializedValue === null) {
                     // we don't need to unset a non-existing property
