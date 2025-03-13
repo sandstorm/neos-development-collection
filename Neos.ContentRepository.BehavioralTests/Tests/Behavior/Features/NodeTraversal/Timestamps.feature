@@ -110,7 +110,7 @@ Feature: Behavior of Node timestamp properties "created", "originalCreated", "la
 
   Scenario: NodeAggregateNameWasChanged events update last modified timestamps
     When the current date and time is "2023-03-16T13:00:00+01:00"
-    And the command "ChangeNodeAggregateName" is executed with payload:
+    And the command ChangeNodeAggregateName is executed with payload:
       | Key             | Value       |
       | workspaceName   | "user-test" |
       | nodeAggregateId | "a"         |
@@ -134,7 +134,7 @@ Feature: Behavior of Node timestamp properties "created", "originalCreated", "la
       | Key           | Value    |
       | workspaceName | "review" |
     And the current date and time is "2023-03-16T14:00:00+01:00"
-    And the command "ChangeNodeAggregateName" is executed with payload:
+    And the command ChangeNodeAggregateName is executed with payload:
       | Key             | Value       |
       | workspaceName   | "user-test" |
       | nodeAggregateId | "a"         |
