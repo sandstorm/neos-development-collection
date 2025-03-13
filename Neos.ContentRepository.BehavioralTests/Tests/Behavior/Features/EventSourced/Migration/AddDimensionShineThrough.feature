@@ -224,6 +224,73 @@ Feature: Add Dimension Specialization
     And I expect this node aggregate to occupy dimension space points [{"language":"de"}]
     And I expect this node aggregate to cover dimension space points [{"language":"de"}, {"language":"ch"}]
 
+  Scenario: Add shine through on user and live workspaces and attempt to rebase the user workspace
+    Given I change the content dimensions in content repository "default" to:
+      | Identifier | Values      | Generalizations |
+      | language   | mul, de, ch | ch->de->mul     |
+
+    When the command CreateWorkspace is executed with payload:
+      | Key                | Value                |
+      | workspaceName      | "user-test"          |
+      | baseWorkspaceName  | "live"               |
+      | newContentStreamId | "user-cs-identifier" |
+
+    When I run the following node migration for workspace "live", creating target workspace "migration-workspace-1" on contentStreamId "migration-cs-1", with publishing on success:
+    """yaml
+    migration:
+      -
+        transformations:
+          -
+            type: 'AddDimensionShineThrough'
+            settings:
+              from: { language: 'de' }
+              to: { language: 'ch' }
+    """
+
+    When I run the following node migration for workspace "user-test", creating target workspace "migration-workspace-2" on contentStreamId "migration-cs-2", with publishing on success:
+    """yaml
+    migration:
+      -
+        transformations:
+          -
+            type: 'AddDimensionShineThrough'
+            settings:
+              from: { language: 'de' }
+              to: { language: 'ch' }
+    """
+
+    When I am in workspace "live"
+    And I expect the node aggregate "sir-david-nodenborough" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"de"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"de"}, {"language":"ch"}]
+
+    When I am in workspace "user-test"
+    And I expect the node aggregate "sir-david-nodenborough" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"de"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"de"}, {"language":"ch"}]
+
+    When the command RebaseWorkspace is executed with payload and exceptions are caught:
+      | Key                    | Value                        |
+      | workspaceName          | "user-test"                  |
+      | rebasedContentStreamId | "user-cs-identifier-rebased" |
+
+      | rebasedContentStreamId | "user-cs-two-rebased"        |
+    Then the last command should have thrown the WorkspaceRebaseFailed exception with:
+      | SequenceNumber | Event                         | Exception                        |
+      | 21             | DimensionShineThroughWasAdded | DimensionSpacePointAlreadyExists |
+
+    # no exception
+    When the command RebaseWorkspace is executed with payload:
+      | Key                         | Value                        |
+      | workspaceName               | "user-test"                  |
+      | rebasedContentStreamId      | "user-cs-identifier-rebased" |
+      | rebaseErrorHandlingStrategy | "force"                      |
+
+    When I am in workspace "user-test"
+    And I expect the node aggregate "sir-david-nodenborough" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"de"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"de"}, {"language":"ch"}]
+
   Scenario: Error case - there's already an edge in the target dimension
     # we change the dimension configuration
     When I change the content dimensions in content repository "default" to:
