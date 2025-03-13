@@ -151,12 +151,27 @@ trait RootNodeHandling
     ): EventsToPublish {
         $contentGraph = $commandHandlingDependencies->getContentGraph($command->workspaceName);
         $expectedVersion = $this->getExpectedVersionOfContentStream($contentGraph->getContentStreamId(), $commandHandlingDependencies);
-        $nodeAggregate = $this->requireProjectedNodeAggregate(
+        $rootNodeAggregate = $this->requireProjectedNodeAggregate(
             $contentGraph,
             $command->nodeAggregateId
         );
-        if (!$nodeAggregate->classification->isRoot()) {
-            throw new NodeAggregateIsNotRoot('The node aggregate ' . $nodeAggregate->nodeAggregateId->value . ' is not classified as root, but should be for command UpdateRootNodeAggregateDimensions.', 1678647355);
+        if (!$rootNodeAggregate->classification->isRoot()) {
+            throw new NodeAggregateIsNotRoot('The node aggregate ' . $rootNodeAggregate->nodeAggregateId->value . ' is not classified as root, but should be for command UpdateRootNodeAggregateDimensions.', 1678647355);
+        }
+
+        $allowedDimensionSubspace = $this->getAllowedDimensionSubspace();
+
+        if ($rootNodeAggregate->coveredDimensionSpacePoints->equals($allowedDimensionSubspace)) {
+            throw new \RuntimeException(sprintf('The root node aggregate %s is already covers all allowed dimensions: %s.', $rootNodeAggregate->nodeAggregateId->value, $allowedDimensionSubspace->toJson()), 1741897071);
+        }
+
+        $newDimensionSpacePoints = $allowedDimensionSubspace->getDifference($rootNodeAggregate->coveredDimensionSpacePoints);
+
+        $generalisationsCoveredAlreadyByRootNodeAggregate = $this->getInterDimensionalVariationGraph()->getGeneralizationSetForSet($newDimensionSpacePoints, includeOrigins: false)
+            ->getIntersection($rootNodeAggregate->coveredDimensionSpacePoints);
+
+        if (!$generalisationsCoveredAlreadyByRootNodeAggregate->isEmpty()) {
+            throw new \RuntimeException(sprintf('Cannot add fallback dimensions via update root node aggregate because node %s already covers generalisations %s. Use AddDimensionShineThrough instead.', $rootNodeAggregate->nodeAggregateId->value, $generalisationsCoveredAlreadyByRootNodeAggregate->toJson()), 1741898260);
         }
 
         $events = Events::with(
@@ -164,7 +179,7 @@ trait RootNodeHandling
                 $contentGraph->getWorkspaceName(),
                 $contentGraph->getContentStreamId(),
                 $command->nodeAggregateId,
-                $this->getAllowedDimensionSubspace()
+                $allowedDimensionSubspace
             )
         );
 

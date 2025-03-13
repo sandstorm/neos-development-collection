@@ -97,13 +97,13 @@ Feature: Update root node aggregate dimensions
     When I run integrity violation detection
     Then I expect the integrity violation detection result to contain exactly 0 errors
 
-  Scenario: Run migration after renaming a new dimension value
-    # we change the dimension configuration
+  Scenario: Run migration after adding a specialisation dimension value
+    # french has a fallback on mul
     Given I change the content dimensions in content repository "default" to:
-      | Identifier | Values      | Generalizations |
-      | language   | mul, de_DE, en, ch | ch->de_DE->mul, en->mul |
+      | Identifier | Values              | Generalizations               |
+      | language   | mul, de, en, ch, fr | ch->de->mul, en->mul, fr->mul |
 
-    When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs", without publishing on success:
+    When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs" and exceptions are caught:
     """yaml
     migration:
       -
@@ -113,21 +113,10 @@ Feature: Update root node aggregate dimensions
             settings:
               nodeType: 'Neos.ContentRepository:Root'
     """
-
-    When I am in workspace "live"
-    Then I expect the node aggregate "lady-eleonode-rootford" to exist
-    And I expect this node aggregate to occupy dimension space points [{}]
-    And I expect this node aggregate to cover dimension space points [{"language":"mul"},{"language":"de"},{"language":"en"},{"language":"ch"}]
-
-    When I am in workspace "migration-workspace" and dimension space point {"language": "de_DE"}
-    Then I expect the node aggregate "lady-eleonode-rootford" to exist
-    And I expect this node aggregate to occupy dimension space points [{}]
-    And I expect this node aggregate to cover dimension space points [{"language":"mul"},{"language":"de_DE"},{"language":"en"},{"language":"ch"}]
-
-    Then I expect node aggregate identifier "lady-eleonode-rootford" to lead to node migration-cs;lady-eleonode-rootford;{}
-
-    When I run integrity violation detection
-    Then I expect the integrity violation detection result to contain exactly 0 errors
+    Then the last command should have thrown an exception of type "RuntimeException" with message:
+    """
+    Cannot add fallback dimensions via update root node aggregate because node lady-eleonode-rootford already covers generalisations [{"language":"mul"}]. Use AddDimensionShineThrough instead.
+    """
 
   Scenario: Without migration, creating new nodeaggregates in new dimensionspacepoint will fail
     # we change the dimension configuration

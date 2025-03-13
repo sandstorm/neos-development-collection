@@ -30,50 +30,33 @@ Feature: Update Root Node aggregate dimensions
       | nodeAggregateId | "lady-eleonode-rootford"      |
       | nodeTypeName    | "Neos.ContentRepository:Root" |
 
-  Scenario: Initial setup of the root node (similar to 01/RootNodeCreation/03-...)
-    Then I expect exactly 2 events to be published on stream "ContentStream:cs-identifier"
-    And event at index 1 is of type "RootNodeAggregateWithNodeWasCreated" with payload:
-      | Key                         | Expected                              |
-      | contentStreamId             | "cs-identifier"                       |
-      | nodeAggregateId             | "lady-eleonode-rootford"              |
-      | nodeTypeName                | "Neos.ContentRepository:Root"         |
-      | coveredDimensionSpacePoints | [{"language":"fr"},{"language":"de"}] |
-      | nodeAggregateClassification | "root"                                |
-    And event metadata at index 1 is:
-      | Key | Expected |
+  Scenario: Constraint updating dimensions without changes
+    Given I change the content dimensions in content repository "default" to:
+      | Identifier | Values | Generalizations |
+      | language   | de, fr |                 |
 
-    Then I expect the node aggregate "lady-eleonode-rootford" to exist
-    And I expect this node aggregate to be classified as "root"
-    And I expect this node aggregate to be of type "Neos.ContentRepository:Root"
-    And I expect this node aggregate to be unnamed
-    And I expect this node aggregate to occupy dimension space points [[]]
-    And I expect this node aggregate to cover dimension space points [{"language":"fr"},{"language":"de"}]
-    And I expect this node aggregate to disable dimension space points []
-    And I expect this node aggregate to have no parent node aggregates
-    And I expect this node aggregate to have no child node aggregates
+    And the command UpdateRootNodeAggregateDimensions is executed with payload and exceptions are caught:
+      | Key             | Value                    |
+      | nodeAggregateId | "lady-eleonode-rootford" |
 
-    And I expect the graph projection to consist of exactly 1 node
-    And I expect a node identified by cs-identifier;lady-eleonode-rootford;{} to exist in the content graph
-    And I expect this node to be classified as "root"
-    And I expect this node to be of type "Neos.ContentRepository:Root"
-    And I expect this node to be unnamed
-    And I expect this node to have no properties
+    Then the last command should have thrown an exception of type "RuntimeException" with message:
+    """
+    The root node aggregate lady-eleonode-rootford is already covers all allowed dimensions: [{"language":"de"},{"language":"fr"}].
+    """
 
-    When I am in dimension space point {"language":"fr"}
-    Then I expect the subgraph projection to consist of exactly 1 node
-    And I expect node aggregate identifier "lady-eleonode-rootford" to lead to node cs-identifier;lady-eleonode-rootford;{}
-    And I expect this node to be classified as "root"
-    And I expect this node to have no parent node
-    And I expect this node to have no child nodes
-    And I expect this node to have no preceding siblings
-    And I expect this node to have no succeeding siblings
-    And I expect this node to have no references
-    And I expect this node to not be referenced
+  Scenario: Constraint updating new fallbacks for existing dimensions is not allowed (new specialisations cannot be inserted via update)
+    Given I change the content dimensions in content repository "default" to:
+      | Identifier | Values     | Generalizations |
+      | language   | de, fr, ch | ch -> de        |
 
-    When I am in dimension space point {"language":"de"}
-    Then I expect the subgraph projection to consist of exactly 1 node
-    And I expect node aggregate identifier "lady-eleonode-rootford" to lead to node cs-identifier;lady-eleonode-rootford;{}
+    And the command UpdateRootNodeAggregateDimensions is executed with payload and exceptions are caught:
+      | Key             | Value                    |
+      | nodeAggregateId | "lady-eleonode-rootford" |
 
+    Then the last command should have thrown an exception of type "RuntimeException" with message:
+    """
+    Cannot add fallback dimensions via update root node aggregate because node lady-eleonode-rootford already covers generalisations [{"language":"de"}]. Use AddDimensionShineThrough instead.
+    """
 
   Scenario: Adding a dimension and updating the root node works
     Given I change the content dimensions in content repository "default" to:
@@ -161,6 +144,26 @@ Feature: Update Root Node aggregate dimensions
     When I am in dimension space point {"language":"en"}
     Then I expect the subgraph projection to consist of exactly 0 nodes
     And I expect node aggregate identifier "lady-eleonode-rootford" to lead to no node
+
+  Scenario: Introducing new dimension with new fallback
+    Given I change the content dimensions in content repository "default" to:
+      | Identifier | Values         | Generalizations |
+      | language   | de, fr, dk, se | se -> dk        |
+
+    And the command UpdateRootNodeAggregateDimensions is executed with payload:
+      | Key             | Value                    |
+      | nodeAggregateId | "lady-eleonode-rootford" |
+
+    Then I expect exactly 3 events to be published on stream "ContentStream:cs-identifier"
+    And event at index 2 is of type "RootNodeAggregateDimensionsWereUpdated" with payload:
+      | Key                         | Expected                                                                  |
+      | contentStreamId             | "cs-identifier"                                                           |
+      | nodeAggregateId             | "lady-eleonode-rootford"                                                  |
+      | coveredDimensionSpacePoints | [{"language":"de"},{"language":"fr"},{"language":"dk"},{"language":"se"}] |
+
+    Then I expect the node aggregate "lady-eleonode-rootford" to exist
+    And I expect this node aggregate to occupy dimension space points [[]]
+    And I expect this node aggregate to cover dimension space points [{"language":"de"},{"language":"fr"},{"language":"dk"},{"language":"se"}]
 
   Scenario: Removing a dimension with content and update the root node
     And the command CreateNodeAggregateWithNode is executed with payload:
