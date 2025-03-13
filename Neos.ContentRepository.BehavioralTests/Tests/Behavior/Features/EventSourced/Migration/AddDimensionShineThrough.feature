@@ -178,6 +178,51 @@ Feature: Add Dimension Specialization
     When I run integrity violation detection
     Then I expect the integrity violation detection result to contain exactly 0 errors
 
+  Scenario: Add shine through while other workspace contains publishable changes
+    When the command CreateWorkspace is executed with payload:
+      | Key                | Value                |
+      | workspaceName      | "user-test"          |
+      | baseWorkspaceName  | "live"               |
+      | newContentStreamId | "user-cs-identifier" |
+
+    When the command CreateNodeAggregateWithNode is executed with payload:
+      | Key                       | Value                                     |
+      | workspaceName      | "user-test"          |
+      | nodeAggregateId           | "sir-davis-son"                  |
+      | nodeTypeName              | "Neos.ContentRepository.Testing:Document" |
+      | originDimensionSpacePoint | {"language": "de"}                        |
+      | parentNodeAggregateId     | "sir-david-nodenborough"                  |
+      | initialPropertyValues     | {"text": "moin" }                        |
+
+    Given I change the content dimensions in content repository "default" to:
+      | Identifier | Values      | Generalizations |
+      | language   | mul, de, ch | ch->de->mul     |
+    When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs", with publishing on success:
+    """yaml
+    migration:
+      -
+        transformations:
+          -
+            type: 'AddDimensionShineThrough'
+            settings:
+              from: { language: 'de' }
+              to: { language: 'ch' }
+    """
+
+    When I am in workspace "user-test"
+    And I expect the node aggregate "sir-david-nodenborough" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"de"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"de"}]
+
+    When the command RebaseWorkspace is executed with payload:
+      | Key                    | Value                        |
+      | workspaceName          | "user-test"                  |
+      | rebasedContentStreamId | "user-cs-identifier-rebased" |
+
+    When I am in workspace "user-test"
+    And I expect the node aggregate "sir-david-nodenborough" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"de"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"de"}, {"language":"ch"}]
 
   Scenario: Error case - there's already an edge in the target dimension
     # we change the dimension configuration
