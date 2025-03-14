@@ -22,6 +22,7 @@ use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Feature\Common\InterdimensionalSiblings;
+use Neos\ContentRepository\Core\Feature\NodeRemoval\Event\NodeAggregateWasRemoved;
 use Neos\ContentRepository\Core\Feature\RebaseableCommand;
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Dto\NodeAggregateIdsByNodePaths;
@@ -164,10 +165,6 @@ trait RootNodeHandling
 
         $allowedDimensionSubspace = $this->getAllowedDimensionSubspace();
 
-        if ($rootNodeAggregate->coveredDimensionSpacePoints->equals($allowedDimensionSubspace)) {
-            throw new \RuntimeException(sprintf('The root node aggregate %s is already covers all allowed dimensions: %s.', $rootNodeAggregate->nodeAggregateId->value, $allowedDimensionSubspace->toJson()), 1741897071);
-        }
-
         $newDimensionSpacePoints = $allowedDimensionSubspace->getDifference($rootNodeAggregate->coveredDimensionSpacePoints);
         $removedDimensionSpacePoints = $rootNodeAggregate->coveredDimensionSpacePoints->getDifference($allowedDimensionSubspace);
 
@@ -178,18 +175,32 @@ trait RootNodeHandling
             throw new \RuntimeException(sprintf('Cannot add fallback dimensions via update root node aggregate because node %s already covers generalisations %s. Use AddDimensionShineThrough instead.', $rootNodeAggregate->nodeAggregateId->value, $generalisationsCoveredAlreadyByRootNodeAggregate->toJson()), 1741898260);
         }
 
+        $events = [];
         if (!$removedDimensionSpacePoints->isEmpty()) {
             $this->requireDescendantNodesToNotFallbackToDimensionPointSet($rootNodeAggregate->nodeAggregateId, $contentGraph, $removedDimensionSpacePoints);
+            foreach ($removedDimensionSpacePoints as $removedDimensionSpacePoint) {
+                $events[] = new NodeAggregateWasRemoved(
+                    $contentGraph->getWorkspaceName(),
+                    $contentGraph->getContentStreamId(),
+                    $rootNodeAggregate->nodeAggregateId,
+                    new OriginDimensionSpacePointSet([OriginDimensionSpacePoint::fromDimensionSpacePoint($removedDimensionSpacePoint)]),
+                    new DimensionSpacePointSet([$removedDimensionSpacePoint]),
+                );
+            }
         }
 
-        $events = Events::with(
-            new RootNodeAggregateDimensionsWereUpdated(
+        if (!$newDimensionSpacePoints->isEmpty()) {
+            $events[] = new RootNodeAggregateDimensionsWereUpdated(
                 $contentGraph->getWorkspaceName(),
                 $contentGraph->getContentStreamId(),
                 $command->nodeAggregateId,
                 $allowedDimensionSubspace
-            )
-        );
+            );
+        }
+
+        if ($events === []) {
+            throw new \RuntimeException(sprintf('The root node aggregate %s is already covers all allowed dimensions: %s.', $rootNodeAggregate->nodeAggregateId->value, $allowedDimensionSubspace->toJson()), 1741897071);
+        }
 
         $contentStreamEventStream = ContentStreamEventStreamName::fromContentStreamId(
             $contentGraph->getContentStreamId()
@@ -198,7 +209,7 @@ trait RootNodeHandling
             $contentStreamEventStream->getEventStreamName(),
             RebaseableCommand::enrichWithCommand(
                 $command,
-                $events
+                Events::fromArray($events)
             ),
             $expectedVersion
         );
