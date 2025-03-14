@@ -17,6 +17,7 @@ namespace Neos\ContentRepository\Core\Feature\RootNodeCreation;
 use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
+use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePointSet;
 use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
@@ -33,9 +34,11 @@ use Neos\ContentRepository\Core\Feature\RootNodeCreation\Event\RootNodeAggregate
 use Neos\ContentRepository\Core\Feature\RootNodeCreation\Event\RootNodeAggregateWithNodeWasCreated;
 use Neos\ContentRepository\Core\NodeType\NodeType;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodePath;
 use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamDoesNotExistYet;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateCurrentlyExists;
+use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateDoesCurrentlyNotOccupyDimensionSpacePoint;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateIsNotRoot;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeTypeIsNotOfTypeRoot;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeTypeNotFound;
@@ -166,12 +169,17 @@ trait RootNodeHandling
         }
 
         $newDimensionSpacePoints = $allowedDimensionSubspace->getDifference($rootNodeAggregate->coveredDimensionSpacePoints);
+        $removedDimensionSpacePoints = $rootNodeAggregate->coveredDimensionSpacePoints->getDifference($allowedDimensionSubspace);
 
         $generalisationsCoveredAlreadyByRootNodeAggregate = $this->getInterDimensionalVariationGraph()->getGeneralizationSetForSet($newDimensionSpacePoints, includeOrigins: false)
             ->getIntersection($rootNodeAggregate->coveredDimensionSpacePoints);
 
         if (!$generalisationsCoveredAlreadyByRootNodeAggregate->isEmpty()) {
             throw new \RuntimeException(sprintf('Cannot add fallback dimensions via update root node aggregate because node %s already covers generalisations %s. Use AddDimensionShineThrough instead.', $rootNodeAggregate->nodeAggregateId->value, $generalisationsCoveredAlreadyByRootNodeAggregate->toJson()), 1741898260);
+        }
+
+        if (!$removedDimensionSpacePoints->isEmpty()) {
+            $this->requireDescendantNodesToNotFallbackToDimensionPointSet($rootNodeAggregate->nodeAggregateId, $contentGraph, $removedDimensionSpacePoints);
         }
 
         $events = Events::with(
@@ -246,6 +254,22 @@ trait RootNodeHandling
         }
 
         return $events;
+    }
+
+    private function requireDescendantNodesToNotFallbackToDimensionPointSet(NodeAggregateId $nodeAggregateId, ContentGraphInterface $contentGraph, DimensionSpacePointSet $disallowedDimensionSpacePointFallbackSet): void
+    {
+        foreach ($contentGraph->findChildNodeAggregates($nodeAggregateId) as $childNodeAggregate) {
+            foreach ($childNodeAggregate->occupiedDimensionSpacePoints as $occupiedDimensionSpacePoint) {
+                if (!$disallowedDimensionSpacePointFallbackSet->contains($occupiedDimensionSpacePoint->toDimensionSpacePoint())) {
+                    continue;
+                }
+                $fallbackDimensions = $childNodeAggregate->getCoverageByOccupant($occupiedDimensionSpacePoint)->getDifference(DimensionSpacePointSet::fromArray([$occupiedDimensionSpacePoint->toDimensionSpacePoint()]));
+                if (!$fallbackDimensions->isEmpty()) {
+                    throw new NodeAggregateDoesCurrentlyNotOccupyDimensionSpacePoint(sprintf('Descendant Node %s in dimensions %s must not fallback to dimension %s which will be removed.', $childNodeAggregate->nodeAggregateId, $fallbackDimensions->toJson(), $occupiedDimensionSpacePoint->toJson()));
+                }
+            }
+            $this->requireDescendantNodesToNotFallbackToDimensionPointSet($childNodeAggregate->nodeAggregateId, $contentGraph, $disallowedDimensionSpacePointFallbackSet);
+        }
     }
 
     private function createTetheredWithNodeForRoot(

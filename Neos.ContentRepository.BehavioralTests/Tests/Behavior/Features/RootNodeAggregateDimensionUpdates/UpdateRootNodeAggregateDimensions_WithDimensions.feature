@@ -10,6 +10,9 @@ Feature: Update Root Node aggregate dimensions
     And using the following node types:
     """yaml
     Neos.ContentRepository.Testing:Document: {}
+    Neos.ContentRepository.Testing:Root:
+      superTypes:
+        Neos.ContentRepository:Root: true
     Neos.ContentRepository.Testing:RootWithTethered:
       superTypes:
         Neos.ContentRepository:Root: true
@@ -19,7 +22,6 @@ Feature: Update Root Node aggregate dimensions
     """
     And using identifier "default", I define a content repository
     And I am in content repository "default"
-    And I am user identified by "initiating-user-identifier"
     And the command CreateRootWorkspace is executed with payload:
       | Key                | Value           |
       | workspaceName      | "live"          |
@@ -56,6 +58,78 @@ Feature: Update Root Node aggregate dimensions
     Then the last command should have thrown an exception of type "RuntimeException" with message:
     """
     Cannot add fallback dimensions via update root node aggregate because node lady-eleonode-rootford already covers generalisations [{"language":"de"}]. Use AddDimensionShineThrough instead.
+    """
+
+  Scenario: Removing a dimension and attempt to promoting its fallback to a root generalisation with conflicting tethered node
+    Given I change the content dimensions in content repository "default" to:
+      | Identifier | Values      | Generalizations |
+      | language   | fr, de, gsw | gsw->de         |
+
+    And the command CreateRootNodeAggregateWithNode is executed with payload:
+      | Key                                | Value                                             |
+      | nodeAggregateId                    | "root-zwo"                                        |
+      | nodeTypeName                       | "Neos.ContentRepository.Testing:RootWithTethered" |
+      | originDimensionSpacePoint          | {}                                                |
+      | tetheredDescendantNodeAggregateIds | {"tethered": "nodimus-tetherton"}                 |
+
+    Then I expect the node aggregate "root-zwo" to exist
+    And I expect this node aggregate to occupy dimension space points [[]]
+    And I expect this node aggregate to cover dimension space points [{"language":"fr"},{"language":"de"},{"language":"gsw"}]
+
+    Then I expect the node aggregate "nodimus-tetherton" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"de"},{"language":"fr"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"fr"},{"language":"de"},{"language":"gsw"}]
+
+    Given I change the content dimensions in content repository "default" to:
+      | Identifier | Values  | Generalizations |
+      | language   | fr, gsw |                 |
+
+    And the command UpdateRootNodeAggregateDimensions is executed with payload and exceptions are caught:
+      | Key             | Value      |
+      | nodeAggregateId | "root-zwo" |
+
+    Then the last command should have thrown an exception of type "NodeAggregateDoesCurrentlyNotOccupyDimensionSpacePoint" with message:
+    """
+    Descendant Node nodimus-tetherton in dimensions [{"language":"gsw"}] must not fallback to dimension {"language":"de"} which will be removed.
+    """
+
+  Scenario: Removing a dimension and attempt to promoting its fallback to a root generalisation with conflicting child node
+    Given I change the content dimensions in content repository "default" to:
+      | Identifier | Values      | Generalizations |
+      | language   | fr, de, gsw | gsw->de         |
+
+    And the command CreateRootNodeAggregateWithNode is executed with payload:
+      | Key                       | Value                                 |
+      | nodeAggregateId           | "root-three"                          |
+      | nodeTypeName              | "Neos.ContentRepository.Testing:Root" |
+      | originDimensionSpacePoint | {}                                    |
+
+    And the command CreateNodeAggregateWithNode is executed with payload:
+      | Key                       | Value                                     |
+      | nodeAggregateId           | "sir-david-nodenborough"                  |
+      | nodeTypeName              | "Neos.ContentRepository.Testing:Document" |
+      | originDimensionSpacePoint | {"language": "de"}                        |
+      | parentNodeAggregateId     | "root-three"                              |
+
+    Then I expect the node aggregate "root-three" to exist
+    And I expect this node aggregate to occupy dimension space points [[]]
+    And I expect this node aggregate to cover dimension space points [{"language":"fr"},{"language":"de"},{"language":"gsw"}]
+
+    Then I expect the node aggregate "sir-david-nodenborough" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"de"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"de"},{"language":"gsw"}]
+
+    Given I change the content dimensions in content repository "default" to:
+      | Identifier | Values  | Generalizations |
+      | language   | fr, gsw |                 |
+
+    And the command UpdateRootNodeAggregateDimensions is executed with payload and exceptions are caught:
+      | Key             | Value        |
+      | nodeAggregateId | "root-three" |
+
+    Then the last command should have thrown an exception of type "NodeAggregateDoesCurrentlyNotOccupyDimensionSpacePoint" with message:
+    """
+    Descendant Node sir-david-nodenborough in dimensions [{"language":"gsw"}] must not fallback to dimension {"language":"de"} which will be removed.
     """
 
   Scenario: Adding a dimension and updating the root node works
@@ -186,13 +260,11 @@ Feature: Update Root Node aggregate dimensions
       | originDimensionSpacePoint | {"language": "de"}                        |
       | parentNodeAggregateId     | "sir-david-nodenborough"                  |
 
-
     And the command CreateNodeVariant is executed with payload:
       | Key             | Value             |
       | nodeAggregateId | "davids-son"      |
       | sourceOrigin    | {"language":"de"} |
       | targetOrigin    | {"language":"fr"} |
-
 
     And the command CreateNodeAggregateWithNode is executed with payload:
       | Key                       | Value                                     |
@@ -262,3 +334,84 @@ Feature: Update Root Node aggregate dimensions
     Then I expect the node aggregate "nodimus-tetherton" to exist
     And I expect this node aggregate to occupy dimension space points [{"language":"de"}]
     And I expect this node aggregate to cover dimension space points [{"language":"de"}]
+
+  Scenario: Removing a dimension and promoting its fallback to a root generalisation (where all nodes are varied)
+    Given I change the content dimensions in content repository "default" to:
+      | Identifier | Values      | Generalizations |
+      | language   | fr, de, gsw | gsw->de         |
+
+    And the command CreateRootNodeAggregateWithNode is executed with payload:
+      | Key                       | Value                                 |
+      | nodeAggregateId           | "root-three"                          |
+      | nodeTypeName              | "Neos.ContentRepository.Testing:Root" |
+      | originDimensionSpacePoint | {}                                    |
+
+    And the command CreateNodeAggregateWithNode is executed with payload:
+      | Key                       | Value                                     |
+      | nodeAggregateId           | "sir-david-nodenborough"                  |
+      | nodeTypeName              | "Neos.ContentRepository.Testing:Document" |
+      | originDimensionSpacePoint | {"language": "de"}                        |
+      | parentNodeAggregateId     | "root-three"                              |
+
+    And the command CreateNodeVariant is executed with payload:
+      | Key             | Value                    |
+      | nodeAggregateId | "sir-david-nodenborough" |
+      | sourceOrigin    | {"language":"de"}        |
+      | targetOrigin    | {"language":"gsw"}       |
+
+    And the command CreateNodeAggregateWithNode is executed with payload:
+      | Key                       | Value                                     |
+      | nodeAggregateId           | "david-datter"                            |
+      | nodeTypeName              | "Neos.ContentRepository.Testing:Document" |
+      | originDimensionSpacePoint | {"language": "gsw"}                       |
+      | parentNodeAggregateId     | "sir-david-nodenborough"                  |
+
+    And the command CreateNodeAggregateWithNode is executed with payload:
+      | Key                       | Value                                     |
+      | nodeAggregateId           | "david-son"                               |
+      | nodeTypeName              | "Neos.ContentRepository.Testing:Document" |
+      | originDimensionSpacePoint | {"language": "de"}                        |
+      | parentNodeAggregateId     | "sir-david-nodenborough"                  |
+    And the command RemoveNodeAggregate is executed with payload:
+      | Key                          | Value                |
+      | nodeAggregateId              | "david-son"          |
+      | coveredDimensionSpacePoint   | {"language":"gsw"}   |
+      | nodeVariantSelectionStrategy | "allSpecializations" |
+
+    Then I expect the node aggregate "root-three" to exist
+    And I expect this node aggregate to occupy dimension space points [[]]
+    And I expect this node aggregate to cover dimension space points [{"language":"fr"},{"language":"de"},{"language":"gsw"}]
+
+    Then I expect the node aggregate "sir-david-nodenborough" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"de"},{"language":"gsw"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"de"},{"language":"gsw"}]
+
+    Then I expect the node aggregate "david-son" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"de"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"de"}]
+
+    Then I expect the node aggregate "david-datter" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"gsw"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"gsw"}]
+
+    Given I change the content dimensions in content repository "default" to:
+      | Identifier | Values  | Generalizations |
+      | language   | fr, gsw |                 |
+
+    And the command UpdateRootNodeAggregateDimensions is executed with payload:
+      | Key             | Value        |
+      | nodeAggregateId | "root-three" |
+
+    Then I expect the node aggregate "root-three" to exist
+    And I expect this node aggregate to occupy dimension space points [[]]
+    And I expect this node aggregate to cover dimension space points [{"language":"fr"},{"language":"gsw"}]
+
+    Then I expect the node aggregate "sir-david-nodenborough" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"gsw"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"gsw"}]
+
+    Then I expect the node aggregate "david-son" to not exist
+
+    Then I expect the node aggregate "david-datter" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"gsw"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"gsw"}]
