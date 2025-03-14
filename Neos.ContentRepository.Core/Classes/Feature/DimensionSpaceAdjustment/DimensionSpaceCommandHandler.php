@@ -17,14 +17,14 @@ namespace Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment;
 use Neos\ContentRepository\Core\CommandHandler\CommandHandlerInterface;
 use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
-use Neos\ContentRepository\Core\DimensionSpace\ContentDimensionZookeeper;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
+use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
 use Neos\ContentRepository\Core\DimensionSpace\Exception\DimensionSpacePointIsNoSpecialization;
-use Neos\ContentRepository\Core\DimensionSpace\Exception\DimensionSpacePointNotFound;
 use Neos\ContentRepository\Core\DimensionSpace\InterDimensionalVariationGraph;
 use Neos\ContentRepository\Core\DimensionSpace\VariantType;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
+use Neos\ContentRepository\Core\Feature\Common\ConstraintChecks;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\AddDimensionShineThrough;
@@ -34,7 +34,9 @@ use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Event\Dimension
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Exception\WorkspacesContainChanges;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Exception\DimensionSpacePointAlreadyExists;
 use Neos\ContentRepository\Core\Feature\RebaseableCommand;
+use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
+use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindRootNodeAggregatesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
@@ -45,9 +47,11 @@ use Neos\EventStore\Model\EventStream\ExpectedVersion;
  */
 final readonly class DimensionSpaceCommandHandler implements CommandHandlerInterface
 {
+    use ConstraintChecks;
+
     public function __construct(
-        private ContentDimensionZookeeper $contentDimensionZookeeper,
         private InterDimensionalVariationGraph $interDimensionalVariationGraph,
+        private NodeTypeManager $nodeTypeManager,
     ) {
     }
 
@@ -80,6 +84,13 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
         );
         $this->requireDimensionSpacePointToExist($command->target);
         self::requireNoWorkspaceToHaveChanges($commandHandlingDependencies->findAllWorkspaces(), $command->workspaceName);
+        foreach ($contentGraph->findRootNodeAggregates(FindRootNodeAggregatesFilter::create()) as $rootNodeAggregate) {
+            $this->requireDescendantNodesToNotFallbackToDimensionPointSet(
+                $rootNodeAggregate->nodeAggregateId,
+                $contentGraph,
+                DimensionSpacePointSet::fromArray([$command->source])
+            );
+        }
 
         return new EventsToPublish(
             $streamName,
@@ -132,17 +143,6 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
         );
     }
 
-    /**
-     * @throws DimensionSpacePointNotFound
-     */
-    protected function requireDimensionSpacePointToExist(DimensionSpacePoint $dimensionSpacePoint): void
-    {
-        $allowedDimensionSubspace = $this->contentDimensionZookeeper->getAllowedDimensionSubspace();
-        if (!$allowedDimensionSubspace->contains($dimensionSpacePoint)) {
-            throw DimensionSpacePointNotFound::becauseItIsNotWithinTheAllowedDimensionSubspace($dimensionSpacePoint);
-        }
-    }
-
     private static function requireDimensionSpacePointToBeEmptyInContentStream(
         ContentGraphInterface $contentGraph,
         DimensionSpacePoint $dimensionSpacePoint
@@ -186,5 +186,15 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
         if ($conflictingWorkspaceNames !== []) {
             throw WorkspacesContainChanges::butWasNotSupposedTo(...$conflictingWorkspaceNames);
         }
+    }
+
+    protected function getNodeTypeManager(): NodeTypeManager
+    {
+        return $this->nodeTypeManager;
+    }
+
+    protected function getAllowedDimensionSubspace(): DimensionSpacePointSet
+    {
+        return $this->interDimensionalVariationGraph->getDimensionSpacePoints();
     }
 }

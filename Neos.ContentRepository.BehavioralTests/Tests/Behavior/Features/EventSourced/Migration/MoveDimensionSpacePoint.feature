@@ -29,28 +29,36 @@ Feature: Move dimension space point
     And using identifier "default", I define a content repository
     And I am in content repository "default"
     And the command CreateRootWorkspace is executed with payload:
-      | Key                  | Value                |
-      | workspaceName        | "live"               |
-      | newContentStreamId   | "cs-identifier"      |
+      | Key                | Value           |
+      | workspaceName      | "live"          |
+      | newContentStreamId | "cs-identifier" |
     And I am in workspace "live"
     And the command CreateRootNodeAggregateWithNode is executed with payload:
       | Key             | Value                         |
       | nodeAggregateId | "lady-eleonode-rootford"      |
       | nodeTypeName    | "Neos.ContentRepository:Root" |
-    # Node /document
-    When the command CreateNodeAggregateWithNode is executed with payload:
-      | Key                       | Value                                     |
-      | nodeAggregateId           | "sir-david-nodenborough"                  |
-      | nodeTypeName              | "Neos.ContentRepository.Testing:Document" |
-      | originDimensionSpacePoint | {"language": "de"}                        |
-      | parentNodeAggregateId     | "lady-eleonode-rootford"                  |
+    And the following CreateNodeAggregateWithNode commands are executed:
+      | nodeAggregateId                  | nodeTypeName                            | parentNodeAggregateId  | nodeName                     | originDimensionSpacePoint |
+      | sir-david-nodenborough           | Neos.ContentRepository.Testing:Document | lady-eleonode-rootford | document                     | {"language": "de"}        |
+      | varied-nodenborough              | Neos.ContentRepository.Testing:Document | lady-eleonode-rootford | varied-document              | {"language": "de"}        |
+      | only-specialization-nodenborough | Neos.ContentRepository.Testing:Document | lady-eleonode-rootford | only-specialization-document | {"language": "ch"}        |
+      | only-source-nodenborough         | Neos.ContentRepository.Testing:Document | lady-eleonode-rootford | only-source-document         | {"language": "de"}        |
+      | nody-mc-nodeface                 | Neos.ContentRepository.Testing:Document | varied-nodenborough    | child-document               | {"language": "de"}        |
+    And the command CreateNodeVariant is executed with payload:
+      | Key             | Value                 |
+      | nodeAggregateId | "varied-nodenborough" |
+      | sourceOrigin    | {"language":"de"}     |
+      | targetOrigin    | {"language":"ch"}     |
+    And the command RemoveNodeAggregate is executed with payload:
+      | Key                          | Value                      |
+      | nodeAggregateId              | "only-source-nodenborough" |
+      | coveredDimensionSpacePoint   | {"language":"ch"}          |
+      | nodeVariantSelectionStrategy | "allSpecializations"       |
 
-
-  Scenario: Success Case - simple
-    # we change the dimension configuration
+  Scenario: Success Case - rename specialization
     Given I change the content dimensions in content repository "default" to:
-      | Identifier | Values     | Generalizations |
-      | language   | mul, de_DE | de_DE->mul      |
+      | Identifier | Values           | Generalizations       |
+      | language   | mul, de, en, gsw | gsw->de->mul, en->mul |
 
     When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs", without publishing on success:
     """yaml
@@ -60,25 +68,38 @@ Feature: Move dimension space point
           -
             type: 'MoveDimensionSpacePoint'
             settings:
-              from: { language: 'de' }
-              to: { language: 'de_DE' }
+              from: { language: 'ch' }
+              to: { language: 'gsw' }
     """
+
+    Then I expect the graph projection to consist of exactly 9 nodes
+
     # the original content stream has not been touched
-    When I am in workspace "live" and dimension space point {"language": "de"}
-    Then I expect a node identified by cs-identifier;sir-david-nodenborough;{"language": "de"} to exist in the content graph
-    And I expect this node to be of type "Neos.ContentRepository.Testing:Document"
+    When I am in workspace "live"
+    Then I expect a node identified by cs-identifier;lady-eleonode-rootford;{} to exist in the content graph
+    And I expect a node identified by cs-identifier;sir-david-nodenborough;{"language": "de"} to exist in the content graph
+    And I expect a node identified by cs-identifier;varied-nodenborough;{"language": "de"} to exist in the content graph
+    And I expect a node identified by cs-identifier;varied-nodenborough;{"language": "ch"} to exist in the content graph
+    And I expect a node identified by cs-identifier;only-specialization-nodenborough;{"language": "ch"} to exist in the content graph
+    And I expect a node identified by cs-identifier;only-source-nodenborough;{"language": "de"} to exist in the content graph
+    And I expect a node identified by cs-identifier;nody-mc-nodeface;{"language": "de"} to exist in the content graph
 
-
-    # we find the node underneath the new DimensionSpacePoint, but not underneath the old.
-    When I am in workspace "migration-workspace" and dimension space point {"language": "de"}
-    Then I expect node aggregate identifier "sir-david-nodenborough" to lead to no node
-    When I am in workspace "migration-workspace" and dimension space point {"language": "de_DE"}
-    Then I expect a node identified by migration-cs;sir-david-nodenborough;{"language": "de_DE"} to exist in the content graph
-    And I expect this node to be of type "Neos.ContentRepository.Testing:Document"
+    # we find the node at the new DimensionSpacePoint, but not at the old one
+    When I am in workspace "migration-workspace"
+    And I expect a node identified by migration-cs;varied-nodenborough;{"language": "gsw"} to exist in the content graph
+    And I expect a node identified by migration-cs;only-specialization-nodenborough;{"language": "gsw"} to exist in the content graph
+    When I am in dimension space point {"language": "ch"}
+    Then I expect the subgraph projection to consist of exactly 0 nodes
+    When I am in dimension space point {"language": "gsw"}
+    Then I expect the subgraph projection to consist of exactly 5 nodes
+    And I expect node aggregate identifier "lady-eleonode-rootford" to lead to node migration-cs;lady-eleonode-rootford;{}
+    And I expect node aggregate identifier "sir-david-nodenborough" to lead to node migration-cs;sir-david-nodenborough;{"language": "de"}
+    And I expect node aggregate identifier "varied-nodenborough" to lead to node migration-cs;varied-nodenborough;{"language": "gsw"}
+    And I expect node aggregate identifier "only-specialization-nodenborough" to lead to node migration-cs;only-specialization-nodenborough;{"language": "gsw"}
+    And I expect node aggregate identifier "nody-mc-nodeface" to lead to node migration-cs;nody-mc-nodeface;{"language": "de"}
 
     When I run integrity violation detection
     Then I expect the integrity violation detection result to contain exactly 0 errors
-
 
   Scenario: Success Case - disabled nodes stay disabled
 
@@ -97,8 +118,8 @@ Feature: Move dimension space point
 
     # we change the dimension configuration
     When I change the content dimensions in content repository "default" to:
-      | Identifier | Values     | Generalizations |
-      | language   | mul, de_DE | de_DE->mul      |
+      | Identifier | Values           | Generalizations       |
+      | language   | mul, de, en, gsw | gsw->de->mul, en->mul |
 
     When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs", without publishing on success:
     """yaml
@@ -108,22 +129,22 @@ Feature: Move dimension space point
           -
             type: 'MoveDimensionSpacePoint'
             settings:
-              from: { language: 'de' }
-              to: { language: 'de_DE' }
+              from: { language: 'ch' }
+              to: { language: 'gsw' }
     """
 
     # the original content stream has not been touched
-    When I am in workspace "live" and dimension space point {"language": "de"}
+    When I am in workspace "live" and dimension space point {"language": "ch"}
     Then I expect node aggregate identifier "sir-david-nodenborough" to lead to no node
     When VisibilityConstraints are set to "withoutRestrictions"
     Then I expect a node identified by cs-identifier;sir-david-nodenborough;{"language": "de"} to exist in the content graph
     When VisibilityConstraints are set to "default"
 
-    # The visibility edges were modified
-    When I am in workspace "migration-workspace" and dimension space point {"language": "de_DE"}
+    # The subtree tags were modified
+    When I am in workspace "migration-workspace" and dimension space point {"language": "gsw"}
     Then I expect node aggregate identifier "sir-david-nodenborough" to lead to no node
     When VisibilityConstraints are set to "withoutRestrictions"
-    Then I expect a node identified by migration-cs;sir-david-nodenborough;{"language": "de_DE"} to exist in the content graph
+    Then I expect a node identified by migration-cs;sir-david-nodenborough;{"language": "de"} to exist in the content graph
     When VisibilityConstraints are set to "default"
 
     When I run integrity violation detection
@@ -142,8 +163,8 @@ Feature: Move dimension space point
     """
 
     And I change the content dimensions in content repository "default" to:
-      | Identifier | Values     | Generalizations |
-      | language   | mul, de_DE | de_DE->mul      |
+      | Identifier | Values           | Generalizations       |
+      | language   | mul, de, en, gsw | gsw->de->mul, en->mul |
 
     When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs", without publishing on success:
     """yaml
@@ -164,20 +185,74 @@ Feature: Move dimension space point
           -
             type: 'MoveDimensionSpacePoint'
             settings:
-              from: { language: 'de' }
-              to: { language: 'de_DE' }
+              from: { language: 'ch' }
+              to: { language: 'gsw' }
     """
     # the original content stream has not been touched
-    When I am in workspace "live" and dimension space point {"language": "de"}
+    When I am in workspace "live" and dimension space point {"language": "ch"}
     Then I expect a node identified by cs-identifier;sir-david-nodenborough;{"language": "de"} to exist in the content graph
     And I expect this node to be of type "Neos.ContentRepository.Testing:Document"
 
     # we find the node underneath the new DimensionSpacePoint, but not underneath the old.
-    When I am in workspace "migration-workspace" and dimension space point {"language": "de"}
+    When I am in workspace "migration-workspace" and dimension space point {"language": "ch"}
     Then I expect node aggregate identifier "sir-david-nodenborough" to lead to no node
-    When I am in workspace "migration-workspace" and dimension space point {"language": "de_DE"}
-    Then I expect a node identified by migration-cs;sir-david-nodenborough;{"language": "de_DE"} to exist in the content graph
+    When I am in workspace "migration-workspace" and dimension space point {"language": "gsw"}
+    Then I expect node aggregate identifier "sir-david-nodenborough" to lead to node migration-cs;sir-david-nodenborough;{"language": "de"}
     And I expect this node to be of type "Neos.ContentRepository.Testing:OtherDocument"
+
+    When I run integrity violation detection
+    Then I expect the integrity violation detection result to contain exactly 0 errors
+
+  Scenario: Success Case - after eliminating all fallbacks via variation, a generalization can be moved
+    # Eliminate all fallbacks by varying the nodes
+    When the command CreateNodeVariant is executed with payload:
+      | Key             | Value                    |
+      | nodeAggregateId | "sir-david-nodenborough" |
+      | sourceOrigin    | {"language":"de"}        |
+      | targetOrigin    | {"language":"ch"}        |
+    And the command CreateNodeVariant is executed with payload:
+      | Key             | Value              |
+      | nodeAggregateId | "nody-mc-nodeface" |
+      | sourceOrigin    | {"language":"de"}  |
+      | targetOrigin    | {"language":"ch"}  |
+    And I change the content dimensions in content repository "default" to:
+      | Identifier | Values           | Generalizations            |
+      | language   | mul, en, ch, gsw | ch->mul, gsw->mul, en->mul |
+    And I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs", without publishing on success:
+    """yaml
+    migration:
+      -
+        transformations:
+          -
+            type: 'MoveDimensionSpacePoint'
+            settings:
+              from: { language: 'de' }
+              to: { language: 'gsw' }
+    """
+
+    Then I expect the graph projection to consist of exactly 13 nodes
+
+    # the original content stream has not been touched
+    When I am in workspace "live"
+    Then I expect a node identified by cs-identifier;lady-eleonode-rootford;{} to exist in the content graph
+    And I expect a node identified by cs-identifier;sir-david-nodenborough;{"language": "de"} to exist in the content graph
+    And I expect a node identified by cs-identifier;sir-david-nodenborough;{"language": "ch"} to exist in the content graph
+    And I expect a node identified by cs-identifier;varied-nodenborough;{"language": "de"} to exist in the content graph
+    And I expect a node identified by cs-identifier;varied-nodenborough;{"language": "ch"} to exist in the content graph
+    And I expect a node identified by cs-identifier;only-specialization-nodenborough;{"language": "ch"} to exist in the content graph
+    And I expect a node identified by cs-identifier;only-source-nodenborough;{"language": "de"} to exist in the content graph
+    And I expect a node identified by cs-identifier;nody-mc-nodeface;{"language": "de"} to exist in the content graph
+    And I expect a node identified by cs-identifier;nody-mc-nodeface;{"language": "ch"} to exist in the content graph
+
+    # we find the node at the new DimensionSpacePoint, but not at the old one
+    When I am in workspace "migration-workspace"
+    And I expect a node identified by migration-cs;sir-david-nodenborough;{"language": "gsw"} to exist in the content graph
+    And I expect a node identified by migration-cs;varied-nodenborough;{"language": "gsw"} to exist in the content graph
+    And I expect a node identified by migration-cs;only-source-nodenborough;{"language": "gsw"} to exist in the content graph
+    And I expect a node identified by migration-cs;nody-mc-nodeface;{"language": "gsw"} to exist in the content graph
+
+    When I am in dimension space point {"language": "de"}
+    Then I expect the subgraph projection to consist of exactly 0 nodes
 
     When I run integrity violation detection
     Then I expect the integrity violation detection result to contain exactly 0 errors

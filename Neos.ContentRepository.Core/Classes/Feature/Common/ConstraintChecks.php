@@ -40,6 +40,7 @@ use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateCurrentlyDoes
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateCurrentlyExists;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateDoesCurrentlyNotCoverDimensionSpacePoint;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateDoesCurrentlyNotCoverDimensionSpacePointSet;
+use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateDoesCurrentlyNotOccupyDimensionSpacePoint;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateIsDescendant;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateIsNoChild;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateIsNoSibling;
@@ -695,5 +696,21 @@ trait ConstraintChecks
         return ExpectedVersion::fromVersion(
             $commandHandlingDependencies->getContentStreamVersion($contentStreamId)
         );
+    }
+
+    protected function requireDescendantNodesToNotFallbackToDimensionPointSet(NodeAggregateId $nodeAggregateId, ContentGraphInterface $contentGraph, DimensionSpacePointSet $disallowedDimensionSpacePointFallbackSet): void
+    {
+        foreach ($contentGraph->findChildNodeAggregates($nodeAggregateId) as $childNodeAggregate) {
+            foreach ($childNodeAggregate->occupiedDimensionSpacePoints as $occupiedDimensionSpacePoint) {
+                if (!$disallowedDimensionSpacePointFallbackSet->contains($occupiedDimensionSpacePoint->toDimensionSpacePoint())) {
+                    continue;
+                }
+                $fallbackDimensions = $childNodeAggregate->getCoverageByOccupant($occupiedDimensionSpacePoint)->getDifference(DimensionSpacePointSet::fromArray([$occupiedDimensionSpacePoint->toDimensionSpacePoint()]));
+                if (!$fallbackDimensions->isEmpty()) {
+                    throw new NodeAggregateDoesCurrentlyNotOccupyDimensionSpacePoint(sprintf('Descendant Node %s in dimensions %s must not fallback to dimension %s which will be removed.', $childNodeAggregate->nodeAggregateId, $fallbackDimensions->toJson(), $occupiedDimensionSpacePoint->toJson()));
+                }
+            }
+            $this->requireDescendantNodesToNotFallbackToDimensionPointSet($childNodeAggregate->nodeAggregateId, $contentGraph, $disallowedDimensionSpacePointFallbackSet);
+        }
     }
 }

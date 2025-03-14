@@ -13,7 +13,7 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
  */
 final class WorkspacesContainChanges extends \DomainException
 {
-    public static function butWasNotSupposedTo(WorkspaceName... $workspaceNames): self
+    public static function butWasNotSupposedTo(WorkspaceName ...$workspaceNames): self
     {
         return new self(
             'The following workspaces still contain changes: ' . implode(

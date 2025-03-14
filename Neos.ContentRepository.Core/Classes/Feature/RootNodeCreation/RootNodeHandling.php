@@ -39,7 +39,6 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodePath;
 use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamDoesNotExistYet;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateCurrentlyExists;
-use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateDoesCurrentlyNotOccupyDimensionSpacePoint;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateIsNotRoot;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeTypeIsNotOfTypeRoot;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeTypeNotFound;
@@ -267,21 +266,11 @@ trait RootNodeHandling
         return $events;
     }
 
-    private function requireDescendantNodesToNotFallbackToDimensionPointSet(NodeAggregateId $nodeAggregateId, ContentGraphInterface $contentGraph, DimensionSpacePointSet $disallowedDimensionSpacePointFallbackSet): void
-    {
-        foreach ($contentGraph->findChildNodeAggregates($nodeAggregateId) as $childNodeAggregate) {
-            foreach ($childNodeAggregate->occupiedDimensionSpacePoints as $occupiedDimensionSpacePoint) {
-                if (!$disallowedDimensionSpacePointFallbackSet->contains($occupiedDimensionSpacePoint->toDimensionSpacePoint())) {
-                    continue;
-                }
-                $fallbackDimensions = $childNodeAggregate->getCoverageByOccupant($occupiedDimensionSpacePoint)->getDifference(DimensionSpacePointSet::fromArray([$occupiedDimensionSpacePoint->toDimensionSpacePoint()]));
-                if (!$fallbackDimensions->isEmpty()) {
-                    throw new NodeAggregateDoesCurrentlyNotOccupyDimensionSpacePoint(sprintf('Descendant Node %s in dimensions %s must not fallback to dimension %s which will be removed.', $childNodeAggregate->nodeAggregateId, $fallbackDimensions->toJson(), $occupiedDimensionSpacePoint->toJson()));
-                }
-            }
-            $this->requireDescendantNodesToNotFallbackToDimensionPointSet($childNodeAggregate->nodeAggregateId, $contentGraph, $disallowedDimensionSpacePointFallbackSet);
-        }
-    }
+    abstract protected function requireDescendantNodesToNotFallbackToDimensionPointSet(
+        NodeAggregateId $nodeAggregateId,
+        ContentGraphInterface $contentGraph,
+        DimensionSpacePointSet $disallowedDimensionSpacePointFallbackSet
+    ): void;
 
     private function createTetheredWithNodeForRoot(
         WorkspaceName $workspaceName,

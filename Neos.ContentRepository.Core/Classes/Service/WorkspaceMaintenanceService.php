@@ -37,7 +37,10 @@ class WorkspaceMaintenanceService implements ContentRepositoryServiceInterface
         return Workspaces::fromArray($rebasedWorkspaces);
     }
 
-    private function rebaseOutdatedDependentWorkspaces(Workspace $workspace, Workspaces $workspaces, ?RebaseErrorHandlingStrategy $strategy, array& $rebasedWorkspaces): void
+    /**
+     * @param list<Workspace> $rebasedWorkspaces
+     */
+    private function rebaseOutdatedDependentWorkspaces(Workspace $workspace, Workspaces $workspaces, ?RebaseErrorHandlingStrategy $strategy, array &$rebasedWorkspaces): void
     {
         foreach ($workspaces->getDependantWorkspaces($workspace->workspaceName) as $dependentWorkspace) {
             if ($dependentWorkspace->status === WorkspaceStatus::OUTDATED) {
@@ -48,7 +51,10 @@ class WorkspaceMaintenanceService implements ContentRepositoryServiceInterface
         }
     }
 
-    private function rebaseWorkspaceAndDependants(Workspace $workspace, Workspaces $workspaces, ?RebaseErrorHandlingStrategy $strategy, array& $rebasedWorkspaces): void
+    /**
+     * @param list<Workspace> $rebasedWorkspaces
+     */
+    private function rebaseWorkspaceAndDependants(Workspace $workspace, Workspaces $workspaces, ?RebaseErrorHandlingStrategy $strategy, array &$rebasedWorkspaces): void
     {
         $rebaseCommand = RebaseWorkspace::create(
             $workspace->workspaceName,
