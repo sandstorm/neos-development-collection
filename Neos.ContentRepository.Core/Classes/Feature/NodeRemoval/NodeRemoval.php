@@ -69,11 +69,6 @@ trait NodeRemoval
                 $contentGraph->getWorkspaceName(),
                 $contentGraph->getContentStreamId(),
                 $command->nodeAggregateId,
-                $command->nodeVariantSelectionStrategy->resolveAffectedOriginDimensionSpacePoints(
-                    $nodeAggregate->getOccupationByCovered($command->coveredDimensionSpacePoint),
-                    $nodeAggregate,
-                    $this->getInterDimensionalVariationGraph()
-                ),
                 $command->nodeVariantSelectionStrategy->resolveAffectedDimensionSpacePoints(
                     $command->coveredDimensionSpacePoint,
                     $nodeAggregate,

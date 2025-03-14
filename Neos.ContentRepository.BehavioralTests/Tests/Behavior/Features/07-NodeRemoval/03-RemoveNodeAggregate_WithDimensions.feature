@@ -49,7 +49,6 @@ Feature: Remove NodeAggregate
       | Key                                  | Expected                               |
       | contentStreamId                      | "cs-identifier"                        |
       | nodeAggregateId                      | "nodingers-cat"                        |
-      | affectedOccupiedDimensionSpacePoints | [{"language":"en"}]                    |
       | affectedCoveredDimensionSpacePoints  | [{"language":"de"},{"language":"gsw"}] |
     Then I expect the graph projection to consist of exactly 4 nodes
     And I expect a node identified by cs-identifier;lady-eleonode-rootford;{} to exist in the content graph
@@ -195,7 +194,6 @@ Feature: Remove NodeAggregate
       | Key                                  | Expected                                                                   |
       | contentStreamId                      | "cs-identifier"                                                            |
       | nodeAggregateId                      | "nodingers-cat"                                                            |
-      | affectedOccupiedDimensionSpacePoints | [{"language":"de"},{"language":"en"}]                                      |
       | affectedCoveredDimensionSpacePoints  | [{"language":"de"},{"language":"en"},{"language":"gsw"},{"language":"fr"}] |
     Then I expect the graph projection to consist of exactly 2 nodes
     And I expect a node identified by cs-identifier;lady-eleonode-rootford;{} to exist in the content graph

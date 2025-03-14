@@ -44,7 +44,6 @@ final readonly class NodeAggregateWasRemoved implements
         public WorkspaceName $workspaceName,
         public ContentStreamId $contentStreamId,
         public NodeAggregateId $nodeAggregateId,
-        public OriginDimensionSpacePointSet $affectedOccupiedDimensionSpacePoints,
         public DimensionSpacePointSet $affectedCoveredDimensionSpacePoints,
         ?NodeAggregateId $removalAttachmentPoint = null
     ) {
@@ -72,7 +71,6 @@ final readonly class NodeAggregateWasRemoved implements
             $targetWorkspaceName,
             $contentStreamId,
             $this->nodeAggregateId,
-            $this->affectedOccupiedDimensionSpacePoints,
             $this->affectedCoveredDimensionSpacePoints,
             $this->removalAttachmentPoint
         );
@@ -84,7 +82,6 @@ final readonly class NodeAggregateWasRemoved implements
             WorkspaceName::fromString($values['workspaceName']),
             ContentStreamId::fromString($values['contentStreamId']),
             NodeAggregateId::fromString($values['nodeAggregateId']),
-            OriginDimensionSpacePointSet::fromArray($values['affectedOccupiedDimensionSpacePoints']),
             DimensionSpacePointSet::fromArray($values['affectedCoveredDimensionSpacePoints']),
             isset($values['removalAttachmentPoint'])
                 ? NodeAggregateId::fromString($values['removalAttachmentPoint'])

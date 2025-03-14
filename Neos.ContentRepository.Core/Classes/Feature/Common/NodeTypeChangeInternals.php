@@ -217,12 +217,6 @@ trait NodeTypeChangeInternals
             $contentGraph->getWorkspaceName(),
             $contentGraph->getContentStreamId(),
             $nodeAggregate->nodeAggregateId,
-            // TODO: we also use the covered dimension space points as OCCUPIED dimension space points
-            // - however the OCCUPIED dimension space points are not really used by now
-            // (except for the change projector, which needs love anyways...)
-            OriginDimensionSpacePointSet::fromDimensionSpacePointSet(
-                $coveredDimensionSpacePointsToBeRemoved
-            ),
             $coveredDimensionSpacePointsToBeRemoved,
         );
     }

@@ -125,15 +125,11 @@ class DisallowedChildNodeAdjustment
         NodeAggregate $nodeAggregate,
         DimensionSpacePoint $dimensionSpacePoint
     ): EventsToPublish {
-        $referenceOrigin = OriginDimensionSpacePoint::fromDimensionSpacePoint($dimensionSpacePoint);
         $events = Events::with(
             new NodeAggregateWasRemoved(
                 $this->contentGraph->getWorkspaceName(),
                 $this->contentGraph->getContentStreamId(),
                 $nodeAggregate->nodeAggregateId,
-                $nodeAggregate->occupiesDimensionSpacePoint($referenceOrigin)
-                    ? new OriginDimensionSpacePointSet([$referenceOrigin])
-                    : new OriginDimensionSpacePointSet([]),
                 new DimensionSpacePointSet([$dimensionSpacePoint]),
             )
         );
