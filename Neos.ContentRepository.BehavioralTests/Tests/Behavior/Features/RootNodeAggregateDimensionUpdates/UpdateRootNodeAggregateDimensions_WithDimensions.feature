@@ -415,3 +415,26 @@ Feature: Update Root Node aggregate dimensions
     Then I expect the node aggregate "david-datter" to exist
     And I expect this node aggregate to occupy dimension space points [{"language":"gsw"}]
     And I expect this node aggregate to cover dimension space points [{"language":"gsw"}]
+
+  Scenario: Adding a dimension updating the root node keeps subtree tags
+    Given I change the content dimensions in content repository "default" to:
+      | Identifier | Values      | Generalizations |
+      | language   | fr, de, en |                 |
+
+    When I am in dimension space point {"language":"de"}
+    And the command DisableNodeAggregate is executed with payload:
+      | Key                          | Value                    |
+      | nodeAggregateId              | "lady-eleonode-rootford" |
+      | nodeVariantSelectionStrategy | "allVariants"            |
+
+    And I expect the node aggregate "lady-eleonode-rootford" to exist
+    And I expect this node aggregate to cover dimension space points [{"language":"fr"},{"language":"de"}]
+    And I expect this node aggregate to disable dimension space points [{"language":"fr"},{"language":"de"}]
+
+    And the command UpdateRootNodeAggregateDimensions is executed with payload:
+      | Key             | Value                    |
+      | nodeAggregateId | "lady-eleonode-rootford" |
+
+    And I expect the node aggregate "lady-eleonode-rootford" to exist
+    And I expect this node aggregate to cover dimension space points [{"language":"fr"},{"language":"de"},{"language":"en"}]
+    And I expect this node aggregate to disable dimension space points [{"language":"fr"},{"language":"de"}]
