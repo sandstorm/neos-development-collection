@@ -398,9 +398,18 @@ Feature: Update Root Node aggregate dimensions
       | Identifier | Values  | Generalizations |
       | language   | fr, gsw |                 |
 
+    Then I expect exactly 8 events to be published on stream "ContentStream:cs-identifier"
     And the command UpdateRootNodeAggregateDimensions is executed with payload:
       | Key             | Value        |
       | nodeAggregateId | "root-three" |
+
+    Then I expect exactly 9 events to be published on stream "ContentStream:cs-identifier"
+    And event at index 8 is of type "NodeAggregateWasRemoved" with payload:
+      | Key                                  | Expected            |
+      | contentStreamId                      | "cs-identifier"     |
+      | nodeAggregateId                      | "root-three"        |
+      | affectedOccupiedDimensionSpacePoints | [{"language":"de"}] |
+      | affectedCoveredDimensionSpacePoints  | [{"language":"de"}] |
 
     Then I expect the node aggregate "root-three" to exist
     And I expect this node aggregate to occupy dimension space points [[]]
