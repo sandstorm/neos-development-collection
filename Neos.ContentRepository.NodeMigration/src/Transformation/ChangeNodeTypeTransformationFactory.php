@@ -21,9 +21,6 @@ use Neos\ContentRepository\Core\NodeType\NodeTypeName;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregate;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 
-/** @codingStandardsIgnoreStart */
-/** @codingStandardsIgnoreEnd */
-
 /**
  * Change the node type.
  */
@@ -38,7 +35,7 @@ class ChangeNodeTypeTransformationFactory implements TransformationFactoryInterf
     ): GlobalTransformationInterface|NodeAggregateBasedTransformationInterface|NodeBasedTransformationInterface {
         // by default, we won't delete anything.
         $nodeAggregateTypeChangeChildConstraintConflictResolutionStrategy
-            = NodeAggregateTypeChangeChildConstraintConflictResolutionStrategy::STRATEGY_HAPPY_PATH;
+            = NodeAggregateTypeChangeChildConstraintConflictResolutionStrategy::STRATEGY_PROMISED_CASCADE;
         if (isset($settings['forceDeleteNonMatchingChildren']) && $settings['forceDeleteNonMatchingChildren']) {
             $nodeAggregateTypeChangeChildConstraintConflictResolutionStrategy
                 = NodeAggregateTypeChangeChildConstraintConflictResolutionStrategy::STRATEGY_DELETE;
