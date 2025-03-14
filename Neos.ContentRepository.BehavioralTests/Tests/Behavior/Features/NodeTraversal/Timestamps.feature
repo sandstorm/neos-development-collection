@@ -268,6 +268,10 @@ Feature: Behavior of Node timestamp properties "created", "originalCreated", "la
 
   Scenario: RootNodeAggregateDimensionsWereUpdated events don't update last modified timestamps
     When the current date and time is "2023-03-16T13:00:00+01:00"
+
+    And I change the content dimensions in content repository "default" to:
+      | Identifier | Values           | Generalizations       |
+      | language   | mul, de, en, ch, fr | ch->de->mul, en->mul, fr->mul |
     And the command UpdateRootNodeAggregateDimensions is executed with payload:
       | Key             | Value                    |
       | nodeAggregateId | "lady-eleonode-rootford" |
