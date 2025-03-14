@@ -15,7 +15,10 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap;
 
 use Behat\Gherkin\Node\TableNode;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Dto\RebaseErrorHandlingStrategy;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
+use Neos\ContentRepository\Core\Service\WorkspaceMaintenanceService;
+use Neos\ContentRepository\Core\Service\WorkspaceMaintenanceServiceFactory;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeTypeNotFound;
 use Neos\ContentRepository\StructureAdjustment\Adjustment\StructureAdjustment;
 use Neos\ContentRepository\StructureAdjustment\StructureAdjustmentService;
@@ -109,5 +112,25 @@ trait StructureAdjustmentsTrait
             'Adjustment not found for type "' . $type . '", node aggregate id "' . $nodeAggregateId . '"'
                 ($dimensionSpacePointAsJSON ? ' and dimension space point "' . $dimensionSpacePointAsJSON . '"' : '')
         );
+    }
+
+    /**
+     * @When outdated workspaces are rebased
+     */
+    public function outdatedWorkspacesAreRebased(): void
+    {
+        /** @var WorkspaceMaintenanceService $workspaceMaintenanceService */
+        $workspaceMaintenanceService = $this->getContentRepositoryService(new WorkspaceMaintenanceServiceFactory());
+        $workspaceMaintenanceService->rebaseOutdatedWorkspaces();
+    }
+
+    /**
+     * @When outdated workspaces are rebased with strategy :strategy
+     */
+    public function outdatedWorkspacesAreRebasedWithStrategy(string $strategy): void
+    {
+        /** @var WorkspaceMaintenanceService $workspaceMaintenanceService */
+        $workspaceMaintenanceService = $this->getContentRepositoryService(new WorkspaceMaintenanceServiceFactory());
+        $workspaceMaintenanceService->rebaseOutdatedWorkspaces(RebaseErrorHandlingStrategy::from($strategy));
     }
 }

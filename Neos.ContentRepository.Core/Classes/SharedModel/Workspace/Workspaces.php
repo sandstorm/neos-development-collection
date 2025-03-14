@@ -34,11 +34,17 @@ final readonly class Workspaces implements \IteratorAggregate, \Countable
     private array $workspacesByBaseWorkspaceName;
 
     /**
+     * @var list<Workspace>
+     */
+    private array $rootWorkspaces;
+
+    /**
      * @param iterable<Workspace> $collection
      */
     private function __construct(iterable $collection)
     {
         $workspaces = [];
+        $rootWorkspaces = [];
         $workspacesByBaseWorkspaceName = [];
         foreach ($collection as $item) {
             if (!$item instanceof Workspace) {
@@ -47,10 +53,13 @@ final readonly class Workspaces implements \IteratorAggregate, \Countable
             $workspaces[$item->workspaceName->value] = $item;
             if ($item->baseWorkspaceName !== null) {
                 $workspacesByBaseWorkspaceName[$item->baseWorkspaceName->value][] = $item;
+            } else {
+                $rootWorkspaces[] = $item;
             }
         }
 
         $this->workspaces = $workspaces;
+        $this->rootWorkspaces = $rootWorkspaces;
         $this->workspacesByBaseWorkspaceName = $workspacesByBaseWorkspaceName;
     }
 
@@ -70,6 +79,14 @@ final readonly class Workspaces implements \IteratorAggregate, \Countable
     public function get(WorkspaceName $workspaceName): ?Workspace
     {
         return $this->workspaces[$workspaceName->value] ?? null;
+    }
+
+    /**
+     * @return list<Workspace>
+     */
+    public function getRootWorkspaces(): array
+    {
+        return $this->rootWorkspaces;
     }
 
     /**
