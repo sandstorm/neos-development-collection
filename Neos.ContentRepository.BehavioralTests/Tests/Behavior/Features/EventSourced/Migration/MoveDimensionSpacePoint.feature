@@ -256,3 +256,20 @@ Feature: Move dimension space point
 
     When I run integrity violation detection
     Then I expect the integrity violation detection result to contain exactly 0 errors
+
+    When the command PublishWorkspace is executed with payload:
+      | Key           | Value            |
+      | workspaceName | "migration-workspace" |
+
+    Then I expect the graph projection to consist of exactly 9 nodes
+    # the live workspace is now up-to-date
+    When I am in workspace "live"
+    Then I expect a node identified by cs-identifier;lady-eleonode-rootford;{} to exist in the content graph
+    And I expect a node identified by cs-identifier;sir-david-nodenborough;{"language": "gsw"} to exist in the content graph
+    And I expect a node identified by cs-identifier;sir-david-nodenborough;{"language": "ch"} to exist in the content graph
+    And I expect a node identified by cs-identifier;varied-nodenborough;{"language": "gsw"} to exist in the content graph
+    And I expect a node identified by cs-identifier;varied-nodenborough;{"language": "ch"} to exist in the content graph
+    And I expect a node identified by cs-identifier;only-specialization-nodenborough;{"language": "ch"} to exist in the content graph
+    And I expect a node identified by cs-identifier;only-source-nodenborough;{"language": "gsw"} to exist in the content graph
+    And I expect a node identified by cs-identifier;nody-mc-nodeface;{"language": "gsw"} to exist in the content graph
+    And I expect a node identified by cs-identifier;nody-mc-nodeface;{"language": "ch"} to exist in the content graph

@@ -83,7 +83,7 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
             $command->target
         );
         $this->requireDimensionSpacePointToExist($command->target);
-        self::requireNoWorkspaceToHaveChanges($commandHandlingDependencies->findAllWorkspaces(), $command->workspaceName);
+        self::requireNoWorkspaceToHaveChanges($commandHandlingDependencies->findAllWorkspaces(), $command->baseWorkspaceName);
         foreach ($contentGraph->findRootNodeAggregates(FindRootNodeAggregatesFilter::create()) as $rootNodeAggregate) {
             $this->requireDescendantNodesToNotFallbackToDimensionPointSet(
                 $rootNodeAggregate->nodeAggregateId,
@@ -171,11 +171,11 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
         }
     }
 
-    private static function requireNoWorkspaceToHaveChanges(Workspaces $workspaces, WorkspaceName $excludedWorkspaceName): void
+    private static function requireNoWorkspaceToHaveChanges(Workspaces $workspaces, ?WorkspaceName $excludedWorkspaceName): void
     {
         $conflictingWorkspaceNames = [];
         foreach ($workspaces as $workspace) {
-            if ($workspace->workspaceName->equals($excludedWorkspaceName)) {
+            if ($excludedWorkspaceName?->equals($workspace->workspaceName)) {
                 continue;
             }
             if ($workspace->hasPublishableChanges()) {
