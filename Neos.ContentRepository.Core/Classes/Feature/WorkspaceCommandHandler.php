@@ -738,7 +738,10 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             throw WorkspaceCommandSkipped::becauseTheBaseWorkspaceIsUnchanged($command->baseWorkspaceName, $command->workspaceName);
         }
 
-        $this->requireEmptyWorkspace($workspace);
+        if ($workspace->hasPublishableChanges()) {
+            throw WorkspaceContainsPublishableChanges::butWasNotSupposedToForBaseWorkspaceChange($workspace->workspaceName);
+        }
+
         $newBaseWorkspace = $this->requireWorkspace($command->baseWorkspaceName, $commandHandlingDependencies);
         $this->requireNonCircularRelationBetweenWorkspaces($workspace, $newBaseWorkspace, $commandHandlingDependencies);
 
@@ -896,16 +899,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
                 throw new CircularRelationBetweenWorkspacesException(sprintf('The workspace "%s" is already on the path of the target workspace "%s".', $workspace->workspaceName->value, $baseWorkspace->workspaceName->value));
             }
             $nextBaseWorkspace = $this->requireBaseWorkspace($nextBaseWorkspace, $commandHandlingDependencies);
-        }
-    }
-
-    /**
-     * @throws WorkspaceContainsPublishableChanges
-     */
-    private function requireEmptyWorkspace(Workspace $workspace): void
-    {
-        if ($workspace->hasPublishableChanges()) {
-            throw new WorkspaceContainsPublishableChanges(sprintf('The workspace %s needs to be empty before switching the base workspace.', $workspace->workspaceName->value), 1681455989);
         }
     }
 }
