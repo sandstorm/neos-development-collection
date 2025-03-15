@@ -32,17 +32,13 @@ Feature: Update root node aggregate dimension space point
       | nodeTypeName    | "Neos.ContentRepository:Root" |
 
   Scenario: Constraint updating dimensions without changes
-    Given I change the content dimensions in content repository "default" to:
-      | Identifier | Values | Generalizations |
-      | language   | de, fr |                 |
-
     And the command UpdateRootNodeAggregateDimensions is executed with payload and exceptions are caught:
       | Key             | Value                    |
       | nodeAggregateId | "lady-eleonode-rootford" |
 
     Then the last command should have thrown an exception of type "RuntimeException" with message:
     """
-    The root node aggregate lady-eleonode-rootford covers already all allowed dimensions: [{"language":"de"},{"language":"fr"}].
+    The root node aggregate lady-eleonode-rootford covers already all allowed dimensions: [{"language":"fr"},{"language":"de"}].
     """
 
   Scenario: Constraint updating new fallbacks for existing dimensions is not allowed (new specialisations cannot be inserted via update)
@@ -58,6 +54,57 @@ Feature: Update root node aggregate dimension space point
     """
     Cannot add fallback dimensions via update root node aggregate because node lady-eleonode-rootford already covers generalisations [{"language":"de"}]. Use AddDimensionShineThrough instead.
     """
+
+  Scenario: Error case - there are changes in another workspace
+    Given the command CreateWorkspace is executed with payload:
+      | Key                | Value                |
+      | workspaceName      | "user-test"          |
+      | baseWorkspaceName  | "live"               |
+      | newContentStreamId | "user-cs-identifier" |
+    And the command CreateNodeAggregateWithNode is executed with payload:
+      | Key                       | Value                                     |
+      | workspaceName             | "user-test"                               |
+      | nodeAggregateId           | "sir-david-nodenborough"                  |
+      | nodeTypeName              | "Neos.ContentRepository.Testing:Document" |
+      | originDimensionSpacePoint | {"language": "de"}                        |
+      | parentNodeAggregateId     | "lady-eleonode-rootford"                  |
+
+    Given I change the content dimensions in content repository "default" to:
+      | Identifier | Values | Generalizations |
+      | language   | fr     |                 |
+
+    And the command UpdateRootNodeAggregateDimensions is executed with payload and exceptions are caught:
+      | Key             | Value                    |
+      | nodeAggregateId | "lady-eleonode-rootford" |
+
+    Then the last command should have thrown an exception of type "WorkspaceContainsPublishableChanges" with message:
+    """
+    The following workspaces still contain changes: user-test
+    """
+
+  Scenario: Error case - adjusting workspace that is non-root or not immediately based on root
+    Given the command CreateWorkspace is executed with payload:
+      | Key                | Value                |
+      | workspaceName      | "shared"          |
+      | baseWorkspaceName  | "live"               |
+      | newContentStreamId | "shared-cs-identifier" |
+
+    Given the command CreateWorkspace is executed with payload:
+      | Key                | Value                |
+      | workspaceName      | "user-test"          |
+      | baseWorkspaceName  | "shared"               |
+      | newContentStreamId | "user-cs-identifier" |
+
+    Given I change the content dimensions in content repository "default" to:
+      | Identifier | Values | Generalizations |
+      | language   | fr     |                 |
+
+    And the command UpdateRootNodeAggregateDimensions is executed with payload and exceptions are caught:
+      | Key             | Value                    |
+      | workspaceName | "user-test" |
+      | nodeAggregateId | "lady-eleonode-rootford" |
+
+    Then the last command should have thrown an exception of type "InvalidDimensionAdjustmentTargetWorkspace"
 
   Scenario: Removing a dimension and attempt to promoting its fallback to a root generalisation with conflicting tethered node
     Given I change the content dimensions in content repository "default" to:

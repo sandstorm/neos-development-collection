@@ -162,6 +162,9 @@ trait RootNodeHandling
             throw new NodeAggregateIsNotRoot('The node aggregate ' . $rootNodeAggregate->nodeAggregateId->value . ' is not classified as root, but should be for command UpdateRootNodeAggregateDimensions.', 1678647355);
         }
 
+        $this->requireWorkspaceToBeRootOrRootBasedForDimensionAdjustment($command->workspaceName, $commandHandlingDependencies);
+        self::requireNoWorkspaceToHaveChanges($commandHandlingDependencies->findAllWorkspaces(), null);
+
         $allowedDimensionSubspace = $this->getAllowedDimensionSubspace();
 
         $newDimensionSpacePoints = $allowedDimensionSubspace->getDifference($rootNodeAggregate->coveredDimensionSpacePoints);

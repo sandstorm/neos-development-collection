@@ -6,6 +6,9 @@ namespace Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Exception
 
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 
+/**
+ * @api
+ */
 class InvalidDimensionAdjustmentTargetWorkspace extends \DomainException
 {
     public static function becauseWorkspaceMustBeRootOrRootBased(WorkspaceName $workspaceName): self

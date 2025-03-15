@@ -81,13 +81,7 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
         $streamName = ContentStreamEventStreamName::fromContentStreamId($contentGraph->getContentStreamId())
             ->getEventStreamName();
 
-        $workspace = $this->requireWorkspace($command->workspaceName, $commandHandlingDependencies);
-        if (!$workspace->isRootWorkspace()) {
-            $baseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
-            if (!$baseWorkspace->isRootWorkspace()) {
-                throw InvalidDimensionAdjustmentTargetWorkspace::becauseWorkspaceMustBeRootOrRootBased($workspace->workspaceName);
-            }
-        }
+        $this->requireWorkspaceToBeRootOrRootBasedForDimensionAdjustment($command->workspaceName, $commandHandlingDependencies);
 
         self::requireDimensionSpacePointToBeEmptyInContentStream(
             $contentGraph,
@@ -179,23 +173,6 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
             ) !== VariantType::TYPE_SPECIALIZATION
         ) {
             throw DimensionSpacePointIsNoSpecialization::butWasSupposedToBe($target, $source);
-        }
-    }
-
-    private static function requireNoWorkspaceToHaveChanges(Workspaces $workspaces, ?WorkspaceName $excludedWorkspaceName): void
-    {
-        $conflictingWorkspaceNames = [];
-        foreach ($workspaces as $workspace) {
-            if ($excludedWorkspaceName?->equals($workspace->workspaceName)) {
-                continue;
-            }
-            if ($workspace->hasPublishableChanges()) {
-                $conflictingWorkspaceNames[] = $workspace->workspaceName;
-            }
-        }
-
-        if ($conflictingWorkspaceNames !== []) {
-            throw WorkspaceContainsPublishableChanges::butWasNotSupposedTo(...$conflictingWorkspaceNames);
         }
     }
 
