@@ -408,7 +408,8 @@ Feature: Update Root Node aggregate dimensions
       | Key                                  | Expected            |
       | contentStreamId                      | "cs-identifier"     |
       | nodeAggregateId                      | "root-three"        |
-      | affectedOccupiedDimensionSpacePoints | [{"language":"de"}] |
+      # todo remove this field, its wrong: https://github.com/neos/neos-development-collection/pull/5516
+      | affectedOccupiedDimensionSpacePoints | []                  |
       | affectedCoveredDimensionSpacePoints  | [{"language":"de"}] |
 
     Then I expect the node aggregate "root-three" to exist
@@ -424,6 +425,95 @@ Feature: Update Root Node aggregate dimensions
     Then I expect the node aggregate "david-datter" to exist
     And I expect this node aggregate to occupy dimension space points [{"language":"gsw"}]
     And I expect this node aggregate to cover dimension space points [{"language":"gsw"}]
+
+  Scenario: Removing a dimension and its fallbacks
+    Given I change the content dimensions in content repository "default" to:
+      | Identifier | Values      | Generalizations |
+      | language   | fr, de, gsw | gsw->de         |
+
+    And the command CreateRootNodeAggregateWithNode is executed with payload:
+      | Key                       | Value                                 |
+      | nodeAggregateId           | "root-three"                          |
+      | nodeTypeName              | "Neos.ContentRepository.Testing:Root" |
+      | originDimensionSpacePoint | {}                                    |
+
+    And the command CreateNodeAggregateWithNode is executed with payload:
+      | Key                       | Value                                     |
+      | nodeAggregateId           | "sir-david-nodenborough"                  |
+      | nodeTypeName              | "Neos.ContentRepository.Testing:Document" |
+      | originDimensionSpacePoint | {"language": "de"}                        |
+      | parentNodeAggregateId     | "root-three"                              |
+
+    And the command CreateNodeVariant is executed with payload:
+      | Key             | Value                    |
+      | nodeAggregateId | "sir-david-nodenborough" |
+      | sourceOrigin    | {"language":"de"}        |
+      | targetOrigin    | {"language":"fr"}        |
+
+    And the command CreateNodeAggregateWithNode is executed with payload:
+      | Key                       | Value                                     |
+      | nodeAggregateId           | "david-datter"                            |
+      | nodeTypeName              | "Neos.ContentRepository.Testing:Document" |
+      | originDimensionSpacePoint | {"language": "gsw"}                       |
+      | parentNodeAggregateId     | "sir-david-nodenborough"                  |
+
+    And the command CreateNodeAggregateWithNode is executed with payload:
+      | Key                       | Value                                     |
+      | nodeAggregateId           | "david-son"                               |
+      | nodeTypeName              | "Neos.ContentRepository.Testing:Document" |
+      | originDimensionSpacePoint | {"language": "de"}                        |
+      | parentNodeAggregateId     | "sir-david-nodenborough"                  |
+    And the command RemoveNodeAggregate is executed with payload:
+      | Key                          | Value                |
+      | nodeAggregateId              | "david-son"          |
+      | coveredDimensionSpacePoint   | {"language":"gsw"}   |
+      | nodeVariantSelectionStrategy | "allSpecializations" |
+
+    Then I expect the node aggregate "root-three" to exist
+    And I expect this node aggregate to occupy dimension space points [[]]
+    And I expect this node aggregate to cover dimension space points [{"language":"fr"},{"language":"de"},{"language":"gsw"}]
+
+    Then I expect the node aggregate "sir-david-nodenborough" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"de"},{"language":"fr"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"de"},{"language":"gsw"},{"language":"fr"}]
+
+    Then I expect the node aggregate "david-son" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"de"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"de"}]
+
+    Then I expect the node aggregate "david-datter" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"gsw"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"gsw"}]
+
+    Given I change the content dimensions in content repository "default" to:
+      | Identifier | Values | Generalizations |
+      | language   | fr     |                 |
+
+    Then I expect exactly 8 events to be published on stream "ContentStream:cs-identifier"
+    And the command UpdateRootNodeAggregateDimensions is executed with payload:
+      | Key             | Value        |
+      | nodeAggregateId | "root-three" |
+
+    Then I expect exactly 9 events to be published on stream "ContentStream:cs-identifier"
+    And event at index 8 is of type "NodeAggregateWasRemoved" with payload:
+      | Key                                  | Expected                               |
+      | contentStreamId                      | "cs-identifier"                        |
+      | nodeAggregateId                      | "root-three"                           |
+      # todo remove this field, its wrong: https://github.com/neos/neos-development-collection/pull/5516
+      | affectedOccupiedDimensionSpacePoints | []                                     |
+      | affectedCoveredDimensionSpacePoints  | [{"language":"de"},{"language":"gsw"}] |
+
+    Then I expect the node aggregate "root-three" to exist
+    And I expect this node aggregate to occupy dimension space points [[]]
+    And I expect this node aggregate to cover dimension space points [{"language":"fr"}]
+
+    Then I expect the node aggregate "sir-david-nodenborough" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"fr"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"fr"}]
+
+    Then I expect the node aggregate "david-son" to not exist
+
+    Then I expect the node aggregate "david-datter" to not exist
 
   Scenario: Adding a dimension updating the root node keeps subtree tags
     Given I change the content dimensions in content repository "default" to:

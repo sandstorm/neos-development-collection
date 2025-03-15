@@ -698,19 +698,24 @@ trait ConstraintChecks
         );
     }
 
-    protected function requireDescendantNodesToNotFallbackToDimensionPointSet(NodeAggregateId $nodeAggregateId, ContentGraphInterface $contentGraph, DimensionSpacePointSet $disallowedDimensionSpacePointFallbackSet): void
+    protected function requireDescendantNodesToNotFallbackToDimensionPointSet(NodeAggregateId $nodeAggregateId, ContentGraphInterface $contentGraph, DimensionSpacePointSet $dimensionSpacePointsToBeRemoved): void
     {
         foreach ($contentGraph->findChildNodeAggregates($nodeAggregateId) as $childNodeAggregate) {
             foreach ($childNodeAggregate->occupiedDimensionSpacePoints as $occupiedDimensionSpacePoint) {
-                if (!$disallowedDimensionSpacePointFallbackSet->contains($occupiedDimensionSpacePoint->toDimensionSpacePoint())) {
+                if (!$dimensionSpacePointsToBeRemoved->contains($occupiedDimensionSpacePoint->toDimensionSpacePoint())) {
                     continue;
                 }
-                $fallbackDimensions = $childNodeAggregate->getCoverageByOccupant($occupiedDimensionSpacePoint)->getDifference(DimensionSpacePointSet::fromArray([$occupiedDimensionSpacePoint->toDimensionSpacePoint()]));
-                if (!$fallbackDimensions->isEmpty()) {
-                    throw new NodeAggregateDoesCurrentlyNotOccupyDimensionSpacePoint(sprintf('Descendant Node %s in dimensions %s must not fallback to dimension %s which will be removed.', $childNodeAggregate->nodeAggregateId, $fallbackDimensions->toJson(), $occupiedDimensionSpacePoint->toJson()));
+                $fallbackRemainingDimensions = $childNodeAggregate
+                    ->getCoverageByOccupant($occupiedDimensionSpacePoint)
+                    // exclude the occupied e.g. non fallback dimension itself
+                    ->getDifference(DimensionSpacePointSet::fromArray([$occupiedDimensionSpacePoint->toDimensionSpacePoint()]))
+                    // exclude all about to removed fallback dimensions
+                    ->getDifference($dimensionSpacePointsToBeRemoved);
+                if (!$fallbackRemainingDimensions->isEmpty()) {
+                    throw new NodeAggregateDoesCurrentlyNotOccupyDimensionSpacePoint(sprintf('Descendant Node %s in dimensions %s must not fallback to dimension %s which will be removed.', $childNodeAggregate->nodeAggregateId, $fallbackRemainingDimensions->toJson(), $occupiedDimensionSpacePoint->toJson()));
                 }
             }
-            $this->requireDescendantNodesToNotFallbackToDimensionPointSet($childNodeAggregate->nodeAggregateId, $contentGraph, $disallowedDimensionSpacePointFallbackSet);
+            $this->requireDescendantNodesToNotFallbackToDimensionPointSet($childNodeAggregate->nodeAggregateId, $contentGraph, $dimensionSpacePointsToBeRemoved);
         }
     }
 }

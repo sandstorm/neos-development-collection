@@ -177,15 +177,14 @@ trait RootNodeHandling
         $events = [];
         if (!$removedDimensionSpacePoints->isEmpty()) {
             $this->requireDescendantNodesToNotFallbackToDimensionPointSet($rootNodeAggregate->nodeAggregateId, $contentGraph, $removedDimensionSpacePoints);
-            foreach ($removedDimensionSpacePoints as $removedDimensionSpacePoint) {
-                $events[] = new NodeAggregateWasRemoved(
-                    $contentGraph->getWorkspaceName(),
-                    $contentGraph->getContentStreamId(),
-                    $rootNodeAggregate->nodeAggregateId,
-                    new OriginDimensionSpacePointSet([OriginDimensionSpacePoint::fromDimensionSpacePoint($removedDimensionSpacePoint)]),
-                    new DimensionSpacePointSet([$removedDimensionSpacePoint]),
-                );
-            }
+            $events[] = new NodeAggregateWasRemoved(
+                $contentGraph->getWorkspaceName(),
+                $contentGraph->getContentStreamId(),
+                $rootNodeAggregate->nodeAggregateId,
+                // TODO root nodes never occupy, but this field is odd, unused and to be removed either way: https://github.com/neos/neos-development-collection/pull/5516
+                affectedOccupiedDimensionSpacePoints: OriginDimensionSpacePointSet::fromArray([]),
+                affectedCoveredDimensionSpacePoints: $removedDimensionSpacePoints,
+            );
         }
 
         if (!$newDimensionSpacePoints->isEmpty()) {
