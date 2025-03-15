@@ -26,12 +26,14 @@ use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Feature\Common\ConstraintChecks;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
+use Neos\ContentRepository\Core\Feature\Common\WorkspaceConstraintChecks;
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\AddDimensionShineThrough;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\MoveDimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Event\DimensionShineThroughWasAdded;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Event\DimensionSpacePointWasMoved;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Exception\DimensionSpacePointAlreadyExists;
+use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Exception\InvalidDimensionAdjustmentTargetWorkspace;
 use Neos\ContentRepository\Core\Feature\RebaseableCommand;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
@@ -48,6 +50,7 @@ use Neos\EventStore\Model\EventStream\ExpectedVersion;
 final readonly class DimensionSpaceCommandHandler implements CommandHandlerInterface
 {
     use ConstraintChecks;
+    use WorkspaceConstraintChecks;
 
     public function __construct(
         private InterDimensionalVariationGraph $interDimensionalVariationGraph,
@@ -77,6 +80,14 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
         $expectedVersion = ExpectedVersion::fromVersion($commandHandlingDependencies->getContentStreamVersion($contentGraph->getContentStreamId()));
         $streamName = ContentStreamEventStreamName::fromContentStreamId($contentGraph->getContentStreamId())
             ->getEventStreamName();
+
+        $workspace = $this->requireWorkspace($command->workspaceName, $commandHandlingDependencies);
+        if (!$workspace->isRootWorkspace()) {
+            $baseWorkspace = $this->requireBaseWorkspace($workspace, $commandHandlingDependencies);
+            if (!$baseWorkspace->isRootWorkspace()) {
+                throw InvalidDimensionAdjustmentTargetWorkspace::becauseWorkspaceMustBeRootOrRootBased($workspace->workspaceName);
+            }
+        }
 
         self::requireDimensionSpacePointToBeEmptyInContentStream(
             $contentGraph,

@@ -25,6 +25,7 @@ use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Feature\Common\PublishableToWorkspaceInterface;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
+use Neos\ContentRepository\Core\Feature\Common\WorkspaceConstraintChecks;
 use Neos\ContentRepository\Core\Feature\ContentStreamClosing\Event\ContentStreamWasClosed;
 use Neos\ContentRepository\Core\Feature\ContentStreamClosing\Event\ContentStreamWasReopened;
 use Neos\ContentRepository\Core\Feature\ContentStreamCreation\Event\ContentStreamWasCreated;
@@ -76,6 +77,7 @@ use Neos\EventStore\Model\EventStream\ExpectedVersion;
 final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
 {
     use ContentStreamHandling;
+    use WorkspaceConstraintChecks;
 
     public function __construct(
         private CommandSimulatorFactory $commandSimulatorFactory,
@@ -853,35 +855,6 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
             );
         }
         return $commandHandlingDependencies->getContentStreamVersion($workspace->currentContentStreamId);
-    }
-
-    /**
-     * @throws WorkspaceDoesNotExist
-     */
-    private function requireWorkspace(WorkspaceName $workspaceName, CommandHandlingDependencies $commandHandlingDependencies): Workspace
-    {
-        $workspace = $commandHandlingDependencies->findWorkspaceByName($workspaceName);
-        if (is_null($workspace)) {
-            throw WorkspaceDoesNotExist::butWasSupposedTo($workspaceName);
-        }
-
-        return $workspace;
-    }
-
-    /**
-     * @throws WorkspaceHasNoBaseWorkspaceName
-     * @throws BaseWorkspaceDoesNotExist
-     */
-    private function requireBaseWorkspace(Workspace $workspace, CommandHandlingDependencies $commandHandlingDependencies): Workspace
-    {
-        if (is_null($workspace->baseWorkspaceName)) {
-            throw WorkspaceHasNoBaseWorkspaceName::butWasSupposedTo($workspace->workspaceName);
-        }
-        $baseWorkspace = $commandHandlingDependencies->findWorkspaceByName($workspace->baseWorkspaceName);
-        if (is_null($baseWorkspace)) {
-            throw BaseWorkspaceDoesNotExist::butWasSupposedTo($workspace->workspaceName);
-        }
-        return $baseWorkspace;
     }
 
     /**

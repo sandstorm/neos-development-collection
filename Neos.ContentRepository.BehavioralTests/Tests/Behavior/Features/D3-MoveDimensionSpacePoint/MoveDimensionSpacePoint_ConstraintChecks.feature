@@ -41,15 +41,11 @@ Feature: Move dimension space point
       | parentNodeAggregateId     | "lady-eleonode-rootford"                  |
 
   Scenario: Error case - there's already an edge in the target dimension
-    When I change the content dimensions in content repository "default" to:
-      | Identifier | Values  | Generalizations |
-      | language   | mul, ch | ch->mul         |
-
     When the command MoveDimensionSpacePoint is executed with payload and exceptions are caught:
       | Key           | Value              |
       | workspaceName | "live"             |
-      | source        | {"language": "de"} |
-      | target        | {"language": "ch"} |
+      | source        | {"language": "ch"} |
+      | target        | {"language": "de"} |
 
     Then the last command should have thrown an exception of type "DimensionSpacePointAlreadyExists"
 
@@ -76,18 +72,43 @@ Feature: Move dimension space point
       | propertyValues            | {"text": "changed"}      |
     When I change the content dimensions in content repository "default" to:
       | Identifier | Values       | Generalizations   |
-      | language   | mul, ch, fr | ch->mul, fr->mul |
+      | language   | mul, de, en, gsw | gsw->de->mul, en->mul |
 
     When the command MoveDimensionSpacePoint is executed with payload and exceptions are caught:
       | Key           | Value              |
       | workspaceName | "live"             |
-      | source        | {"language": "de"} |
-      | target        | {"language": "fr"} |
+      | source        | {"language": "ch"} |
+      | target        | {"language": "gsw"} |
 
     Then the last command should have thrown an exception of type "WorkspaceContainsPublishableChanges" with message:
     """
     The following workspaces still contain changes: user-test
     """
+
+  Scenario: Error case - adjusting workspace that is non-root or not immediately based on root
+    Given the command CreateWorkspace is executed with payload:
+      | Key                | Value                |
+      | workspaceName      | "shared"          |
+      | baseWorkspaceName  | "live"               |
+      | newContentStreamId | "shared-cs-identifier" |
+
+    Given the command CreateWorkspace is executed with payload:
+      | Key                | Value                |
+      | workspaceName      | "user-test"          |
+      | baseWorkspaceName  | "shared"               |
+      | newContentStreamId | "user-cs-identifier" |
+
+    When I change the content dimensions in content repository "default" to:
+      | Identifier | Values      | Generalizations  |
+      | language   | mul, de, en, gsw | gsw->de->mul, en->mul |
+
+    When the command MoveDimensionSpacePoint is executed with payload and exceptions are caught:
+      | Key           | Value               |
+      | workspaceName | "user-test"         |
+      | source        | {"language": "ch"}  |
+      | target        | {"language": "gsw"} |
+
+    Then the last command should have thrown an exception of type "InvalidDimensionAdjustmentTargetWorkspace"
 
   Scenario: Error case - the move violates the projected fallbacks which have to be resolved (replaced by variants) first.
     Given the following CreateNodeAggregateWithNode commands are executed:
