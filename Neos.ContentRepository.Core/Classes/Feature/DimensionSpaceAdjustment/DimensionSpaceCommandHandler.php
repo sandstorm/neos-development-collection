@@ -88,7 +88,7 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
             $command->target
         );
         $this->requireDimensionSpacePointToExist($command->target);
-        self::requireNoWorkspaceToHaveChanges($commandHandlingDependencies->findAllWorkspaces(), $command->baseWorkspaceName);
+        self::requireNoWorkspaceToHaveChanges($commandHandlingDependencies->findAllWorkspaces(), $command->initialWorkspaceName);
         foreach ($contentGraph->findRootNodeAggregates(FindRootNodeAggregatesFilter::create()) as $rootNodeAggregate) {
             $this->requireDescendantNodesToNotFallbackToDimensionPointSet(
                 $rootNodeAggregate->nodeAggregateId,

@@ -53,7 +53,7 @@ class MoveDimensionSpacePointTransformationFactory implements TransformationFact
                         $workspaceNameForWriting,
                         $this->from,
                         $this->to,
-                    )->withBaseWorkspaceName($workspaceNameForWriting)
+                    )
                 );
             }
         };

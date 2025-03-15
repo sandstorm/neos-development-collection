@@ -37,13 +37,13 @@ final readonly class MoveDimensionSpacePoint implements
      * @param WorkspaceName $workspaceName The name of the workspace to perform the operation in.
      * @param DimensionSpacePoint $source source dimension space point
      * @param DimensionSpacePoint $target target dimension space point
-     * @param ?WorkspaceName $baseWorkspaceName An optional base workspace name that will be ignored during change validation
+     * @param WorkspaceName $initialWorkspaceName The original workspace this adjustment was applied to. This workspace will be allowed to contain leftover changes when publishing.
      */
     private function __construct(
         public WorkspaceName $workspaceName,
         public DimensionSpacePoint $source,
         public DimensionSpacePoint $target,
-        public ?WorkspaceName $baseWorkspaceName = null,
+        public WorkspaceName $initialWorkspaceName,
     ) {
     }
 
@@ -57,17 +57,7 @@ final readonly class MoveDimensionSpacePoint implements
         DimensionSpacePoint $source,
         DimensionSpacePoint $target
     ): self {
-        return new self($workspaceName, $source, $target);
-    }
-
-    public function withBaseWorkspaceName(WorkspaceName $baseWorkspaceName): self
-    {
-        return new self(
-            $this->workspaceName,
-            $this->source,
-            $this->target,
-            $baseWorkspaceName
-        );
+        return new self($workspaceName, $source, $target, $workspaceName);
     }
 
     public static function fromArray(array $array): self
@@ -76,9 +66,10 @@ final readonly class MoveDimensionSpacePoint implements
             WorkspaceName::fromString($array['workspaceName']),
             DimensionSpacePoint::fromArray($array['source']),
             DimensionSpacePoint::fromArray($array['target']),
-            ($baseWorkspaceName = $array['baseWorkspaceName'] ?? null)
-                ? WorkspaceName::fromString($baseWorkspaceName)
-                : null,
+            isset($array['initialWorkspaceName'])
+                ? WorkspaceName::fromString($array['initialWorkspaceName'])
+                // legacy fallback & for creation in tests
+                : WorkspaceName::fromString($array['workspaceName']),
         );
     }
 
@@ -89,7 +80,7 @@ final readonly class MoveDimensionSpacePoint implements
             $targetWorkspaceName,
             $this->source,
             $this->target,
-            $this->baseWorkspaceName,
+            $this->initialWorkspaceName,
         );
     }
 

@@ -163,7 +163,7 @@ trait RootNodeHandling
         }
 
         $this->requireWorkspaceToBeRootOrRootBasedForDimensionAdjustment($command->workspaceName, $commandHandlingDependencies);
-        self::requireNoWorkspaceToHaveChanges($commandHandlingDependencies->findAllWorkspaces(), null);
+        self::requireNoWorkspaceToHaveChanges($commandHandlingDependencies->findAllWorkspaces(), $command->initialWorkspaceName ?? $command->workspaceName);
 
         $allowedDimensionSubspace = $this->getAllowedDimensionSubspace();
 

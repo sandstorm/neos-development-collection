@@ -83,6 +83,12 @@ Feature: Update root node aggregate dimension space point
     """
 
   Scenario: Error case - adjusting workspace that is non-root or not immediately based on root
+    This limitation is required as we validate that all workspaces except the current on is empty.
+    For publishing we store the originally attempted workspace in $initialWorkspaceName as during the
+    publication this workspace is allowed to contain changes. Allowing to publish adjustments through multiple workspace
+    complicates things and is not desired, as they are rare fundamental changes that should be run on root or in a migration
+    (sandbox) workspace which is published to root.
+
     Given the command CreateWorkspace is executed with payload:
       | Key                | Value                |
       | workspaceName      | "shared"          |

@@ -35,10 +35,12 @@ final readonly class UpdateRootNodeAggregateDimensions implements
     /**
      * @param WorkspaceName $workspaceName The workspace which the dimensions should be updated in
      * @param NodeAggregateId $nodeAggregateId The id of the node aggregate that should be updated
+     * @param WorkspaceName $initialWorkspaceName The original workspace this adjustment was applied to. This workspace will be allowed to contain leftover changes when publishing.
      */
     private function __construct(
         public WorkspaceName $workspaceName,
         public NodeAggregateId $nodeAggregateId,
+        public WorkspaceName $initialWorkspaceName,
     ) {
     }
 
@@ -48,14 +50,18 @@ final readonly class UpdateRootNodeAggregateDimensions implements
      */
     public static function create(WorkspaceName $workspaceName, NodeAggregateId $nodeAggregateId): self
     {
-        return new self($workspaceName, $nodeAggregateId);
+        return new self($workspaceName, $nodeAggregateId, $workspaceName);
     }
 
     public static function fromArray(array $array): self
     {
         return new self(
             WorkspaceName::fromString($array['workspaceName']),
-            NodeAggregateId::fromString($array['nodeAggregateId'])
+            NodeAggregateId::fromString($array['nodeAggregateId']),
+            isset($array['initialWorkspaceName'])
+                ? WorkspaceName::fromString($array['initialWorkspaceName'])
+                // legacy fallback & for creation in tests
+                : WorkspaceName::fromString($array['workspaceName']),
         );
     }
 
@@ -73,6 +79,7 @@ final readonly class UpdateRootNodeAggregateDimensions implements
         return new self(
             $targetWorkspaceName,
             $this->nodeAggregateId,
+            $this->initialWorkspaceName
         );
     }
 }
