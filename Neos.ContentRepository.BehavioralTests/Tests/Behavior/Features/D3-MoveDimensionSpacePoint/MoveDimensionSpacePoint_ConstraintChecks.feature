@@ -84,7 +84,10 @@ Feature: Move dimension space point
       | source        | {"language": "de"} |
       | target        | {"language": "fr"} |
 
-    Then the last command should have thrown an exception of type "WorkspacesContainChanges"
+    Then the last command should have thrown an exception of type "WorkspaceContainsPublishableChanges" with message:
+    """
+    The following workspaces still contain changes: user-test
+    """
 
   Scenario: Error case - the move violates the projected fallbacks which have to be resolved (replaced by variants) first.
     Given the following CreateNodeAggregateWithNode commands are executed:

@@ -41,7 +41,6 @@ use Neos\ContentRepository\Core\Feature\WorkspaceModification\Event\WorkspaceBas
 use Neos\ContentRepository\Core\Feature\WorkspaceModification\Event\WorkspaceWasRemoved;
 use Neos\ContentRepository\Core\Feature\WorkspaceModification\Exception\BaseWorkspaceEqualsWorkspaceException;
 use Neos\ContentRepository\Core\Feature\WorkspaceModification\Exception\CircularRelationBetweenWorkspacesException;
-use Neos\ContentRepository\Core\Feature\WorkspaceModification\Exception\WorkspaceIsNotEmptyException;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\DiscardIndividualNodesFromWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\DiscardWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspacePublication\Command\PublishIndividualNodesFromWorkspace;
@@ -59,6 +58,7 @@ use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamDoesNotExistY
 use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamIsClosed;
 use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceDoesNotExist;
 use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceHasNoBaseWorkspaceName;
+use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceContainsPublishableChanges;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
@@ -721,7 +721,7 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
      * @throws BaseWorkspaceDoesNotExist
      * @throws WorkspaceDoesNotExist
      * @throws WorkspaceHasNoBaseWorkspaceName
-     * @throws WorkspaceIsNotEmptyException
+     * @throws WorkspaceContainsPublishableChanges
      * @throws BaseWorkspaceEqualsWorkspaceException
      * @throws CircularRelationBetweenWorkspacesException
      */
@@ -900,12 +900,12 @@ final readonly class WorkspaceCommandHandler implements CommandHandlerInterface
     }
 
     /**
-     * @throws WorkspaceIsNotEmptyException
+     * @throws WorkspaceContainsPublishableChanges
      */
     private function requireEmptyWorkspace(Workspace $workspace): void
     {
         if ($workspace->hasPublishableChanges()) {
-            throw new WorkspaceIsNotEmptyException('The user workspace needs to be empty before switching the base workspace.', 1681455989);
+            throw new WorkspaceContainsPublishableChanges(sprintf('The workspace %s needs to be empty before switching the base workspace.', $workspace->workspaceName->value), 1681455989);
         }
     }
 }

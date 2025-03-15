@@ -31,13 +31,13 @@ use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\AddDime
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\MoveDimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Event\DimensionShineThroughWasAdded;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Event\DimensionSpacePointWasMoved;
-use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Exception\WorkspacesContainChanges;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Exception\DimensionSpacePointAlreadyExists;
 use Neos\ContentRepository\Core\Feature\RebaseableCommand;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindRootNodeAggregatesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
+use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceContainsPublishableChanges;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
 use Neos\EventStore\Model\EventStream\ExpectedVersion;
@@ -184,7 +184,7 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
         }
 
         if ($conflictingWorkspaceNames !== []) {
-            throw WorkspacesContainChanges::butWasNotSupposedTo(...$conflictingWorkspaceNames);
+            throw WorkspaceContainsPublishableChanges::butWasNotSupposedTo(...$conflictingWorkspaceNames);
         }
     }
 
