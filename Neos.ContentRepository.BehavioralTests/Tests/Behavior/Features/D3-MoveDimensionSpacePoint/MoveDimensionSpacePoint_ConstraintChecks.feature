@@ -45,31 +45,21 @@ Feature: Move dimension space point
       | Identifier | Values  | Generalizations |
       | language   | mul, ch | ch->mul         |
 
-    When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs" and exceptions are caught:
-    """yaml
-    migration:
-      -
-        transformations:
-          -
-            type: 'MoveDimensionSpacePoint'
-            settings:
-              from: { language: 'de' }
-              to: { language: 'ch' }
-    """
+    When the command MoveDimensionSpacePoint is executed with payload and exceptions are caught:
+      | Key           | Value              |
+      | workspaceName | "live"             |
+      | source        | {"language": "de"} |
+      | target        | {"language": "ch"} |
+
     Then the last command should have thrown an exception of type "DimensionSpacePointAlreadyExists"
 
   Scenario: Error case - the target dimension is not configured
-    When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs" and exceptions are caught:
-    """yaml
-    migration:
-      -
-        transformations:
-          -
-            type: 'MoveDimensionSpacePoint'
-            settings:
-              from: { language: 'de' }
-              to: { language: 'notexisting' }
-    """
+    When the command MoveDimensionSpacePoint is executed with payload and exceptions are caught:
+      | Key           | Value              |
+      | workspaceName | "live"             |
+      | source        | {"language": "de"} |
+      | target        | {"language": "notexisting"} |
+
     Then the last command should have thrown an exception of type "DimensionSpacePointNotFound"
 
   Scenario: Error case - there are changes in another workspace
@@ -86,18 +76,14 @@ Feature: Move dimension space point
       | propertyValues            | {"text": "changed"}      |
     When I change the content dimensions in content repository "default" to:
       | Identifier | Values       | Generalizations   |
-      | language   | mul, ch, gsw | ch->mul, gsw->mul |
-    And I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs" and exceptions are caught:
-    """yaml
-    migration:
-      -
-        transformations:
-          -
-            type: 'MoveDimensionSpacePoint'
-            settings:
-              from: { language: 'de' }
-              to: { language: 'gsw' }
-    """
+      | language   | mul, ch, fr | ch->mul, fr->mul |
+
+    When the command MoveDimensionSpacePoint is executed with payload and exceptions are caught:
+      | Key           | Value              |
+      | workspaceName | "live"             |
+      | source        | {"language": "de"} |
+      | target        | {"language": "fr"} |
+
     Then the last command should have thrown an exception of type "WorkspacesContainChanges"
 
   Scenario: Error case - the move violates the projected fallbacks which have to be resolved (replaced by variants) first.
@@ -121,18 +107,11 @@ Feature: Move dimension space point
     When I change the content dimensions in content repository "default" to:
       | Identifier | Values           | Generalizations            |
       | language   | mul, en, ch, gsw | ch->mul, gsw->mul, en->mul |
-    And I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs" and exceptions are caught:
-    """yaml
-    migration:
-      -
-        transformations:
-          -
-            type: 'MoveDimensionSpacePoint'
-            settings:
-              from: { language: 'de' }
-              to: { language: 'gsw' }
-    """
+
+    When the command MoveDimensionSpacePoint is executed with payload and exceptions are caught:
+      | Key           | Value              |
+      | workspaceName | "live"             |
+      | source        | {"language": "de"} |
+      | target        | {"language": "gsw"} |
+
     Then the last command should have thrown an exception of type "NodeAggregateDoesCurrentlyNotOccupyDimensionSpacePoint"
-
-    # For the success case see MoveDimensionSpacePoint "Success Case - after resolving all fallbacks via variation, a generalization can be moved"
-

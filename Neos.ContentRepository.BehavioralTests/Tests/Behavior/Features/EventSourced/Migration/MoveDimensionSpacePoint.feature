@@ -7,7 +7,7 @@ Feature: Move dimension space point
   - ... or the opposite: {language: de} -> {}
   - new dimensions are introduced; so the existing DimensionSpacePoints need an additional value.
 
-  !! Constraint: the Target Dimension Space should be empty.
+  !! Constraint: the Target Dimension Space must be empty.
 
   Background:
     ########################
