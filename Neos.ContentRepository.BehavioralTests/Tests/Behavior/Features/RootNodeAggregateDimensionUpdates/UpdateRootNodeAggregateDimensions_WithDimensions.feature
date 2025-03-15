@@ -43,7 +43,7 @@ Feature: Update Root Node aggregate dimensions
 
     Then the last command should have thrown an exception of type "RuntimeException" with message:
     """
-    The root node aggregate lady-eleonode-rootford is already covers all allowed dimensions: [{"language":"de"},{"language":"fr"}].
+    The root node aggregate lady-eleonode-rootford covers already all allowed dimensions: [{"language":"de"},{"language":"fr"}].
     """
 
   Scenario: Constraint updating new fallbacks for existing dimensions is not allowed (new specialisations cannot be inserted via update)

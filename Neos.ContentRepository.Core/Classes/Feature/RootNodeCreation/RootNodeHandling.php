@@ -197,7 +197,7 @@ trait RootNodeHandling
         }
 
         if ($events === []) {
-            throw new \RuntimeException(sprintf('The root node aggregate %s is already covers all allowed dimensions: %s.', $rootNodeAggregate->nodeAggregateId->value, $allowedDimensionSubspace->toJson()), 1741897071);
+            throw new \RuntimeException(sprintf('The root node aggregate %s covers already all allowed dimensions: %s.', $rootNodeAggregate->nodeAggregateId->value, $allowedDimensionSubspace->toJson()), 1741897071);
         }
 
         $contentStreamEventStream = ContentStreamEventStreamName::fromContentStreamId(
