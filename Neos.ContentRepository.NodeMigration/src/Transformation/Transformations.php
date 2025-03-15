@@ -91,28 +91,40 @@ final class Transformations
 
     public function executeGlobal(
         WorkspaceName $workspaceNameForWriting,
-    ): void {
+    ): TransformationSteps {
+        $transformationSteps = TransformationSteps::createEmpty();
         foreach ($this->globalTransformations as $globalTransformation) {
-            $globalTransformation->execute($workspaceNameForWriting);
+            $transformationSteps = $transformationSteps->withAppended(
+                $globalTransformation->execute($workspaceNameForWriting)
+            );
         }
+        return $transformationSteps;
     }
 
     public function executeNodeAggregateBased(
         NodeAggregate $nodeAggregate,
         WorkspaceName $workspaceNameForWriting
-    ): void {
+    ): TransformationSteps {
+        $transformationSteps = TransformationSteps::createEmpty();
         foreach ($this->nodeAggregateBasedTransformations as $nodeAggregateBasedTransformation) {
-            $nodeAggregateBasedTransformation->execute($nodeAggregate, $workspaceNameForWriting);
+            $transformationSteps = $transformationSteps->withAppended(
+                $nodeAggregateBasedTransformation->execute($nodeAggregate, $workspaceNameForWriting)
+            );
         }
+        return $transformationSteps;
     }
 
     public function executeNodeBased(
         Node $node,
         DimensionSpacePointSet $coveredDimensionSpacePoints,
         WorkspaceName $workspaceNameForWriting
-    ): void {
+    ): TransformationSteps {
+        $transformationSteps = TransformationSteps::createEmpty();
         foreach ($this->nodeBasedTransformations as $nodeBasedTransformation) {
-            $nodeBasedTransformation->execute($node, $coveredDimensionSpacePoints, $workspaceNameForWriting);
+            $transformationSteps = $transformationSteps->withAppended(
+                $nodeBasedTransformation->execute($node, $coveredDimensionSpacePoints, $workspaceNameForWriting)
+            );
         }
+        return $transformationSteps;
     }
 }

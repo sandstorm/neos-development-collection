@@ -46,7 +46,7 @@ class UpdateRootNodeAggregateDimensionsTransformationFactory implements Transfor
 
             public function execute(
                 WorkspaceName $workspaceNameForWriting,
-            ): void {
+            ): TransformationStep {
 
                 $rootNodeAggregate = $this->contentRepository->getContentGraph($workspaceNameForWriting)->findRootNodeAggregateByType($this->nodeTypeName);
 
@@ -57,7 +57,7 @@ class UpdateRootNodeAggregateDimensionsTransformationFactory implements Transfor
                     );
                 }
 
-                $this->contentRepository->handle(
+                return TransformationStep::fromCommand(
                     UpdateRootNodeAggregateDimensions::create(
                         $workspaceNameForWriting,
                         $rootNodeAggregate->nodeAggregateId

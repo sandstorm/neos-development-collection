@@ -47,12 +47,10 @@ class RemoveNodeTransformationFactory implements TransformationFactoryInterface
         return new class (
             $strategy,
             $overriddenDimensionSpacePoint,
-            $contentRepository
         ) implements NodeBasedTransformationInterface {
             public function __construct(
                 private ?NodeVariantSelectionStrategy $strategy,
                 private readonly ?DimensionSpacePoint $overriddenDimensionSpacePoint,
-                private readonly ContentRepository $contentRepository
             ) {
             }
 
@@ -63,7 +61,7 @@ class RemoveNodeTransformationFactory implements TransformationFactoryInterface
                 Node $node,
                 DimensionSpacePointSet $coveredDimensionSpacePoints,
                 WorkspaceName $workspaceNameForWriting
-            ): void {
+            ): TransformationStep {
                 if ($this->strategy === null) {
                     $this->strategy = NodeVariantSelectionStrategy::STRATEGY_ALL_SPECIALIZATIONS;
                 }
@@ -81,10 +79,10 @@ class RemoveNodeTransformationFactory implements TransformationFactoryInterface
                 if (!$coveredDimensionSpacePoints->contains($coveredDimensionSpacePoint)) {
                     // we are currently in a Node which has other covered dimension space points than the target ones,
                     // so we do not need to do anything.
-                    return;
+                    return TransformationStep::createEmpty();
                 }
 
-                $this->contentRepository->handle(RemoveNodeAggregate::create(
+                return TransformationStep::fromCommand(RemoveNodeAggregate::create(
                     $workspaceNameForWriting,
                     $node->aggregateId,
                     $coveredDimensionSpacePoint,

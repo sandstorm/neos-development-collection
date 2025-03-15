@@ -35,14 +35,12 @@ class StripTagsOnPropertyTransformationFactory implements TransformationFactoryI
     ): GlobalTransformationInterface|NodeAggregateBasedTransformationInterface|NodeBasedTransformationInterface {
         return new class (
             $settings['property'],
-            $contentRepository
         ) implements NodeBasedTransformationInterface {
             public function __construct(
                 /**
                  * the name of the property to work on.
                  */
                 private readonly string $propertyName,
-                private readonly ContentRepository $contentRepository
             ) {
             }
 
@@ -50,10 +48,10 @@ class StripTagsOnPropertyTransformationFactory implements TransformationFactoryI
                 Node $node,
                 DimensionSpacePointSet $coveredDimensionSpacePoints,
                 WorkspaceName $workspaceNameForWriting
-            ): void {
+            ): TransformationStep {
                 $propertyValue = $node->properties[$this->propertyName];
                 if ($propertyValue === null) {
-                    return;
+                    return TransformationStep::createEmpty();
                 }
                 if (!is_string($propertyValue)) {
                     throw new \Exception(
@@ -62,7 +60,7 @@ class StripTagsOnPropertyTransformationFactory implements TransformationFactoryI
                     );
                 }
                 $newValue = strip_tags($propertyValue);
-                $this->contentRepository->handle(
+                return TransformationStep::fromCommand(
                     SetNodeProperties::create(
                         $workspaceNameForWriting,
                         $node->aggregateId,

@@ -36,23 +36,21 @@ class RemovePropertyTransformationFactory implements TransformationFactoryInterf
         $propertyName = $settings['property'];
         return new class (
             $propertyName,
-            $contentRepository
         ) implements NodeBasedTransformationInterface {
             public function __construct(
                 /**
                  * the name of the property to be removed.
                  */
                 private readonly string $propertyName,
-                private readonly ContentRepository $contentRepository
             ) {
             }
             public function execute(
                 Node $node,
                 DimensionSpacePointSet $coveredDimensionSpacePoints,
                 WorkspaceName $workspaceNameForWriting
-            ): void {
+            ): TransformationStep {
                 if ($node->hasProperty($this->propertyName)) {
-                    $this->contentRepository->handle(
+                    return TransformationStep::fromCommand(
                         SetNodeProperties::create(
                             $workspaceNameForWriting,
                             $node->aggregateId,
@@ -63,6 +61,7 @@ class RemovePropertyTransformationFactory implements TransformationFactoryInterf
                         )
                     );
                 }
+                return TransformationStep::createEmpty();
             }
         };
     }

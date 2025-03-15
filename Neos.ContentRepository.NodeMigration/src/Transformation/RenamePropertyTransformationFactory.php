@@ -37,7 +37,6 @@ class RenamePropertyTransformationFactory implements TransformationFactoryInterf
         return new class (
             $settings['from'],
             $settings['to'],
-            $contentRepository
         ) implements NodeBasedTransformationInterface {
             public function __construct(
                 /**
@@ -48,7 +47,6 @@ class RenamePropertyTransformationFactory implements TransformationFactoryInterf
                  * New name of property
                  */
                 private readonly string $to,
-                private readonly ContentRepository $contentRepository
             )
             {
             }
@@ -57,13 +55,13 @@ class RenamePropertyTransformationFactory implements TransformationFactoryInterf
                 Node $node,
                 DimensionSpacePointSet $coveredDimensionSpacePoints,
                 WorkspaceName $workspaceNameForWriting
-            ): void
+            ): TransformationStep
             {
                 $propertyValue = $node->properties[$this->from];
                 if ($propertyValue === null) {
-                    return;
+                    return TransformationStep::createEmpty();
                 }
-                $this->contentRepository->handle(
+                return TransformationStep::fromCommand(
                     SetNodeProperties::create(
                         $workspaceNameForWriting,
                         $node->aggregateId,

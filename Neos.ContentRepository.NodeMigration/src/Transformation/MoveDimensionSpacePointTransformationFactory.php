@@ -36,19 +36,17 @@ class MoveDimensionSpacePointTransformationFactory implements TransformationFact
         return new class (
             $from,
             $to,
-            $contentRepository
         ) implements GlobalTransformationInterface {
             public function __construct(
                 private readonly DimensionSpacePoint $from,
                 private readonly DimensionSpacePoint $to,
-                private readonly ContentRepository $contentRepository,
             ) {
             }
 
             public function execute(
                 WorkspaceName $workspaceNameForWriting,
-            ): void {
-                $this->contentRepository->handle(
+            ): TransformationStep {
+                return TransformationStep::fromCommand(
                     MoveDimensionSpacePoint::create(
                         $workspaceNameForWriting,
                         $this->from,

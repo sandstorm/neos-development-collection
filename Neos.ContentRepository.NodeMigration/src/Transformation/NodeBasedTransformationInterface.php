@@ -29,5 +29,5 @@ interface NodeBasedTransformationInterface
         Node $node,
         DimensionSpacePointSet $coveredDimensionSpacePoints,
         WorkspaceName $workspaceNameForWriting
-    ): void;
+    ): TransformationStep;
 }

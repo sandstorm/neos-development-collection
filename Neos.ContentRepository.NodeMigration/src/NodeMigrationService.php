@@ -16,6 +16,7 @@ use Neos\ContentRepository\NodeMigration\Command\ExecuteMigration;
 use Neos\ContentRepository\NodeMigration\Filter\FiltersFactory;
 use Neos\ContentRepository\NodeMigration\Filter\InvalidMigrationFilterSpecified;
 use Neos\ContentRepository\NodeMigration\Transformation\TransformationsFactory;
+use Neos\ContentRepository\NodeMigration\Transformation\TransformationSteps;
 
 /**
  * Node Migrations are manually written adjustments to the Node tree;
@@ -145,8 +146,11 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
             );
         }
 
+        $transformationSteps = TransformationSteps::createEmpty();
         if ($transformations->containsGlobal()) {
-            $transformations->executeGlobal($workspaceNameForWriting);
+            $transformationSteps = $transformationSteps->merge(
+                $transformations->executeGlobal($workspaceNameForWriting)
+            );
         } elseif ($transformations->containsNodeAggregateBased()) {
             $contentGraph = $this->contentRepository->getContentGraph($workspaceNameForReading);
             foreach ($contentGraph->findUsedNodeTypeNames() as $nodeTypeName) {
@@ -156,7 +160,9 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
                     ) as $nodeAggregate
                 ) {
                     if ($filters->matchesNodeAggregate($nodeAggregate)) {
-                        $transformations->executeNodeAggregateBased($nodeAggregate, $workspaceNameForWriting);
+                        $transformationSteps = $transformationSteps->merge(
+                            $transformations->executeNodeAggregateBased($nodeAggregate, $workspaceNameForWriting)
+                        );
                     }
                 }
             }
@@ -182,15 +188,23 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
                             );
 
                             if ($filters->matchesNode($node)) {
-                                $transformations->executeNodeBased(
-                                    $node,
-                                    $coveredDimensionSpacePoints,
-                                    $workspaceNameForWriting
+                                $transformationSteps = $transformationSteps->merge(
+                                    $transformations->executeNodeBased(
+                                        $node,
+                                        $coveredDimensionSpacePoints,
+                                        $workspaceNameForWriting
+                                    )
                                 );
                             }
                         }
                     }
                 }
+            }
+        }
+
+        foreach ($transformationSteps as $transformationStep) {
+            foreach ($transformationStep->commands as $command) {
+                $this->contentRepository->handle($command);
             }
         }
     }

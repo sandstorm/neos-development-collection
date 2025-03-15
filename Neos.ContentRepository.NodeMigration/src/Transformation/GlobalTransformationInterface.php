@@ -25,5 +25,5 @@ interface GlobalTransformationInterface
 {
     public function execute(
         WorkspaceName $workspaceNameForWriting,
-    ): void;
+    ): TransformationStep;
 }

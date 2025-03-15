@@ -27,5 +27,5 @@ interface NodeAggregateBasedTransformationInterface
     public function execute(
         NodeAggregate $nodeAggregate,
         WorkspaceName $workspaceNameForWriting
-    ): void;
+    ): TransformationStep;
 }
