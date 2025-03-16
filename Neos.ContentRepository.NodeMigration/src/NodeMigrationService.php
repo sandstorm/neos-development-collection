@@ -88,12 +88,26 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
             throw new MigrationException(sprintf('Target workspace "%s" could not loaded nor created.', $command->targetWorkspaceName->value));
         }
 
+        $transformationSteps = TransformationSteps::createEmpty();
         foreach ($command->migrationConfiguration->getMigration() as $migrationDescription) {
-            $this->executeSubMigration(
+            $transformationSteps = $transformationSteps->merge($this->executeSubMigration(
                 $migrationDescription,
                 $command->sourceWorkspaceName,
                 $command->targetWorkspaceName
-            );
+            ));
+        }
+
+        if ($command->requireConfirmation) {
+            $stepsThatRequireConfirmation = $transformationSteps->filterConfirmationRequired();
+            if (!$stepsThatRequireConfirmation->isEmpty()) {
+                throw NodeMigrationRequireConfirmationException::becauseStepsRequireConfirmation($stepsThatRequireConfirmation);
+            }
+        }
+
+        foreach ($transformationSteps as $transformationStep) {
+            foreach ($transformationStep->commands as $transformationCommand) {
+                $this->contentRepository->handle($transformationCommand);
+            }
         }
 
         if ($command->publishOnSuccess === true) {
@@ -119,7 +133,7 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
         array $migrationDescription,
         WorkspaceName $workspaceNameForReading,
         WorkspaceName $workspaceNameForWriting
-    ): void {
+    ): TransformationSteps {
         $filters = $this->filterFactory->buildFilterConjunction($migrationDescription['filters'] ?? []);
         $transformations = $this->transformationFactory->buildTransformation(
             $migrationDescription['transformations'] ?? []
@@ -202,10 +216,6 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
             }
         }
 
-        foreach ($transformationSteps as $transformationStep) {
-            foreach ($transformationStep->commands as $command) {
-                $this->contentRepository->handle($command);
-            }
-        }
+        return $transformationSteps;
     }
 }

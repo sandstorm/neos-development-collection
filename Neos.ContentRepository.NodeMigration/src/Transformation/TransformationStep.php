@@ -11,22 +11,35 @@ final class TransformationStep
 {
     private function __construct(
         public Commands $commands,
-        // todo public bool $requireConfirmation
+        public bool $requireConfirmation,
+        public string $confirmationReason
     ) {
     }
 
     public static function createEmpty(): self
     {
-        return new self(Commands::createEmpty());
+        return new self(Commands::createEmpty(), false, '');
     }
 
     public static function fromCommand(CommandInterface $command): self
     {
-        return new self(Commands::create($command));
+        return new self(Commands::create($command), false, '');
     }
 
     public static function fromCommands(Commands $commands): self
     {
-        return new self($commands);
+        return new self($commands, false, '');
+    }
+
+    public function withRequiredConfirmation(string $reason): self
+    {
+        if ($this->commands->isEmpty()) {
+            throw new \InvalidArgumentException('Cannot make a noop step confirmation required.');
+        }
+        return new self(
+            $this->commands,
+            requireConfirmation: true,
+            confirmationReason: $reason
+        );
     }
 }

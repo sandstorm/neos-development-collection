@@ -57,12 +57,22 @@ class UpdateRootNodeAggregateDimensionsTransformationFactory implements Transfor
                     );
                 }
 
-                return TransformationStep::fromCommand(
+                $transformationStep = TransformationStep::fromCommand(
                     UpdateRootNodeAggregateDimensions::create(
                         $workspaceNameForWriting,
                         $rootNodeAggregate->nodeAggregateId
                     )
                 );
+
+                $allowedDimensionSubspace = $this->contentRepository->getVariationGraph()->getDimensionSpacePoints();
+                $toBeRemovedDimensionSpacePoints = $rootNodeAggregate->coveredDimensionSpacePoints->getDifference($allowedDimensionSubspace);
+                if (!$toBeRemovedDimensionSpacePoints->isEmpty()) {
+                    return $transformationStep->withRequiredConfirmation(
+                        sprintf('Updating the dimensions of root node %s will remove all its descendants in dimensions %s', $rootNodeAggregate->nodeAggregateId->value, $toBeRemovedDimensionSpacePoints->toJson())
+                    );
+                }
+
+                return $transformationStep;
             }
         };
     }

@@ -39,9 +39,19 @@ final readonly class TransformationSteps implements \IteratorAggregate, \Countab
         return new self(...[...$this->items, $transformationStep]);
     }
 
+    public function filterConfirmationRequired(): self
+    {
+        return new self(...array_filter($this->items, fn (TransformationStep $step) => $step->requireConfirmation));
+    }
+
     public function getIterator(): \Traversable
     {
         yield from $this->items;
+    }
+
+    public function isEmpty(): bool
+    {
+        return $this->items === [];
     }
 
     public function count(): int

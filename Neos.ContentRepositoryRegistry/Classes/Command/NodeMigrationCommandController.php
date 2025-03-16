@@ -15,12 +15,12 @@ namespace Neos\ContentRepositoryRegistry\Command;
  */
 
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\NodeMigration\Command\ExecuteMigration;
 use Neos\ContentRepository\NodeMigration\Command\MigrationConfiguration;
 use Neos\ContentRepository\NodeMigration\Filter\FilterFactoryInterface;
 use Neos\ContentRepository\NodeMigration\MigrationException;
+use Neos\ContentRepository\NodeMigration\NodeMigrationRequireConfirmationException;
 use Neos\ContentRepository\NodeMigration\NodeMigrationServiceFactory;
 use Neos\ContentRepository\NodeMigration\Transformation\PropertyConverterAwareTransformationFactoryInterface;
 use Neos\ContentRepository\NodeMigration\Transformation\TransformationFactoryInterface;
@@ -84,9 +84,10 @@ class NodeMigrationCommandController extends CommandController
 
             $this->outputCommentsAndWarnings($migrationConfiguration);
             if ($migrationConfiguration->hasWarnings() && $force === false) {
+                // todo dont use --force option here as this overshadows the force below.
                 $this->outputLine();
                 $this->outputLine('Migration has warnings.'
-                    . ' You need to confirm execution by adding the "--force true" option to the command.');
+                    . ' You need to confirm execution by adding the "--force" option to the command.');
                 $this->quit(1);
             }
 
@@ -94,15 +95,19 @@ class NodeMigrationCommandController extends CommandController
                 filterFactories: $this->filterFactoriesConfiguration,
                 transformationFactories: $this->transformationFactoriesConfiguration
             ));
-            $nodeMigrationService->executeMigration(
-                new ExecuteMigration(
-                    $migrationConfiguration,
-                    $sourceWorkspaceName,
-                    $targetWorkspaceName,
-                    $publishOnSuccess,
-                    ContentStreamId::create()
-                )
+
+            $command = ExecuteMigration::create(
+                $migrationConfiguration,
+                $sourceWorkspaceName,
+                $targetWorkspaceName
             );
+            if ($publishOnSuccess === false) {
+                $command = $command->withoutPublishOnSuccess();
+            }
+            if ($force === true) {
+                $command = $command->withoutRequiringConfirmation();
+            }
+            $nodeMigrationService->executeMigration($command);
 
             $this->outputLine();
             $this->outputLine('Successfully applied migration.');
@@ -116,6 +121,11 @@ class NodeMigrationCommandController extends CommandController
         } catch (MigrationException $e) {
             $this->outputLine();
             $this->outputLine('Error on applying node migrations:');
+            $this->outputLine($e->getMessage());
+            $this->quit(1);
+        } catch (NodeMigrationRequireConfirmationException $e) {
+            $this->outputLine();
+            $this->outputLine('Did not apply the node migrations, confirm with --force:');
             $this->outputLine($e->getMessage());
             $this->quit(1);
         }

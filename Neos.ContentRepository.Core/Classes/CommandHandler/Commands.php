@@ -60,6 +60,11 @@ final readonly class Commands implements \IteratorAggregate, \Countable
         yield from $this->items;
     }
 
+    public function isEmpty(): bool
+    {
+        return $this->items === [];
+    }
+
     public function count(): int
     {
         return count($this->items);
