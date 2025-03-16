@@ -66,26 +66,9 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
             ), 1611688225);
         }
 
-        $targetWorkspaceWasCreated = false;
-        if ($targetWorkspace = $this->contentRepository->findWorkspaceByName($command->targetWorkspaceName)) {
-            if ($targetWorkspace->hasPublishableChanges()) {
-                throw new MigrationException(sprintf('Target workspace "%s" already exists an is not empty. Please clear the workspace before.', $targetWorkspace->workspaceName->value));
-            }
-
-        } else {
-            $this->contentRepository->handle(
-                CreateWorkspace::create(
-                    $command->targetWorkspaceName,
-                    $sourceWorkspace->workspaceName,
-                    $command->contentStreamId,
-                )
-            );
-            $targetWorkspace = $this->contentRepository->findWorkspaceByName($command->targetWorkspaceName);
-            $targetWorkspaceWasCreated = true;
-        }
-
-        if ($targetWorkspace === null) {
-            throw new MigrationException(sprintf('Target workspace "%s" could not loaded nor created.', $command->targetWorkspaceName->value));
+        $targetWorkspace = $this->contentRepository->findWorkspaceByName($command->targetWorkspaceName);
+        if ($targetWorkspace?->hasPublishableChanges()) {
+            throw new MigrationException(sprintf('Target workspace "%s" already exists an is not empty. Please clear the workspace before.', $targetWorkspace->workspaceName->value));
         }
 
         $transformationSteps = TransformationSteps::createEmpty();
@@ -102,6 +85,22 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
             if (!$stepsThatRequireConfirmation->isEmpty()) {
                 throw NodeMigrationRequireConfirmationException::becauseStepsRequireConfirmation($stepsThatRequireConfirmation);
             }
+        }
+
+        if ($transformationSteps->isEmpty()) {
+            throw new MigrationException('Migration did not issue any commands.', 1742117823);
+        }
+
+        $targetWorkspaceWasCreated = false;
+        if ($targetWorkspace === null) {
+            $this->contentRepository->handle(
+                CreateWorkspace::create(
+                    $command->targetWorkspaceName,
+                    $sourceWorkspace->workspaceName,
+                    $command->contentStreamId,
+                )
+            );
+            $targetWorkspaceWasCreated = true;
         }
 
         foreach ($transformationSteps as $transformationStep) {
@@ -163,7 +162,7 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
         $transformationSteps = TransformationSteps::createEmpty();
         if ($transformations->containsGlobal()) {
             $transformationSteps = $transformationSteps->merge(
-                $transformations->executeGlobal($workspaceNameForWriting)
+                $transformations->executeGlobal($workspaceNameForReading, $workspaceNameForWriting)
             );
         } elseif ($transformations->containsNodeAggregateBased()) {
             $contentGraph = $this->contentRepository->getContentGraph($workspaceNameForReading);

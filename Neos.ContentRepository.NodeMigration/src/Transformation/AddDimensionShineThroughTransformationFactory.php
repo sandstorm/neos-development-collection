@@ -46,6 +46,7 @@ class AddDimensionShineThroughTransformationFactory implements TransformationFac
             }
 
             public function execute(
+                WorkspaceName $workspaceNameForReading,
                 WorkspaceName $workspaceNameForWriting,
             ): TransformationStep {
                 return TransformationStep::fromCommand(

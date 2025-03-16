@@ -44,6 +44,7 @@ class MoveDimensionSpacePointTransformationFactory implements TransformationFact
             }
 
             public function execute(
+                WorkspaceName $workspaceNameForReading,
                 WorkspaceName $workspaceNameForWriting,
             ): TransformationStep {
                 return TransformationStep::fromCommand(

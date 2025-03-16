@@ -45,10 +45,11 @@ class UpdateRootNodeAggregateDimensionsTransformationFactory implements Transfor
             }
 
             public function execute(
+                WorkspaceName $workspaceNameForReading,
                 WorkspaceName $workspaceNameForWriting,
             ): TransformationStep {
 
-                $rootNodeAggregate = $this->contentRepository->getContentGraph($workspaceNameForWriting)->findRootNodeAggregateByType($this->nodeTypeName);
+                $rootNodeAggregate = $this->contentRepository->getContentGraph($workspaceNameForReading)->findRootNodeAggregateByType($this->nodeTypeName);
 
                 if (!$rootNodeAggregate) {
                     throw new MigrationException(

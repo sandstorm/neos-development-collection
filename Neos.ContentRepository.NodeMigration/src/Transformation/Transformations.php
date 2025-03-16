@@ -90,12 +90,13 @@ final class Transformations
     }
 
     public function executeGlobal(
+        WorkspaceName $workspaceNameForReading,
         WorkspaceName $workspaceNameForWriting,
     ): TransformationSteps {
         $transformationSteps = TransformationSteps::createEmpty();
         foreach ($this->globalTransformations as $globalTransformation) {
             $transformationSteps = $transformationSteps->withAppended(
-                $globalTransformation->execute($workspaceNameForWriting)
+                $globalTransformation->execute($workspaceNameForReading, $workspaceNameForWriting)
             );
         }
         return $transformationSteps;

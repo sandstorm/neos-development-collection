@@ -15,14 +15,19 @@ final readonly class TransformationSteps implements \IteratorAggregate, \Countab
     private function __construct(
         TransformationStep ...$items
     ) {
-        $this->items = $items;
+        $notEmpty = [];
+        foreach ($items as $item) {
+            if (!$item->commands->isEmpty()) {
+                $notEmpty[] = $item;
+            }
+        }
+        $this->items = $notEmpty;
     }
 
     public static function create(TransformationStep ...$items): self
     {
         return new self(...$items);
     }
-
 
     public static function createEmpty(): self
     {
