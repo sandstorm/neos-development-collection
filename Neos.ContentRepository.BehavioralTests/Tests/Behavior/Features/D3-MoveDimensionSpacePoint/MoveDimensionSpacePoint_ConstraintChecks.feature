@@ -51,12 +51,35 @@ Feature: Move dimension space point
 
   Scenario: Error case - the target dimension is not configured
     When the command MoveDimensionSpacePoint is executed with payload and exceptions are caught:
-      | Key           | Value              |
-      | workspaceName | "live"             |
-      | source        | {"language": "de"} |
+      | Key           | Value                       |
+      | workspaceName | "live"                      |
+      | source        | {"language": "de"}          |
       | target        | {"language": "notexisting"} |
 
     Then the last command should have thrown an exception of type "DimensionSpacePointNotFound"
+
+  Scenario: Error case - the target DSP is already covered in another workspace - e.g. by applying the same command as well
+    Given the command CreateWorkspace is executed with payload:
+      | Key                | Value                     |
+      | baseWorkspaceName  | "live"                    |
+      | workspaceName      | "migration-workspace"     |
+      | newContentStreamId | "migration-cs-identifier" |
+    And I change the content dimensions in content repository "default" to:
+      | Identifier | Values           | Generalizations       |
+      | language   | mul, de, en, gsw | gsw->de->mul, en->mul |
+
+    And the command MoveDimensionSpacePoint is executed with payload:
+      | Key           | Value               |
+      | workspaceName | "live"              |
+      | source        | {"language": "ch"}  |
+      | target        | {"language": "gsw"} |
+    When the command MoveDimensionSpacePoint is executed with payload and exceptions are caught:
+      | Key           | Value                 |
+      | workspaceName | "migration-workspace" |
+      | source        | {"language": "ch"}    |
+      | target        | {"language": "gsw"}   |
+
+    Then the last command should have thrown an exception of type "DimensionSpacePointAlreadyExists"
 
   Scenario: Error case - there are changes in another workspace
     Given the command CreateWorkspace is executed with payload:
@@ -71,13 +94,13 @@ Feature: Move dimension space point
       | originDimensionSpacePoint | {"language": "de"}       |
       | propertyValues            | {"text": "changed"}      |
     When I change the content dimensions in content repository "default" to:
-      | Identifier | Values       | Generalizations   |
+      | Identifier | Values           | Generalizations       |
       | language   | mul, de, en, gsw | gsw->de->mul, en->mul |
 
     When the command MoveDimensionSpacePoint is executed with payload and exceptions are caught:
-      | Key           | Value              |
-      | workspaceName | "live"             |
-      | source        | {"language": "ch"} |
+      | Key           | Value               |
+      | workspaceName | "live"              |
+      | source        | {"language": "ch"}  |
       | target        | {"language": "gsw"} |
 
     Then the last command should have thrown an exception of type "WorkspaceContainsPublishableChanges" with message:
@@ -86,26 +109,26 @@ Feature: Move dimension space point
     """
 
   Scenario: Error case - adjusting workspace that is non-root or not immediately based on root
-    This limitation is required as we validate that all workspaces except the current on is empty.
-    For publishing we store the originally attempted workspace in $initialWorkspaceName as during the
-    publication this workspace is allowed to contain changes. Allowing to publish adjustments through multiple workspace
-    complicates things and is not desired, as they are rare fundamental changes that should be run on root or in a migration
-    (sandbox) workspace which is published to root.
+  This limitation is required as we validate that all workspaces except the current on is empty.
+  For publishing we store the originally attempted workspace in $initialWorkspaceName as during the
+  publication this workspace is allowed to contain changes. Allowing to publish adjustments through multiple workspace
+  complicates things and is not desired, as they are rare fundamental changes that should be run on root or in a migration
+  (sandbox) workspace which is published to root.
 
     Given the command CreateWorkspace is executed with payload:
-      | Key                | Value                |
-      | workspaceName      | "shared"          |
-      | baseWorkspaceName  | "live"               |
+      | Key                | Value                  |
+      | workspaceName      | "shared"               |
+      | baseWorkspaceName  | "live"                 |
       | newContentStreamId | "shared-cs-identifier" |
 
     Given the command CreateWorkspace is executed with payload:
       | Key                | Value                |
       | workspaceName      | "user-test"          |
-      | baseWorkspaceName  | "shared"               |
+      | baseWorkspaceName  | "shared"             |
       | newContentStreamId | "user-cs-identifier" |
 
     When I change the content dimensions in content repository "default" to:
-      | Identifier | Values      | Generalizations  |
+      | Identifier | Values           | Generalizations       |
       | language   | mul, de, en, gsw | gsw->de->mul, en->mul |
 
     When the command MoveDimensionSpacePoint is executed with payload and exceptions are caught:
@@ -139,9 +162,9 @@ Feature: Move dimension space point
       | language   | mul, en, ch, gsw | ch->mul, gsw->mul, en->mul |
 
     When the command MoveDimensionSpacePoint is executed with payload and exceptions are caught:
-      | Key           | Value              |
-      | workspaceName | "live"             |
-      | source        | {"language": "de"} |
+      | Key           | Value               |
+      | workspaceName | "live"              |
+      | source        | {"language": "de"}  |
       | target        | {"language": "gsw"} |
 
     Then the last command should have thrown an exception of type "NodeAggregateDoesCurrentlyNotOccupyDimensionSpacePoint"

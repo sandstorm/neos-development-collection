@@ -80,13 +80,16 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
             ->getEventStreamName();
 
         $this->requireWorkspaceToBeRootOrRootBasedForDimensionAdjustment($command->workspaceName, $commandHandlingDependencies);
-
-        self::requireDimensionSpacePointToBeEmptyInContentStream(
-            $contentGraph,
-            $command->target
-        );
         $this->requireDimensionSpacePointToExist($command->target);
-        self::requireNoWorkspaceToHaveChanges($commandHandlingDependencies->findAllWorkspaces(), $command->initialWorkspaceName);
+
+        $allWorkspaces = $commandHandlingDependencies->findAllWorkspaces();
+        foreach ($allWorkspaces as $workspace) {
+            self::requireDimensionSpacePointToBeEmptyInContentStream(
+                $commandHandlingDependencies->getContentGraph($workspace->workspaceName),
+                $command->target,
+            );
+        }
+        self::requireNoWorkspaceToHaveChanges($allWorkspaces, $command->initialWorkspaceName);
         $fallbackConstraints = DimensionSpacePointsWithAllowedSpecializations::create(
             DimensionSpacePointWithAllowedSpecializations::create(
                 $command->source,
