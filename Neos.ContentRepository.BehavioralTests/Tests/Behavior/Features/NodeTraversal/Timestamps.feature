@@ -246,7 +246,6 @@ Feature: Behavior of Node timestamp properties "created", "originalCreated", "la
       | created             | originalCreated     | lastModified | originalLastModified |
       | 2023-03-16 13:00:00 | 2023-03-16 13:00:00 |              |                      |
 
-
   Scenario: NodeAggregateWasMoved events don't update last modified timestamps
     When the current date and time is "2023-03-16T13:00:00+01:00"
     And the command MoveNodeAggregate is executed with payload:
@@ -267,20 +266,29 @@ Feature: Behavior of Node timestamp properties "created", "originalCreated", "la
       | 2023-03-16 12:30:00 | 2023-03-16 12:30:00 |              |                      |
 
   Scenario: RootNodeAggregateDimensionsWereUpdated events don't update last modified timestamps
-    When the current date and time is "2023-03-16T13:00:00+01:00"
+    # UpdateRootNodeAggregateDimensions can only be run on root workspaces or their direct children,
+    # so we have to adjust the stage to be able to run the tests on the review workspace
 
+    # First, we have to make sure there are nodes in the review workspace at all
+    Given the command PublishWorkspace is executed with payload:
+      | Key           | Value            |
+      | workspaceName | "user-test" |
+    And the current date and time is "2023-03-16T13:00:00+01:00"
     And I change the content dimensions in content repository "default" to:
       | Identifier | Values              | Generalizations          |
       | language   | mul, de, en, ch, fr | ch->de->mul, en->mul, fr |
-    And the command UpdateRootNodeAggregateDimensions is executed with payload:
+
+    When the command UpdateRootNodeAggregateDimensions is executed with payload:
       | Key             | Value                    |
       | nodeAggregateId | "lady-eleonode-rootford" |
-    And I am in workspace "user-test" and dimension space point {"language":"de"}
+      # Next, we have to explicitly run the command on the review workspace
+      | workspaceName   | "review"                 |
+    And I am in workspace "review" and dimension space point {"language":"de"}
     Then I expect the node "a" to have the following timestamps:
       | created             | originalCreated     | lastModified | originalLastModified |
-      | 2023-03-16 12:00:00 | 2023-03-16 12:00:00 |              |                      |
+      | 2023-03-16 12:30:00 | 2023-03-16 12:00:00 |              |                      |
 
-    When I am in workspace "user-test" and dimension space point {"language":"ch"}
+    When I am in workspace "review" and dimension space point {"language":"ch"}
     Then I expect the node "a" to have the following timestamps:
       | created             | originalCreated     | lastModified | originalLastModified |
       | 2023-03-16 12:30:00 | 2023-03-16 12:30:00 |              |                      |
