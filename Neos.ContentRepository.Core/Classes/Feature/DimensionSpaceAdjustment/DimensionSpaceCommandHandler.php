@@ -40,6 +40,7 @@ use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindRootNodeAggregatesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
+use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\EventStore\Model\EventStream\ExpectedVersion;
 
 /**
@@ -79,17 +80,19 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
         $streamName = ContentStreamEventStreamName::fromContentStreamId($contentGraph->getContentStreamId())
             ->getEventStreamName();
 
-        $this->requireWorkspaceToBeRootOrRootBasedForDimensionAdjustment($command->workspaceName, $commandHandlingDependencies);
         $this->requireDimensionSpacePointToExist($command->target);
-
-        $allWorkspaces = $commandHandlingDependencies->findAllWorkspaces();
-        foreach ($allWorkspaces as $workspace) {
+        $this->requireWorkspaceToBeRootOrRootBasedForDimensionAdjustment($command->workspaceName, $commandHandlingDependencies);
+        $relevantWorkspaces = $commandHandlingDependencies->findAllWorkspaces()->filter(
+            fn (Workspace $workspace): bool => $workspace->isRootWorkspace()
+                || !$workspace->workspaceName->equals($command->initialWorkspaceName)
+        );
+        foreach ($relevantWorkspaces as $workspace) {
             self::requireDimensionSpacePointToBeEmptyInContentStream(
                 $commandHandlingDependencies->getContentGraph($workspace->workspaceName),
                 $command->target,
             );
         }
-        self::requireNoWorkspaceToHaveChanges($allWorkspaces, $command->initialWorkspaceName);
+        self::requireNoWorkspaceToHaveChanges($relevantWorkspaces);
         $fallbackConstraints = DimensionSpacePointsWithAllowedSpecializations::create(
             DimensionSpacePointWithAllowedSpecializations::create(
                 $command->source,
@@ -130,13 +133,19 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
         $streamName = ContentStreamEventStreamName::fromContentStreamId($contentGraph->getContentStreamId())
             ->getEventStreamName();
 
-        self::requireDimensionSpacePointToBeEmptyInContentStream(
-            $contentGraph,
-            $command->target
-        );
         $this->requireDimensionSpacePointToExist($command->target);
-
         $this->requireDimensionSpacePointToBeSpecialization($command->target, $command->source);
+        $this->requireWorkspaceToBeRootOrRootBasedForDimensionAdjustment($command->workspaceName, $commandHandlingDependencies);
+        $relevantWorkspaces = $commandHandlingDependencies->findAllWorkspaces()->filter(
+            fn (Workspace $workspace): bool => $workspace->isRootWorkspace()
+                || !$workspace->workspaceName->equals($command->initialWorkspaceName)
+        );
+        foreach ($relevantWorkspaces as $workspace) {
+            self::requireDimensionSpacePointToBeEmptyInContentStream(
+                $commandHandlingDependencies->getContentGraph($workspace->workspaceName),
+                $command->target,
+            );
+        }
 
         return new EventsToPublish(
             $streamName,

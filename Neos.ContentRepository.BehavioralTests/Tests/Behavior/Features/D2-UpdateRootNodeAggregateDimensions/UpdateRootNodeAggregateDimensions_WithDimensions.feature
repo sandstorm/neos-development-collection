@@ -108,8 +108,8 @@ Feature: Update Root Node aggregate dimensions
 
     # again, remove "en"
     Given I change the content dimensions in content repository "default" to:
-      | Identifier | Values  | Generalizations |
-      | language   | fr, de, |                 |
+      | Identifier | Values | Generalizations |
+      | language   | fr, de |                 |
     And the command UpdateRootNodeAggregateDimensions is executed with payload:
       | Key             | Value                    |
       | nodeAggregateId | "lady-eleonode-rootford" |
@@ -403,17 +403,22 @@ Feature: Update Root Node aggregate dimensions
       | affectedOccupiedDimensionSpacePoints | []                                     |
       | affectedCoveredDimensionSpacePoints  | [{"language":"de"},{"language":"gsw"}] |
 
-    Then I expect the node aggregate "root-three" to exist
+    And I expect the node aggregate "root-three" to exist
     And I expect this node aggregate to occupy dimension space points [[]]
     And I expect this node aggregate to cover dimension space points [{"language":"fr"}]
 
-    Then I expect the node aggregate "sir-david-nodenborough" to exist
+    And I expect the node aggregate "sir-david-nodenborough" to exist
     And I expect this node aggregate to occupy dimension space points [{"language":"fr"}]
     And I expect this node aggregate to cover dimension space points [{"language":"fr"}]
 
-    Then I expect the node aggregate "david-son" to not exist
+    And I expect the node aggregate "david-son" to not exist
 
-    Then I expect the node aggregate "david-datter" to not exist
+    And I expect the node aggregate "david-datter" to not exist
+
+    And I expect the graph projection to consist of exactly 3 nodes
+    And I expect a node identified by cs-identifier;lady-eleonode-rootford;[] to exist in the content graph
+    And I expect a node identified by cs-identifier;root-three;[] to exist in the content graph
+    And I expect a node identified by cs-identifier;sir-david-nodenborough;{"language":"fr"} to exist in the content graph
 
   Scenario: Adding a dimension updating the root node keeps subtree tags
     Given I change the content dimensions in content repository "default" to:

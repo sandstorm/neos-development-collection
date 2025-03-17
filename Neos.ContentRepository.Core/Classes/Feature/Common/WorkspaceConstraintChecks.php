@@ -56,13 +56,10 @@ trait WorkspaceConstraintChecks
         }
     }
 
-    private static function requireNoWorkspaceToHaveChanges(Workspaces $workspaces, ?WorkspaceName $excludedWorkspaceName): void
+    private static function requireNoWorkspaceToHaveChanges(Workspaces $workspaces): void
     {
         $conflictingWorkspaceNames = [];
         foreach ($workspaces as $workspace) {
-            if ($excludedWorkspaceName?->equals($workspace->workspaceName)) {
-                continue;
-            }
             if ($workspace->hasPublishableChanges()) {
                 $conflictingWorkspaceNames[] = $workspace->workspaceName;
             }
