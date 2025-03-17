@@ -83,22 +83,22 @@ Feature: Update root node aggregate dimension space point
     """
 
   Scenario: Error case - adjusting workspace that is non-root or not immediately based on root
-    This limitation is required as we validate that all workspaces except the current on is empty.
-    For publishing we store the originally attempted workspace in $initialWorkspaceName as during the
-    publication this workspace is allowed to contain changes. Allowing to publish adjustments through multiple workspace
-    complicates things and is not desired, as they are rare fundamental changes that should be run on root or in a migration
-    (sandbox) workspace which is published to root.
+  This limitation is required as we validate that all workspaces except the current on is empty.
+  For publishing we store the originally attempted workspace in $initialWorkspaceName as during the
+  publication this workspace is allowed to contain changes. Allowing to publish adjustments through multiple workspace
+  complicates things and is not desired, as they are rare fundamental changes that should be run on root or in a migration
+  (sandbox) workspace which is published to root.
 
     Given the command CreateWorkspace is executed with payload:
-      | Key                | Value                |
-      | workspaceName      | "shared"          |
-      | baseWorkspaceName  | "live"               |
+      | Key                | Value                  |
+      | workspaceName      | "shared"               |
+      | baseWorkspaceName  | "live"                 |
       | newContentStreamId | "shared-cs-identifier" |
 
     Given the command CreateWorkspace is executed with payload:
       | Key                | Value                |
       | workspaceName      | "user-test"          |
-      | baseWorkspaceName  | "shared"               |
+      | baseWorkspaceName  | "shared"             |
       | newContentStreamId | "user-cs-identifier" |
 
     Given I change the content dimensions in content repository "default" to:
@@ -107,7 +107,7 @@ Feature: Update root node aggregate dimension space point
 
     And the command UpdateRootNodeAggregateDimensions is executed with payload and exceptions are caught:
       | Key             | Value                    |
-      | workspaceName | "user-test" |
+      | workspaceName   | "user-test"              |
       | nodeAggregateId | "lady-eleonode-rootford" |
 
     Then the last command should have thrown an exception of type "InvalidDimensionAdjustmentTargetWorkspace"
@@ -183,3 +183,28 @@ Feature: Update root node aggregate dimension space point
     """
     Descendant Node sir-david-nodenborough in dimensions [{"language":"gsw"}] must not fallback to dimension {"language":"de"} which will be removed.
     """
+
+  Scenario: Error case - there's already an edge in the target dimension in another workspace, e.g. by executing the same command
+    Given the command CreateRootNodeAggregateWithNode is executed with payload:
+      | Key                       | Value                                 |
+      | nodeAggregateId           | "root-three"                          |
+      | nodeTypeName              | "Neos.ContentRepository.Testing:Root" |
+      | originDimensionSpacePoint | {}                                    |
+    And the command CreateWorkspace is executed with payload:
+      | Key                | Value                     |
+      | baseWorkspaceName  | "live"                    |
+      | workspaceName      | "migration-workspace"     |
+      | newContentStreamId | "migration-cs-identifier" |
+    And I change the content dimensions in content repository "default" to:
+      | Identifier | Values     | Generalizations |
+      | language   | fr, de, en |                 |
+    And the command UpdateRootNodeAggregateDimensions is executed with payload:
+      | Key             | Value        |
+      | nodeAggregateId | "root-three" |
+      | workspaceName   | "live"       |
+
+    When the command UpdateRootNodeAggregateDimensions is executed with payload and exceptions are caught:
+      | Key             | Value                 |
+      | nodeAggregateId | "root-three"          |
+      | workspaceName   | "migration-workspace" |
+    Then the last command should have thrown an exception of type "DimensionSpacePointAlreadyExists"

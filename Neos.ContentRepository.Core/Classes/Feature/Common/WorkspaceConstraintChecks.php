@@ -5,8 +5,12 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Feature\Common;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
+use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
+use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Exception\DimensionSpacePointAlreadyExists;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Exception\InvalidDimensionAdjustmentTargetWorkspace;
 use Neos\ContentRepository\Core\Feature\WorkspaceCreation\Exception\BaseWorkspaceDoesNotExist;
+use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
+use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceContainsPublishableChanges;
 use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceDoesNotExist;
 use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceHasNoBaseWorkspaceName;
@@ -67,6 +71,20 @@ trait WorkspaceConstraintChecks
 
         if ($conflictingWorkspaceNames !== []) {
             throw WorkspaceContainsPublishableChanges::butWasNotSupposedTo(...$conflictingWorkspaceNames);
+        }
+    }
+
+    private static function requireDimensionSpacePointToBeEmptyInContentStream(
+        ContentGraphInterface $contentGraph,
+        DimensionSpacePoint $dimensionSpacePoint
+    ): void {
+        $hasNodes = $contentGraph->getSubgraph($dimensionSpacePoint, VisibilityConstraints::createEmpty())->countNodes();
+        if ($hasNodes > 0) {
+            throw new DimensionSpacePointAlreadyExists(sprintf(
+                'the content stream %s already contained nodes in dimension space point %s - this is not allowed.',
+                $contentGraph->getContentStreamId()->value,
+                $dimensionSpacePoint->toJson(),
+            ), 1612898126);
         }
     }
 }

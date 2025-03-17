@@ -48,11 +48,6 @@ Feature: Add Dimension Specialization - constraint checks
       | initialPropertyValues     | {"text": "hello" }                        |
 
   Scenario: Error case - there's already an edge in the target dimension in another workspace, e.g. by executing the same command
-    Given the command CreateWorkspace is executed with payload:
-      | Key                | Value                     |
-      | baseWorkspaceName  | "live"                    |
-      | workspaceName      | "migration-workspace"     |
-      | newContentStreamId | "migration-cs-identifier" |
     When I change the content dimensions in content repository "default" to:
       | Identifier | Values          | Generalizations |
       | language   | mul, de, ch, en | ch->de->mul     |

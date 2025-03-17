@@ -49,6 +49,7 @@ use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateClassification;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
+use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 
 /**
@@ -166,11 +167,22 @@ trait RootNodeHandling
         }
 
         $this->requireWorkspaceToBeRootOrRootBasedForDimensionAdjustment($command->workspaceName, $commandHandlingDependencies);
-        self::requireNoWorkspaceToHaveChanges($commandHandlingDependencies->findAllWorkspaces(), $command->initialWorkspaceName ?? $command->workspaceName);
+        $relevantWorkspaces = $commandHandlingDependencies->findAllWorkspaces()->filter(
+            fn (Workspace $workspace): bool => !$workspace->workspaceName->equals($command->initialWorkspaceName)
+        );
+        self::requireNoWorkspaceToHaveChanges($relevantWorkspaces);
 
         $allowedDimensionSubspace = $this->getAllowedDimensionSubspace();
 
         $newDimensionSpacePoints = $allowedDimensionSubspace->getDifference($rootNodeAggregate->coveredDimensionSpacePoints);
+        foreach ($newDimensionSpacePoints as $newDimensionSpacePoint) {
+            foreach ($relevantWorkspaces as $workspace) {
+                self::requireDimensionSpacePointToBeEmptyInContentStream(
+                    $commandHandlingDependencies->getContentGraph($workspace->workspaceName),
+                    $newDimensionSpacePoint,
+                );
+            }
+        }
         $removedDimensionSpacePoints = $rootNodeAggregate->coveredDimensionSpacePoints->getDifference($allowedDimensionSubspace);
 
         $generalisationsCoveredAlreadyByRootNodeAggregate = $this->getInterDimensionalVariationGraph()->getGeneralizationSetForSet($newDimensionSpacePoints, includeOrigins: false)

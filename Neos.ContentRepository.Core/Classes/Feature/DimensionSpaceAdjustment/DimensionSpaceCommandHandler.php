@@ -164,20 +164,6 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
         );
     }
 
-    private static function requireDimensionSpacePointToBeEmptyInContentStream(
-        ContentGraphInterface $contentGraph,
-        DimensionSpacePoint $dimensionSpacePoint
-    ): void {
-        $hasNodes = $contentGraph->getSubgraph($dimensionSpacePoint, VisibilityConstraints::createEmpty())->countNodes();
-        if ($hasNodes > 0) {
-            throw new DimensionSpacePointAlreadyExists(sprintf(
-                'the content stream %s already contained nodes in dimension space point %s - this is not allowed.',
-                $contentGraph->getContentStreamId()->value,
-                $dimensionSpacePoint->toJson(),
-            ), 1612898126);
-        }
-    }
-
     private function requireDimensionSpacePointToBeSpecialization(
         DimensionSpacePoint $target,
         DimensionSpacePoint $source
