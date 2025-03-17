@@ -30,18 +30,16 @@ use Neos\ContentRepository\Core\Feature\Common\WorkspaceConstraintChecks;
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\AddDimensionShineThrough;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Command\MoveDimensionSpacePoint;
+use Neos\ContentRepository\Core\Feature\Common\DimensionSpacePointsWithAllowedSpecializations;
+use Neos\ContentRepository\Core\Feature\Common\DimensionSpacePointWithAllowedSpecializations;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Event\DimensionShineThroughWasAdded;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Event\DimensionSpacePointWasMoved;
 use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Exception\DimensionSpacePointAlreadyExists;
-use Neos\ContentRepository\Core\Feature\DimensionSpaceAdjustment\Exception\InvalidDimensionAdjustmentTargetWorkspace;
 use Neos\ContentRepository\Core\Feature\RebaseableCommand;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindRootNodeAggregatesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
-use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceContainsPublishableChanges;
-use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
-use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
 use Neos\EventStore\Model\EventStream\ExpectedVersion;
 
 /**
@@ -89,11 +87,17 @@ final readonly class DimensionSpaceCommandHandler implements CommandHandlerInter
         );
         $this->requireDimensionSpacePointToExist($command->target);
         self::requireNoWorkspaceToHaveChanges($commandHandlingDependencies->findAllWorkspaces(), $command->initialWorkspaceName);
+        $fallbackConstraints = DimensionSpacePointsWithAllowedSpecializations::create(
+            DimensionSpacePointWithAllowedSpecializations::create(
+                $command->source,
+                $this->interDimensionalVariationGraph->getSpecializationSet($command->target, false),
+            )
+        );
         foreach ($contentGraph->findRootNodeAggregates(FindRootNodeAggregatesFilter::create()) as $rootNodeAggregate) {
-            $this->requireDescendantNodesToNotFallbackToDimensionPointSet(
+            $this->requireDescendantNodesToNotFallbackToDimensionSpacePointsOtherThan(
                 $rootNodeAggregate->nodeAggregateId,
                 $contentGraph,
-                DimensionSpacePointSet::fromArray([$command->source])
+                $fallbackConstraints,
             );
         }
 

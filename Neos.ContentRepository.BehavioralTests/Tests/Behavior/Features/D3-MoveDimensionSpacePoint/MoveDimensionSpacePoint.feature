@@ -55,7 +55,7 @@ Feature: Move dimension space point
       | coveredDimensionSpacePoint   | {"language":"ch"}          |
       | nodeVariantSelectionStrategy | "allSpecializations"       |
 
-  Scenario: Success Case - rename specialization
+  Scenario: Success Case - Specializations can be renamed
     Given I change the content dimensions in content repository "default" to:
       | Identifier | Values           | Generalizations       |
       | language   | mul, de, en, gsw | gsw->de->mul, en->mul |
@@ -97,6 +97,62 @@ Feature: Move dimension space point
     And I expect node aggregate identifier "varied-nodenborough" to lead to node migration-cs;varied-nodenborough;{"language": "gsw"}
     And I expect node aggregate identifier "only-specialization-nodenborough" to lead to node migration-cs;only-specialization-nodenborough;{"language": "gsw"}
     And I expect node aggregate identifier "nody-mc-nodeface" to lead to node migration-cs;nody-mc-nodeface;{"language": "de"}
+
+    When I run integrity violation detection
+    Then I expect the integrity violation detection result to contain exactly 0 errors
+
+  Scenario: Success Case - Generalizations can be renamed if the specialization structure is unchanged
+    Given I change the content dimensions in content repository "default" to:
+      | Identifier | Values             | Generalizations         |
+      | language   | mul, de_DE, en, ch | ch->de_DE->mul, en->mul |
+
+    When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs", without publishing on success:
+    """yaml
+    migration:
+      -
+        transformations:
+          -
+            type: 'MoveDimensionSpacePoint'
+            settings:
+              from: { language: 'de' }
+              to: { language: 'de_DE' }
+    """
+
+    Then I expect the graph projection to consist of exactly 11 nodes
+
+    # the original content stream has not been touched
+    When I am in workspace "live"
+    Then I expect a node identified by cs-identifier;lady-eleonode-rootford;{} to exist in the content graph
+    And I expect a node identified by cs-identifier;sir-david-nodenborough;{"language": "de"} to exist in the content graph
+    And I expect a node identified by cs-identifier;varied-nodenborough;{"language": "de"} to exist in the content graph
+    And I expect a node identified by cs-identifier;varied-nodenborough;{"language": "ch"} to exist in the content graph
+    And I expect a node identified by cs-identifier;only-specialization-nodenborough;{"language": "ch"} to exist in the content graph
+    And I expect a node identified by cs-identifier;only-source-nodenborough;{"language": "de"} to exist in the content graph
+    And I expect a node identified by cs-identifier;nody-mc-nodeface;{"language": "de"} to exist in the content graph
+
+    # we find the node at the new DimensionSpacePoint, but not at the old one
+    When I am in workspace "migration-workspace"
+    And I expect a node identified by migration-cs;sir-david-nodenborough;{"language": "de_DE"} to exist in the content graph
+    And I expect a node identified by migration-cs;varied-nodenborough;{"language": "de_DE"} to exist in the content graph
+    And I expect a node identified by migration-cs;only-source-nodenborough;{"language": "de_DE"} to exist in the content graph
+    And I expect a node identified by migration-cs;nody-mc-nodeface;{"language": "de_DE"} to exist in the content graph
+    When I am in dimension space point {"language": "de"}
+    Then I expect the subgraph projection to consist of exactly 0 nodes
+    When I am in dimension space point {"language": "de_DE"}
+    Then I expect the subgraph projection to consist of exactly 5 nodes
+    And I expect node aggregate identifier "lady-eleonode-rootford" to lead to node migration-cs;lady-eleonode-rootford;{}
+    And I expect node aggregate identifier "sir-david-nodenborough" to lead to node migration-cs;sir-david-nodenborough;{"language": "de_DE"}
+    And I expect node aggregate identifier "varied-nodenborough" to lead to node migration-cs;varied-nodenborough;{"language": "de_DE"}
+    And I expect node aggregate identifier "only-source-nodenborough" to lead to node migration-cs;only-source-nodenborough;{"language": "de_DE"}
+    And I expect node aggregate identifier "nody-mc-nodeface" to lead to node migration-cs;nody-mc-nodeface;{"language": "de_DE"}
+    # the fallback still works and is adjusted to the new generalization
+    When I am in dimension space point {"language": "ch"}
+    Then I expect the subgraph projection to consist of exactly 5 nodes
+    And I expect node aggregate identifier "lady-eleonode-rootford" to lead to node migration-cs;lady-eleonode-rootford;{}
+    And I expect node aggregate identifier "sir-david-nodenborough" to lead to node migration-cs;sir-david-nodenborough;{"language": "de_DE"}
+    And I expect node aggregate identifier "varied-nodenborough" to lead to node migration-cs;varied-nodenborough;{"language": "ch"}
+    And I expect node aggregate identifier "only-specialization-nodenborough" to lead to node migration-cs;only-specialization-nodenborough;{"language": "ch"}
+    And I expect node aggregate identifier "nody-mc-nodeface" to lead to node migration-cs;nody-mc-nodeface;{"language": "de_DE"}
 
     When I run integrity violation detection
     Then I expect the integrity violation detection result to contain exactly 0 errors
@@ -203,7 +259,7 @@ Feature: Move dimension space point
     When I run integrity violation detection
     Then I expect the integrity violation detection result to contain exactly 0 errors
 
-  Scenario: Success Case - after eliminating all fallbacks via variation, a generalization can be moved
+  Scenario: Success Case - after eliminating all fallbacks via variation, a generalization can be moved while changing the specialization structure
     # Eliminate all fallbacks by varying the nodes
     When the command CreateNodeVariant is executed with payload:
       | Key             | Value                    |
@@ -258,7 +314,7 @@ Feature: Move dimension space point
     Then I expect the integrity violation detection result to contain exactly 0 errors
 
     When the command PublishWorkspace is executed with payload:
-      | Key           | Value            |
+      | Key           | Value                 |
       | workspaceName | "migration-workspace" |
 
     Then I expect the graph projection to consist of exactly 9 nodes

@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace Neos\ContentRepository\Core\Feature\RootNodeCreation;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
+use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePointSet;
@@ -22,6 +23,8 @@ use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
 use Neos\ContentRepository\Core\Feature\Common\InterdimensionalSiblings;
+use Neos\ContentRepository\Core\Feature\Common\DimensionSpacePointsWithAllowedSpecializations;
+use Neos\ContentRepository\Core\Feature\Common\DimensionSpacePointWithAllowedSpecializations;
 use Neos\ContentRepository\Core\Feature\NodeRemoval\Event\NodeAggregateWasRemoved;
 use Neos\ContentRepository\Core\Feature\RebaseableCommand;
 use Neos\ContentRepository\Core\Feature\ContentStreamEventStreamName;
@@ -179,7 +182,18 @@ trait RootNodeHandling
 
         $events = [];
         if (!$removedDimensionSpacePoints->isEmpty()) {
-            $this->requireDescendantNodesToNotFallbackToDimensionPointSet($rootNodeAggregate->nodeAggregateId, $contentGraph, $removedDimensionSpacePoints);
+            $this->requireDescendantNodesToNotFallbackToDimensionSpacePointsOtherThan(
+                $rootNodeAggregate->nodeAggregateId,
+                $contentGraph,
+                DimensionSpacePointsWithAllowedSpecializations::create(...array_map(
+                    fn (DimensionSpacePoint $removedDimensionSpacePoint): DimensionSpacePointWithAllowedSpecializations
+                        => DimensionSpacePointWithAllowedSpecializations::create(
+                            $removedDimensionSpacePoint,
+                            $removedDimensionSpacePoints, // only fallbacks to also removed DSPs allowed
+                        ),
+                    $removedDimensionSpacePoints->points
+                ))
+            );
             $events[] = new NodeAggregateWasRemoved(
                 $contentGraph->getWorkspaceName(),
                 $contentGraph->getContentStreamId(),
@@ -268,10 +282,10 @@ trait RootNodeHandling
         return $events;
     }
 
-    abstract protected function requireDescendantNodesToNotFallbackToDimensionPointSet(
+    abstract protected function requireDescendantNodesToNotFallbackToDimensionSpacePointsOtherThan(
         NodeAggregateId $nodeAggregateId,
         ContentGraphInterface $contentGraph,
-        DimensionSpacePointSet $disallowedDimensionSpacePointFallbackSet
+        DimensionSpacePointsWithAllowedSpecializations $fallbackConstraints,
     ): void;
 
     private function createTetheredWithNodeForRoot(
