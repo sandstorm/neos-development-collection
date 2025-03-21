@@ -56,7 +56,7 @@ abstract class AbstractParallelTestCase extends TestCase // we don't use Flows f
     final protected function awaitFileRemoval(string $filename): void
     {
         $waiting = 0;
-        while (!is_file($filename)) {
+        while (is_file($filename)) {
             usleep(1000);
             $waiting++;
             clearstatcache(true, $filename);
