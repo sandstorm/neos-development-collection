@@ -56,7 +56,7 @@ abstract class AbstractParallelTestCase extends TestCase // we don't use Flows f
     final protected function awaitFileRemoval(string $filename): void
     {
         $waiting = 0;
-        while (!is_file($filename)) {
+        while (is_file($filename)) {
             usleep(1000);
             $waiting++;
             clearstatcache(true, $filename);
@@ -80,7 +80,7 @@ abstract class AbstractParallelTestCase extends TestCase // we don't use Flows f
 
     final protected function log(string $message): void
     {
-        file_put_contents(self::LOGGING_PATH, self::shortClassName($this::class) . ': ' . getmypid() . ': ' .  $message . PHP_EOL, FILE_APPEND);
+        file_put_contents(self::LOGGING_PATH, self::shortClassName($this::class) . ': [pid ' . getmypid() . ', time ' . time() . '] ' .  $message . PHP_EOL, FILE_APPEND);
     }
 
     final protected static function shortClassName(string $className): string
