@@ -160,11 +160,15 @@ trait NodeTypeChange
         }
 
         match ($command->strategy) {
-            NodeAggregateTypeChangeChildConstraintConflictResolutionStrategy::STRATEGY_HAPPY_PATH
+            NodeAggregateTypeChangeChildConstraintConflictResolutionStrategy::STRATEGY_HAPPY_PATH,
+            NodeAggregateTypeChangeChildConstraintConflictResolutionStrategy::STRATEGY_PROMISED_CASCADE,
                 => $this->requireConstraintsImposedByHappyPathStrategyAreMet(
                     $contentGraph,
                     $nodeAggregate,
-                    $newNodeType
+                    $newNodeType,
+                    $command->strategy === NodeAggregateTypeChangeChildConstraintConflictResolutionStrategy::STRATEGY_PROMISED_CASCADE
+                        ? $nodeAggregate->nodeTypeName
+                        : null,
                 ),
             NodeAggregateTypeChangeChildConstraintConflictResolutionStrategy::STRATEGY_DELETE => null
         };
@@ -289,7 +293,8 @@ trait NodeTypeChange
     private function requireConstraintsImposedByHappyPathStrategyAreMet(
         ContentGraphInterface $contentGraph,
         NodeAggregate $nodeAggregate,
-        NodeType $newNodeType
+        NodeType $newNodeType,
+        ?NodeTypeName $expectIdenticallyTypedDescendantsToBeChangedAsWell,
     ): void {
         // if we have children, we need to check whether they are still allowed
         // after we changed the node type of the $nodeAggregate to $newNodeType.
@@ -300,9 +305,17 @@ trait NodeTypeChange
             /* @var $childNodeAggregate NodeAggregate */
             // the "parent" of the $childNode is $node;
             // so we use $newNodeType (the target node type of $node after the operation) here.
+            if (
+                $expectIdenticallyTypedDescendantsToBeChangedAsWell
+                && $childNodeAggregate->nodeTypeName->equals($expectIdenticallyTypedDescendantsToBeChangedAsWell)
+            ) {
+                $childNodeTypeForConstraintChecks = $newNodeType;
+            } else {
+                $childNodeTypeForConstraintChecks = $this->requireNodeType($childNodeAggregate->nodeTypeName);
+            }
             $this->requireNodeTypeConstraintsImposedByParentToBeMet(
                 $newNodeType,
-                $this->requireNodeType($childNodeAggregate->nodeTypeName)
+                $childNodeTypeForConstraintChecks
             );
 
             // we do not need to test for grandparents here, as we did not modify the grandparents.
@@ -317,10 +330,19 @@ trait NodeTypeChange
                 // we do not need to test for the parent of grandchild (=child),
                 // as we do not change the child's node type.
                 // we however need to check for the grandparent node type.
+
+                if (
+                    $expectIdenticallyTypedDescendantsToBeChangedAsWell
+                    && $grandchildNodeAggregate->nodeTypeName->equals($expectIdenticallyTypedDescendantsToBeChangedAsWell)
+                ) {
+                    $grandChildNodeTypeForConstraintChecks = $newNodeType;
+                } else {
+                    $grandChildNodeTypeForConstraintChecks = $this->requireNodeType($grandchildNodeAggregate->nodeTypeName);
+                }
                 $this->requireNodeTypeConstraintsImposedByGrandparentToBeMet(
                     $newNodeType, // the grandparent node type changes
                     $childNodeAggregate->nodeName,
-                    $this->requireNodeType($grandchildNodeAggregate->nodeTypeName)
+                    $grandChildNodeTypeForConstraintChecks
                 );
             }
 
@@ -330,7 +352,8 @@ trait NodeTypeChange
                         $this->requireConstraintsImposedByHappyPathStrategyAreMet(
                             $contentGraph,
                             $childNodeAggregate,
-                            $this->requireNodeType($tetheredNodeTypeDefinition->nodeTypeName)
+                            $this->requireNodeType($tetheredNodeTypeDefinition->nodeTypeName),
+                            $expectIdenticallyTypedDescendantsToBeChangedAsWell,
                         );
                     }
                 }

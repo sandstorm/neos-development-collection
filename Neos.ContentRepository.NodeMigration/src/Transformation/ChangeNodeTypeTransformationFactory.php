@@ -19,11 +19,7 @@ use Neos\ContentRepository\Core\Feature\NodeTypeChange\Command\ChangeNodeAggrega
 use Neos\ContentRepository\Core\Feature\NodeTypeChange\Dto\NodeAggregateTypeChangeChildConstraintConflictResolutionStrategy;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregate;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
-
-/** @codingStandardsIgnoreStart */
-/** @codingStandardsIgnoreEnd */
 
 /**
  * Change the node type.
@@ -39,7 +35,7 @@ class ChangeNodeTypeTransformationFactory implements TransformationFactoryInterf
     ): GlobalTransformationInterface|NodeAggregateBasedTransformationInterface|NodeBasedTransformationInterface {
         // by default, we won't delete anything.
         $nodeAggregateTypeChangeChildConstraintConflictResolutionStrategy
-            = NodeAggregateTypeChangeChildConstraintConflictResolutionStrategy::STRATEGY_HAPPY_PATH;
+            = NodeAggregateTypeChangeChildConstraintConflictResolutionStrategy::STRATEGY_PROMISED_CASCADE;
         if (isset($settings['forceDeleteNonMatchingChildren']) && $settings['forceDeleteNonMatchingChildren']) {
             $nodeAggregateTypeChangeChildConstraintConflictResolutionStrategy
                 = NodeAggregateTypeChangeChildConstraintConflictResolutionStrategy::STRATEGY_DELETE;
@@ -62,8 +58,7 @@ class ChangeNodeTypeTransformationFactory implements TransformationFactoryInterf
 
             public function execute(
                 NodeAggregate $nodeAggregate,
-                WorkspaceName $workspaceNameForWriting,
-                ContentStreamId $contentStreamForWriting
+                WorkspaceName $workspaceNameForWriting
             ): void {
                 $this->contentRepository->handle(ChangeNodeAggregateType::create(
                     $workspaceNameForWriting,

@@ -46,6 +46,18 @@ trait ProjectedNodeAggregateTrait
         });
     }
 
+    /**
+     * @Then /^I expect the node aggregate "([^"]*)" to not exist$/
+     */
+    public function iExpectTheNodeAggregateToNotExist(string $serializedNodeAggregateId): void
+    {
+        $nodeAggregateId = NodeAggregateId::fromString($serializedNodeAggregateId);
+        $contentGraph = $this->currentContentRepository->getContentGraph($this->currentWorkspaceName);
+        $nodeAggregate = $contentGraph->findNodeAggregateById($nodeAggregateId);
+
+        Assert::assertNull($nodeAggregate?->occupiedDimensionSpacePoints, sprintf('Node aggregate "%s" was found in the current workspace "%s" but should not exist.', $nodeAggregateId->value, $this->currentWorkspaceName->value));
+    }
+
     protected function initializeCurrentNodeAggregate(callable $query): void
     {
         $this->currentNodeAggregate = $query($this->currentContentRepository->getContentGraph($this->currentWorkspaceName));

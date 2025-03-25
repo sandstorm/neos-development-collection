@@ -155,8 +155,8 @@ final class ContentRepositoryFactory
                 $this->propertyConverter,
             ),
             new DimensionSpaceCommandHandler(
-                $this->contentDimensionZookeeper,
                 $this->interDimensionalVariationGraph,
+                $this->nodeTypeManager,
             )
         );
 

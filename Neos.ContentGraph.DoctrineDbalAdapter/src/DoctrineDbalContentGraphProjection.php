@@ -616,29 +616,24 @@ final class DoctrineDbalContentGraphProjection implements ContentGraphProjection
             return;
         }
 
-        // delete all hierarchy edges of the root node
-        $deleteHierarchyRelationsStatement = <<<SQL
-            DELETE FROM {$this->tableNames->hierarchyRelation()}
-            WHERE
-                parentnodeanchor = :parentNodeAnchor
-                AND childnodeanchor = :childNodeAnchor
-                AND contentstreamid = :contentStreamId
-        SQL;
-        try {
-            $this->dbal->executeStatement($deleteHierarchyRelationsStatement, [
-                'parentNodeAnchor' => NodeRelationAnchorPoint::forRootEdge()->value,
-                'childNodeAnchor' => $rootNodeAnchorPoint->value,
-                'contentStreamId' => $event->contentStreamId->value,
-            ]);
-        } catch (DBALException $e) {
-            throw new \RuntimeException(sprintf('Failed to delete hierarchy relation: %s', $e->getMessage()), 1716488943, $e);
+        $ingoingRelations = $this->projectionContentGraph->findIngoingHierarchyRelationsForNode(
+            $rootNodeAnchorPoint,
+            $event->contentStreamId
+        );
+
+        $currentlyCoveredDimensionSpacePoints = [];
+        foreach ($ingoingRelations as $ingoingRelation) {
+            $currentlyCoveredDimensionSpacePoints[] = $ingoingRelation->dimensionSpacePoint;
         }
-        // recreate hierarchy edges for the root node
+
+        $newlyCoveredDimensionSpacePoints = $event->coveredDimensionSpacePoints->getDifference(DimensionSpacePointSet::fromArray($currentlyCoveredDimensionSpacePoints));
+
+        // add hierarchy edges for newly added dimensions
         $this->connectHierarchy(
             $event->contentStreamId,
             NodeRelationAnchorPoint::forRootEdge(),
             $rootNodeAnchorPoint,
-            $event->coveredDimensionSpacePoints,
+            $newlyCoveredDimensionSpacePoints,
             null
         );
     }

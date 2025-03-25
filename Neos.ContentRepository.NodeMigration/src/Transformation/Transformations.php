@@ -7,7 +7,6 @@ namespace Neos\ContentRepository\NodeMigration\Transformation;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregate;
-use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 
 final class Transformations
@@ -100,22 +99,20 @@ final class Transformations
 
     public function executeNodeAggregateBased(
         NodeAggregate $nodeAggregate,
-        WorkspaceName $workspaceNameForWriting,
-        ContentStreamId $contentStreamForWriting
+        WorkspaceName $workspaceNameForWriting
     ): void {
         foreach ($this->nodeAggregateBasedTransformations as $nodeAggregateBasedTransformation) {
-            $nodeAggregateBasedTransformation->execute($nodeAggregate, $workspaceNameForWriting, $contentStreamForWriting);
+            $nodeAggregateBasedTransformation->execute($nodeAggregate, $workspaceNameForWriting);
         }
     }
 
     public function executeNodeBased(
         Node $node,
         DimensionSpacePointSet $coveredDimensionSpacePoints,
-        WorkspaceName $workspaceNameForWriting,
-        ContentStreamId $contentStreamForWriting
+        WorkspaceName $workspaceNameForWriting
     ): void {
         foreach ($this->nodeBasedTransformations as $nodeBasedTransformation) {
-            $nodeBasedTransformation->execute($node, $coveredDimensionSpacePoints, $workspaceNameForWriting, $contentStreamForWriting);
+            $nodeBasedTransformation->execute($node, $coveredDimensionSpacePoints, $workspaceNameForWriting);
         }
     }
 }

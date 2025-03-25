@@ -6,8 +6,6 @@ Feature: Add Dimension Specialization
 
   !! NOTE: We can NOT trigger SPECIALIZATION of all nodes using the existing events; because this materializes the nodes.
 
-  !! Constraint: the Target Dimension Space should be empty.
-
   Background:
     ########################
     # SETUP
@@ -32,9 +30,9 @@ Feature: Add Dimension Specialization
     And using identifier "default", I define a content repository
     And I am in content repository "default"
     And the command CreateRootWorkspace is executed with payload:
-      | Key                  | Value                |
-      | workspaceName        | "live"               |
-      | newContentStreamId   | "cs-identifier"      |
+      | Key                | Value           |
+      | workspaceName      | "live"          |
+      | newContentStreamId | "cs-identifier" |
     And I am in workspace "live"
     And the command CreateRootNodeAggregateWithNode is executed with payload:
       | Key             | Value                         |
@@ -178,54 +176,26 @@ Feature: Add Dimension Specialization
     When I run integrity violation detection
     Then I expect the integrity violation detection result to contain exactly 0 errors
 
+  Scenario: Add shine through while other workspace contains publishable changes
+    When the command CreateWorkspace is executed with payload:
+      | Key                | Value                |
+      | workspaceName      | "user-test"          |
+      | baseWorkspaceName  | "live"               |
+      | newContentStreamId | "user-cs-identifier" |
 
-  Scenario: Error case - there's already an edge in the target dimension
-    # we change the dimension configuration
-    When I change the content dimensions in content repository "default" to:
-      | Identifier | Values          | Generalizations |
-      | language   | mul, de, ch, en | ch->de->mul     |
+    When the command CreateNodeAggregateWithNode is executed with payload:
+      | Key                       | Value                                     |
+      | workspaceName             | "user-test"                               |
+      | nodeAggregateId           | "sir-davis-son"                           |
+      | nodeTypeName              | "Neos.ContentRepository.Testing:Document" |
+      | originDimensionSpacePoint | {"language": "de"}                        |
+      | parentNodeAggregateId     | "sir-david-nodenborough"                  |
+      | initialPropertyValues     | {"text": "moin" }                         |
 
-    # we create a node in CH
-    When the command CreateNodeVariant is executed with payload:
-      | Key             | Value                    |
-      | nodeAggregateId | "sir-david-nodenborough" |
-      | sourceOrigin    | {"language":"de"}        |
-      | targetOrigin    | {"language":"en"}        |
-
-    When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs" and exceptions are caught:
-    """yaml
-    migration:
-      -
-        transformations:
-          -
-            type: 'AddDimensionShineThrough'
-            settings:
-              from: { language: 'de' }
-              to: { language: 'en' }
-    """
-    Then the last command should have thrown an exception of type "DimensionSpacePointAlreadyExists"
-
-  Scenario: Error case - the target dimension is not configured
-    When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs" and exceptions are caught:
-    """yaml
-    migration:
-      -
-        transformations:
-          -
-            type: 'AddDimensionShineThrough'
-            settings:
-              from: { language: 'de' }
-              to: { language: 'notexisting' }
-    """
-    Then the last command should have thrown an exception of type "DimensionSpacePointNotFound"
-
-
-  Scenario: Error case - the target dimension is not a specialization of the source dimension (1)
     Given I change the content dimensions in content repository "default" to:
-      | Identifier | Values       | Generalizations |
-      | language   | mul, de, foo | de->mul         |
-
-    When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs" and exceptions are caught:
+      | Identifier | Values      | Generalizations |
+      | language   | mul, de, en, ch | ch->de->mul     |
+    When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs", with publishing on success:
     """yaml
     migration:
       -
@@ -234,27 +204,20 @@ Feature: Add Dimension Specialization
             type: 'AddDimensionShineThrough'
             settings:
               from: { language: 'de' }
-              to: { language: 'foo' }
+              to: { language: 'ch' }
     """
-    Then the last command should have thrown an exception of type "DimensionSpacePointIsNoSpecialization"
 
+    When I am in workspace "user-test"
+    And I expect the node aggregate "sir-david-nodenborough" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"de"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"de"}]
 
-  Scenario: Error case - the target dimension is not a specialization of the source dimension (2)
-    Given I change the content dimensions in content repository "default" to:
-      | Identifier | Values       | Generalizations   |
-      | language   | mul, de, foo | de->mul, foo->mul |
+    When the command RebaseWorkspace is executed with payload:
+      | Key                    | Value                        |
+      | workspaceName          | "user-test"                  |
+      | rebasedContentStreamId | "user-cs-identifier-rebased" |
 
-    When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs" and exceptions are caught:
-    """yaml
-    migration:
-      -
-        transformations:
-          -
-            type: 'AddDimensionShineThrough'
-            settings:
-              from: { language: 'de' }
-              to: { language: 'foo' }
-    """
-    Then the last command should have thrown an exception of type "DimensionSpacePointIsNoSpecialization"
-
-
+    When I am in workspace "user-test"
+    And I expect the node aggregate "sir-david-nodenborough" to exist
+    And I expect this node aggregate to occupy dimension space points [{"language":"de"}]
+    And I expect this node aggregate to cover dimension space points [{"language":"de"}, {"language":"ch"}]

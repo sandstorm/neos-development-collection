@@ -9,6 +9,7 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspaces;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceStatus;
+use PHPUnit\Framework\Assert;
 use PHPUnit\Framework\TestCase;
 
 class WorkspacesTest extends TestCase
@@ -194,6 +195,52 @@ class WorkspacesTest extends TestCase
             $expectedBaseWorkspaceNames,
             $actual->map(fn (Workspace $workspace) => $workspace->workspaceName->value)
         );
+    }
+
+    /**
+     * @dataProvider rootWorkspaceSampleProvider
+     */
+    public function testGetRootWorkspaces(Workspaces $workspaces, array $expectedRootWorkspaceNames): void
+    {
+        Assert::assertEquals(
+            $expectedRootWorkspaceNames,
+            array_map(
+                fn (Workspace $workspace): WorkspaceName => $workspace->workspaceName,
+                $workspaces->getRootWorkspaces(),
+            )
+        );
+    }
+
+    public static function rootWorkspaceSampleProvider(): iterable
+    {
+        yield 'empty set' => [
+            'workspaces' => Workspaces::fromArray([]),
+            'expectedRootWorkspaceNames' => []
+        ];
+
+        yield 'root set' => [
+            'workspaces' => Workspaces::fromArray([
+                self::workspace('root', null),
+                self::workspace('other-root', null),
+            ]),
+            'expectedRootWorkspaceNames' => [
+                WorkspaceName::fromString('root'),
+                WorkspaceName::fromString('other-root'),
+            ]
+        ];
+
+        yield 'mixed set' => [
+            'workspaces' => Workspaces::fromArray([
+                self::workspace('root', null),
+                self::workspace('regular', 'root'),
+                self::workspace('leaf', 'regular'),
+                self::workspace('other-root', null),
+            ]),
+            'expectedRootWorkspaceNames' => [
+                WorkspaceName::fromString('root'),
+                WorkspaceName::fromString('other-root'),
+            ]
+        ];
     }
 
     private static function workspace(string $name, string|null $baseWorkspace): Workspace

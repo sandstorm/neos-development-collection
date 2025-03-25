@@ -52,7 +52,7 @@ class MoveDimensionSpacePointTransformationFactory implements TransformationFact
                     MoveDimensionSpacePoint::create(
                         $workspaceNameForWriting,
                         $this->from,
-                        $this->to
+                        $this->to,
                     )
                 );
             }
