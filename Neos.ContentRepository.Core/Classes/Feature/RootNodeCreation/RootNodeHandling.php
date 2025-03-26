@@ -18,7 +18,6 @@ use Neos\ContentRepository\Core\CommandHandler\CommandHandlingDependencies;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
-use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePointSet;
 use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\Events;
 use Neos\ContentRepository\Core\EventStore\EventsToPublish;
@@ -210,9 +209,7 @@ trait RootNodeHandling
                 $contentGraph->getWorkspaceName(),
                 $contentGraph->getContentStreamId(),
                 $rootNodeAggregate->nodeAggregateId,
-                // TODO root nodes never occupy, but this field is odd, unused and to be removed either way: https://github.com/neos/neos-development-collection/pull/5516
-                affectedOccupiedDimensionSpacePoints: OriginDimensionSpacePointSet::fromArray([]),
-                affectedCoveredDimensionSpacePoints: $removedDimensionSpacePoints,
+                $removedDimensionSpacePoints,
             );
         }
 
