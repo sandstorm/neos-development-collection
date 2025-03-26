@@ -41,6 +41,7 @@ use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
+use Neos\Flow\Annotations as Flow;
 
 /**
  * Wrapper for a concrete implementation of the {@see ContentSubgraphInterface} that
@@ -49,13 +50,22 @@ use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
  * It is a rather pragmatic way to speed up (uncached) rendering.
  *
  * @internal implementation detail of {@see ContentRepositoryRegistry::subgraphForNode()}
+ * @Flow\Proxy(false)
  */
 final readonly class ContentSubgraphWithRuntimeCaches implements ContentSubgraphInterface
 {
-    public function __construct(
+    private function __construct(
         private ContentSubgraphInterface $wrappedContentSubgraph,
         private SubgraphCachePool $subgraphCachePool
     ) {
+    }
+
+    public static function decorate(ContentSubgraphInterface $uncachedSubgraph, SubgraphCachePool $subgraphCachePool): self
+    {
+        if ($uncachedSubgraph instanceof ContentSubgraphWithRuntimeCaches) {
+            return $uncachedSubgraph;
+        }
+        return new self($uncachedSubgraph, $subgraphCachePool);
     }
 
     public function getContentRepositoryId(): ContentRepositoryId
@@ -80,7 +90,7 @@ final readonly class ContentSubgraphWithRuntimeCaches implements ContentSubgraph
 
     public function findChildNodes(NodeAggregateId $parentNodeAggregateId, FindChildNodesFilter $filter): Nodes
     {
-        if (!self::isFilterEmpty($filter)) {
+        if (!$filter->isEmpty()) {
             return $this->wrappedContentSubgraph->findChildNodes($parentNodeAggregateId, $filter);
         }
         $childNodesCache = $this->subgraphCachePool->getAllChildNodesByNodeIdCache($this);
@@ -102,7 +112,7 @@ final readonly class ContentSubgraphWithRuntimeCaches implements ContentSubgraph
 
     public function countChildNodes(NodeAggregateId $parentNodeAggregateId, CountChildNodesFilter $filter): int
     {
-        if (!self::isFilterEmpty($filter)) {
+        if (!$filter->isEmpty()) {
             return $this->wrappedContentSubgraph->countChildNodes($parentNodeAggregateId, $filter);
         }
         $childNodesCache = $this->subgraphCachePool->getAllChildNodesByNodeIdCache($this);
@@ -248,10 +258,5 @@ final readonly class ContentSubgraphWithRuntimeCaches implements ContentSubgraph
     public function countNodes(): int
     {
         return $this->wrappedContentSubgraph->countNodes();
-    }
-
-    private static function isFilterEmpty(object $filter): bool
-    {
-        return array_filter(get_object_vars($filter), static fn ($value) => $value !== null) === [];
     }
 }
