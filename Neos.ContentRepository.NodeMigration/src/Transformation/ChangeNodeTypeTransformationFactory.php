@@ -44,7 +44,6 @@ class ChangeNodeTypeTransformationFactory implements TransformationFactoryInterf
         return new class (
             $settings['newType'],
             $nodeAggregateTypeChangeChildConstraintConflictResolutionStrategy,
-            $contentRepository
         ) implements NodeAggregateBasedTransformationInterface {
             public function __construct(
                 /**
@@ -52,15 +51,14 @@ class ChangeNodeTypeTransformationFactory implements TransformationFactoryInterf
                  */
                 private readonly string $newType,
                 private readonly NodeAggregateTypeChangeChildConstraintConflictResolutionStrategy $strategy,
-                private readonly ContentRepository $contentRepository
             ) {
             }
 
             public function execute(
                 NodeAggregate $nodeAggregate,
                 WorkspaceName $workspaceNameForWriting
-            ): void {
-                $this->contentRepository->handle(ChangeNodeAggregateType::create(
+            ): TransformationStep {
+                return TransformationStep::fromCommand(ChangeNodeAggregateType::create(
                     $workspaceNameForWriting,
                     $nodeAggregate->nodeAggregateId,
                     NodeTypeName::fromString($this->newType),

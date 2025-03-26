@@ -110,7 +110,23 @@ Feature: Update root node aggregate dimensions
       | Identifier | Values      | Generalizations |
       | language   | mul, de, ch | ch->de->mul     |
 
-    When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs", without publishing on success:
+    When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs" and exceptions are caught:
+    """yaml
+    migration:
+      -
+        transformations:
+          -
+            type: 'UpdateRootNodeAggregateDimensions'
+            settings:
+              nodeType: 'Neos.ContentRepository:Root'
+    """
+
+    Then the last command should have thrown an exception of type "NodeMigrationRequireConfirmationException" with message:
+    """
+    1 warnings: commands UpdateRootNodeAggregateDimensions require confirmation: Updating the dimensions of root node lady-eleonode-rootford will remove all its descendants in dimensions [{"language":"en"}]
+    """
+
+    When I run the following node migration for workspace "live", creating target workspace "migration-workspace" on contentStreamId "migration-cs", with force and publishing on success:
     """yaml
     migration:
       -

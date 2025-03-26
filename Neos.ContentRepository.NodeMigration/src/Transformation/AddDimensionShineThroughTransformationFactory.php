@@ -38,19 +38,18 @@ class AddDimensionShineThroughTransformationFactory implements TransformationFac
         return new class (
             DimensionSpacePoint::fromArray($settings['from']),
             DimensionSpacePoint::fromArray($settings['to']),
-            $contentRepository
         ) implements GlobalTransformationInterface {
             public function __construct(
                 private readonly DimensionSpacePoint $from,
                 private readonly DimensionSpacePoint $to,
-                private readonly ContentRepository $contentRepository,
             ) {
             }
 
             public function execute(
+                WorkspaceName $workspaceNameForReading,
                 WorkspaceName $workspaceNameForWriting,
-            ): void {
-                $this->contentRepository->handle(
+            ): TransformationStep {
+                return TransformationStep::fromCommand(
                     AddDimensionShineThrough::create(
                         $workspaceNameForWriting,
                         $this->from,

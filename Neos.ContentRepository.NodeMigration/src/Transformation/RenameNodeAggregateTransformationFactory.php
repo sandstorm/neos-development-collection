@@ -33,22 +33,20 @@ class RenameNodeAggregateTransformationFactory implements TransformationFactoryI
 
         return new class (
             $newNodeName,
-            $contentRepository
         ) implements NodeAggregateBasedTransformationInterface {
             public function __construct(
                 /**
                  * The new Node Name to use as a string
                  */
                 private readonly string $newNodeName,
-                private readonly ContentRepository $contentRepository
             ) {
             }
 
             public function execute(
                 NodeAggregate $nodeAggregate,
                 WorkspaceName $workspaceNameForWriting
-            ): void {
-                $this->contentRepository->handle(ChangeNodeAggregateName::create(
+            ): TransformationStep {
+                return TransformationStep::fromCommand(ChangeNodeAggregateName::create(
                     $workspaceNameForWriting,
                     $nodeAggregate->nodeAggregateId,
                     NodeName::fromString($this->newNodeName),

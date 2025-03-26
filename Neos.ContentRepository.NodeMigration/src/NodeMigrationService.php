@@ -16,6 +16,7 @@ use Neos\ContentRepository\NodeMigration\Command\ExecuteMigration;
 use Neos\ContentRepository\NodeMigration\Filter\FiltersFactory;
 use Neos\ContentRepository\NodeMigration\Filter\InvalidMigrationFilterSpecified;
 use Neos\ContentRepository\NodeMigration\Transformation\TransformationsFactory;
+use Neos\ContentRepository\NodeMigration\Transformation\TransformationSteps;
 
 /**
  * Node Migrations are manually written adjustments to the Node tree;
@@ -65,13 +66,33 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
             ), 1611688225);
         }
 
-        $targetWorkspaceWasCreated = false;
-        if ($targetWorkspace = $this->contentRepository->findWorkspaceByName($command->targetWorkspaceName)) {
-            if ($targetWorkspace->hasPublishableChanges()) {
-                throw new MigrationException(sprintf('Target workspace "%s" already exists an is not empty. Please clear the workspace before.', $targetWorkspace->workspaceName->value));
-            }
+        $targetWorkspace = $this->contentRepository->findWorkspaceByName($command->targetWorkspaceName);
+        if ($targetWorkspace?->hasPublishableChanges()) {
+            throw new MigrationException(sprintf('Target workspace "%s" already exists an is not empty. Please clear the workspace before.', $targetWorkspace->workspaceName->value));
+        }
 
-        } else {
+        $transformationSteps = TransformationSteps::createEmpty();
+        foreach ($command->migrationConfiguration->getMigration() as $migrationDescription) {
+            $transformationSteps = $transformationSteps->merge($this->executeSubMigration(
+                $migrationDescription,
+                $command->sourceWorkspaceName,
+                $command->targetWorkspaceName
+            ));
+        }
+
+        if ($command->requireConfirmation) {
+            $stepsThatRequireConfirmation = $transformationSteps->filterConfirmationRequired();
+            if (!$stepsThatRequireConfirmation->isEmpty()) {
+                throw NodeMigrationRequireConfirmationException::becauseStepsRequireConfirmation($stepsThatRequireConfirmation);
+            }
+        }
+
+        if ($transformationSteps->isEmpty()) {
+            throw new MigrationException('Migration did not issue any commands.', 1742117823);
+        }
+
+        $targetWorkspaceWasCreated = false;
+        if ($targetWorkspace === null) {
             $this->contentRepository->handle(
                 CreateWorkspace::create(
                     $command->targetWorkspaceName,
@@ -79,20 +100,13 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
                     $command->contentStreamId,
                 )
             );
-            $targetWorkspace = $this->contentRepository->findWorkspaceByName($command->targetWorkspaceName);
             $targetWorkspaceWasCreated = true;
         }
 
-        if ($targetWorkspace === null) {
-            throw new MigrationException(sprintf('Target workspace "%s" could not loaded nor created.', $command->targetWorkspaceName->value));
-        }
-
-        foreach ($command->migrationConfiguration->getMigration() as $migrationDescription) {
-            $this->executeSubMigration(
-                $migrationDescription,
-                $command->sourceWorkspaceName,
-                $command->targetWorkspaceName
-            );
+        foreach ($transformationSteps as $transformationStep) {
+            foreach ($transformationStep->commands as $transformationCommand) {
+                $this->contentRepository->handle($transformationCommand);
+            }
         }
 
         if ($command->publishOnSuccess === true) {
@@ -118,7 +132,7 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
         array $migrationDescription,
         WorkspaceName $workspaceNameForReading,
         WorkspaceName $workspaceNameForWriting
-    ): void {
+    ): TransformationSteps {
         $filters = $this->filterFactory->buildFilterConjunction($migrationDescription['filters'] ?? []);
         $transformations = $this->transformationFactory->buildTransformation(
             $migrationDescription['transformations'] ?? []
@@ -145,8 +159,11 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
             );
         }
 
+        $transformationSteps = TransformationSteps::createEmpty();
         if ($transformations->containsGlobal()) {
-            $transformations->executeGlobal($workspaceNameForWriting);
+            $transformationSteps = $transformationSteps->merge(
+                $transformations->executeGlobal($workspaceNameForReading, $workspaceNameForWriting)
+            );
         } elseif ($transformations->containsNodeAggregateBased()) {
             $contentGraph = $this->contentRepository->getContentGraph($workspaceNameForReading);
             foreach ($contentGraph->findUsedNodeTypeNames() as $nodeTypeName) {
@@ -156,7 +173,9 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
                     ) as $nodeAggregate
                 ) {
                     if ($filters->matchesNodeAggregate($nodeAggregate)) {
-                        $transformations->executeNodeAggregateBased($nodeAggregate, $workspaceNameForWriting);
+                        $transformationSteps = $transformationSteps->merge(
+                            $transformations->executeNodeAggregateBased($nodeAggregate, $workspaceNameForWriting)
+                        );
                     }
                 }
             }
@@ -182,10 +201,12 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
                             );
 
                             if ($filters->matchesNode($node)) {
-                                $transformations->executeNodeBased(
-                                    $node,
-                                    $coveredDimensionSpacePoints,
-                                    $workspaceNameForWriting
+                                $transformationSteps = $transformationSteps->merge(
+                                    $transformations->executeNodeBased(
+                                        $node,
+                                        $coveredDimensionSpacePoints,
+                                        $workspaceNameForWriting
+                                    )
                                 );
                             }
                         }
@@ -193,5 +214,7 @@ readonly class NodeMigrationService implements ContentRepositoryServiceInterface
                 }
             }
         }
+
+        return $transformationSteps;
     }
 }

@@ -37,7 +37,6 @@ class AddNewPropertyConverterAwareTransformationFactory implements PropertyConve
             $settings['newPropertyName'],
             $settings['type'],
             $settings['serializedValue'],
-            $contentRepository,
             $propertyConverter,
         ) implements NodeBasedTransformationInterface {
             public function __construct(
@@ -50,7 +49,6 @@ class AddNewPropertyConverterAwareTransformationFactory implements PropertyConve
                  * Serialized Property value to be set.
                  */
                 private readonly mixed $serializedValue,
-                private readonly ContentRepository $contentRepository,
                 private readonly PropertyConverter $propertyConverter,
             ) {
             }
@@ -59,15 +57,15 @@ class AddNewPropertyConverterAwareTransformationFactory implements PropertyConve
                 Node $node,
                 DimensionSpacePointSet $coveredDimensionSpacePoints,
                 WorkspaceName $workspaceNameForWriting
-            ): void {
+            ): TransformationStep {
                 if ($this->serializedValue === null) {
                     // we don't need to unset a non-existing property
-                    return;
+                    return TransformationStep::createEmpty();
                 }
                 $deserializedPropertyValue = $this->propertyConverter->deserializePropertyValue(SerializedPropertyValue::create($this->serializedValue, $this->type)); // @phpstan-ignore neos.cr.internal
 
                 if (!$node->hasProperty($this->newPropertyName)) {
-                    $this->contentRepository->handle(
+                    return TransformationStep::fromCommand(
                         SetNodeProperties::create(
                             $workspaceNameForWriting,
                             $node->aggregateId,
@@ -78,6 +76,8 @@ class AddNewPropertyConverterAwareTransformationFactory implements PropertyConve
                         )
                     );
                 }
+
+                return TransformationStep::createEmpty();
             }
         };
     }
