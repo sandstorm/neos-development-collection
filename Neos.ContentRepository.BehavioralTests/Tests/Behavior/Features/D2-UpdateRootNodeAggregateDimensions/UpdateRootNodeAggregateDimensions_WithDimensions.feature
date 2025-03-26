@@ -308,8 +308,6 @@ Feature: Update Root Node aggregate dimensions
       | Key                                  | Expected            |
       | contentStreamId                      | "cs-identifier"     |
       | nodeAggregateId                      | "root-three"        |
-      # todo remove this field, its wrong: https://github.com/neos/neos-development-collection/pull/5516
-      | affectedOccupiedDimensionSpacePoints | []                  |
       | affectedCoveredDimensionSpacePoints  | [{"language":"de"}] |
 
     Then I expect the node aggregate "root-three" to exist
@@ -399,8 +397,6 @@ Feature: Update Root Node aggregate dimensions
       | Key                                  | Expected                               |
       | contentStreamId                      | "cs-identifier"                        |
       | nodeAggregateId                      | "root-three"                           |
-      # todo remove this field, its wrong: https://github.com/neos/neos-development-collection/pull/5516
-      | affectedOccupiedDimensionSpacePoints | []                                     |
       | affectedCoveredDimensionSpacePoints  | [{"language":"de"},{"language":"gsw"}] |
 
     And I expect the node aggregate "root-three" to exist
