@@ -149,6 +149,33 @@ final readonly class ContentRepositoryMaintainer implements ContentRepositorySer
     }
 
     /**
+     * Reactivate a subscription
+     *
+     * The explicit catchup is only needed for subscriptions in the error or detached status with an advanced position.
+     * Running a full replay would work but might be overkill, instead this reactivation will just attempt
+     * catchup the subscription back to active from its current position.
+     *
+     * @internal reactivation is an experimental and advanced concept, if possible a replay should be used instead which is more stable
+     * Problematic can be events where the projection did partially apply them (some commited queries) but then suddenly crashed.
+     * A reactivation attempts to fully reapply that event which can conflict with work already done.
+     */
+    public function reactivateSubscription(SubscriptionId $subscriptionId, \Closure|null $progressCallback = null): Error|null
+    {
+        $subscriptionStatus = $this->subscriptionEngine->subscriptionStatus(SubscriptionEngineCriteria::create([$subscriptionId]))->first();
+        if ($subscriptionStatus === null) {
+            return new Error(sprintf('Subscription "%s" is not registered.', $subscriptionId->value));
+        }
+        if ($subscriptionStatus->subscriptionStatus === SubscriptionStatus::NEW) {
+            return new Error(sprintf('Subscription "%s" is not setup and cannot be reactivated.', $subscriptionId->value));
+        }
+        $reactivateResult = $this->subscriptionEngine->reactivate(SubscriptionEngineCriteria::create([$subscriptionId]), progressCallback: $progressCallback, batchSize: self::REPLAY_BATCH_SIZE);
+        if ($reactivateResult->errors !== null) {
+            return self::createErrorForReason('Could not reactivate subscriber:', $reactivateResult->errors);
+        }
+        return null;
+    }
+
+    /**
      * WARNING: Removes all events from the content repository and resets the subscriptions
      * This operation cannot be undone.
      */
