@@ -46,7 +46,6 @@ Feature: Remove NodeAggregate
       | Key                                  | Expected        |
       | contentStreamId                      | "cs-identifier" |
       | nodeAggregateId                      | "nodingers-cat" |
-      | affectedOccupiedDimensionSpacePoints | [[]]            |
       | affectedCoveredDimensionSpacePoints  | [[]]            |
     Then I expect the graph projection to consist of exactly 2 nodes
     And I expect a node identified by cs-identifier;lady-eleonode-rootford;{} to exist in the content graph
