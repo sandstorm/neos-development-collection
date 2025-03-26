@@ -50,8 +50,6 @@ final readonly class VisibilityConstraints implements \JsonSerializable
 
     /**
      * A subgraph without constraints for finding all nodes without filtering
-     *
-     * Nodes for example with tag disabled will be findable
      */
     public static function createEmpty(): self
     {
@@ -77,7 +75,19 @@ final readonly class VisibilityConstraints implements \JsonSerializable
     }
 
     /**
-     * @deprecated with Neos 9 beta 19 please use {@see VisibilityConstraints::excludeSubtreeTags} instead.
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return get_object_vars($this);
+    }
+
+    /** -------------- deprecations: ------------------- */
+
+    /**
+     * Please use {@see VisibilityConstraints::excludeSubtreeTags} instead.
+     *
+     * @deprecated with Neos 9 beta 19. To be removed with Neos 10.
      */
     public static function fromTagConstraints(SubtreeTags $tagConstraints): self
     {
@@ -87,13 +97,13 @@ final readonly class VisibilityConstraints implements \JsonSerializable
     /**
      * Legacy, only for Neos.Neos context!, for standalone use please use {@see self::excludeSubtreeTags()}
      *
-     * Please look into {@see \Neos\Neos\Domain\Service\NeosVisibilityConstraints()} instead.
+     * Please look into {@see \Neos\Neos\Domain\SubtreeTagging\NeosVisibilityConstraints} instead.
      *
-     * @deprecated with Neos 9 beta 19
+     * @deprecated with Neos 9 beta 19. To be removed with Neos 10.
      */
-    public static function default(): VisibilityConstraints
+    public static function default(): self
     {
-        return new self(SubtreeTags::create(SubtreeTag::disabled(), SubtreeTag::fromString('removed')));
+        return self::excludeSubtreeTags(SubtreeTags::create(SubtreeTag::disabled(), SubtreeTag::fromString('removed')));
     }
 
     /**
@@ -110,18 +120,10 @@ final readonly class VisibilityConstraints implements \JsonSerializable
      *
      * Please use {@see \Neos\Neos\Domain\SubtreeTagging\NeosVisibilityConstraints::excludeRemoved()} instead.
      *
-     * @deprecated with Neos 9 beta 19
+     * @deprecated with Neos 9 beta 19. To be removed with Neos 10.
      */
     public static function withoutRestrictions(): self
     {
-        return new self(SubtreeTags::fromStrings('removed'));
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function jsonSerialize(): array
-    {
-        return get_object_vars($this);
+        return self::excludeSubtreeTags(SubtreeTags::fromStrings('removed'));
     }
 }
