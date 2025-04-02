@@ -31,7 +31,11 @@ final class WorkspaceName implements \JsonSerializable
     public const WORKSPACE_NAME_LIVE = 'live';
 
     /**
-     * @var array<string,self>
+     * @todo fix the annotation below once flow can either
+     *   - understand types for array keys
+     *   - ignores static properties
+     * @phpstan-var array<string,self>
+     * @var array<self>
      */
     private static array $instances = [];
 
