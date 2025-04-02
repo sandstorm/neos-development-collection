@@ -28,7 +28,7 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
  */
 final class DbalSchemaFactory
 {
-    private const DEFAULT_MYSQL_COLLATION = 'utf8mb4_unicode_520_ci';
+    public const DEFAULT_MYSQL_COLLATION = 'utf8mb4_unicode_520_ci';
 
     // This class only contains static members and should not be constructed
     private function __construct()
@@ -94,8 +94,7 @@ final class DbalSchemaFactory
      */
     public static function columnForDimensionSpacePoint(string $columnName, AbstractPlatform $platform): Column
     {
-        return (new Column($columnName, Type::getType(Types::JSON)))
-            ->setDefault('{}');
+        return (new Column($columnName, Type::getType(Types::JSON)));
     }
 
     /**
