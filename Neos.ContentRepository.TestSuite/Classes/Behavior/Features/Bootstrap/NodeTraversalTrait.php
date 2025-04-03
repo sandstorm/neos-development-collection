@@ -43,6 +43,7 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\Subtree;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
+use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Helpers\DimensionSpacePointSetSorter;
 use PHPUnit\Framework\Assert;
 
 /**
@@ -431,17 +432,17 @@ trait NodeTraversalTrait
         $actualNodeAggregatesTable = array_map(static fn (NodeAggregate $nodeAggregate) => [
             'nodeAggregateId' => $nodeAggregate->nodeAggregateId->value,
             'nodeTypeName' => $nodeAggregate->nodeTypeName->value,
-            'coveredDimensionSpacePoints' => $nodeAggregate->coveredDimensionSpacePoints->toJson(),
-            'occupiedDimensionSpacePoints' => $nodeAggregate->occupiedDimensionSpacePoints->toJson(),
-            'explicitlyDisabledDimensions' => $nodeAggregate->getCoveredDimensionsTaggedBy(SubtreeTag::disabled(), withoutInherited: true)->toJson(),
+            'coveredDimensionSpacePoints' => DimensionSpacePointSetSorter::sortSet($nodeAggregate->coveredDimensionSpacePoints)->toJson(),
+            'occupiedDimensionSpacePoints' => DimensionSpacePointSetSorter::sortOriginSet($nodeAggregate->occupiedDimensionSpacePoints)->toJson(),
+            'explicitlyDisabledDimensions' => DimensionSpacePointSetSorter::sortSet($nodeAggregate->getCoveredDimensionsTaggedBy(SubtreeTag::disabled(), withoutInherited: true))->toJson(),
         ], iterator_to_array($actualNodeAggregates));
 
         $expectedNodeAggregatesWithNormalisedJson = array_map(
             fn (array $row) => [
                 ...$row,
-                'coveredDimensionSpacePoints' => DimensionSpacePointSet::fromJsonString($row['coveredDimensionSpacePoints'])->toJson(),
-                'occupiedDimensionSpacePoints' => DimensionSpacePointSet::fromJsonString($row['occupiedDimensionSpacePoints'])->toJson(),
-                'explicitlyDisabledDimensions' => DimensionSpacePointSet::fromJsonString($row['explicitlyDisabledDimensions'])->toJson(),
+                'coveredDimensionSpacePoints' => DimensionSpacePointSetSorter::sortSet($row['coveredDimensionSpacePoints'])->toJson(),
+                'occupiedDimensionSpacePoints' => DimensionSpacePointSetSorter::sortOriginSet($row['occupiedDimensionSpacePoints'])->toJson(),
+                'explicitlyDisabledDimensions' => DimensionSpacePointSetSorter::sortSet($row['explicitlyDisabledDimensions'])->toJson(),
             ],
             $expectedNodeAggregates
         );
