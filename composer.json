@@ -6,7 +6,7 @@
     ],
     "type": "neos-package-collection",
     "require": {
-        "neos/flow-development-collection": "9.0.x-dev",
+        "neos/flow-development-collection": "10.0.x-dev",
         "doctrine/dbal": "^3.1.4",
         "doctrine/migrations": "*",
         "neos/eventstore": "^1",
@@ -44,7 +44,7 @@
         "neos/party": "~7.0.3",
         "neos/fusion-form": "^1.0 || ^2.0",
         "neos/form": "*",
-        "neos/kickstarter": "~9.0.0"
+        "neos/kickstarter": "~10.0.0"
     },
     "replace": {
         "packagefactory/atomicfusion-afx": "*",
