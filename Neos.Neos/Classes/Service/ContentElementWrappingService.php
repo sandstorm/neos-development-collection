@@ -18,7 +18,6 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAddress;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Annotations as Flow;
-use Neos\Fusion\Service\HtmlAugmenter as FusionHtmlAugmenter;
 
 /**
  * The content element wrapping service adds the necessary markup around
@@ -29,11 +28,6 @@ use Neos\Fusion\Service\HtmlAugmenter as FusionHtmlAugmenter;
  */
 class ContentElementWrappingService
 {
-    /**
-     * @Flow\Inject
-     * @var FusionHtmlAugmenter
-     */
-    protected $htmlAugmenter;
 
     /**
      * @Flow\Inject
@@ -52,29 +46,19 @@ class ContentElementWrappingService
         string $fusionPath,
         array $additionalAttributes = []
     ): ?string {
-        $contentRepository = $this->contentRepositoryRegistry->get(
-            $node->contentRepositoryId
-        );
-
         // TODO: reenable permissions
         //if ($this->nodeAuthorizationService->isGrantedToEditNode($node) === false) {
         //    return $content;
         //}
 
 
-        $nodeAddress = NodeAddress::fromNode($node);
+        $nodeAddressJson = NodeAddress::fromNode($node)->toJson();
         $attributes = $additionalAttributes;
-        $attributes['data-__neos-fusion-path'] = $fusionPath;
-        $attributes['data-__neos-node-contextpath'] = $nodeAddress->toJson();
+        $attributes['fusionPath'] = $fusionPath;
+        $attributes['nodeAddress'] = $nodeAddressJson;
 
-        // Define all attribute names as exclusive via the `exclusiveAttributes` parameter, to prevent the data of
-        // two different nodes to be concatenated into the attributes of a single html node.
-        // This way an outer div is added, if the wrapped content already has node related data-attributes set.
-        return $this->htmlAugmenter->addAttributes(
-            $content,
-            $attributes,
-            'div',
-            array_keys($attributes)
-        );
+        $htmlCommentStart = '<!--__NEOS_UI_NODE_START__ ' . json_encode($attributes) . '-->';
+        $htmlCommentEnd = '<!--__NEOS_UI_NODE_END__' . $nodeAddressJson . '-->';
+        return $htmlCommentStart . $content . $htmlCommentEnd;
     }
 }
