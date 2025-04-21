@@ -146,26 +146,26 @@ final class NodeFactory
         $totalCoveredDimensionSpacePoints = DimensionSpacePointSet::fromArray([]);
         $occupationByCovered = [];
         $nodeTagsByCoveredDimensionSpacePoint = [];
-        foreach ($nodeRecords as $node) {
-            $nodeAggregateId = $node->nodeAggregateId;
-            $classification = $node->classification;
-            $nodeTypeName = $node->nodeTypeName;
-            $nodeName = $node->name;
-            $occupiedDimensionSpacePoints[] = $node->originDimensionSpacePoint;
-            $nodesByOccupiedDimensionSpacePoint[$node->originDimensionSpacePoint->hash] = $this->mapNodeRecordToNode(
-                $node,
+        foreach ($nodeRecords as $nodeRecord) {
+            $nodeAggregateId = $nodeRecord->nodeAggregateId;
+            $classification = $nodeRecord->classification;
+            $nodeTypeName = $nodeRecord->nodeTypeName;
+            $nodeName = $nodeRecord->name;
+            $occupiedDimensionSpacePoints[] = $nodeRecord->originDimensionSpacePoint;
+            $nodesByOccupiedDimensionSpacePoint[$nodeRecord->originDimensionSpacePoint->hash] = $this->mapNodeRecordToNode(
+                $nodeRecord,
                 $workspaceName,
-                $node->originDimensionSpacePoint->toDimensionSpacePoint(),
+                $nodeRecord->originDimensionSpacePoint->toDimensionSpacePoint(),
                 VisibilityConstraints::createEmpty()
             );
-            $coveredDimensionSpacePoints = $node->parentsByContentStreamId[$contentStreamId->value]->getCoveredDimensionSpacePointSet();
-            $coverageByOccupant[$node->originDimensionSpacePoint->hash] = iterator_to_array($coveredDimensionSpacePoints);
+            $coveredDimensionSpacePoints = $nodeRecord->parentsByContentStreamId[$contentStreamId->value]->getCoveredDimensionSpacePointSet();
+            $coverageByOccupant[$nodeRecord->originDimensionSpacePoint->hash] = iterator_to_array($coveredDimensionSpacePoints);
             $totalCoveredDimensionSpacePoints = $totalCoveredDimensionSpacePoints->getUnion($coveredDimensionSpacePoints);
             foreach ($coveredDimensionSpacePoints as $coveredDimensionSpacePoint) {
-                $occupationByCovered[$coveredDimensionSpacePoint->hash] = $node->originDimensionSpacePoint;
+                $occupationByCovered[$coveredDimensionSpacePoint->hash] = $nodeRecord->originDimensionSpacePoint;
                 $nodeTagsByCoveredDimensionSpacePoint[$coveredDimensionSpacePoint->hash] = NodeTags::create(
-                    $node->tags,
-                    $node->inheritedTags
+                    $nodeRecord->tags,
+                    $nodeRecord->inheritedTags
                 );
             }
         }
@@ -182,179 +182,33 @@ final class NodeFactory
             CoverageByOrigin::fromArray($coverageByOccupant),
             $totalCoveredDimensionSpacePoints,
             OriginByCoverage::fromArray($occupationByCovered),
+            /** @phpstan-ignore argument.type (never empty) */
             $nodeTagsByCoveredDimensionSpacePoint,
         );
     }
 
     /**
      * @param array<int,array<string,string>> $nodeRows
-     * @throws NodeTypeNotFound
+     * @deprecated
      */
     public function mapNodeRowsToNodeAggregate(
         array $nodeRows,
         WorkspaceName $workspaceName,
         VisibilityConstraints $visibilityConstraints
     ): ?NodeAggregate {
-        if (empty($nodeRows)) {
-            return null;
-        }
-
-        $rawNodeAggregateId = '';
-        $rawNodeTypeName = '';
-        $rawNodeName = '';
-        $rawNodeAggregateClassification = '';
-        $occupiedDimensionSpacePoints = [];
-        $nodesByOccupiedDimensionSpacePoint = [];
-        $coveredDimensionSpacePoints = [];
-        $coverageByOccupants = [];
-        $occupationByCovering = [];
-        $nodeTagsByCoveredDimensionSpacePoint = [];
-
-        foreach ($nodeRows as $nodeRow) {
-            // A node can occupy exactly one DSP and cover multiple ones...
-            $occupiedDimensionSpacePoint = $this->dimensionSpacePointRepository->getOriginDimensionSpacePointByHash($nodeRow['origindimensionspacepointhash']);
-            if (!isset($nodesByOccupiedDimensionSpacePoint[$occupiedDimensionSpacePoint->hash])) {
-                // ... so we handle occupation exactly once ...
-                $nodesByOccupiedDimensionSpacePoint[$occupiedDimensionSpacePoint->hash] = $this->mapNodeRecordToNode(
-                    $nodeRow,
-                    $workspaceName,
-                    $occupiedDimensionSpacePoint->toDimensionSpacePoint(),
-                    $visibilityConstraints
-                );
-                $occupiedDimensionSpacePoints[] = $occupiedDimensionSpacePoint;
-                $rawNodeAggregateId = $rawNodeAggregateId ?: $nodeRow['nodeaggregateid'];
-                $rawNodeTypeName = $rawNodeTypeName ?: $nodeRow['nodetypename'];
-                $rawNodeName = $rawNodeName ?: $nodeRow['name'];
-                $rawNodeAggregateClassification = $rawNodeAggregateClassification ?: $nodeRow['classification'];
-            }
-            // ... and coverage always ...
-            $coveredDimensionSpacePoint = DimensionSpacePoint::fromJsonString(
-                $nodeRow['covereddimensionspacepoint']
-            );
-            $coveredDimensionSpacePoints[$coveredDimensionSpacePoint->hash] = $coveredDimensionSpacePoint;
-
-            $coverageByOccupants[$occupiedDimensionSpacePoint->hash][$coveredDimensionSpacePoint->hash]
-                = $coveredDimensionSpacePoint;
-            $occupationByCovering[$coveredDimensionSpacePoint->hash] = $occupiedDimensionSpacePoint;
-            // ... as we do for the subtree tags
-            $nodeTagsByCoveredDimensionSpacePoint[$coveredDimensionSpacePoint->hash] = self::extractNodeTagsFromJson($nodeRow['subtreetags']);
-        }
-        ksort($occupiedDimensionSpacePoints);
-        ksort($coveredDimensionSpacePoints);
-
-        // a nodeAggregate only exists if it at least contains one node
-        assert($nodesByOccupiedDimensionSpacePoint !== []);
-
-        return NodeAggregate::create(
-            $this->contentRepositoryId,
-            $workspaceName,
-            NodeAggregateId::fromString($rawNodeAggregateId),
-            NodeAggregateClassification::from($rawNodeAggregateClassification),
-            NodeTypeName::fromString($rawNodeTypeName),
-            $rawNodeName ? NodeName::fromString($rawNodeName) : null,
-            new OriginDimensionSpacePointSet($occupiedDimensionSpacePoints),
-            $nodesByOccupiedDimensionSpacePoint,
-            CoverageByOrigin::fromArray($coverageByOccupants),
-            new DimensionSpacePointSet($coveredDimensionSpacePoints),
-            OriginByCoverage::fromArray($occupationByCovering),
-            $nodeTagsByCoveredDimensionSpacePoint,
-        );
+        return null;
     }
 
     /**
      * @param array<int,array<string,string>> $nodeRows
-     * @throws NodeTypeNotFound
+     * @deprecated
      */
     public function mapNodeRowsToNodeAggregates(
         array $nodeRows,
         WorkspaceName $workspaceName,
         VisibilityConstraints $visibilityConstraints
     ): NodeAggregates {
-        if (empty($nodeRows)) {
-            return NodeAggregates::createEmpty();
-        }
-
-        $nodeAggregates = [];
-
-        $nodeTypeNames = [];
-        $nodeNames = [];
-        $occupiedDimensionSpacePointsByNodeAggregate = [];
-        $nodesByOccupiedDimensionSpacePointsByNodeAggregate = [];
-        $coveredDimensionSpacePointsByNodeAggregate = [];
-        $classificationByNodeAggregate = [];
-        $coverageByOccupantsByNodeAggregate = [];
-        $occupationByCoveringByNodeAggregate = [];
-        $nodeTagsByCoveredDimensionSpacePointByNodeAggregate = [];
-
-        foreach ($nodeRows as $nodeRow) {
-            // A node can occupy exactly one DSP and cover multiple ones...
-            $rawNodeAggregateId = $nodeRow['nodeaggregateid'];
-            $occupiedDimensionSpacePoint = $this->dimensionSpacePointRepository->getOriginDimensionSpacePointByHash($nodeRow['origindimensionspacepointhash']);
-            if (
-                !isset($nodesByOccupiedDimensionSpacePointsByNodeAggregate
-                [$rawNodeAggregateId][$occupiedDimensionSpacePoint->hash])
-            ) {
-                // ... so we handle occupation exactly once ...
-                $nodesByOccupiedDimensionSpacePointsByNodeAggregate
-                    [$rawNodeAggregateId][$occupiedDimensionSpacePoint->hash] = $this->mapNodeRecordToNode(
-                        $nodeRow,
-                        $workspaceName,
-                        $occupiedDimensionSpacePoint->toDimensionSpacePoint(),
-                        $visibilityConstraints
-                    );
-                $occupiedDimensionSpacePointsByNodeAggregate[$rawNodeAggregateId][]
-                    = $occupiedDimensionSpacePoint;
-                $nodeTypeNames[$rawNodeAggregateId] = $nodeTypeNames[$rawNodeAggregateId]
-                    ?? NodeTypeName::fromString($nodeRow['nodetypename']);
-                $nodeNames[$rawNodeAggregateId] = $nodeNames[$rawNodeAggregateId]
-                    ?? ($nodeRow['name'] ? NodeName::fromString($nodeRow['name']) : null);
-                $classificationByNodeAggregate[$rawNodeAggregateId]
-                    = $classificationByNodeAggregate[$rawNodeAggregateId]
-                    ?? NodeAggregateClassification::from($nodeRow['classification']);
-            }
-            // ... and coverage always ...
-            $coveredDimensionSpacePoint = DimensionSpacePoint::fromJsonString(
-                $nodeRow['covereddimensionspacepoint']
-            );
-            $coverageByOccupantsByNodeAggregate[$rawNodeAggregateId][$occupiedDimensionSpacePoint->hash]
-                [$coveredDimensionSpacePoint->hash] = $coveredDimensionSpacePoint;
-            $occupationByCoveringByNodeAggregate[$rawNodeAggregateId][$coveredDimensionSpacePoint->hash]
-                = $occupiedDimensionSpacePoint;
-
-            $coveredDimensionSpacePointsByNodeAggregate[$rawNodeAggregateId][$coveredDimensionSpacePoint->hash]
-                = $coveredDimensionSpacePoint;
-
-            // ... as we do for the subtree tags
-            $nodeTagsByCoveredDimensionSpacePointByNodeAggregate[$rawNodeAggregateId][$coveredDimensionSpacePoint->hash] = self::extractNodeTagsFromJson($nodeRow['subtreetags']);
-        }
-
-        foreach ($nodesByOccupiedDimensionSpacePointsByNodeAggregate as $rawNodeAggregateId => $nodes) {
-            /** @var string $rawNodeAggregateId */
-            $nodeAggregates[] = NodeAggregate::create(
-                $this->contentRepositoryId,
-                $workspaceName,
-                NodeAggregateId::fromString($rawNodeAggregateId),
-                $classificationByNodeAggregate[$rawNodeAggregateId],
-                $nodeTypeNames[$rawNodeAggregateId],
-                $nodeNames[$rawNodeAggregateId],
-                new OriginDimensionSpacePointSet(
-                    $occupiedDimensionSpacePointsByNodeAggregate[$rawNodeAggregateId]
-                ),
-                $nodes,
-                CoverageByOrigin::fromArray(
-                    $coverageByOccupantsByNodeAggregate[$rawNodeAggregateId]
-                ),
-                new DimensionSpacePointSet(
-                    $coveredDimensionSpacePointsByNodeAggregate[$rawNodeAggregateId]
-                ),
-                OriginByCoverage::fromArray(
-                    $occupationByCoveringByNodeAggregate[$rawNodeAggregateId]
-                ),
-                $nodeTagsByCoveredDimensionSpacePointByNodeAggregate[$rawNodeAggregateId],
-            );
-        }
-
-        return NodeAggregates::fromArray($nodeAggregates);
+        return NodeAggregates::createEmpty();
     }
 
     public static function extractNodeTagsFromJson(string $subtreeTagsJson): NodeTags

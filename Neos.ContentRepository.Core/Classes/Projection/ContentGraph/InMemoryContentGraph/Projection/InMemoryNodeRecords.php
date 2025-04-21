@@ -41,11 +41,11 @@ final class InMemoryNodeRecords implements \IteratorAggregate
         } else {
             $nodeAggregateIds = array_map(
                 fn (InMemoryNodeRecord $nodeRecord): NodeAggregateId => $nodeRecord->nodeAggregateId,
-                $this->items,
+                array_values($this->items),
             );
             $succeedingSiblingPosition = array_search($succeedingSiblingId, $nodeAggregateIds);
             if ($succeedingSiblingPosition !== false) {
-                array_splice($this->items, $succeedingSiblingPosition, 0, $nodeRecord);
+                array_splice($this->items, $succeedingSiblingPosition, 0, [$nodeRecord]);
             }
         }
     }

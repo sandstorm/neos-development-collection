@@ -26,9 +26,9 @@ final class InMemoryContentGraphProjectionFactory implements ContentGraphProject
             $projectionFactoryDependencies->getPropertyConverter(),
         );
 
-        $graphStructure = new InMemoryContentGraphStructure();
-        $workspaceRegistry = new InMemoryWorkspaceRegistry();
-        $contentStreamRegistry = new InMemoryContentStreamRegistry();
+        $graphStructure = InMemoryContentGraphStructure::getInstance();
+        $workspaceRegistry = InMemoryWorkspaceRegistry::getInstance();
+        $contentStreamRegistry = InMemoryContentStreamRegistry::getInstance();
 
         $contentGraphReadModel = new InMemoryContentGraphReadModelAdapter(
             $projectionFactoryDependencies->contentRepositoryId,

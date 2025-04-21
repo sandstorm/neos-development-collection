@@ -17,12 +17,23 @@ use Neos\EventStore\Model\Event\Version;
  */
 final class InMemoryContentStreamRegistry
 {
+    private static ?self $instance = null;
+
     /**
      * @param array<string,InMemoryContentStreamRecord> $contentStreams indexed by id
      */
-    public function __construct(
+    private function __construct(
         public array $contentStreams = []
     ) {
+    }
+
+    public static function getInstance(): self
+    {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+
+        return self::$instance;
     }
 
     public function reset(): void

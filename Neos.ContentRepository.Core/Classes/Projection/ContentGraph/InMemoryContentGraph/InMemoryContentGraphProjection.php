@@ -160,16 +160,14 @@ final class InMemoryContentGraphProjection implements ContentGraphProjectionInte
     {
         throw new \Exception(__METHOD__ . ' not implemented yet');
         /** @todo copy hierarchy relations if they are implemented */
-
-        $this->contentStreamRegistry->createContentStream($event->newContentStreamId, $event->sourceContentStreamId, $event->versionOfSourceContentStream);
+        #$this->contentStreamRegistry->createContentStream($event->newContentStreamId, $event->sourceContentStreamId, $event->versionOfSourceContentStream);
     }
 
     private function whenContentStreamWasRemoved(ContentStreamWasRemoved $event): void
     {
         throw new \Exception(__METHOD__ . ' not implemented yet');
         /** @todo remove hierarchy relations if they are implemented */
-
-        $this->contentStreamRegistry->removeContentStream($event->contentStreamId);
+        #$this->contentStreamRegistry->removeContentStream($event->contentStreamId);
     }
 
     private function whenContentStreamWasReopened(ContentStreamWasReopened $event): void
@@ -287,7 +285,8 @@ final class InMemoryContentGraphProjection implements ContentGraphProjectionInte
                         ->getNodeRecordByDimensionSpacePoint($siblingSpecification->dimensionSpacePoint);
 
                     if ($childNodeRecords === null) {
-                        $parentNodeRecord->childrenByContentStream[$event->contentStreamId->value]->attach(InMemoryNodeRecords::create($nodeRecord), $siblingSpecification->dimensionSpacePoint);
+                        $records = InMemoryNodeRecords::create($nodeRecord);
+                        $parentNodeRecord->childrenByContentStream[$event->contentStreamId->value]->attach($records, $siblingSpecification->dimensionSpacePoint);
                     } else {
                         $childNodeRecords->insert($nodeRecord, $siblingSpecification->nodeAggregateId);
                     }
@@ -339,7 +338,7 @@ final class InMemoryContentGraphProjection implements ContentGraphProjectionInte
     {
         throw new \Exception(__METHOD__ . ' not implemented yet');
         /** @todo add subtree tag */
-        $this->addSubtreeTag($event->contentStreamId, $event->nodeAggregateId, $event->affectedDimensionSpacePoints, $event->tag);
+        #$this->addSubtreeTag($event->contentStreamId, $event->nodeAggregateId, $event->affectedDimensionSpacePoints, $event->tag);
     }
 
     private function whenSubtreeWasUntagged(SubtreeWasUntagged $event): void

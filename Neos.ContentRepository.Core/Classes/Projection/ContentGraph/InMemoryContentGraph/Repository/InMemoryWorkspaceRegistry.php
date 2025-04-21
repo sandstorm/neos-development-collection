@@ -17,12 +17,23 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
  */
 final class InMemoryWorkspaceRegistry
 {
+    private static ?self $instance = null;
+
     /**
      * @param array<string,InMemoryWorkspaceRecord> $workspaces indexed by workspace name
      */
-    public function __construct(
+    private function __construct(
         public array $workspaces = []
     ) {
+    }
+
+    public static function getInstance(): self
+    {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+
+        return self::$instance;
     }
 
     public function reset(): void

@@ -22,11 +22,13 @@ trait Workspaces
     private function whenRootWorkspaceWasCreated(RootWorkspaceWasCreated $event): void
     {
         $this->workspaceRegistry->createWorkspace($event->workspaceName, null, $event->newContentStreamId);
+        $this->graphStructure->initializeContentStream($event->newContentStreamId);
     }
 
     private function whenWorkspaceWasCreated(WorkspaceWasCreated $event): void
     {
         $this->workspaceRegistry->createWorkspace($event->workspaceName, $event->baseWorkspaceName, $event->newContentStreamId);
+        $this->graphStructure->initializeContentStream($event->newContentStreamId);
     }
 
     private function whenWorkspaceBaseWorkspaceWasChanged(WorkspaceBaseWorkspaceWasChanged $event): void
@@ -50,6 +52,9 @@ trait Workspaces
 
     private function whenWorkspaceWasRemoved(WorkspaceWasRemoved $event): void
     {
+        $contentStreamToBeRemoved = $this->workspaceRegistry->workspaces[$event->workspaceName->value]->currentContentStreamId;
+        $this->contentStreamRegistry->removeContentStream($contentStreamToBeRemoved);
+        $this->graphStructure->removeContentStream($contentStreamToBeRemoved);
         $this->workspaceRegistry->removeWorkspace($event->workspaceName);
     }
 }

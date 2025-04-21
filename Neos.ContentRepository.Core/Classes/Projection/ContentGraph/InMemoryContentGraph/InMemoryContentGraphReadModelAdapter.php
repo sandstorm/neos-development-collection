@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph;
 
-use Doctrine\DBAL\Query\QueryBuilder;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph\Projection\InMemoryContentGraphStructure;
@@ -89,17 +88,6 @@ final readonly class InMemoryContentGraphReadModelAdapter implements ContentGrap
         return $this->graphStructure->totalNodeCount;
     }
 
-    private function getBasicWorkspaceQuery(): QueryBuilder
-    {
-        $queryBuilder = $this->dbal->createQueryBuilder();
-
-        return $queryBuilder
-            ->select('ws.name, ws.baseWorkspaceName, ws.currentContentStreamId, cs.hasChanges, cs.sourceContentStreamVersion = scs.version as upToDateWithBase')
-            ->from($this->tableNames->workspace(), 'ws')
-            ->join('ws', $this->tableNames->contentStream(), 'cs', 'cs.id = ws.currentcontentstreamid')
-            ->leftJoin('cs', $this->tableNames->contentStream(), 'scs', 'scs.id = cs.sourceContentStreamId');
-    }
-
     private static function mapWorkspaceRecordToWorkspace(InMemoryWorkspaceRecord $workspaceRecord): Workspace
     {
         return Workspace::create(
@@ -110,35 +98,6 @@ final readonly class InMemoryContentGraphReadModelAdapter implements ContentGrap
                 ? WorkspaceStatus::UP_TO_DATE
                 : WorkspaceStatus::OUTDATED,
             $workspaceRecord->baseWorkspaceName !== null && $workspaceRecord->hasChanges
-        );
-    }
-
-    /**
-     * @param array<string, mixed> $row
-     */
-    private static function workspaceFromDatabaseRow(array $row): Workspace
-    {
-        $baseWorkspaceName = $row['baseWorkspaceName'] !== null ? WorkspaceName::fromString($row['baseWorkspaceName']) : null;
-
-        if ($baseWorkspaceName === null) {
-            // no base workspace, a root is always up-to-date
-            $status = WorkspaceStatus::UP_TO_DATE;
-        } elseif ($row['upToDateWithBase'] === 1) {
-            // base workspace didnt change
-            $status = WorkspaceStatus::UP_TO_DATE;
-        } else {
-            // base content stream was removed or contains newer changes
-            $status = WorkspaceStatus::OUTDATED;
-        }
-
-        return Workspace::create(
-            WorkspaceName::fromString($row['name']),
-            $baseWorkspaceName,
-            ContentStreamId::fromString($row['currentContentStreamId']),
-            $status,
-            $baseWorkspaceName === null
-                ? false
-                : (bool)$row['hasChanges'],
         );
     }
 
