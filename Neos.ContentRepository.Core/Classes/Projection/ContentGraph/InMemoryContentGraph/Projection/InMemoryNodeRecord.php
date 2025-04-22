@@ -24,8 +24,8 @@ use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 final class InMemoryNodeRecord
 {
     /**
-     * @param array<string,InMemoryParentHyperrelation> $parentsByContentStreamId
-     * @param array<string,InMemoryChildrenHyperrelation> $childrenByContentStream
+     * @param array<string,InMemoryHierarchyHyperrelationRecordSet> $parentsByContentStreamId
+     * @param array<string,InMemoryHierarchyHyperrelationRecordSet> $childrenByContentStream
      */
     public function __construct(
         public NodeAggregateId $nodeAggregateId,

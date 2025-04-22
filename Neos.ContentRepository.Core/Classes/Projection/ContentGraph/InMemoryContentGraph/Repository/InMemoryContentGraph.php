@@ -15,11 +15,13 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindRootNodeAggregatesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph\Projection\InMemoryContentGraphStructure;
+use Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph\Projection\InMemoryNodeRecord;
 use Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph\Projection\NullNodeRecord;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregate;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregates;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateClassification;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
@@ -127,6 +129,7 @@ final class InMemoryContentGraph implements ContentGraphInterface
         NodeAggregateId $nodeAggregateId
     ): ?NodeAggregate {
         $nodeRecords = $this->graphStructure->nodes[$this->contentStreamId->value][$nodeAggregateId->value] ?? null;
+
         return $nodeRecords === null
             ? null
             : $this->nodeFactory->mapNodeRecordsToNodeAggregate($nodeRecords, $this->workspaceName, $this->contentStreamId);
@@ -154,14 +157,11 @@ final class InMemoryContentGraph implements ContentGraphInterface
     public function findParentNodeAggregates(
         NodeAggregateId $childNodeAggregateId
     ): NodeAggregates {
-        $parentNodeAggregateIds = [];
+        $parentNodeAggregateIds = NodeAggregateIds::createEmpty();
         foreach ($this->graphStructure->nodes[$this->contentStreamId->value][$childNodeAggregateId->value] as $nodeRecord) {
-            foreach ($nodeRecord->parentsByContentStreamId[$this->contentStreamId->value] ?? [] as $parentNodeRecord) {
-                if ($parentNodeRecord instanceof NullNodeRecord) {
-                    continue;
-                }
-                $parentNodeAggregateIds[$parentNodeRecord->nodeAggregateId->value] = $parentNodeRecord->nodeAggregateId;
-            }
+            $parentNodeAggregateIds = $parentNodeAggregateIds->merge(
+                $nodeRecord->parentsByContentStreamId[$this->contentStreamId->value]->getParentNodeAggregateIds()
+            );
         }
 
         return $this->findNodeAggregatesByIds(NodeAggregateIds::create(...$parentNodeAggregateIds));
@@ -171,12 +171,12 @@ final class InMemoryContentGraph implements ContentGraphInterface
     {
         $nodeAggregateIds = NodeAggregateIds::create();
         foreach ($this->graphStructure->nodes[$this->contentStreamId->value][$entryNodeAggregateId->value] as $nodeRecord) {
-            foreach ($nodeRecord->parentsByContentStreamId[$this->contentStreamId->value] ?? [] as $parentNodeRecord) {
-                if ($parentNodeRecord instanceof NullNodeRecord) {
+            foreach ($nodeRecord->parentsByContentStreamId[$this->contentStreamId->value] as $parentHierarchyRelation) {
+                if ($parentHierarchyRelation->parent === null) {
                     continue;
                 }
-                $nodeAggregateIds = $nodeAggregateIds->merge(NodeAggregateIds::create($parentNodeRecord->nodeAggregateId));
-                $nodeAggregateIds = $nodeAggregateIds->merge($this->findAncestorNodeAggregateIds($parentNodeRecord->nodeAggregateId));
+                $nodeAggregateIds = $nodeAggregateIds->merge(NodeAggregateIds::create($parentHierarchyRelation->parent->nodeAggregateId));
+                $nodeAggregateIds = $nodeAggregateIds->merge($this->findAncestorNodeAggregateIds($parentHierarchyRelation->parent->nodeAggregateId));
             }
         }
 
@@ -187,9 +187,9 @@ final class InMemoryContentGraph implements ContentGraphInterface
         NodeAggregateId $parentNodeAggregateId
     ): NodeAggregates {
         $childNodeAggregateIds = [];
-        foreach ($this->graphStructure->nodes[$this->contentStreamId->value][$parentNodeAggregateId->value] as $nodeRecord) {
-            foreach ($nodeRecord->childrenByContentStream[$this->contentStreamId->value] ?? [] as $children) {
-                foreach ($children as $childNodeRecord) {
+        foreach ($this->graphStructure->nodes[$this->contentStreamId->value][$parentNodeAggregateId->value] ?? [] as $nodeRecord) {
+            foreach ($nodeRecord->childrenByContentStream[$this->contentStreamId->value] as $childRelation) {
+                foreach ($childRelation->children as $childNodeRecord) {
                     $childNodeAggregateIds[$childNodeRecord->nodeAggregateId->value] = $childNodeRecord->nodeAggregateId;
                 }
             }
@@ -200,12 +200,34 @@ final class InMemoryContentGraph implements ContentGraphInterface
 
     public function findParentNodeAggregateByChildOriginDimensionSpacePoint(NodeAggregateId $childNodeAggregateId, OriginDimensionSpacePoint $childOriginDimensionSpacePoint): ?NodeAggregate
     {
-        throw new \Exception(__METHOD__ . ' not implemented yet');
+        $childNodeRecord = $this->graphStructure->nodes[$this->contentStreamId->value][$childNodeAggregateId->value][$childOriginDimensionSpacePoint->hash] ?? null;
+
+        $parentNode = $childNodeRecord?->parentsByContentStreamId[$this->contentStreamId->value]
+            ->getNodeRecordByDimensionSpacePoint($childOriginDimensionSpacePoint->toDimensionSpacePoint());
+        if ($parentNode instanceof InMemoryNodeRecord) {
+            return $this->findNodeAggregateById($parentNode->nodeAggregateId);
+        }
+
+        return null;
     }
 
     public function findTetheredChildNodeAggregates(NodeAggregateId $parentNodeAggregateId): NodeAggregates
     {
-        throw new \Exception(__METHOD__ . ' not implemented yet');
+        $nodeRecords = [];
+        foreach ($this->graphStructure->nodes[$this->contentStreamId->value][$parentNodeAggregateId->value] ?? [] as $nodeRecord) {
+            foreach ($nodeRecord->childrenByContentStream[$this->contentStreamId->value] as $childRelation) {
+                foreach ($childRelation->children as $childNodeRecord) {
+                    if ($childNodeRecord->classification === NodeAggregateClassification::CLASSIFICATION_TETHERED) {
+                        $nodeRecords[] = $childNodeRecord;
+                    }
+                }
+            }
+        }
+        if ($nodeRecords === []) {
+            return NodeAggregates::createEmpty();
+        }
+
+        return $this->nodeFactory->mapNodeRecordsToNodeAggregates($nodeRecords, $this->workspaceName, $this->contentStreamId);
     }
 
     public function findChildNodeAggregateByName(
@@ -214,10 +236,11 @@ final class InMemoryContentGraph implements ContentGraphInterface
     ): ?NodeAggregate {
         $nodeRecords = [];
         foreach ($this->graphStructure->nodes[$this->contentStreamId->value][$parentNodeAggregateId->value] ?? [] as $nodeRecord) {
-            foreach ($nodeRecord->childrenByContentStream[$this->contentStreamId->value] ?? [] as $childRecords) {
-                foreach ($childRecords as $childNodeRecord) {
-                    if ($childNodeRecord->name->equals($name)) {
+            foreach ($nodeRecord->childrenByContentStream[$this->contentStreamId->value] as $childRelation) {
+                foreach ($childRelation->children as $childNodeRecord) {
+                    if ($childNodeRecord?->name->equals($name)) {
                         $nodeRecords[] = $childNodeRecord;
+                        break;
                     }
                 }
             }

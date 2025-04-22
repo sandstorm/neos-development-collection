@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph\Repository;
 
+use Neos\ContentGraph\PostgreSQLAdapter\Domain\Projection\NodeRecord;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePointSet;
-use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTags;
 use Neos\ContentRepository\Core\Infrastructure\Property\PropertyConverter;
-use Neos\ContentRepository\Core\NodeType\NodeTypeName;
 use Neos\ContentRepository\Core\Projection\ContentGraph\CoverageByOrigin;
+use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindSubtreeFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph\Projection\InMemoryNodeRecord;
-use Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph\Projection\InMemoryNodeRecords;
 use Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph\Projection\InMemoryReferenceRecord;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregate;
@@ -23,12 +22,10 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\OriginByCoverage;
 use Neos\ContentRepository\Core\Projection\ContentGraph\PropertyCollection;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Reference;
 use Neos\ContentRepository\Core\Projection\ContentGraph\References;
+use Neos\ContentRepository\Core\Projection\ContentGraph\Subtree;
+use Neos\ContentRepository\Core\Projection\ContentGraph\Subtrees;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
-use Neos\ContentRepository\Core\SharedModel\Exception\NodeTypeNotFound;
-use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateClassification;
-use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
-use Neos\ContentRepository\Core\SharedModel\Node\NodeName;
 use Neos\ContentRepository\Core\SharedModel\Workspace\ContentStreamId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 
@@ -188,48 +185,56 @@ final class NodeFactory
     }
 
     /**
-     * @param array<int,array<string,string>> $nodeRows
-     * @deprecated
+     * @param array<int, InMemoryNodeRecord> $nodeRecords
      */
-    public function mapNodeRowsToNodeAggregate(
-        array $nodeRows,
+    public function mapNodeRecordsToNodeAggregates(
+        array $nodeRecords,
         WorkspaceName $workspaceName,
-        VisibilityConstraints $visibilityConstraints
-    ): ?NodeAggregate {
-        return null;
-    }
-
-    /**
-     * @param array<int,array<string,string>> $nodeRows
-     * @deprecated
-     */
-    public function mapNodeRowsToNodeAggregates(
-        array $nodeRows,
-        WorkspaceName $workspaceName,
-        VisibilityConstraints $visibilityConstraints
+        ContentStreamId $contentStreamId
     ): NodeAggregates {
-        return NodeAggregates::createEmpty();
+        $nodeRecordsByAggregateId = [];
+        foreach ($nodeRecords as $nodeRecord) {
+            $nodeRecordsByAggregateId[$nodeRecord->nodeAggregateId->value][] = $nodeRecord;
+        }
+
+        return NodeAggregates::fromArray(array_map(
+            fn (array $nodeRecords): NodeAggregate
+                => $this->mapNodeRecordsToNodeAggregate($nodeRecords, $workspaceName, $contentStreamId),
+            $nodeRecordsByAggregateId
+        ));
     }
 
-    public static function extractNodeTagsFromJson(string $subtreeTagsJson): NodeTags
-    {
-        $explicitTags = [];
-        $inheritedTags = [];
-        try {
-            $subtreeTagsArray = json_decode($subtreeTagsJson, true, 512, JSON_THROW_ON_ERROR);
-        } catch (\JsonException $e) {
-            throw new \RuntimeException(sprintf('Failed to JSON-decode subtree tags from JSON string %s: %s', $subtreeTagsJson, $e->getMessage()), 1716476904, $e);
-        }
-        foreach ($subtreeTagsArray as $tagValue => $explicit) {
-            if ($explicit) {
-                $explicitTags[] = $tagValue;
-            } else {
-                $inheritedTags[] = $tagValue;
-            }
-        }
-        return NodeTags::create(
-            tags: SubtreeTags::fromStrings(...$explicitTags),
-            inheritedTags: SubtreeTags::fromStrings(...$inheritedTags)
+    public function mapNodeRecordToSubtree(
+        InMemoryNodeRecord $nodeRecord,
+        WorkspaceName $workspaceName,
+        ContentStreamId $contentStreamId,
+        DimensionSpacePoint $dimensionSpacePoint,
+        VisibilityConstraints $visibilityConstraints,
+        int $level,
+        FindSubtreeFilter $filter,
+    ): Subtree {
+        $continue = $filter->maximumLevels === null || $level <= $filter->maximumLevels;
+        /** @todo apply node type filters */
+        return Subtree::create(
+            $level,
+            $this->mapNodeRecordToNode($nodeRecord, $workspaceName, $dimensionSpacePoint, $visibilityConstraints),
+            $continue
+                ? Subtrees::fromArray(array_map(
+                    fn (InMemoryNodeRecord $nodeRecord): Subtree => $this->mapNodeRecordToSubtree(
+                        $nodeRecord,
+                        $workspaceName,
+                        $contentStreamId,
+                        $dimensionSpacePoint,
+                        $visibilityConstraints,
+                        $level + 1,
+                        $filter,
+                    ),
+                    iterator_to_array(
+                        $nodeRecord->childrenByContentStream[$contentStreamId->value]
+                            ->getNodeRecordsByDimensionSpacePoint($dimensionSpacePoint, $nodeRecord->nodeAggregateId) ?: []
+                    )
+                ))
+                : Subtrees::createEmpty()
         );
     }
 }

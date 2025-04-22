@@ -85,13 +85,9 @@ final class InMemoryContentSubgraph implements ContentSubgraphInterface
     {
         /** @todo apply filters */
         foreach ($this->graphStructure->nodes[$this->contentStreamId->value][$parentNodeAggregateId->value] as $parentNodeRecord) {
-            if ($parentNodeRecord->coversDimensionSpacePoint($this->contentStreamId, $this->dimensionSpacePoint)) {
-                $childRelations = $parentNodeRecord->childrenByContentStream[$this->contentStreamId->value];
-                foreach ($childRelations as $childRecords) {
-                    if ($childRelations->getInfo() === $this->dimensionSpacePoint) {
-                        return $this->mapNodeRecordsToNodes($childRecords);
-                    }
-                }
+            $relation = $parentNodeRecord->childrenByContentStream[$this->contentStreamId->value]->getHierarchyHyperrelation($this->dimensionSpacePoint);
+            if ($relation !== null) {
+                return $this->mapNodeRecordsToNodes($relation->children);
             }
         }
 
@@ -177,14 +173,11 @@ final class InMemoryContentSubgraph implements ContentSubgraphInterface
 
     public function findNodeById(NodeAggregateId $nodeAggregateId): ?Node
     {
-        $nodeRecords = $this->graphStructure->nodes[$this->contentStreamId->value][$nodeAggregateId->value];
-        foreach ($nodeRecords as $nodeRecord) {
-            if ($nodeRecord->parentsByContentStreamId[$this->contentStreamId->value]->getCoveredDimensionSpacePointSet()->contains($this->dimensionSpacePoint)) {
-                return $this->mapNodeRecordToNode($nodeRecord);
-            }
-        }
+        $nodeRecord = $this->findNodeRecord($nodeAggregateId);
 
-        return null;
+        return $nodeRecord !== null
+            ? $this->mapNodeRecordToNode($nodeRecord)
+            : null;
     }
 
     public function findNodesByIds(NodeAggregateIds $nodeAggregateIds): Nodes
@@ -235,15 +228,12 @@ final class InMemoryContentSubgraph implements ContentSubgraphInterface
     {
         foreach ($this->graphStructure->nodes[$this->contentStreamId->value][$parentNodeAggregateId->value] as $parentNodeRecord) {
             if ($parentNodeRecord->coversDimensionSpacePoint($this->contentStreamId, $this->dimensionSpacePoint)) {
-                $childRelations = $parentNodeRecord->childrenByContentStream[$this->contentStreamId->value];
-                foreach ($childRelations as $childRecords) {
-                    if ($childRelations->getInfo() === $this->dimensionSpacePoint) {
-                        foreach ($childRecords as $childRecord) {
-                            if ($childRecord->name?->equals($nodeName)) {
-                                return $this->mapNodeRecordToNode($childRecord);
-                            }
+                $relation = $parentNodeRecord->childrenByContentStream[$this->contentStreamId->value]->getHierarchyHyperrelation($this->dimensionSpacePoint);
+                if ($relation !== null) {
+                    foreach ($relation->children as $childRecord) {
+                        if ($childRecord->name?->equals($nodeName)) {
+                            return $this->mapNodeRecordToNode($childRecord);
                         }
-                        break 2;
                     }
                 }
             }
@@ -259,18 +249,14 @@ final class InMemoryContentSubgraph implements ContentSubgraphInterface
         $siblingFound = false;
         $succeedingSiblingRecords = [];
         if ($parentNodeRecord !== null) {
-            $childRelations = $parentNodeRecord->childrenByContentStream[$this->contentStreamId->value];
-            foreach ($childRelations as $childRecords) {
-                if ($childRelations->getInfo() === $this->dimensionSpacePoint) {
-                    foreach ($childRecords as $childRecord) {
-                        if ($childRecord->nodeAggregateId->equals($siblingNodeAggregateId)) {
-                            $siblingFound = true;
-                            continue;
-                        }
-                        if ($siblingFound) {
-                            $succeedingSiblingRecords[] = $childRecord;
-                        }
-                    }
+            $childRelation = $parentNodeRecord->childrenByContentStream[$this->contentStreamId->value]->getHierarchyHyperrelation($this->dimensionSpacePoint);
+            foreach ($childRelation?->children ?: [] as $childRecord) {
+                if ($childRecord->nodeAggregateId->equals($siblingNodeAggregateId)) {
+                    $siblingFound = true;
+                    continue;
+                }
+                if ($siblingFound) {
+                    $succeedingSiblingRecords[] = $childRecord;
                 }
             }
         } else {
@@ -297,19 +283,14 @@ final class InMemoryContentSubgraph implements ContentSubgraphInterface
         $siblingFound = false;
         $precedingSiblingRecords = [];
         if ($parentNodeRecord !== null) {
-            $childRelations = $parentNodeRecord->childrenByContentStream[$this->contentStreamId->value];
-            foreach ($childRelations as $childRecords) {
-                if ($childRelations->getInfo() === $this->dimensionSpacePoint) {
-                    $childRecords = array_reverse(iterator_to_array($childRecords));
-                    foreach ($childRecords as $childRecord) {
-                        if ($childRecord->nodeAggregateId->equals($siblingNodeAggregateId)) {
-                            $siblingFound = true;
-                            continue;
-                        }
-                        if ($siblingFound) {
-                            $precedingSiblingRecords[] = $childRecord;
-                        }
-                    }
+            $childRelation = $parentNodeRecord->childrenByContentStream[$this->contentStreamId->value]->getHierarchyHyperrelation($this->dimensionSpacePoint);
+            foreach ($childRelation?->children->reverse() ?: [] as $childRecord) {
+                if ($childRecord->nodeAggregateId->equals($siblingNodeAggregateId)) {
+                    $siblingFound = true;
+                    continue;
+                }
+                if ($siblingFound) {
+                    $precedingSiblingRecords[] = $childRecord;
                 }
             }
         } else {
@@ -338,7 +319,19 @@ final class InMemoryContentSubgraph implements ContentSubgraphInterface
 
     public function findSubtree(NodeAggregateId $entryNodeAggregateId, FindSubtreeFilter $filter): ?Subtree
     {
-        throw new \Exception(__METHOD__ . ' not implemented yet');
+        $entryNodeRecord = $this->findNodeRecord($entryNodeAggregateId);
+
+        return $entryNodeRecord !== null
+            ? $this->nodeFactory->mapNodeRecordToSubtree(
+                $entryNodeRecord,
+                $this->workspaceName,
+                $this->contentStreamId,
+                $this->dimensionSpacePoint,
+                $this->visibilityConstraints,
+                0,
+                $filter,
+            )
+            : null;
     }
 
     public function findAncestorNodes(NodeAggregateId $entryNodeAggregateId, FindAncestorNodesFilter $filter): Nodes
@@ -372,9 +365,7 @@ final class InMemoryContentSubgraph implements ContentSubgraphInterface
         foreach ($this->graphStructure->nodes[$this->contentStreamId->value] as $nodeRecords) {
             foreach ($nodeRecords as $nodeRecord) {
                 if (
-                    $nodeRecord->parentsByContentStreamId[$this->contentStreamId->value]
-                        ->getCoveredDimensionSpacePointSet()
-                        ->contains($this->dimensionSpacePoint)
+                    $nodeRecord->coversDimensionSpacePoint($this->contentStreamId, $this->dimensionSpacePoint)
                 ) {
                     $numberOfNodes++;
                 }
@@ -399,17 +390,25 @@ final class InMemoryContentSubgraph implements ContentSubgraphInterface
         return $currentNode;
     }
 
+    private function findNodeRecord(NodeAggregateId $nodeAggregateId): ?InMemoryNodeRecord
+    {
+        $nodeRecords = $this->graphStructure->nodes[$this->contentStreamId->value][$nodeAggregateId->value];
+        foreach ($nodeRecords as $nodeRecord) {
+            if ($nodeRecord->coversDimensionSpacePoint($this->contentStreamId, $this->dimensionSpacePoint)) {
+                return $nodeRecord;
+            }
+        }
+
+        return null;
+    }
+
     private function findParentNodeRecord(NodeAggregateId $childNodeAggregateId): ?InMemoryNodeRecord
     {
         $nodeRecords = $this->graphStructure->nodes[$this->contentStreamId->value][$childNodeAggregateId->value];
         foreach ($nodeRecords as $nodeRecord) {
-            foreach ($nodeRecord->parentsByContentStreamId[$this->contentStreamId->value] as $parentNodeRecord) {
-                if (
-                    $parentNodeRecord instanceof InMemoryNodeRecord
-                    && $nodeRecord->coversDimensionSpacePoint($this->contentStreamId, $this->dimensionSpacePoint)
-                ) {
-                    return $parentNodeRecord;
-                }
+            $relation = $nodeRecord->parentsByContentStreamId[$this->contentStreamId->value]->getHierarchyHyperrelation($this->dimensionSpacePoint);
+            if ($relation !== null) {
+                return $relation->parent;
             }
         }
 

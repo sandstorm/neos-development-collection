@@ -61,4 +61,10 @@ final class InMemoryContentGraphStructure
         unset($this->rootNodes[$contentStreamId->value]);
         unset($this->references[$contentStreamId->value]);
     }
+
+    public function addNodeRecord(InMemoryNodeRecord $nodeRecord, ContentStreamId $contentStreamId): void
+    {
+        $this->nodes[$contentStreamId->value][$nodeRecord->nodeAggregateId->value][$nodeRecord->originDimensionSpacePoint->hash] = $nodeRecord;
+        $this->totalNodeCount++;
+    }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph;
 
+use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
 use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\EventStore\InitiatingEventMetadata;
@@ -46,6 +47,8 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\ContentGraphReadModelInt
 use Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph\Projection\Feature\Workspaces;
 use Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph\Projection\InMemoryChildrenHyperrelation;
 use Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph\Projection\InMemoryContentGraphStructure;
+use Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph\Projection\InMemoryHierarchyHyperrelationRecord;
+use Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph\Projection\InMemoryHierarchyHyperrelationRecordSet;
 use Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph\Projection\InMemoryNodeRecord;
 use Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph\Projection\InMemoryNodeRecords;
 use Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph\Projection\InMemoryParentHyperrelation;
@@ -220,12 +223,8 @@ final class InMemoryContentGraphProjection implements ContentGraphProjectionInte
 
     private function whenRootNodeAggregateWithNodeWasCreated(RootNodeAggregateWithNodeWasCreated $event, EventEnvelope $eventEnvelope): void
     {
-        $parents = [
-            $event->contentStreamId->value => new InMemoryParentHyperrelation()
-        ];
-        $parents[$event->contentStreamId->value]->attach(NullNodeRecord::create(), $event->coveredDimensionSpacePoints);
         $origin = OriginDimensionSpacePoint::createWithoutDimensions();
-        $node = new InMemoryNodeRecord(
+        $nodeRecord = new InMemoryNodeRecord(
             $event->nodeAggregateId,
             $origin,
             SerializedPropertyValues::createEmpty(),
@@ -233,33 +232,34 @@ final class InMemoryContentGraphProjection implements ContentGraphProjectionInte
             $event->nodeAggregateClassification,
             null,
             Timestamps::create($eventEnvelope->recordedAt, self::resolveInitiatingDateTime($eventEnvelope), null, null),
-            $parents,
-            [
-                $event->contentStreamId->value => new InMemoryChildrenHyperrelation()
-            ],
+            [],
+            [],
             SubtreeTags::createEmpty(),
             SubtreeTags::createEmpty(),
         );
-        $this->graphStructure->rootNodes[$event->contentStreamId->value][$event->nodeTypeName->value] = $node;
-        $this->graphStructure->nodes[$event->contentStreamId->value][$event->nodeAggregateId->value][$origin->hash] = $node;
-        $this->graphStructure->totalNodeCount++;
+        $parentRelation = new InMemoryHierarchyHyperrelationRecordSet();
+        foreach ($event->coveredDimensionSpacePoints as $coveredDimensionSpacePoint) {
+            $parentRelation->attach(
+                new InMemoryHierarchyHyperrelationRecord(
+                    null, $coveredDimensionSpacePoint, InMemoryNodeRecords::create($nodeRecord)
+                ),
+            );
+        }
+        $nodeRecord->parentsByContentStreamId[$event->contentStreamId->value] = $parentRelation;
+        $nodeRecord->childrenByContentStream[$event->contentStreamId->value] = new InMemoryHierarchyHyperrelationRecordSet();
+
+        $this->graphStructure->rootNodes[$event->contentStreamId->value][$event->nodeTypeName->value] = $nodeRecord;
+        $this->graphStructure->addNodeRecord($nodeRecord, $event->contentStreamId);
     }
 
     private function whenNodeAggregateWithNodeWasCreated(NodeAggregateWithNodeWasCreated $event, EventEnvelope $eventEnvelope): void
     {
-        $parentRelation = new InMemoryParentHyperrelation();
+        $parentRelations = new InMemoryHierarchyHyperrelationRecordSet();
         $parentNodeRecords = $this->graphStructure->nodes[$event->contentStreamId->value][$event->parentNodeAggregateId->value] ?? null;
         if ($parentNodeRecords === null) {
             throw new \RuntimeException('Failed to resolve parent node records', 1745180042);
         }
 
-        foreach ($parentNodeRecords as $parentNodeRecord) {
-            $relevantCoverage = $parentNodeRecord->getCoveredDimensionSpacePointSet($event->contentStreamId)
-                ->getIntersection($event->succeedingSiblingsForCoverage->toDimensionSpacePointSet());
-            if (!$relevantCoverage->isEmpty()) {
-                $parentRelation->attach($parentNodeRecord, $relevantCoverage);
-            }
-        }
         $nodeRecord = new InMemoryNodeRecord(
             $event->nodeAggregateId,
             $event->originDimensionSpacePoint,
@@ -269,39 +269,99 @@ final class InMemoryContentGraphProjection implements ContentGraphProjectionInte
             $event->nodeName,
             Timestamps::create($eventEnvelope->recordedAt, self::resolveInitiatingDateTime($eventEnvelope), null, null),
             [
-                $event->contentStreamId->value => $parentRelation,
+                $event->contentStreamId->value => $parentRelations,
             ],
             [
-                $event->contentStreamId->value => new InMemoryChildrenHyperrelation()
+                $event->contentStreamId->value => new InMemoryHierarchyHyperrelationRecordSet(),
             ],
             SubtreeTags::createEmpty(),
             SubtreeTags::createEmpty(),
         );
 
-        foreach ($event->succeedingSiblingsForCoverage as $siblingSpecification) {
-            foreach ($parentNodeRecords as $parentNodeRecord) {
-                if ($parentNodeRecord->coversDimensionSpacePoint($event->contentStreamId, $siblingSpecification->dimensionSpacePoint)) {
-                    $childNodeRecords = $parentNodeRecord->childrenByContentStream[$event->contentStreamId->value]
-                        ->getNodeRecordByDimensionSpacePoint($siblingSpecification->dimensionSpacePoint);
-
-                    if ($childNodeRecords === null) {
-                        $records = InMemoryNodeRecords::create($nodeRecord);
-                        $parentNodeRecord->childrenByContentStream[$event->contentStreamId->value]->attach($records, $siblingSpecification->dimensionSpacePoint);
-                    } else {
-                        $childNodeRecords->insert($nodeRecord, $siblingSpecification->nodeAggregateId);
-                    }
+        $coveredDimensionSpacePoints = DimensionSpacePointSet::fromArray([]);
+        foreach ($parentNodeRecords as $parentNodeRecord) {
+            $relevantDimensionSpacePoints = $parentNodeRecord->getCoveredDimensionSpacePointSet($event->contentStreamId)
+                ->getIntersection($event->succeedingSiblingsForCoverage->toDimensionSpacePointSet());
+            foreach ($relevantDimensionSpacePoints as $relevantDimensionSpacePoint) {
+                $parentRelation = $parentNodeRecord->childrenByContentStream[$event->contentStreamId->value]->getHierarchyHyperrelation($relevantDimensionSpacePoint);
+                if ($parentRelation === null) {
+                    $parentRelation = new InMemoryHierarchyHyperrelationRecord(
+                        $parentNodeRecord,
+                        $relevantDimensionSpacePoint,
+                        InMemoryNodeRecords::create($nodeRecord),
+                    );
+                    $parentNodeRecord->childrenByContentStream[$event->contentStreamId->value]->attach($parentRelation);
+                } else {
+                    $parentRelation->children->insert($nodeRecord, $event->succeedingSiblingsForCoverage->getSucceedingSiblingIdForDimensionSpacePoint($relevantDimensionSpacePoint));
                 }
+                $parentRelations->attach($parentRelation);
             }
+            $coveredDimensionSpacePoints = $coveredDimensionSpacePoints->getUnion($relevantDimensionSpacePoints);
         }
 
-        $this->graphStructure->nodes[$event->contentStreamId->value][$event->nodeAggregateId->value][$event->originDimensionSpacePoint->hash] = $nodeRecord;
-        $this->graphStructure->totalNodeCount++;
+        $this->graphStructure->addNodeRecord($nodeRecord, $event->contentStreamId);
     }
 
     private function whenNodeSpecializationVariantWasCreated(NodeSpecializationVariantWasCreated $event, EventEnvelope $eventEnvelope): void
     {
-        throw new \Exception(__METHOD__ . ' not implemented yet');
-        /** @todo create and reconnect */
+        $originRecord = $this->graphStructure->nodes[$event->contentStreamId->value][$event->nodeAggregateId->value][$event->sourceOrigin->hash] ?? null;
+        if ($originRecord === null) {
+            throw new \RuntimeException('Failed to resolve origin node record', 1745229966);
+        }
+
+        /** @var array<int, array{nodeRecord: InMemoryNodeRecord, dimensionSpacePointSet: DimensionSpacePointSet}> $parentRecordsToPostprocess */
+        $parentRecordsToPostprocess = [];
+        $parentRelation = $originRecord->parentsByContentStreamId[$event->contentStreamId->value]
+            ->extractForDimensionSpacePointSet($event->specializationSiblings->toDimensionSpacePointSet());
+        $uncoveredDimensionSpacePointSet = $event->specializationSiblings->toDimensionSpacePointSet()->getDifference(
+            $parentRelation->getCoveredDimensionSpacePointSet()
+        );
+        foreach (
+            $this->graphStructure->nodes[$event->contentStreamId->value][$event->nodeAggregateId->value] as $parentNodeRecord
+        ) {
+            $additionallyCoveredDimensionSpacePointSet = $parentNodeRecord->getCoveredDimensionSpacePointSet($event->contentStreamId)
+                ->getIntersection($uncoveredDimensionSpacePointSet);
+            if (!$additionallyCoveredDimensionSpacePointSet->isEmpty()) {
+                $parentRelation->attach($parentNodeRecord, $additionallyCoveredDimensionSpacePointSet);
+                $parentRecordsToPostprocess[] = [
+                    'nodeRecord' => $parentNodeRecord,
+                    'dimensionSpacePointSet' => $additionallyCoveredDimensionSpacePointSet,
+                ];
+            }
+        }
+
+        $specializationRecord = new InMemoryNodeRecord(
+            $event->nodeAggregateId,
+            $event->specializationOrigin,
+            $originRecord->properties,
+            $originRecord->nodeTypeName,
+            $originRecord->classification,
+            $originRecord->name,
+            Timestamps::create($eventEnvelope->recordedAt, self::resolveInitiatingDateTime($eventEnvelope), null, null),
+            [
+                $event->contentStreamId->value => $parentRelation,
+            ],
+            [
+                $event->contentStreamId->value => $originRecord->childrenByContentStream[$event->contentStreamId->value]
+                    ->extractForDimensionSpacePointSet($event->specializationSiblings->toDimensionSpacePointSet())
+            ],
+            SubtreeTags::createEmpty(),
+            SubtreeTags::createEmpty(),
+        );
+
+        foreach ($parentRecordsToPostprocess as $parentRecordToPostprocess) {
+            foreach ($parentRecordToPostprocess['dimensionSpacePointSet'] as $dimensionSpacePoint) {
+                $siblingNodeRecords = $parentRecordToPostprocess['nodeRecord']->childrenByContentStream[$event->contentStreamId->value]->getNodeRecordsByDimensionSpacePoint($dimensionSpacePoint);
+                if ($siblingNodeRecords === null) {
+                    $parentRecordToPostprocess['nodeRecord']->childrenByContentStream[$event->contentStreamId->value]->attach(InMemoryNodeRecords::create($specializationRecord), $dimensionSpacePoint);
+                } else {
+                    $siblingNodeRecords->insert($specializationRecord, $event->specializationSiblings->getSucceedingSiblingIdForDimensionSpacePoint($dimensionSpacePoint));
+                }
+            }
+        }
+
+        /** @todo copy reference relations */
+        $this->graphStructure->addNodeRecord($specializationRecord, $event->contentStreamId);
     }
 
     private function whenNodeGeneralizationVariantWasCreated(NodeGeneralizationVariantWasCreated $event, EventEnvelope $eventEnvelope): void
