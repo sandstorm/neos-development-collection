@@ -57,6 +57,7 @@
         "neos/contentgraph-postgresqladapter": "self.version",
         "neos/contentrepository-behavioraltests": "self.version",
         "neos/contentrepository-core": "self.version",
+        "neos/contentrepository-dbal": "self.version",
         "neos/contentrepository-export": "self.version",
         "neos/contentrepository-legacynodemigration": "self.version",
         "neos/contentrepository-nodeaccess": "self.version",
@@ -150,6 +151,9 @@
             ],
             "Neos\\ContentRepository\\Core\\": [
                 "Neos.ContentRepository.Core/Classes"
+            ],
+            "Neos\\ContentRepository\\Dbal\\": [
+                "Neos.ContentRepository.Dbal/Classes"
             ],
             "Neos\\ContentRepository\\Export\\": [
                 "Neos.ContentRepository.Export/src/"
