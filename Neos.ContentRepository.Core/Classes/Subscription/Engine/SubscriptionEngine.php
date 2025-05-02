@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Core\Subscription\Engine;
 
-use Doctrine\DBAL\Exception\TableNotFoundException;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\EventStore\EventNormalizer;
 use Neos\ContentRepository\Core\Service\ContentRepositoryMaintainer;
@@ -132,7 +131,8 @@ final class SubscriptionEngine
         $statuses = [];
         try {
             $subscriptions = $this->subscriptionStore->findByCriteriaForUpdate(SubscriptionCriteria::create(ids: $criteria?->ids));
-        } catch (TableNotFoundException) {
+        } catch (\Doctrine\DBAL\Exception\TableNotFoundException) {
+            // todo do not depend on the dbal exception as this is totally implementation specific and the core has no dependency to dbal!
             // the schema is not setup - thus there are no subscribers
             return SubscriptionStatusCollection::createEmpty();
         }
