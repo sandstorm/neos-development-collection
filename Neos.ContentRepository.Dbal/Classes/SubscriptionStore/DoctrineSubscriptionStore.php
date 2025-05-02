@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepositoryRegistry\Factory\SubscriptionStore;
+namespace Neos\ContentRepository\Dbal\SubscriptionStore;
 
 use DateTimeImmutable;
 use Doctrine\DBAL\ArrayParameterType;
@@ -24,10 +24,9 @@ use Neos\ContentRepository\Core\Subscription\Subscriptions;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Psr\Clock\ClockInterface;
-use Neos\Flow\Annotations as Flow;
 
 /**
- * @Flow\Proxy(false)
+ * @internal only API for custom content repository integrations
  */
 final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
 {
