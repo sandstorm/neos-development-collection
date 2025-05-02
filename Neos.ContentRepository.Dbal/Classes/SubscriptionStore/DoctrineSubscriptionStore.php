@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Neos\ContentRepository\Dbal\SubscriptionStore;
 
-use DateTimeImmutable;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\SqlitePlatform;
@@ -155,7 +154,7 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
         } else {
             $subscriptionError = null;
         }
-        $lastSavedAt = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $row['last_saved_at']);
+        $lastSavedAt = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $row['last_saved_at']);
         if ($lastSavedAt === false) {
             throw new \RuntimeException(sprintf('last_saved_at %s is not a valid date', $row['last_saved_at']), 1733602968);
         }
