@@ -16,7 +16,6 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindRootNodeAggregatesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph\Projection\InMemoryContentGraphStructure;
 use Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph\Projection\InMemoryNodeRecord;
-use Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph\Projection\NullNodeRecord;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregate;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregates;
 use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
@@ -203,7 +202,9 @@ final class InMemoryContentGraph implements ContentGraphInterface
         $childNodeRecord = $this->graphStructure->nodes[$this->contentStreamId->value][$childNodeAggregateId->value][$childOriginDimensionSpacePoint->hash] ?? null;
 
         $parentNode = $childNodeRecord?->parentsByContentStreamId[$this->contentStreamId->value]
-            ->getNodeRecordByDimensionSpacePoint($childOriginDimensionSpacePoint->toDimensionSpacePoint());
+            ->getHierarchyHyperrelation($childOriginDimensionSpacePoint->toDimensionSpacePoint())
+            ->parent;
+
         if ($parentNode instanceof InMemoryNodeRecord) {
             return $this->findNodeAggregateById($parentNode->nodeAggregateId);
         }

@@ -231,7 +231,8 @@ final class NodeFactory
                     ),
                     iterator_to_array(
                         $nodeRecord->childrenByContentStream[$contentStreamId->value]
-                            ->getNodeRecordsByDimensionSpacePoint($dimensionSpacePoint, $nodeRecord->nodeAggregateId) ?: []
+                            ->getHierarchyHyperrelation($dimensionSpacePoint)
+                            ?->children ?: []
                     )
                 ))
                 : Subtrees::createEmpty()

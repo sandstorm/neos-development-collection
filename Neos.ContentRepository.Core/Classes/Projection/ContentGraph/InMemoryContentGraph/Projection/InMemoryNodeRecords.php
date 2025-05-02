@@ -34,6 +34,17 @@ final class InMemoryNodeRecords implements \IteratorAggregate
         return new self(...array_reverse($this->items));
     }
 
+    public function removeIfContained(InMemoryNodeRecord $record): void
+    {
+        foreach ($this->items as $i => $item) {
+            if ($item === $record) {
+                unset($this->items[$i]);
+                $this->items = array_values($this->items);
+                return;
+            }
+        }
+    }
+
     public function insert(InMemoryNodeRecord $nodeRecord, ?NodeAggregateId $succeedingSiblingId): void
     {
         if (!$succeedingSiblingId) {
