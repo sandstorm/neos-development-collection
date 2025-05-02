@@ -14,7 +14,6 @@ use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\Table;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\Types;
-use Neos\ContentRepository\Core\Infrastructure\DbalSchemaDiff;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionCriteria;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
 use Neos\ContentRepository\Core\Subscription\Subscription;
@@ -22,6 +21,7 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionError;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\Subscriptions;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
+use Neos\ContentRepository\Dbal\DbalSchemaDiff;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Psr\Clock\ClockInterface;
 
