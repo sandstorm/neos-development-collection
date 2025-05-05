@@ -30,7 +30,7 @@
         "imagine/imagine": "*",
         "doctrine/dbal": "^2.8",
         "neos/party": "*",
-        "neos/fusion-form": "^1.0 || ^2.0",
+        "neos/fusion-form": "^2.0 || ^3.0",
         "neos/form": "*",
         "neos/kickstarter": "~8.3.0"
     },
