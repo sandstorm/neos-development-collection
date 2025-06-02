@@ -89,7 +89,7 @@
       </trans-unit>
       <trans-unit id="workspaces.workspace.visibility.private.help" xml:space="preserve" approved="no">
         <source>Only the workspace owner can access and modify this workspace</source>
-        <target state="needs-translation">Kun korrekturlæsere og administratorer kan få adgang til og ændre dette arbejdsrum</target>
+        <target state="translated">Kun ejer af arbejdsrum kan få adgang til og ændre dette arbejdsrum</target>
       </trans-unit>
       <trans-unit id="workspaces.workspace.visibility.shared" xml:space="preserve" approved="yes">
         <source>Shared</source>
