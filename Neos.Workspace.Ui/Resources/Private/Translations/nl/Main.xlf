@@ -81,11 +81,11 @@
       </trans-unit>
       <trans-unit id="workspaces.workspace.visibility.private.help" xml:space="preserve">
         <source>Only the workspace owner can access and modify this workspace</source>
-        <target state="needs-translation">Alleen reviewers en administrators hebben toegang en kunnen wijzigingen aanbrengen in deze workspace</target>
+        <target state="translated">Alleen workspace eigenaren hebben toegang en kunnen wijzigingen aanbrengen in deze workspace</target>
       </trans-unit>
       <trans-unit id="workspaces.workspace.visibility.shared" xml:space="preserve">
         <source>Shared</source>
-        <target state="translated">Intern</target>
+        <target state="translated">Gedeeld</target>
       </trans-unit>
       <trans-unit id="workspaces.workspace.visibility.shared.help" xml:space="preserve">
         <source>Any logged in editor can see and modify this workspace.</source>
