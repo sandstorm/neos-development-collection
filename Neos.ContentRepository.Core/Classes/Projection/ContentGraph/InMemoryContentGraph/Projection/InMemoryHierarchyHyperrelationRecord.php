@@ -19,4 +19,16 @@ final class InMemoryHierarchyHyperrelationRecord
         public InMemoryNodeRecords $children,
     ) {
     }
+
+    public function toJson(): string
+    {
+        return json_encode([
+            'parent' => $this->parent?->toJson(),
+            'dimensionSpacePoint' => $this->dimensionSpacePoint->toJson(),
+            'children' => array_map(
+                fn (InMemoryNodeRecord $record) => $record->toJson(),
+                iterator_to_array($this->children)
+            )
+        ]);
+    }
 }

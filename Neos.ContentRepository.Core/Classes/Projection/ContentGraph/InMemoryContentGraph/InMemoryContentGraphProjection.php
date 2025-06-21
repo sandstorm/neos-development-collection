@@ -54,6 +54,7 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph\Rep
 use Neos\ContentRepository\Core\Projection\ContentGraph\InMemoryContentGraph\Repository\InMemoryWorkspaceRegistry;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Timestamps;
 use Neos\ContentRepository\Core\Projection\ProjectionStatus;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\EventStore\Model\EventEnvelope;
 
 /**
@@ -337,6 +338,20 @@ final class InMemoryContentGraphProjection implements ContentGraphProjectionInte
         );
 
         foreach ($event->specializationSiblings as $specializationSibling) {
+            // reassign parent relations of the specialization's new children
+            foreach ($aggregateNodeRecords as $aggregateNodeRecord) {
+                if ($aggregateNodeRecord->coversDimensionSpacePoint($event->contentStreamId, $specializationSibling->dimensionSpacePoint)) {
+                    $childRelation = $aggregateNodeRecord->childrenByContentStream[$event->contentStreamId->value]
+                        ->getHierarchyHyperrelation($specializationSibling->dimensionSpacePoint);
+                    if ($childRelation) {
+                        $childRelation->parent = $specializationRecord;
+                        $aggregateNodeRecord->childrenByContentStream[$event->contentStreamId->value]->detach($childRelation);
+                        $childRelations->attach($childRelation);
+                    }
+                    // else there are no children yet, which is unchanged by this operation
+                }
+            }
+
             // reassign child relations of the specialization's new parents
             foreach ($parentNodeRecords as $parentNodeRecord) {
                 if ($parentNodeRecord->coversDimensionSpacePoint($event->contentStreamId, $specializationSibling->dimensionSpacePoint)) {
@@ -357,20 +372,6 @@ final class InMemoryContentGraphProjection implements ContentGraphProjectionInte
                     $parentRelations->attach($specializationParentRelation);
                 }
             }
-
-            // reassign parent relations of the specialization's new children
-            foreach ($aggregateNodeRecords as $aggregateNodeRecord) {
-                if ($aggregateNodeRecord->coversDimensionSpacePoint($event->contentStreamId, $specializationSibling->dimensionSpacePoint)) {
-                    $childRelation = $aggregateNodeRecord->childrenByContentStream[$event->contentStreamId->value]
-                        ->getHierarchyHyperrelation($specializationSibling->dimensionSpacePoint);
-                    if ($childRelation) {
-                        $childRelation->parent = $specializationRecord;
-                        $aggregateNodeRecord->childrenByContentStream[$event->contentStreamId->value]->detach($childRelation);
-                        $childRelations->attach($childRelation);
-                    }
-                    // else there are no children yet, which is unchanged by this operation
-                }
-            }
         }
 
         /** @todo copy reference relations */
@@ -379,14 +380,165 @@ final class InMemoryContentGraphProjection implements ContentGraphProjectionInte
 
     private function whenNodeGeneralizationVariantWasCreated(NodeGeneralizationVariantWasCreated $event, EventEnvelope $eventEnvelope): void
     {
-        throw new \Exception(__METHOD__ . ' not implemented yet');
-        /** @todo create and reconnect */
+        $originRecord = $this->graphStructure->nodes[$event->contentStreamId->value][$event->nodeAggregateId->value][$event->sourceOrigin->hash] ?? null;
+        if ($originRecord === null) {
+            throw new \RuntimeException('Failed to resolve origin node record', 1745229966);
+        }
+        $originParentRecord = $originRecord->parentsByContentStreamId[$event->contentStreamId->value]
+            ->getHierarchyHyperrelation($originRecord->originDimensionSpacePoint->toDimensionSpacePoint())
+            ->parent;
+        if ($originParentRecord === null) {
+            throw new \RuntimeException('Failed to resolve parent node record of origin', 1745361216);
+        }
+        $parentNodeRecords = $this->graphStructure->nodes[$event->contentStreamId->value][$originParentRecord->nodeAggregateId->value] ?? null;
+        if ($parentNodeRecords === null) {
+            throw new \RuntimeException('Failed to resolve parent node records', 1745180042);
+        }
+        $parentRelations = new InMemoryHierarchyHyperrelationRecordSet();
+
+        $aggregateNodeRecords = $this->graphStructure->nodes[$event->contentStreamId->value][$event->nodeAggregateId->value];
+        $childRelations = new InMemoryHierarchyHyperrelationRecordSet();
+
+        $generalizationRecord = new InMemoryNodeRecord(
+            $event->nodeAggregateId,
+            $event->generalizationOrigin,
+            $originRecord->properties,
+            $originRecord->nodeTypeName,
+            $originRecord->classification,
+            $originRecord->name,
+            Timestamps::create($eventEnvelope->recordedAt, self::resolveInitiatingDateTime($eventEnvelope), null, null),
+            [
+                $event->contentStreamId->value => $parentRelations,
+            ],
+            [
+                $event->contentStreamId->value => $childRelations,
+            ],
+            SubtreeTags::createEmpty(),
+            SubtreeTags::createEmpty(),
+        );
+
+        foreach ($event->variantSucceedingSiblings as $generalizationSiblings) {
+            // reassign parent relations of the generalization's new children
+            foreach ($aggregateNodeRecords as $aggregateNodeRecord) {
+                if ($aggregateNodeRecord->coversDimensionSpacePoint($event->contentStreamId, $generalizationSiblings->dimensionSpacePoint)) {
+                    $childRelation = $aggregateNodeRecord->childrenByContentStream[$event->contentStreamId->value]
+                        ->getHierarchyHyperrelation($generalizationSiblings->dimensionSpacePoint);
+                    if ($childRelation) {
+                        $childRelation->parent = $generalizationRecord;
+                        $aggregateNodeRecord->childrenByContentStream[$event->contentStreamId->value]->detach($childRelation);
+                        $childRelations->attach($childRelation);
+                    }
+                    // else there are no children yet, which is unchanged by this operation
+                }
+            }
+
+            // reassign child relations of the generalization's new parents
+            foreach ($parentNodeRecords as $parentNodeRecord) {
+                if ($parentNodeRecord->coversDimensionSpacePoint($event->contentStreamId, $generalizationSiblings->dimensionSpacePoint)) {
+                    $specializationParentRelation = $parentNodeRecord->childrenByContentStream[$event->contentStreamId->value]
+                        ->getHierarchyHyperrelation($generalizationSiblings->dimensionSpacePoint);
+                    if ($specializationParentRelation) {
+                        $specializationParentRelation->children->removeIfContained($originRecord);
+                        $specializationParentRelation->children->insert($generalizationRecord, $generalizationSiblings->nodeAggregateId);
+                        $originRecord->parentsByContentStreamId[$event->contentStreamId->value]->detach($specializationParentRelation);
+                    } else {
+                        $specializationParentRelation = new InMemoryHierarchyHyperrelationRecord(
+                            $parentNodeRecord,
+                            $generalizationSiblings->dimensionSpacePoint,
+                            InMemoryNodeRecords::create($generalizationRecord)
+                        );
+                        $parentNodeRecord->childrenByContentStream[$event->contentStreamId->value]->attach($specializationParentRelation);
+                    }
+                    $parentRelations->attach($specializationParentRelation);
+                }
+            }
+        }
+
+        /** @todo copy reference relations */
+        $this->graphStructure->addNodeRecord($generalizationRecord, $event->contentStreamId);
     }
 
     private function whenNodePeerVariantWasCreated(NodePeerVariantWasCreated $event, EventEnvelope $eventEnvelope): void
     {
-        throw new \Exception(__METHOD__ . ' not implemented yet');
-        /** @todo create and reconnect */
+        $originRecord = $this->graphStructure->nodes[$event->contentStreamId->value][$event->nodeAggregateId->value][$event->sourceOrigin->hash] ?? null;
+        if ($originRecord === null) {
+            throw new \RuntimeException('Failed to resolve origin node record', 1745229966);
+        }
+        $originParentRecord = $originRecord->parentsByContentStreamId[$event->contentStreamId->value]
+            ->getHierarchyHyperrelation($originRecord->originDimensionSpacePoint->toDimensionSpacePoint())
+            ->parent;
+        if ($originParentRecord === null) {
+            throw new \RuntimeException('Failed to resolve parent node record of origin', 1745361216);
+        }
+        $parentNodeRecords = $this->graphStructure->nodes[$event->contentStreamId->value][$originParentRecord->nodeAggregateId->value] ?? null;
+        if ($parentNodeRecords === null) {
+            throw new \RuntimeException('Failed to resolve parent node records', 1745180042);
+        }
+        $parentRelations = new InMemoryHierarchyHyperrelationRecordSet();
+
+        $aggregateNodeRecords = $this->graphStructure->nodes[$event->contentStreamId->value][$event->nodeAggregateId->value];
+        $childRelations = new InMemoryHierarchyHyperrelationRecordSet();
+
+        $peerRecord = new InMemoryNodeRecord(
+            $event->nodeAggregateId,
+            $event->peerOrigin,
+            $originRecord->properties,
+            $originRecord->nodeTypeName,
+            $originRecord->classification,
+            $originRecord->name,
+            Timestamps::create($eventEnvelope->recordedAt, self::resolveInitiatingDateTime($eventEnvelope), null, null),
+            [
+                $event->contentStreamId->value => $parentRelations,
+            ],
+            [
+                $event->contentStreamId->value => $childRelations,
+            ],
+            SubtreeTags::createEmpty(),
+            SubtreeTags::createEmpty(),
+        );
+
+        foreach ($event->peerSucceedingSiblings as $peerSucceedingSibling) {
+            // reassign parent relations of the peer's new children
+            foreach ($aggregateNodeRecords as $aggregateNodeRecord) {
+                if ($aggregateNodeRecord->coversDimensionSpacePoint($event->contentStreamId, $peerSucceedingSibling->dimensionSpacePoint)) {
+                    $childRelation = $aggregateNodeRecord->childrenByContentStream[$event->contentStreamId->value]
+                        ->getHierarchyHyperrelation($peerSucceedingSibling->dimensionSpacePoint);
+                    if ($event->nodeAggregateId->equals(NodeAggregateId::fromString('nody-mc-nodeface'))) {
+                        \Neos\Flow\var_dump($childRelation->toJson(), $peerSucceedingSibling->dimensionSpacePoint->toJson());
+                    }
+                    if ($childRelation) {
+                        $childRelation->parent = $peerRecord;
+                        $aggregateNodeRecord->childrenByContentStream[$event->contentStreamId->value]->detach($childRelation);
+                        $childRelations->attach($childRelation);
+                    }
+                    // else there are no children yet, which is unchanged by this operation
+                }
+            }
+
+            // reassign child relations of the peer's new parents
+            foreach ($parentNodeRecords as $parentNodeRecord) {
+                if ($parentNodeRecord->coversDimensionSpacePoint($event->contentStreamId, $peerSucceedingSibling->dimensionSpacePoint)) {
+                    $peerParentRelation = $parentNodeRecord->childrenByContentStream[$event->contentStreamId->value]
+                        ->getHierarchyHyperrelation($peerSucceedingSibling->dimensionSpacePoint);
+                    if ($peerParentRelation) {
+                        $peerParentRelation->children->removeIfContained($originRecord);
+                        $peerParentRelation->children->insert($peerRecord, $peerSucceedingSibling->nodeAggregateId);
+                        $originRecord->parentsByContentStreamId[$event->contentStreamId->value]->detach($peerParentRelation);
+                    } else {
+                        $peerParentRelation = new InMemoryHierarchyHyperrelationRecord(
+                            $parentNodeRecord,
+                            $peerSucceedingSibling->dimensionSpacePoint,
+                            InMemoryNodeRecords::create($peerRecord)
+                        );
+                        $parentNodeRecord->childrenByContentStream[$event->contentStreamId->value]->attach($peerParentRelation);
+                    }
+                    $parentRelations->attach($peerParentRelation);
+                }
+            }
+        }
+
+        /** @todo copy reference relations */
+        $this->graphStructure->addNodeRecord($peerRecord, $event->contentStreamId);
     }
 
     private function whenNodePropertiesWereSet(NodePropertiesWereSet $event, EventEnvelope $eventEnvelope): void

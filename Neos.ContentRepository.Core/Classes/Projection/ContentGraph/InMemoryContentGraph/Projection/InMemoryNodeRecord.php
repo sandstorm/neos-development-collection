@@ -53,4 +53,12 @@ final class InMemoryNodeRecord
         return $this->parentsByContentStreamId[$contentStreamId->value]
             ->getCoveredDimensionSpacePointSet();
     }
+
+    public function toJson(): string
+    {
+        return \json_encode([
+            'nodeAggregateId' => $this->nodeAggregateId,
+            'originDimensionSpacePoint' => $this->originDimensionSpacePoint,
+        ]);
+    }
 }
