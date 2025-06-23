@@ -29,7 +29,6 @@ use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepositoryRegistry\Exception\ContentRepositoryNotFoundException;
 use Neos\ContentRepositoryRegistry\Exception\InvalidConfigurationException;
-use Neos\ContentRepositoryRegistry\Factory\AuthProvider\DecoratingLegacyAuthProviderFactory;
 use Neos\ContentRepositoryRegistry\Factory\Clock\ClockFactoryInterface;
 use Neos\ContentRepositoryRegistry\Factory\ContentDimensionSource\ContentDimensionSourceFactoryInterface;
 use Neos\ContentRepositoryRegistry\Factory\EventStore\EventStoreFactoryInterface;
@@ -46,7 +45,6 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 use Symfony\Component\Serializer\Serializer;
-use Neos\ContentRepositoryRegistry\Factory\AuthProvider\AuthProviderFactoryInterface as LegacyAuthProviderFactoryInterface;
 
 /**
  * @api
@@ -365,9 +363,6 @@ final class ContentRepositoryRegistry
     {
         isset($contentRepositorySettings['authProvider']['factoryObjectName']) || throw InvalidConfigurationException::fromMessage('Content repository "%s" does not have authProvider.factoryObjectName configured.', $contentRepositoryId->value);
         $authProviderFactory = $this->objectManager->get($contentRepositorySettings['authProvider']['factoryObjectName']);
-        if ($authProviderFactory instanceof LegacyAuthProviderFactoryInterface) {
-            return new DecoratingLegacyAuthProviderFactory($authProviderFactory);
-        }
         if (!$authProviderFactory instanceof AuthProviderFactoryInterface) {
             throw InvalidConfigurationException::fromMessage('authProvider.factoryObjectName for content repository "%s" is not an instance of %s but %s.', $contentRepositoryId->value, AuthProviderFactoryInterface::class, get_debug_type($authProviderFactory));
         }
