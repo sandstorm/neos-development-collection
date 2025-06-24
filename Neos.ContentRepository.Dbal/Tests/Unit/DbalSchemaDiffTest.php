@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
-namespace Neos\ContentRepository\Core\Tests\Unit\Infrastructure;
+
+namespace Neos\ContentRepository\Dbal\Tests\Unit;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
@@ -9,7 +10,7 @@ use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\Table;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\Types;
-use Neos\ContentRepository\Core\Infrastructure\DbalSchemaDiff;
+use Neos\ContentRepository\Dbal\DbalSchemaDiff;
 use PHPUnit\Framework\TestCase;
 
 class DbalSchemaDiffTest extends TestCase

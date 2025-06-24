@@ -12,12 +12,10 @@
     ],
     "require": {
         "neos/eventstore": "^1",
-        "neos/eventstore-doctrineadapter": "^1 || ^2",
         "php": "^8.2",
         "neos/error-messages": "*",
         "neos/utility-objecthandling": "*",
         "neos/utility-arrays": "*",
-        "doctrine/dbal": "^3.1.4",
         "symfony/serializer": "^6.3",
         "psr/clock": "^1",
         "behat/transliterator": "~1.0",

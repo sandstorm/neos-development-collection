@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\Core\Infrastructure;
+namespace Neos\ContentRepository\Dbal;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception;
-use Doctrine\DBAL\Schema\AbstractSchemaManager;
 use Doctrine\DBAL\Schema\Comparator;
 use Doctrine\DBAL\Schema\Schema;
 

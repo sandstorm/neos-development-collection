@@ -2,9 +2,8 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepositoryRegistry\Factory\SubscriptionStore;
+namespace Neos\ContentRepository\Dbal\SubscriptionStore;
 
-use DateTimeImmutable;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\SqlitePlatform;
@@ -14,7 +13,6 @@ use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\Table;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\Types;
-use Neos\ContentRepository\Core\Infrastructure\DbalSchemaDiff;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionCriteria;
 use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
 use Neos\ContentRepository\Core\Subscription\Subscription;
@@ -22,12 +20,12 @@ use Neos\ContentRepository\Core\Subscription\SubscriptionError;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
 use Neos\ContentRepository\Core\Subscription\Subscriptions;
 use Neos\ContentRepository\Core\Subscription\SubscriptionStatus;
+use Neos\ContentRepository\Dbal\DbalSchemaDiff;
 use Neos\EventStore\Model\Event\SequenceNumber;
 use Psr\Clock\ClockInterface;
-use Neos\Flow\Annotations as Flow;
 
 /**
- * @Flow\Proxy(false)
+ * @internal only API for custom content repository integrations
  */
 final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
 {
@@ -156,7 +154,7 @@ final class DoctrineSubscriptionStore implements SubscriptionStoreInterface
         } else {
             $subscriptionError = null;
         }
-        $lastSavedAt = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $row['last_saved_at']);
+        $lastSavedAt = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $row['last_saved_at']);
         if ($lastSavedAt === false) {
             throw new \RuntimeException(sprintf('last_saved_at %s is not a valid date', $row['last_saved_at']), 1733602968);
         }
