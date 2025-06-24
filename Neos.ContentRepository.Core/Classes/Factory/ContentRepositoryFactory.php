@@ -39,7 +39,6 @@ use Neos\ContentRepository\Core\Subscription\Store\SubscriptionStoreInterface;
 use Neos\ContentRepository\Core\Subscription\Subscriber\ProjectionSubscriber;
 use Neos\ContentRepository\Core\Subscription\Subscriber\Subscribers;
 use Neos\ContentRepository\Core\Subscription\SubscriptionId;
-use Neos\ContentRepositoryRegistry\Factory\AuthProvider\AuthProviderFactoryInterface;
 use Neos\EventStore\EventStoreInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
