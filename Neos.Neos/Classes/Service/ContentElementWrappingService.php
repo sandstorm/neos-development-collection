@@ -37,27 +37,18 @@ class ContentElementWrappingService
 
     /**
      * Wrap the $content identified by $node with the needed markup for the backend.
-     *
-     * @param array<string,string> $additionalAttributes
      */
     public function wrapContentObject(
         Node $node,
         string $content,
-        string $fusionPath,
-        array $additionalAttributes = []
+        string $fusionPath
     ): ?string {
         // TODO: reenable permissions
         //if ($this->nodeAuthorizationService->isGrantedToEditNode($node) === false) {
         //    return $content;
         //}
-
-
         $nodeAddressJson = NodeAddress::fromNode($node)->toJson();
-        $attributes = $additionalAttributes;
-        $attributes['fusionPath'] = $fusionPath;
-        $attributes['nodeAddress'] = $nodeAddressJson;
-
-        $htmlCommentStart = '<!--__NEOS_UI_NODE_START__ ' . json_encode($attributes) . '-->';
+        $htmlCommentStart = '<!--__NEOS_UI_NODE_START__ ' . $nodeAddressJson . '__' . $fusionPath . '-->';
         $htmlCommentEnd = '<!--__NEOS_UI_NODE_END__' . $nodeAddressJson . '-->';
         return $htmlCommentStart . $content . $htmlCommentEnd;
     }
