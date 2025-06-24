@@ -12,13 +12,13 @@
 
 declare(strict_types=1);
 
-namespace Neos\ContentRepository\BehavioralTests\TestSuite\Behavior;
+namespace Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap;
 
 use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
 use Doctrine\DBAL\Connection;
 use Neos\ContentRepository\Core\ContentRepository;
-use Neos\ContentRepository\Core\Service\ContentRepositoryMaintainerFactory;
+use Neos\ContentRepository\Core\Service\ContentRepositoryMaintainer;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\Subscription\Engine\SubscriptionEngine;
 use Neos\ContentRepository\TestSuite\Behavior\Features\Bootstrap\Helpers\GherkinTableNodeBasedContentDimensionSource;
@@ -181,22 +181,31 @@ trait CRBehavioralTestsSubjectProvider
          * Catch Up process and the testcase reset.
          */
         $contentRepository = $this->createContentRepository($contentRepositoryId);
-        $contentRepositoryMaintainer = $this->contentRepositoryRegistry->buildService($contentRepositoryId, new ContentRepositoryMaintainerFactory());
+
+        // todo instead of this hack we should use getContentRepositoryService which just does not allow to specify $contentRepositoryId and
+        // refers to $currentCr->id which does not exist yet: https://github.com/neos/neos-development-collection/pull/5341
+        // $contentRepositoryMaintainer = $this->getContentRepositoryService($contentRepositoryId, new ContentRepositoryMaintainerFactory());
+        /** @var EventStoreInterface $eventStore */
+        $eventStore = (new \ReflectionClass($contentRepository))->getProperty('eventStore')->getValue($contentRepository);
+        /** @var SubscriptionEngine $subscriptionEngine */
+        $subscriptionEngine = (new \ReflectionClass($contentRepository))->getProperty('subscriptionEngine')->getValue($contentRepository);
+        $contentRepositoryMaintainer = new ContentRepositoryMaintainer(
+            $eventStore,
+            $subscriptionEngine
+        );
+
         if (!in_array($contentRepository->id, self::$alreadySetUpContentRepositories)) {
             $result = $contentRepositoryMaintainer->setUp();
             Assert::assertNull($result);
             self::$alreadySetUpContentRepositories[] = $contentRepository->id;
         }
         // todo we TRUNCATE here and do not want to use $contentRepositoryMaintainer->prune(); here as it would not reset the autoincrement sequence number making some assertions impossible
-        /** @var EventStoreInterface $eventStore */
-        $eventStore = (new \ReflectionClass($contentRepository))->getProperty('eventStore')->getValue($contentRepository);
+
         /** @var Connection $databaseConnection */
         $databaseConnection = (new \ReflectionClass($eventStore))->getProperty('connection')->getValue($eventStore);
         $eventTableName = sprintf('cr_%s_events', $contentRepositoryId->value);
         $databaseConnection->executeStatement('TRUNCATE ' . $eventTableName);
 
-        /** @var SubscriptionEngine $subscriptionEngine */
-        $subscriptionEngine = (new \ReflectionClass($contentRepositoryMaintainer))->getProperty('subscriptionEngine')->getValue($contentRepositoryMaintainer);
         $result = $subscriptionEngine->reset();
         Assert::assertNull($result->errors);
         $result = $subscriptionEngine->boot();
