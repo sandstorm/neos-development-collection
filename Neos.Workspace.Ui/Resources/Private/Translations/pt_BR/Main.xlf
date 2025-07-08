@@ -33,7 +33,7 @@
       </trans-unit>
       <trans-unit id="workspaces.deleteWorkspace" xml:space="preserve">
         <source>Delete workspace "{0}"</source>
-        <target state="needs-translation">Apagar espaço de trabalho</target>
+        <target state="translated">Excluir espaço de trabalho "{0}"</target>
       </trans-unit>
       <trans-unit id="workspaces.editWorkspace" xml:space="preserve">
         <source>Edit workspace</source>
@@ -255,11 +255,11 @@
       </trans-unit>
       <trans-unit id="applyChanges" xml:space="preserve">
         <source>Apply changes</source>
-        <target state="needs-translation">Aplicar alterações</target>
+        <target state="translated">Aplicar mudanças</target>
       </trans-unit>
       <trans-unit id="workspaces.reviewWorkspace.label" xml:space="preserve">
         <source>Review</source>
-        <target state="needs-translation">Revisão</target>
+        <target state="translated">Revisão</target>
       </trans-unit>
       <trans-unit id="workspaces.workspace.lastModified" xml:space="preserve">
         <source>Last modified</source>
@@ -272,6 +272,18 @@
       <trans-unit id="workspaces.dialog.rebase.node" xml:space="preserve">
         <source>Node</source>
         <target state="needs-translation">Nó</target>
+      </trans-unit>
+      <trans-unit id="workspaces.reviewWorkspace" xml:space="preserve">
+        <source>Review workspace "{0}"</source>
+        <target state="translated">Revisar workspace "{0}"</target>
+      </trans-unit>
+      <trans-unit id="workspaces.reviewWorkspace.disabled" xml:space="preserve">
+        <source>Workspace "{0}" has no unpublished changes</source>
+        <target state="translated">Workspace "{0}" não tem alterações inéditas</target>
+      </trans-unit>
+      <trans-unit id="workspaces.numberOfWorkspaces" xml:space="preserve">
+        <source>{0} workspaces</source>
+        <target state="translated">Espaços de Trabalho</target>
       </trans-unit>
     </body>
   </file>
