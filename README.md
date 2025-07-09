@@ -13,6 +13,8 @@ Version](https://poser.pugx.org/neos/neos-development-collection/v/9.0)](https:/
 
 # Neos development collection
 
+test
+
 This repository is a collection of packages for the Neos content
 application platform (learn more on <https://www.neos.io/>). The
 repository is used for development and all pull requests should go into
